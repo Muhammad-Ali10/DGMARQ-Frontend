@@ -1,0 +1,15 @@
+export { default as DgmarqFeatures } from './DgmarqFeatures';
+export { default as Verified } from './Verifie';
+export { default as WorkingSteps } from './WorkingSteps';
+export { default as Slider } from './Slider';
+export { default as Partner } from './Partners';
+export { default as CallToAction } from './CallToAction';
+export { default as FooterBlogs } from './FooterBlogs';
+export { default as CustomizedHero } from './CustomizedHero';
+export { default as PromoSection } from './PromoSection';
+export { default as FarmeWork } from './FarmeWork';
+export { default as ContactFrom } from './ContactForm';
+export { default as Help } from './Help';
+export { default as Slider2 } from './Slider2';
+export { default as Faqs } from './Faqs';
+export { default as ContactFrom2 } from './ContactForm2';
