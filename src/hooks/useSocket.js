@@ -2,11 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useSelector } from 'react-redux';
 
+// Singleton socket instance to prevent multiple connections
+let globalSocket = null;
+
 export const useSocket = () => {
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const { token, isAuthenticated } = useSelector((state) => state.auth);
   const accessToken = token || localStorage.getItem('accessToken');
+  const DEBUG_SOCKET = import.meta.env.DEV; // Enable debug logging in development
 
   useEffect(() => {
     if (!isAuthenticated || !accessToken) {
@@ -14,36 +18,36 @@ export const useSocket = () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
+        globalSocket = null;
         setIsConnected(false);
       }
       return;
     }
 
-    // Extract socket URL from API base URL
-    // Handle both http://domain.com/api/v1 and https://domain.com/api/v1 formats
-    let socketUrl = 'http://localhost:8000'; // Default fallback
+    // Use VITE_SOCKET_URL explicitly
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
     
-    if (import.meta.env.VITE_API_BASE_URL) {
-      const apiUrl = import.meta.env.VITE_API_BASE_URL;
-      // Remove /api/v1 if present
-      socketUrl = apiUrl.replace(/\/api\/v1$/, '').replace(/\/api\/v1\/$/, '');
-      
-      // Ensure we have a protocol
-      if (!socketUrl.startsWith('http://') && !socketUrl.startsWith('https://')) {
-        // If no protocol, assume same protocol as current page
-        socketUrl = window.location.protocol === 'https:' 
-          ? `https://${socketUrl}` 
-          : `http://${socketUrl}`;
-      }
+    // Use singleton socket if it exists and is connected
+    if (globalSocket && globalSocket.connected) {
+      socketRef.current = globalSocket;
+      setIsConnected(true);
+      return;
+    }
+
+    // Clean up old socket if it exists but is disconnected
+    if (globalSocket && !globalSocket.connected) {
+      globalSocket.removeAllListeners();
+      globalSocket.disconnect();
+      globalSocket = null;
     }
     
-    // Only create new socket if one doesn't exist or is disconnected
-    if (!socketRef.current || !socketRef.current.connected) {
-      socketRef.current = io(socketUrl, {
+    // Create new socket instance (singleton pattern)
+    if (!globalSocket) {
+      globalSocket = io(socketUrl, {
         auth: {
           token: accessToken,
         },
-        transports: ['polling', 'websocket'], // Prioritize polling first for better compatibility
+        transports: ['websocket'], // Use websocket only for production
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
@@ -53,59 +57,74 @@ export const useSocket = () => {
         withCredentials: true,
       });
 
-      socketRef.current.on('connect', () => {
-        console.log('✅ Socket connected successfully');
+      // Set up event listeners (only once for singleton)
+      globalSocket.on('connect', () => {
+        if (DEBUG_SOCKET) console.log('✅ Socket connected successfully');
         setIsConnected(true);
       });
 
-      socketRef.current.on('disconnect', (reason) => {
-        console.log('❌ Socket disconnected:', reason);
+      globalSocket.on('disconnect', (reason) => {
+        if (DEBUG_SOCKET) console.log('❌ Socket disconnected:', reason);
         setIsConnected(false);
         
         // Attempt to reconnect if not a manual disconnect
         if (reason === 'io server disconnect') {
-          // Server disconnected, try to reconnect manually
-          socketRef.current.connect();
+          globalSocket.connect();
         }
       });
 
-      socketRef.current.on('error', (error) => {
-        console.error('⚠️ Socket error:', error);
+      globalSocket.on('error', () => {
+        if (DEBUG_SOCKET) console.error('⚠️ Socket error');
         setIsConnected(false);
       });
 
-      socketRef.current.on('connect_error', (error) => {
-        console.error('❌ Socket connection error:', error.message);
-        console.error('Socket URL:', socketUrl);
-        console.error('Error details:', error);
+      globalSocket.on('connect_error', (error) => {
+        if (DEBUG_SOCKET) {
+          console.error('❌ Socket connection error:', error.message);
+          console.error('Socket URL:', socketUrl);
+          console.error('Error details:', error);
+        }
         setIsConnected(false);
       });
 
-      socketRef.current.on('reconnect', (attemptNumber) => {
-        console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+      globalSocket.on('reconnect', (attemptNumber) => {
+        if (DEBUG_SOCKET) console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
         setIsConnected(true);
       });
 
-      socketRef.current.on('reconnect_attempt', (attemptNumber) => {
-        console.log('🔄 Reconnection attempt', attemptNumber);
+      globalSocket.on('reconnect_attempt', (attemptNumber) => {
+        if (DEBUG_SOCKET) console.log('🔄 Reconnection attempt', attemptNumber);
       });
 
-      socketRef.current.on('reconnect_error', (error) => {
-        console.error('❌ Reconnection error:', error.message);
+      globalSocket.on('reconnect_error', (error) => {
+        if (DEBUG_SOCKET) console.error('❌ Reconnection error:', error.message);
       });
 
-      socketRef.current.on('reconnect_failed', () => {
-        console.error('❌ Socket reconnection failed after all attempts');
+      globalSocket.on('reconnect_failed', () => {
+        if (DEBUG_SOCKET) console.error('❌ Socket reconnection failed after all attempts');
         setIsConnected(false);
       });
+
+      // Optional: onAny logging for debugging (only in dev)
+      if (DEBUG_SOCKET && globalSocket.onAny) {
+        globalSocket.onAny((event, ...args) => {
+          console.log('📡 Socket event:', event, args);
+        });
+      }
     }
 
+    socketRef.current = globalSocket;
+
     return () => {
-      // Don't disconnect on cleanup - keep connection alive
+      // Don't disconnect on cleanup - keep singleton connection alive
       // Only disconnect if component unmounts or auth changes
+      socketRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, accessToken]);
 
+  // Return socket from ref - this is a common pattern for hooks
+  // The ref is updated in the effect, and components can use it safely
   return { socket: socketRef.current, isConnected };
 };
 

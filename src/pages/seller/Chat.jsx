@@ -12,6 +12,7 @@ import { useSocket } from '../../hooks/useSocket';
 import { useChatNotifications } from '../../hooks/useChatNotifications';
 import MessageBubble from '../../components/chat/MessageBubble';
 import { useSelector } from 'react-redux';
+import { showApiError } from '../../utils/toast';
 
 const SellerChat = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -183,9 +184,9 @@ const SellerChat = () => {
   const sendMessageMutation = useMutation({
     mutationFn: (data) => chatAPI.sendMessage(data),
     onSuccess: (response) => {
-      // Only used as fallback when socket is not available
-      // Add message to cache and update conversations list
-      if (response?.data?.data) {
+      // Message saved via HTTP API - socket event will update UI in real-time
+      // Just remove optimistic message if exists
+      if (response?.data?.data && selectedConversation) {
         const sentMessage = response.data.data;
         queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
           if (!old || !old.pages || old.pages.length === 0) return old;
@@ -193,28 +194,42 @@ const SellerChat = () => {
           const lastPage = old.pages[old.pages.length - 1];
           const existingMessages = lastPage.messages || [];
           
-          // Dedupe: Check if message already exists
-          const existingMessageIds = new Set(existingMessages.map(msg => msg._id?.toString()));
-          const sentMessageId = sentMessage._id?.toString();
-          
-          if (sentMessageId && existingMessageIds.has(sentMessageId)) {
-            return old; // Already exists
-          }
-          
-          // Remove optimistic message if exists
-          const filteredMessages = existingMessages.filter(msg => !msg.isOptimistic || msg._id !== sentMessage._id);
+          // Remove optimistic message (socket event will add the real one)
+          const filteredMessages = existingMessages.filter(msg => !msg.isOptimistic || msg._id?.toString() !== sentMessage._id?.toString());
           
           return {
             ...old,
             pages: old.pages.map((page, index) => 
               index === old.pages.length - 1
-                ? { ...page, messages: [...filteredMessages, sentMessage] }
+                ? { ...page, messages: filteredMessages }
                 : page
             ),
           };
         });
       }
       queryClient.invalidateQueries(['seller-conversations']);
+    },
+    onError: (error) => {
+      // Remove optimistic message on error
+      if (selectedConversation) {
+        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
+          if (!old || !old.pages || old.pages.length === 0) return old;
+          
+          const lastPage = old.pages[old.pages.length - 1];
+          const filteredMessages = (lastPage.messages || []).filter(msg => !msg.isOptimistic);
+          
+          return {
+            ...old,
+            pages: old.pages.map((page, index) => 
+              index === old.pages.length - 1
+                ? { ...page, messages: filteredMessages }
+                : page
+            ),
+          };
+        });
+      }
+      // Show error toast with proper error handling
+      showApiError(error, 'Failed to send message');
     },
   });
 

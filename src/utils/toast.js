@@ -82,11 +82,13 @@ export const showApiError = (error, defaultMessage = 'An error occurred') => {
     message = error;
   }
 
-  // Network errors
+  // Only show "Network error" if there's no response (actual network failure)
+  // For valid API responses (4xx/5xx), show the actual error message
   if (!error?.response) {
     message = 'Network error';
     description = 'Please check your internet connection';
   }
+  // If error.response exists, use the message we already extracted above
 
   showError(message, description);
 };

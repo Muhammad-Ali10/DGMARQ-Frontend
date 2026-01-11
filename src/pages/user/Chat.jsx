@@ -183,9 +183,9 @@ const UserChat = () => {
   const sendMessageMutation = useMutation({
     mutationFn: (data) => chatAPI.sendMessage(data),
     onSuccess: (response) => {
-      // Only used as fallback when socket is not available
-      // Add message to cache and update conversations list
-      if (response?.data?.data) {
+      // Message saved via HTTP API - socket event will update UI in real-time
+      // Just remove optimistic message if exists
+      if (response?.data?.data && selectedConversation) {
         const sentMessage = response.data.data;
         queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
           if (!old || !old.pages || old.pages.length === 0) return old;
@@ -193,28 +193,42 @@ const UserChat = () => {
           const lastPage = old.pages[old.pages.length - 1];
           const existingMessages = lastPage.messages || [];
           
-          // Dedupe: Check if message already exists
-          const existingMessageIds = new Set(existingMessages.map(msg => msg._id?.toString()));
-          const sentMessageId = sentMessage._id?.toString();
-          
-          if (sentMessageId && existingMessageIds.has(sentMessageId)) {
-            return old; // Already exists
-          }
-          
-          // Remove optimistic message if exists
-          const filteredMessages = existingMessages.filter(msg => !msg.isOptimistic || msg._id !== sentMessage._id);
+          // Remove optimistic message (socket event will add the real one)
+          const filteredMessages = existingMessages.filter(msg => !msg.isOptimistic || msg._id?.toString() !== sentMessage._id?.toString());
           
           return {
             ...old,
             pages: old.pages.map((page, index) => 
               index === old.pages.length - 1
-                ? { ...page, messages: [...filteredMessages, sentMessage] }
+                ? { ...page, messages: filteredMessages }
                 : page
             ),
           };
         });
       }
       queryClient.invalidateQueries(['user-conversations']);
+    },
+    onError: (error) => {
+      // Remove optimistic message on error
+      if (selectedConversation) {
+        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
+          if (!old || !old.pages || old.pages.length === 0) return old;
+          
+          const lastPage = old.pages[old.pages.length - 1];
+          const filteredMessages = (lastPage.messages || []).filter(msg => !msg.isOptimistic);
+          
+          return {
+            ...old,
+            pages: old.pages.map((page, index) => 
+              index === old.pages.length - 1
+                ? { ...page, messages: filteredMessages }
+                : page
+            ),
+          };
+        });
+      }
+      // Show error toast with proper error handling
+      showApiError(error, 'Failed to send message');
     },
   });
 
@@ -240,54 +254,44 @@ const UserChat = () => {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (message.trim() && selectedConversation && socket) {
-      const messageText = message.trim();
-      
-      // Optimistic UI: Add message to cache immediately before sending
-      const optimisticMessage = {
-        _id: `temp-${Date.now()}`,
-        conversationId: selectedConversation,
-        senderId: user,
-        receiverId: conversation?.sellerId,
-        messageText,
-        messageType: 'text',
-        isRead: false,
-        sentAt: new Date(),
-        isOptimistic: true, // Flag to identify optimistic messages
+    if (!message.trim() || !selectedConversation) return;
+    
+    const messageText = message.trim();
+    
+    // Optimistic UI: Add message to cache immediately before sending
+    const optimisticMessage = {
+      _id: `temp-${Date.now()}`,
+      conversationId: selectedConversation,
+      senderId: user,
+      receiverId: conversation?.sellerId,
+      messageText,
+      messageType: 'text',
+      isRead: false,
+      sentAt: new Date(),
+      isOptimistic: true, // Flag to identify optimistic messages
+    };
+    
+    queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
+      if (!old || !old.pages || old.pages.length === 0) return old;
+      const lastPage = old.pages[old.pages.length - 1];
+      return {
+        ...old,
+        pages: old.pages.map((page, index) => 
+          index === old.pages.length - 1
+            ? { ...page, messages: [...(page.messages || []), optimisticMessage] }
+            : page
+        ),
       };
-      
-      queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
-        if (!old) return old;
-        const lastPage = old.pages[old.pages.length - 1];
-        return {
-          ...old,
-          pages: old.pages.map((page, index) => 
-            index === old.pages.length - 1
-              ? { ...page, messages: [...(page.messages || []), optimisticMessage] }
-              : page
-          ),
-        };
-      });
-      
-      // Clear input immediately for better UX
-      setMessage('');
-      
-      // Send via socket for real-time delivery
-      socket.emit('send_message', {
-        conversationId: selectedConversation,
-        messageText,
-      });
-      
-      // If socket fails, we can add error handling here later
-      // For now, socket is the primary method and it handles everything
-    } else if (message.trim() && selectedConversation && !socket) {
-      // Fallback: If socket is not available, use REST API
-      sendMessageMutation.mutate({
-        conversationId: selectedConversation,
-        messageText: message.trim(),
-      });
-      setMessage('');
-    }
+    });
+    
+    // Clear input immediately for better UX
+    setMessage('');
+    
+    // Send via HTTP API first (backend will emit socket event after saving)
+    sendMessageMutation.mutate({
+      conversationId: selectedConversation,
+      messageText,
+    });
   };
 
   if (conversationsLoading) return <Loading message="Loading conversations..." />;
