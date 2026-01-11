@@ -24,9 +24,15 @@ const UserChat = () => {
   const { markNotificationAsRead } = useChatNotifications();
   const { user } = useSelector((state) => state.auth);
 
-  const { data: conversations, isLoading: conversationsLoading } = useQuery({
+  const { data: conversations, isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ['user-conversations'],
     queryFn: () => chatAPI.getConversations({ role: 'buyer' }).then(res => res.data.data),
+    enabled: !!user, // Only fetch when user is authenticated
+    retry: 2,
+    retryDelay: 1000,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   // Set conversation from URL param when conversations load
@@ -51,12 +57,17 @@ const UserChat = () => {
     }
   }, [selectedConversation, setSearchParams, markNotificationAsRead]);
 
-  const { data: messagesData, isLoading: messagesLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data: messagesData, isLoading: messagesLoading, fetchNextPage, hasNextPage, isFetchingNextPage, error: messagesError } = useInfiniteQuery({
     queryKey: ['conversation-messages', selectedConversation],
     queryFn: ({ pageParam = 1 }) => 
       chatAPI.getMessages(selectedConversation, { page: pageParam, limit: 25 }).then(res => res.data.data),
-    enabled: !!selectedConversation,
+    enabled: !!selectedConversation && !!user, // Only fetch when conversation is selected and user is authenticated
     initialPageParam: 1,
+    retry: 2,
+    retryDelay: 1000,
+    staleTime: 10000, // Consider data fresh for 10 seconds
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: false, // Don't refetch on window focus
     getNextPageParam: (lastPage) => {
       if (lastPage?.pagination && lastPage.pagination.page < lastPage.pagination.pages) {
         return lastPage.pagination.page + 1;

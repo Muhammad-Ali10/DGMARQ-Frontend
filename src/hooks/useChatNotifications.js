@@ -16,11 +16,16 @@ export const useChatNotifications = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Fetch initial unread count
-  const { data: initialUnreadCount } = useQuery({
+  const { data: initialUnreadCount, error: unreadCountError } = useQuery({
     queryKey: ['chat-unread-count'],
     queryFn: () => chatAPI.getUnreadCount().then(res => res.data.data?.totalUnread || 0),
     enabled: !!user,
-    refetchInterval: 30000, // Refetch every 30 seconds as fallback
+    retry: 2,
+    retryDelay: 1000,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    gcTime: 60000, // Keep in cache for 1 minute
+    refetchInterval: 60000, // Refetch every 60 seconds as fallback (reduced from 30)
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   // Initialize unread count

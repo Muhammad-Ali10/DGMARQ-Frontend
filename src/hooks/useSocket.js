@@ -19,7 +19,23 @@ export const useSocket = () => {
       return;
     }
 
-    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    // Extract socket URL from API base URL
+    // Handle both http://domain.com/api/v1 and https://domain.com/api/v1 formats
+    let socketUrl = 'http://localhost:8000'; // Default fallback
+    
+    if (import.meta.env.VITE_API_BASE_URL) {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL;
+      // Remove /api/v1 if present
+      socketUrl = apiUrl.replace(/\/api\/v1$/, '').replace(/\/api\/v1\/$/, '');
+      
+      // Ensure we have a protocol
+      if (!socketUrl.startsWith('http://') && !socketUrl.startsWith('https://')) {
+        // If no protocol, assume same protocol as current page
+        socketUrl = window.location.protocol === 'https:' 
+          ? `https://${socketUrl}` 
+          : `http://${socketUrl}`;
+      }
+    }
     
     // Only create new socket if one doesn't exist or is disconnected
     if (!socketRef.current || !socketRef.current.connected) {
@@ -27,28 +43,59 @@ export const useSocket = () => {
         auth: {
           token: accessToken,
         },
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'], // Prioritize polling first for better compatibility
         reconnection: true,
         reconnectionDelay: 1000,
-        reconnectionAttempts: 5,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: Infinity,
+        timeout: 20000,
+        forceNew: false,
+        withCredentials: true,
       });
 
       socketRef.current.on('connect', () => {
-        console.log('Socket connected');
+        console.log('✅ Socket connected successfully');
         setIsConnected(true);
       });
 
-      socketRef.current.on('disconnect', () => {
-        console.log('Socket disconnected');
+      socketRef.current.on('disconnect', (reason) => {
+        console.log('❌ Socket disconnected:', reason);
         setIsConnected(false);
+        
+        // Attempt to reconnect if not a manual disconnect
+        if (reason === 'io server disconnect') {
+          // Server disconnected, try to reconnect manually
+          socketRef.current.connect();
+        }
       });
 
       socketRef.current.on('error', (error) => {
-        console.error('Socket error:', error);
+        console.error('⚠️ Socket error:', error);
+        setIsConnected(false);
       });
 
       socketRef.current.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
+        console.error('❌ Socket connection error:', error.message);
+        console.error('Socket URL:', socketUrl);
+        console.error('Error details:', error);
+        setIsConnected(false);
+      });
+
+      socketRef.current.on('reconnect', (attemptNumber) => {
+        console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
+        setIsConnected(true);
+      });
+
+      socketRef.current.on('reconnect_attempt', (attemptNumber) => {
+        console.log('🔄 Reconnection attempt', attemptNumber);
+      });
+
+      socketRef.current.on('reconnect_error', (error) => {
+        console.error('❌ Reconnection error:', error.message);
+      });
+
+      socketRef.current.on('reconnect_failed', () => {
+        console.error('❌ Socket reconnection failed after all attempts');
         setIsConnected(false);
       });
     }

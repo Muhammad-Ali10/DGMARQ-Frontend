@@ -9,6 +9,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
+  timeout: 30000, // 30 second timeout to prevent hanging requests
 });
 
 // Request interceptor to add auth token
@@ -35,9 +36,20 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
+    // Helper function to check if current route is protected
+    // Only routes under /admin, /seller, or /user are protected
+    // Public routes like /cart, /wishlist, /checkout should not trigger redirect
+    const isProtectedRoute = (pathname) => {
+      const protectedRoutePrefixes = ['/admin', '/seller', '/user'];
+      return protectedRoutePrefixes.some(prefix => pathname.startsWith(prefix));
+    };
+    
     // Avoid infinite loop on refresh token endpoint
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+      
+      const currentPath = window.location.pathname;
+      const isProtected = isProtectedRoute(currentPath);
       
       // Token expired, try to refresh
       const refreshToken = localStorage.getItem('refreshToken');
@@ -62,8 +74,11 @@ api.interceptors.response.use(
         } catch (refreshError) {
           // Refresh failed, logout user
           store.dispatch(logout());
-          showApiError(refreshError, 'Session expired. Please login again.');
-          if (window.location.pathname !== '/login') {
+          
+          // Only redirect to login if we're on a protected route
+          // Public routes should be allowed to fail gracefully
+          if (isProtected && currentPath !== '/login') {
+            showApiError(refreshError, 'Session expired. Please login again.');
             window.location.href = '/login';
           }
           return Promise.reject(refreshError);
@@ -71,10 +86,15 @@ api.interceptors.response.use(
       } else {
         // No refresh token, logout user
         store.dispatch(logout());
-        showApiError(error, 'Please login to continue.');
-        if (window.location.pathname !== '/login') {
+        
+        // Only redirect to login if we're on a protected route
+        // Public routes should be allowed to fail gracefully (e.g., public API calls)
+        if (isProtected && currentPath !== '/login') {
+          showApiError(error, 'Please login to continue.');
           window.location.href = '/login';
         }
+        // For public routes, don't redirect - let the request fail silently
+        // This allows public pages to load even if some API calls fail with 401
         return Promise.reject(error);
       }
     }

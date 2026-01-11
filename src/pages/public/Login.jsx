@@ -53,15 +53,24 @@ const Login = () => {
         refreshToken: data.data.refreshToken,
       }));
       
-      // After successful login, redirect to home page or previous location
-      // Users can then navigate to dashboard if they want
+      // After successful login, redirect to role-based dashboard or previous location
       const previousLocation = sessionStorage.getItem('previousLocation');
-      if (previousLocation && previousLocation !== '/login') {
+      
+      // If user was trying to access a protected route, redirect them there
+      if (previousLocation && previousLocation !== '/login' && previousLocation !== '/') {
         sessionStorage.removeItem('previousLocation');
         navigate(previousLocation, { replace: true });
       } else {
-        // Default to home page after login, not dashboard
-        navigate('/', { replace: true });
+        // Redirect to appropriate dashboard based on role
+        // Priority: admin > seller > customer
+        if (roles.includes('admin')) {
+          navigate('/admin/dashboard', { replace: true });
+        } else if (roles.includes('seller')) {
+          navigate('/seller/dashboard', { replace: true });
+        } else {
+          // Customer - redirect to user dashboard
+          navigate('/user/dashboard', { replace: true });
+        }
       }
     },
     onError: (err) => {
