@@ -143,7 +143,7 @@ const UserOrders = () => {
                           View Details
                         </Button>
                       </Link>
-                      {order.orderStatus !== 'cancelled' && order.paymentStatus === 'paid' && (
+                      {order.orderStatus !== 'cancelled' && order.orderStatus !== 'completed' && order.paymentStatus === 'paid' && (
                         <>
                           {cancellingId === order._id ? (
                             <Dialog open={true} onOpenChange={(open) => { if (!open) { setCancellingId(null); setCancelReason(''); } }}>

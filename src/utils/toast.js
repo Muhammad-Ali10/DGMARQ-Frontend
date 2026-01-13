@@ -4,6 +4,33 @@
  */
 import { toast } from 'sonner';
 
+// Toast deduplication: Track recent toasts to prevent spam
+const recentToasts = new Map();
+const TOAST_DEBOUNCE_MS = 3000; // Don't show same toast within 3 seconds
+
+/**
+ * Check if toast should be shown (deduplication)
+ */
+const shouldShowToast = (message, description = null) => {
+  const key = `${message}|${description || ''}`;
+  const now = Date.now();
+  const lastShown = recentToasts.get(key);
+  
+  if (lastShown && (now - lastShown) < TOAST_DEBOUNCE_MS) {
+    return false; // Too soon, skip this toast
+  }
+  
+  recentToasts.set(key, now);
+  
+  // Cleanup old entries (keep only last 50)
+  if (recentToasts.size > 50) {
+    const oldestKey = recentToasts.keys().next().value;
+    recentToasts.delete(oldestKey);
+  }
+  
+  return true;
+};
+
 /**
  * Show success toast
  */
@@ -15,9 +42,13 @@ export const showSuccess = (message, description = null) => {
 };
 
 /**
- * Show error toast
+ * Show error toast (with deduplication)
  */
-export const showError = (message, description = null) => {
+export const showError = (message, description = null, force = false) => {
+  if (!force && !shouldShowToast(message, description)) {
+    return; // Skip duplicate toast
+  }
+  
   toast.error(message, {
     description,
     duration: 3000,
@@ -53,8 +84,11 @@ export const showLoading = (message) => {
 
 /**
  * Parse API error and show appropriate toast
+ * @param {Error} error - The error object
+ * @param {string} defaultMessage - Default error message
+ * @param {boolean} force - Force show toast even if duplicate (for user actions)
  */
-export const showApiError = (error, defaultMessage = 'An error occurred') => {
+export const showApiError = (error, defaultMessage = 'An error occurred', force = false) => {
   let message = defaultMessage;
   let description = null;
 
@@ -90,7 +124,7 @@ export const showApiError = (error, defaultMessage = 'An error occurred') => {
   }
   // If error.response exists, use the message we already extracted above
 
-  showError(message, description);
+  showError(message, description, force);
 };
 
 /**

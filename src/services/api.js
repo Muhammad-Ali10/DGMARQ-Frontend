@@ -191,12 +191,20 @@ export const supportAPI = {
 // Chat APIs (buyer-seller conversations)
 export const chatAPI = {
   createConversation: (data) => api.post('/chat/conversation', data),
-  getConversations: (params) => api.get('/chat/conversations', { params }),
-  getMessages: (conversationId, params) => api.get(`/chat/conversation/${conversationId}/messages`, { params }),
-  sendMessage: (data) => api.post('/chat/message', data),
-  markAsRead: (conversationId) => api.patch(`/chat/conversation/${conversationId}/read`),
-  deleteConversation: (conversationId) => api.delete(`/chat/conversation/${conversationId}`),
-  getUnreadCount: () => api.get('/chat/unread-count'),
+  getConversations: (params) => api.get('/chat/conversations', { params, skipErrorToast: true }),
+  // Increased timeout for message fetching (large chat history)
+  getMessages: (conversationId, params) => api.get(`/chat/conversation/${conversationId}/messages`, { 
+    params, 
+    skipErrorToast: true,
+    timeout: 25000, // 25 seconds for message loading (longer than default)
+  }),
+  sendMessage: (data) => api.post('/chat/message', data), // Keep toast for send errors (user action)
+  markAsRead: (conversationId) => api.patch(`/chat/conversation/${conversationId}/read`, {}, { 
+    skipErrorToast: true,
+    timeout: 5000, // 5 second timeout (should be fast, background operation)
+  }),
+  deleteConversation: (conversationId) => api.delete(`/chat/conversation/${conversationId}`, { skipErrorToast: true }),
+  getUnreadCount: () => api.get('/chat/unread-count', { skipErrorToast: true }),
 };
 
 // Notification APIs

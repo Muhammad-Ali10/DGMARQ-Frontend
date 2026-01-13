@@ -65,8 +65,9 @@ const Header = () => {
   const [hoveredCategory, setHoveredCategory] = useState(null);
   const [showCategoriesDropdown, setShowCategoriesDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
+  const [expandedCategoryId, setExpandedCategoryId] = useState(null);
+  const [mobileSubcategories, setMobileSubcategories] = useState({});
   const [categoriesDropdownTimeout, setCategoriesDropdownTimeout] =
     useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -324,7 +325,6 @@ const Header = () => {
               className="flex items-center gap-2 shrink-0"
               onClick={() => {
                 setMobileMenuOpen(false);
-                setMobileSearchOpen(false);
               }}
             >
               <img
@@ -436,54 +436,6 @@ const Header = () => {
               </div>
             </form>
 
-            {/* Right Side Actions - Mobile (Search, Cart, Wishlist) */}
-            <div className="md:hidden flex items-center gap-2 shrink-0">
-              {/* Mobile Search Toggle */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-accent text-white hover:bg-accent/10 rounded-lg"
-                onClick={() => {
-                  setMobileSearchOpen(!mobileSearchOpen);
-                  setMobileMenuOpen(false);
-                }}
-                aria-label="Toggle search"
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-
-              {/* Wishlist - Mobile */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-accent text-white hover:bg-accent/10 relative rounded-lg"
-                onClick={() => navigate("/wishlist")}
-                aria-label="Wishlist"
-              >
-                <Heart className="h-5 w-5" strokeWidth={2} />
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-                    {wishlistCount > 9 ? "9+" : wishlistCount}
-                  </span>
-                )}
-              </Button>
-
-              {/* Cart - Mobile */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-accent text-white hover:bg-accent/10 relative rounded-lg"
-                onClick={() => navigate("/cart")}
-                aria-label="Cart"
-              >
-                <ShoppingCart className="h-5 w-5" strokeWidth={2} />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-                    {cartCount > 9 ? "9+" : cartCount}
-                  </span>
-                )}
-              </Button>
-            </div>
 
             {/* Right Side Actions - Desktop */}
             <div className="hidden md:flex items-center gap-3 shrink-0">
@@ -702,10 +654,10 @@ const Header = () => {
                 Bestsellers
               </Link>
               <Link
-                to="/steam-gift-cards"
+                to="/gift-cards"
                 className="text-white hover:text-accent transition-colors w-[181px] h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center"
               >
-                Steam Gift Cards
+                Gift Cards
               </Link>
               <Link
                 to="/random-keys"
@@ -732,94 +684,12 @@ const Header = () => {
         </div>
 
 
-        {/* Mobile Search Bar */}
-        {mobileSearchOpen && (
-          <div className="md:hidden border-t border-gray-700 p-4">
-            <form onSubmit={handleSearch} ref={searchContainerRef}>
-              <div className="relative">
-                <div className="flex items-center bg-gray-900/50 border border-accent rounded-lg overflow-hidden">
-                  <Input
-                    type="text"
-                    placeholder="What are you looking for?"
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onFocus={handleSearchFocus}
-                    className="border-0 bg-transparent text-white placeholder:text-gray-400 focus-visible:ring-0 flex-1"
-                  />
-                  <Button
-                    type="submit"
-                    className="bg-accent hover:bg-accent/90 rounded-none h-full px-4"
-                  >
-                    <Search className="h-5 w-5" />
-                  </Button>
-                </div>
-
-                {/* Mobile Search Suggestions */}
-                {shouldShowSuggestions && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl max-h-64 overflow-y-auto z-50">
-                    {searchLoading ? (
-                      <div className="p-4 text-center text-gray-400">
-                        Searching...
-                      </div>
-                    ) : searchSuggestions && searchSuggestions.length > 0 ? (
-                      <div className="py-2">
-                        {searchSuggestions.map((product) => (
-                          <button
-                            key={product._id}
-                            type="button"
-                            onClick={() => handleSuggestionClick(product)}
-                            className="w-full px-4 py-3 hover:bg-gray-800/50 flex items-center gap-3 text-left"
-                          >
-                            {product.images?.[0] && (
-                              <img
-                                src={product.images[0]}
-                                alt={product.name}
-                                className="w-12 h-12 object-cover rounded"
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="text-white font-medium truncate">
-                                {product.name}
-                              </div>
-                              {product.price && (
-                                <div className="text-accent text-sm">
-                                  ${product.price.toFixed(2)}
-                                </div>
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : debouncedSearchQuery.trim() ? (
-                      <div className="p-4 text-center text-gray-400">
-                        No products found
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            </form>
-          </div>
-        )}
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-700">
+          <div className="md:hidden border-t border-gray-700 max-h-[calc(100vh-80px)] overflow-y-auto">
             <div className="p-4 space-y-4">
-              {/* Mobile Search Toggle */}
-              <Button
-                variant="outline"
-                className="w-full justify-start border-accent text-white"
-                onClick={() => {
-                  setMobileSearchOpen(!mobileSearchOpen);
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Search className="h-5 w-5 mr-2" />
-                Search Products
-              </Button>
-
-              {/* Categories */}
+              {/* Categories with Subcategories */}
               <div className="space-y-2">
                 <button
                   className="w-full flex items-center justify-between text-white py-2"
@@ -837,22 +707,90 @@ const Header = () => {
                   />
                 </button>
 
-                {/* Mobile Categories List */}
+                {/* Mobile Categories List with Subcategories */}
                 {mobileCategoriesOpen && (
                   <div className="pl-6 space-y-2">
-                    {categories.map((category) => (
-                      <Link
-                        key={category._id}
-                        to={`/category/${category.slug || category._id}`}
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          setMobileCategoriesOpen(false);
-                        }}
-                        className="block text-gray-300 hover:text-accent py-1"
-                      >
-                        {category.name}
-                      </Link>
-                    ))}
+                    {categories.map((category) => {
+                      const isExpanded = expandedCategoryId === category._id;
+                      const subcategories = mobileSubcategories[category._id] || [];
+                      
+                      return (
+                        <div key={category._id} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Link
+                              to={`/category/${category.slug || category._id}`}
+                              onClick={() => {
+                                setMobileMenuOpen(false);
+                                setMobileCategoriesOpen(false);
+                                setExpandedCategoryId(null);
+                              }}
+                              className="flex-1 text-gray-300 hover:text-accent py-1"
+                            >
+                              {category.name}
+                            </Link>
+                            <button
+                              onClick={async () => {
+                                if (!isExpanded) {
+                                  // Check if category has subcategories first
+                                  const hasSubs = await checkCategoryHasSubcategories(category._id);
+                                  if (hasSubs) {
+                                    // Fetch subcategories if not already loaded
+                                    if (!mobileSubcategories[category._id]) {
+                                      try {
+                                        const response = await subcategoryAPI.getSubcategoriesByCategoryId(
+                                          category._id,
+                                          { isActive: true, limit: 50 }
+                                        );
+                                        setMobileSubcategories(prev => ({
+                                          ...prev,
+                                          [category._id]: response.data.data?.docs || []
+                                        }));
+                                      } catch {
+                                        setMobileSubcategories(prev => ({
+                                          ...prev,
+                                          [category._id]: []
+                                        }));
+                                      }
+                                    }
+                                    setExpandedCategoryId(category._id);
+                                  }
+                                } else {
+                                  setExpandedCategoryId(null);
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-accent"
+                              aria-label={isExpanded ? "Collapse" : "Expand"}
+                            >
+                              <ChevronRight
+                                className={cn(
+                                  "h-4 w-4 transition-transform",
+                                  isExpanded && "rotate-90"
+                                )}
+                              />
+                            </button>
+                          </div>
+                          {/* Subcategories */}
+                          {isExpanded && subcategories.length > 0 && (
+                            <div className="pl-4 space-y-1 border-l-2 border-gray-700 ml-2">
+                              {subcategories.map((subcategory) => (
+                                <Link
+                                  key={subcategory._id}
+                                  to={`/subcategory/${subcategory.slug || subcategory._id}`}
+                                  onClick={() => {
+                                    setMobileMenuOpen(false);
+                                    setMobileCategoriesOpen(false);
+                                    setExpandedCategoryId(null);
+                                  }}
+                                  className="block text-gray-400 hover:text-accent py-1 text-sm"
+                                >
+                                  {subcategory.name}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -866,11 +804,11 @@ const Header = () => {
                 Bestsellers
               </Link>
               <Link
-                to="/steam-gift-cards"
+                to="/gift-cards"
                 className="block text-white hover:text-accent py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Steam Gift Cards
+                Gift Cards
               </Link>
               <Link
                 to="/random-keys"
@@ -887,7 +825,7 @@ const Header = () => {
                 Software
               </Link>
 
-              {/* Language Selector */}
+              {/* Language Selector
               <Button
                 variant="outline"
                 className="w-full justify-start border-accent text-white"
@@ -895,47 +833,8 @@ const Header = () => {
               >
                 <Globe className="h-4 w-4 mr-2" />
                 Language: ENG
-              </Button>
+              </Button> */}
 
-              {/* Register Button */}
-              {/* Session Menu for Mobile */}
-              <SessionMenu onItemClick={() => setMobileMenuOpen(false)} />
-
-              {/* Wishlist */}
-              <Button
-                variant="outline"
-                className="w-full justify-start border-accent text-white relative"
-                onClick={() => {
-                  navigate("/wishlist");
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <Heart className="h-5 w-5 mr-2" />
-                Wishlist
-                {wishlistCount > 0 && (
-                  <span className="ml-auto bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {wishlistCount > 9 ? "9+" : wishlistCount}
-                  </span>
-                )}
-              </Button>
-
-              {/* Cart */}
-              <Button
-                variant="outline"
-                className="w-full justify-start border-accent text-white relative"
-                onClick={() => {
-                  navigate("/user/cart");
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <ShoppingCart className="h-5 w-5 mr-2" />
-                Cart
-                {cartCount > 0 && (
-                  <span className="ml-auto bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {cartCount > 9 ? "9+" : cartCount}
-                  </span>
-                )}
-              </Button>
 
               {/* CTA Button */}
               <Button

@@ -19,7 +19,6 @@ import {
 } from "../../services/api";
 import { Loading } from "../../components/ui/loading";
 import FooterBlogs from "../../components/FooterBlogs";
-import FavoriteItems from "../../components/FavoriteItems";
 
 
 const widths= [
@@ -635,12 +634,6 @@ const Home = () => {
           </div>
         </section>
       )}
-
-
-      {/* Favorite Items Section */}
-      <section id="favorite-items" className="py-16">
-        <FavoriteItems />
-      </section>
 
       
       <FooterBlogs />

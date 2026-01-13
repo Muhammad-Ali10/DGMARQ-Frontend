@@ -42,9 +42,22 @@ const Login = () => {
       }
       
       // Normalize roles to array and lowercase for consistency
-      const roles = Array.isArray(user?.roles) 
-        ? user.roles.map(r => String(r).toLowerCase())
-        : (user?.role ? [String(user.role).toLowerCase()] : ['customer']);
+      // Handle both roles array and single role field
+      let roles = [];
+      if (user?.roles) {
+        if (Array.isArray(user.roles)) {
+          roles = user.roles.map(r => String(r).toLowerCase().trim());
+        } else {
+          roles = [String(user.roles).toLowerCase().trim()];
+        }
+      } else if (user?.role) {
+        roles = [String(user.role).toLowerCase().trim()];
+      } else {
+        roles = ['customer']; // Default fallback
+      }
+      
+      // Remove duplicates and ensure we have valid roles
+      roles = [...new Set(roles)].filter(r => r); // Remove empty strings
       
       // Dispatch credentials - this will normalize roles in Redux too
       dispatch(setCredentials({
@@ -63,6 +76,7 @@ const Login = () => {
       } else {
         // Redirect to appropriate dashboard based on role
         // Priority: admin > seller > customer
+        // Roles are already normalized to lowercase above
         if (roles.includes('admin')) {
           navigate('/admin/dashboard', { replace: true });
         } else if (roles.includes('seller')) {
@@ -74,7 +88,31 @@ const Login = () => {
       }
     },
     onError: (err) => {
-      setError(err.response?.data?.message || 'Login failed');
+      // Handle validation errors properly
+      const errorData = err.response?.data;
+      let errorMessage = 'Login failed';
+      
+      if (errorData) {
+        // Check if there are validation errors (array of objects)
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          // Format validation errors as a readable string
+          errorMessage = errorData.errors
+            .map((error) => {
+              // Handle both object format {field, message, value} and string format
+              if (typeof error === 'object' && error.message) {
+                return `${error.field ? error.field + ': ' : ''}${error.message}`;
+              }
+              return typeof error === 'string' ? error : JSON.stringify(error);
+            })
+            .join('. ');
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      }
+      
+      setError(errorMessage);
     },
   });
 
@@ -96,7 +134,7 @@ const Login = () => {
         <CardContent>
           {error && (
             <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm">
-              {error}
+              {typeof error === 'string' ? error : 'Login failed. Please check your credentials.'}
             </div>
           )}
 
@@ -144,6 +182,16 @@ const Login = () => {
               {loginMutation.isPending ? 'Logging in...' : 'Login'}
             </Button>
           </form>
+
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            Don't have an account?{' '}
+            <Link
+              to="/register"
+              className="text-accent hover:text-blue-400 transition-colors font-medium"
+            >
+              Sign up
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

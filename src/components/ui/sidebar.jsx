@@ -177,6 +177,9 @@ export const AdminSidebar = () => {
         <SidebarItem to="/admin/support" icon={Headphones}>
           Support
         </SidebarItem>
+        <SidebarItem to="/admin/notifications" icon={Bell}>
+          Notifications
+        </SidebarItem>
         <SidebarItem to="/admin/analytics" icon={BarChart3}>
           Analytics
         </SidebarItem>
@@ -349,6 +352,13 @@ export const UserSidebar = () => {
   const normalizedRoles = roles?.map((r) => r.toLowerCase()) || [];
   const isSeller = normalizedRoles.includes("seller");
 
+  // CRITICAL: If user is a seller, they should not see this sidebar
+  // This component should only render for pure customers
+  // Sellers will be redirected to seller layout before this renders
+  if (isSeller) {
+    return null; // Don't render user sidebar for sellers
+  }
+
   return (
     <aside className="w-64 bg-secondary h-full flex flex-col shadow-lg border-r border-border">
       {/* Logo at Top */}
@@ -377,15 +387,9 @@ export const UserSidebar = () => {
         <SidebarItem to="/user/profile" icon={Users}>
           Profile
         </SidebarItem>
-        {isSeller ? (
-          <SidebarItem to="/seller/dashboard" icon={Store}>
-            Seller Dashboard
-          </SidebarItem>
-        ) : (
-          <SidebarItem to="/user/become-seller" icon={Store}>
-            Become a Seller
-          </SidebarItem>
-        )}
+        <SidebarItem to="/user/become-seller" icon={Store}>
+          Become a Seller
+        </SidebarItem>
         <SidebarItem to="/user/chat" icon={MessageSquare}>
           Chat
         </SidebarItem>

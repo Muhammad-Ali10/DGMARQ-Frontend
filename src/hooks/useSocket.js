@@ -10,7 +10,6 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const { token, isAuthenticated } = useSelector((state) => state.auth);
   const accessToken = token || localStorage.getItem('accessToken');
-  const DEBUG_SOCKET = import.meta.env.DEV; // Enable debug logging in development
 
   useEffect(() => {
     if (!isAuthenticated || !accessToken) {
@@ -24,8 +23,11 @@ export const useSocket = () => {
       return;
     }
 
-    // Use VITE_SOCKET_URL explicitly
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    // Use VITE_SOCKET_URL explicitly, fallback to API base URL without /api/v1
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 
+      (import.meta.env.VITE_API_BASE_URL 
+        ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '')
+        : 'http://localhost:8000');
     
     // Use singleton socket if it exists and is connected
     if (globalSocket && globalSocket.connected) {
@@ -47,7 +49,7 @@ export const useSocket = () => {
         auth: {
           token: accessToken,
         },
-        transports: ['websocket'], // Use websocket only for production
+        transports: ['websocket', 'polling'], // Support both for better compatibility
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
@@ -59,12 +61,10 @@ export const useSocket = () => {
 
       // Set up event listeners (only once for singleton)
       globalSocket.on('connect', () => {
-        if (DEBUG_SOCKET) console.log('✅ Socket connected successfully');
         setIsConnected(true);
       });
 
       globalSocket.on('disconnect', (reason) => {
-        if (DEBUG_SOCKET) console.log('❌ Socket disconnected:', reason);
         setIsConnected(false);
         
         // Attempt to reconnect if not a manual disconnect
@@ -73,44 +73,31 @@ export const useSocket = () => {
         }
       });
 
-      globalSocket.on('error', () => {
-        if (DEBUG_SOCKET) console.error('⚠️ Socket error');
+      globalSocket.on('error', (error) => {
         setIsConnected(false);
+        // Don't disconnect - let reconnection handle it
       });
 
       globalSocket.on('connect_error', (error) => {
-        if (DEBUG_SOCKET) {
-          console.error('❌ Socket connection error:', error.message);
-          console.error('Socket URL:', socketUrl);
-          console.error('Error details:', error);
-        }
         setIsConnected(false);
+        // Socket.IO will automatically retry based on reconnection settings
       });
 
       globalSocket.on('reconnect', (attemptNumber) => {
-        if (DEBUG_SOCKET) console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
         setIsConnected(true);
       });
 
       globalSocket.on('reconnect_attempt', (attemptNumber) => {
-        if (DEBUG_SOCKET) console.log('🔄 Reconnection attempt', attemptNumber);
+        // Reconnection in progress
       });
 
       globalSocket.on('reconnect_error', (error) => {
-        if (DEBUG_SOCKET) console.error('❌ Reconnection error:', error.message);
+        // Reconnection error - will retry
       });
 
       globalSocket.on('reconnect_failed', () => {
-        if (DEBUG_SOCKET) console.error('❌ Socket reconnection failed after all attempts');
         setIsConnected(false);
       });
-
-      // Optional: onAny logging for debugging (only in dev)
-      if (DEBUG_SOCKET && globalSocket.onAny) {
-        globalSocket.onAny((event, ...args) => {
-          console.log('📡 Socket event:', event, args);
-        });
-      }
     }
 
     socketRef.current = globalSocket;

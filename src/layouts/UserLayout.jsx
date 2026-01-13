@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { UserSidebar } from '../components/ui/sidebar';
 import TopBar from '../components/ui/TopBar';
 import { Menu, X } from 'lucide-react';
@@ -8,6 +9,20 @@ import { cn } from '../lib/utils';
 
 const UserLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+  const { roles } = useSelector((state) => state.auth);
+  
+  // CRITICAL: Redirect sellers away from user layout - they should use seller layout
+  useEffect(() => {
+    const normalizedRoles = Array.isArray(roles) && roles.length > 0
+      ? roles.map(r => String(r).toLowerCase())
+      : [];
+    
+    // If user is seller (even if they also have customer role), redirect to seller dashboard
+    if (normalizedRoles.includes('seller')) {
+      navigate('/seller/dashboard', { replace: true });
+    }
+  }, [roles, navigate]);
 
   return (
     <div className="flex h-screen bg-primary overflow-hidden">

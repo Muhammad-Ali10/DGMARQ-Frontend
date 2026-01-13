@@ -65,20 +65,20 @@ const PaymentModal = ({
                   style: {
                     'input': {
                       'backgroundColor': 'transparent',
-                      'color': '#ffffff',
+                      'color': '#000000!important',
                       'fontSize': '16px',
                       'fontFamily': 'Poppins, sans-serif',
                       'border': 'none',
                       'outline': 'none',
                       '::placeholder': {
-                        'color': '#9ca3af',
+                        'color': '#000000!important',
                       },
                     },
                     '.invalid': {
                       'color': '#ef4444',
                     },
                     ':focus': {
-                      'color': '#ffffff',
+                      'color': '#000000!important',
                       'border': 'none',
                       'outline': 'none',
                     },
@@ -683,7 +683,7 @@ const PaymentModal = ({
                       <div
                         id="card-number"
                         className="h-12 bg-gray-800/50 border border-gray-600 rounded-md px-4 paypal-card-field-container"
-                        style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}
+                        style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'contents', alignItems: 'center' }}
                       ></div>
                     </div>
 
@@ -695,7 +695,7 @@ const PaymentModal = ({
                         <div
                           id="card-expiry"
                           className="h-12 bg-gray-800/50 border border-gray-600 rounded-md px-4 paypal-card-field-container"
-                          style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}
+                          style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'contents', alignItems: 'center' }}
                         ></div>
                       </div>
 
@@ -706,7 +706,7 @@ const PaymentModal = ({
                         <div
                           id="card-cvv"
                           className="h-12 bg-gray-800/50 border border-gray-600 rounded-md px-4 paypal-card-field-container"
-                          style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}
+                          style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'contents', alignItems: 'center', backgroundColor: 'transparent' }}
                         ></div>
                       </div>
                     </div>
@@ -718,7 +718,7 @@ const PaymentModal = ({
                       <div
                         id="card-name"
                         className="h-12 bg-gray-800/50 border border-gray-600 rounded-md px-4 paypal-card-field-container"
-                        style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}
+                        style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'contents', alignItems: 'center' }}
                       ></div>
                     </div>
                   </div>

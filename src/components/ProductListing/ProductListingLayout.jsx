@@ -46,13 +46,13 @@ const ProductListingLayout = ({
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [layout, setLayout] = useState(searchParams.get('layout') || 'listing');
   
-  // Checkbox filters - if lockedCategoryId or defaultCategoryId exists, initialize with it (but don't lock)
+  // Checkbox filters - if lockedCategoryId exists, always use it and lock it
   const [checkboxFilters, setCheckboxFilters] = useState(() => {
     const categoryId = lockedCategoryId 
       ? [lockedCategoryId] 
       : (searchParams.get('categoryId')?.split(',').filter(Boolean) || []);
     
-    if (defaultCategoryId && !categoryId.length) {
+    if (defaultCategoryId && !categoryId.length && !lockedCategoryId) {
       categoryId.push(defaultCategoryId);
     }
 
@@ -70,6 +70,16 @@ const ProductListingLayout = ({
       mode: searchParams.get('mode')?.split(',').filter(Boolean) || [],
     };
   });
+
+  // Ensure locked category is always in filters
+  useEffect(() => {
+    if (lockedCategoryId && !checkboxFilters.categoryId.includes(lockedCategoryId)) {
+      setCheckboxFilters(prev => ({
+        ...prev,
+        categoryId: [lockedCategoryId],
+      }));
+    }
+  }, [lockedCategoryId]);
 
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true');
@@ -400,9 +410,13 @@ const ProductListingLayout = ({
     if (minPrice) params.set('minPrice', minPrice);
     if (maxPrice) params.set('maxPrice', maxPrice);
     
-    // Add categoryId to URL params
-    if (checkboxFilters.categoryId.length > 0) {
-      params.set('categoryId', checkboxFilters.categoryId.join(','));
+    // Add categoryId to URL params (always include locked category)
+    const categoryIds = lockedCategoryId 
+      ? [lockedCategoryId, ...checkboxFilters.categoryId.filter(id => id !== lockedCategoryId)]
+      : checkboxFilters.categoryId;
+    
+    if (categoryIds.length > 0) {
+      params.set('categoryId', categoryIds.join(','));
     }
     
     if (checkboxFilters.subCategoryId.length > 0) params.set('subCategoryId', checkboxFilters.subCategoryId.join(','));
@@ -442,12 +456,21 @@ const ProductListingLayout = ({
   const totalDocs = productsData?.totalDocs || 0;
 
   const handleCheckboxChange = (type, id) => {
-    // Prevent changing locked platform filter only
+    // Prevent changing locked platform filter
     if (lockedPlatformId && type === 'platform') return;
+    
+    // Prevent changing locked category filter
+    if (lockedCategoryId && type === 'categoryId' && id === lockedCategoryId) return;
 
     setCheckboxFilters(prev => {
       const current = prev[type] || [];
       const isChecked = current.includes(id);
+      
+      // If removing a category and it's the locked one, prevent removal
+      if (lockedCategoryId && type === 'categoryId' && isChecked && id === lockedCategoryId) {
+        return prev;
+      }
+      
       return {
         ...prev,
         [type]: isChecked
@@ -468,8 +491,8 @@ const ProductListingLayout = ({
     setMaxPrice('');
     setCheckboxFilters(prev => ({
       ...prev,
-      // Keep locked platform filter only
-      categoryId: [], // Category is not locked, so clear it
+      // Keep locked category and platform filters
+      categoryId: lockedCategoryId ? [lockedCategoryId] : [],
       platform: lockedPlatformId ? [lockedPlatformId] : [],
       subCategoryId: [],
       region: [],
@@ -660,7 +683,7 @@ const ProductListingLayout = ({
     search ||
     minPrice ||
     maxPrice ||
-    checkboxFilters.categoryId.length > 0 ||
+    (checkboxFilters.categoryId.length > 0 && !lockedCategoryId) ||
     checkboxFilters.subCategoryId.length > 0 ||
     (checkboxFilters.platform.length > 0 && !lockedPlatformId) ||
     checkboxFilters.region.length > 0 ||
@@ -715,15 +738,19 @@ const ProductListingLayout = ({
               hasSearch={categories.length > 10}
               itemCount={checkboxFilters.categoryId?.length || 0}
             >
-              {displayedCategories.map(cat => (
-                <CheckboxItem
-                  key={cat._id}
-                  id={cat._id}
-                  title={cat.title}
-                  type="categoryId"
-                  count={cat.count}
-                />
-              ))}
+              {displayedCategories.map(cat => {
+                const isLocked = lockedCategoryId === cat._id;
+                return (
+                  <CheckboxItem
+                    key={cat._id}
+                    id={cat._id}
+                    title={cat.title}
+                    type="categoryId"
+                    count={cat.count}
+                    isLocked={isLocked}
+                  />
+                );
+              })}
             </FilterSection>
 
             {/* Subcategories */}
@@ -983,15 +1010,19 @@ const ProductListingLayout = ({
                 itemCount={checkboxFilters.categoryId?.length || 0}
                 totalItems={filteredCategories.length}
               >
-                {displayedCategories.map(cat => (
-                  <CheckboxItem
-                    key={cat._id}
-                    id={cat._id}
-                    title={cat.title}
-                    type="categoryId"
-                    count={cat.count}
-                  />
-                ))}
+                {displayedCategories.map(cat => {
+                  const isLocked = lockedCategoryId === cat._id;
+                  return (
+                    <CheckboxItem
+                      key={cat._id}
+                      id={cat._id}
+                      title={cat.title}
+                      type="categoryId"
+                      count={cat.count}
+                      isLocked={isLocked}
+                    />
+                  );
+                })}
               </FilterSection>
 
               {/* Price Range */}

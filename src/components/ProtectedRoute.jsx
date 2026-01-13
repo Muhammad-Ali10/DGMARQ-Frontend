@@ -35,12 +35,32 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
       : [];
     const normalizedAllowedRoles = allowedRoles.map(r => String(r).toLowerCase());
     
+    // CRITICAL: Role priority check - sellers should NOT access customer-only routes
+    // Even if seller has 'customer' role, they should use seller dashboard
+    // Priority: admin > seller > customer
+    if (normalizedRoles.includes('admin')) {
+      // Admin should only access admin routes
+      if (!normalizedAllowedRoles.includes('admin')) {
+        return <Navigate to="/admin/dashboard" replace />;
+      }
+    } else if (normalizedRoles.includes('seller')) {
+      // Seller should NOT access customer-only routes (even if they have customer role)
+      // Sellers must use seller routes, not user routes
+      if (normalizedAllowedRoles.includes('customer') && !normalizedAllowedRoles.includes('seller')) {
+        // Trying to access customer route but is a seller - redirect to seller dashboard
+        return <Navigate to="/seller/dashboard" replace />;
+      }
+      // If seller route is allowed, check if they have seller role
+      if (normalizedAllowedRoles.includes('seller') && !normalizedRoles.includes('seller')) {
+        return <Navigate to="/seller/dashboard" replace />;
+      }
+    }
+    
     const hasAllowedRole = normalizedAllowedRoles.some(role => normalizedRoles.includes(role));
     
     if (!hasAllowedRole) {
       // User doesn't have required role for this route
-      // Redirect to their appropriate dashboard based on roles
-      // But only if they're trying to access a protected route they can't access
+      // Redirect to their appropriate dashboard based on roles (priority: admin > seller > customer)
       if (normalizedRoles.includes('admin')) {
         return <Navigate to="/admin/dashboard" replace />;
       } else if (normalizedRoles.includes('seller')) {

@@ -71,7 +71,7 @@ const AvatarDropdown = ({ user }) => {
   const userAvatar = user?.profileImage || user?.avatar || null;
   const initials = getInitials(userName);
 
-  // Determine profile route based on user role
+  // Determine profile route based on user role (priority: admin > seller > customer)
   const getProfileRoute = () => {
     const roles = user?.roles || [];
     const normalizedRoles = Array.isArray(roles) ? roles.map(r => String(r).toLowerCase()) : [];
@@ -82,6 +82,20 @@ const AvatarDropdown = ({ user }) => {
       return '/seller/profile';
     } else {
       return '/user/profile';
+    }
+  };
+
+  // Determine dashboard route based on user role (priority: admin > seller > customer)
+  const getDashboardRoute = () => {
+    const roles = user?.roles || [];
+    const normalizedRoles = Array.isArray(roles) ? roles.map(r => String(r).toLowerCase()) : [];
+    
+    if (normalizedRoles.includes('admin')) {
+      return '/admin/dashboard';
+    } else if (normalizedRoles.includes('seller')) {
+      return '/seller/dashboard';
+    } else {
+      return '/user/dashboard';
     }
   };
 
@@ -122,6 +136,17 @@ const AvatarDropdown = ({ user }) => {
           </div>
           
           <div className="p-2">
+            <button
+              onClick={() => {
+                navigate(getDashboardRoute());
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-md transition-colors"
+            >
+              <User className="w-4 h-4" />
+              Dashboard
+            </button>
+            
             <button
               onClick={() => {
                 navigate(getProfileRoute());

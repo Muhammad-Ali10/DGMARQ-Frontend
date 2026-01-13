@@ -94,8 +94,8 @@ const Settings = () => {
         <p className="text-sm sm:text-base text-gray-400 mt-1">Manage platform configuration</p>
       </div>
 
-      {/* Auto-Approve Products Setting */}
-      <Card className="bg-primary border-gray-700">
+      Auto-Approve Products Setting
+      <Card className="bg-primary border-gray-700 hidden">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Package className="h-5 w-5" />

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/public/Login";
+import Register from "./pages/public/Register";
 import ForgotPassword from "./pages/public/ForgotPassword";
 import ResetPassword from "./pages/public/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
@@ -43,6 +44,7 @@ import ReturnRefundManagement from "./pages/admin/ReturnRefundManagement";
 import SubscriptionsManagement from "./pages/admin/SubscriptionsManagement";
 import PayoutAccountsManagement from "./pages/admin/PayoutAccountsManagement";
 import BundleDeals from "./pages/admin/BundleDeals";
+import AdminNotifications from "./pages/admin/Notifications";
 
 // Seller Pages
 import SellerDashboard from "./pages/seller/Dashboard";
@@ -67,6 +69,7 @@ import ProductEdit from "./pages/seller/ProductEdit";
 // User Pages
 import UserDashboard from "./pages/user/Dashboard";
 import UserOrders from "./pages/user/Orders";
+import OrderDetail from "./pages/user/OrderDetail";
 import UserWishlist from "./pages/user/Wishlist";
 import UserReviews from "./pages/user/Reviews";
 import UserProfile from "./pages/user/Profile";
@@ -100,6 +103,7 @@ import PublicSellerProfile from "./pages/public/SellerProfile";
 import Software from "./pages/public/Software";
 import RandomKeys from "./pages/public/RandomKeys";
 import SteamGiftCard from "./pages/public/SteamGiftCard";
+import GiftCards from "./pages/public/GiftCards";
 import CategoryListing from "./pages/public/CategoryListing";
 
 
@@ -122,6 +126,7 @@ function App() {
         <Route path="/about-company" element={<AboutCompany />} />
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/security" element={<Security />} />
@@ -131,6 +136,7 @@ function App() {
         <Route path="/random-keys" element={<RandomKeys />} />
         <Route path="/steam-gift-card" element={<SteamGiftCard />} />
         <Route path="/steam-gift-cards" element={<SteamGiftCard />} />
+        <Route path="/gift-cards" element={<GiftCards />} />
         <Route path="/category/:categoryId" element={<CategoryListing />} />
       </Route>
 
@@ -152,6 +158,7 @@ function App() {
         <Route path="payouts" element={<PayoutsManagement />} />
         <Route path="users" element={<UsersManagement />} />
         <Route path="support" element={<SupportManagement />} />
+        <Route path="notifications" element={<AdminNotifications />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />
         <Route path="categories" element={<CategoriesManagement />} />
@@ -221,7 +228,9 @@ function App() {
       </Route>
 
       {/* User Routes */}
-      {/* Note: Sellers have ['customer', 'seller'], so they can access user routes via 'customer' role */}
+      {/* CRITICAL: Sellers are redirected away from /user routes by UserLayout
+          Even though sellers have ['customer', 'seller'] roles, they should use /seller routes
+          UserLayout will redirect sellers to /seller/dashboard */}
       <Route
         path="/user"
         element={
@@ -232,6 +241,7 @@ function App() {
       >
         <Route path="dashboard" element={<UserDashboard />} />
         <Route path="orders" element={<UserOrders />} />
+        <Route path="orders/:orderId" element={<OrderDetail />} />
         <Route path="wishlist" element={<UserWishlist />} />
         <Route path="reviews" element={<UserReviews />} />
         <Route path="profile" element={<UserProfile />} />

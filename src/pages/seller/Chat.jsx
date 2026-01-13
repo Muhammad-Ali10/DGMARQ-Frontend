@@ -59,20 +59,41 @@ const SellerChat = () => {
 
   const { data: messagesData, isLoading: messagesLoading, fetchNextPage, hasNextPage, isFetchingNextPage, error: messagesError } = useInfiniteQuery({
     queryKey: ['conversation-messages', selectedConversation],
-    queryFn: ({ pageParam = 1 }) => 
-      chatAPI.getMessages(selectedConversation, { page: pageParam, limit: 25 }).then(res => res.data.data),
+    queryFn: ({ pageParam }) => {
+      // Use cursor-based pagination for better performance
+      const params = pageParam 
+        ? { cursor: pageParam, limit: 15 } 
+        : { limit: 15 }; // Initial load: 15 messages
+      return chatAPI.getMessages(selectedConversation, params).then(res => res.data.data);
+    },
     enabled: !!selectedConversation && !!user, // Only fetch when conversation is selected and user is authenticated
-    initialPageParam: 1,
-    retry: 2,
-    retryDelay: 1000,
-    staleTime: 10000, // Consider data fresh for 10 seconds
-    gcTime: 300000, // Keep in cache for 5 minutes
+    initialPageParam: null, // Start with null (no cursor for initial load)
+    retry: (failureCount, error) => {
+      // Don't retry on 4xx errors (client errors like 401, 403, 404)
+      if (error?.response?.status >= 400 && error?.response?.status < 500) {
+        return false;
+      }
+      // Don't retry on timeout - let it fail fast
+      if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+        return false;
+      }
+      // Only retry once for network errors (not timeouts)
+      return failureCount < 1;
+    },
+    retryDelay: 1000, // Fixed 1 second delay
+    staleTime: 60000, // Consider data fresh for 60 seconds
+    gcTime: 600000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus
     getNextPageParam: (lastPage) => {
-      if (lastPage?.pagination && lastPage.pagination.page < lastPage.pagination.pages) {
-        return lastPage.pagination.page + 1;
+      // Use cursor-based pagination: return nextCursor if hasMore
+      if (lastPage?.pagination?.hasMore && lastPage.pagination.nextCursor) {
+        return lastPage.pagination.nextCursor;
       }
       return undefined;
+    },
+    // IMPORTANT: Don't show error toasts during loading - only show real failures
+    meta: {
+      skipErrorToast: true, // Skip showing toast for query errors
     },
   });
 
@@ -82,9 +103,66 @@ const SellerChat = () => {
     return messagesData.pages.flatMap(page => page.messages || []);
   }, [messagesData?.pages]);
 
-  // Socket.IO event handlers
+  // Socket.IO room join - IMMEDIATE and INDEPENDENT of message fetch
   useEffect(() => {
     if (!socket || !selectedConversation) return;
+    
+    const DEBUG_SOCKET = import.meta.env.DEV;
+    
+    // Handle socket errors for room join
+    const handleSocketError = (error) => {
+      // Don't show toast - errors are handled in UI
+      // The message fetch will show error state if it fails
+      // Removed console.error for production
+    };
+    
+    // Handle successful room join
+    const handleJoinedConversation = (data) => {
+      // Room joined successfully - no action needed
+      // Removed console.log for production
+    };
+    
+    // Join room immediately when conversation is selected
+    socket.emit('join_conversation', selectedConversation);
+    
+    // Listen for join confirmation and errors
+    socket.on('joined_conversation', handleJoinedConversation);
+    socket.on('error', handleSocketError);
+    
+    return () => {
+      // Clean up listeners
+      socket.off('joined_conversation', handleJoinedConversation);
+      socket.off('error', handleSocketError);
+      // Leave room when conversation changes or component unmounts
+      if (socket.connected) {
+        socket.emit('leave_conversation', selectedConversation);
+      }
+    };
+  }, [socket, selectedConversation]);
+
+  // Socket.IO event handlers - SEPARATE from room join
+  // Use refs to prevent duplicate listeners on re-render
+  const socketHandlersRef = useRef({});
+  
+  useEffect(() => {
+    if (!socket || !selectedConversation) return;
+
+    // Clean up previous handlers if they exist
+    if (socketHandlersRef.current.handleNewMessage) {
+      socket.off('new_message', socketHandlersRef.current.handleNewMessage);
+    }
+    if (socketHandlersRef.current.handleMessageReceived) {
+      socket.off('message_received', socketHandlersRef.current.handleMessageReceived);
+    }
+    if (socketHandlersRef.current.handleSocketError) {
+      socket.off('error', socketHandlersRef.current.handleSocketError);
+    }
+
+    // Handle socket errors (separate from room join errors)
+    const handleSocketError = (error) => {
+      // Don't show toast - this is handled by message fetch error state
+      // Removed console.error for production
+    };
 
     const handleNewMessage = (newMessage) => {
       if (newMessage.conversationId?.toString() === selectedConversation?.toString()) {
@@ -169,15 +247,30 @@ const SellerChat = () => {
       // Invalidating here causes unnecessary refetch and performance issues
       // The message is already added to cache in handleNewMessage above
     };
-
-    socket.emit('join_conversation', selectedConversation);
+    
+    // Store handlers in ref for cleanup
+    socketHandlersRef.current = {
+      handleNewMessage,
+      handleMessageReceived,
+      handleSocketError,
+    };
+    
     socket.on('new_message', handleNewMessage);
     socket.on('message_received', handleMessageReceived);
-
+    socket.on('error', handleSocketError);
+    
     return () => {
-      socket.off('new_message', handleNewMessage);
-      socket.off('message_received', handleMessageReceived);
-      socket.emit('leave_conversation', selectedConversation);
+      // Clean up listeners using stored handlers
+      if (socketHandlersRef.current.handleNewMessage) {
+        socket.off('new_message', socketHandlersRef.current.handleNewMessage);
+      }
+      if (socketHandlersRef.current.handleMessageReceived) {
+        socket.off('message_received', socketHandlersRef.current.handleMessageReceived);
+      }
+      if (socketHandlersRef.current.handleSocketError) {
+        socket.off('error', socketHandlersRef.current.handleSocketError);
+      }
+      socketHandlersRef.current = {};
     };
   }, [socket, selectedConversation, queryClient]);
 
@@ -238,20 +331,63 @@ const SellerChat = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['seller-conversations']);
     },
+    onError: (error) => {
+      // Silently handle errors - mark as read is a background operation
+      // Don't show toast or log errors
+    },
+    retry: false, // Don't retry - if it fails, socket will handle it
   });
 
+  // Smooth scroll to bottom only on new messages (not on initial load or pagination)
+  const prevMessagesLengthRef = useRef(0);
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    const currentLength = messages.length;
+    const prevLength = prevMessagesLengthRef.current;
+    
+    // Only auto-scroll if new message was added at the end (not pagination)
+    if (currentLength > prevLength && messagesEndRef.current) {
+      // Check if we're near the bottom before scrolling
+      const messagesContainer = messagesEndRef.current.parentElement;
+      if (messagesContainer) {
+        const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 200;
+        if (isNearBottom) {
+          // Use requestAnimationFrame for smooth scroll
+          requestAnimationFrame(() => {
+            if (messagesEndRef.current) {
+              messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          });
+        }
+      }
     }
-  }, [messages]);
+    prevMessagesLengthRef.current = currentLength;
+  }, [messages.length]);
 
+  // Mark as read when conversation is selected
+  // Use socket if available (faster), fallback to HTTP only if socket not connected
+  const markAsReadRef = useRef(null);
   useEffect(() => {
-    if (selectedConversation && socket) {
-      markAsReadMutation.mutate(selectedConversation);
-      socket.emit('mark_read', selectedConversation);
-    }
-  }, [selectedConversation, socket, markAsReadMutation]);
+    if (!selectedConversation) return;
+    
+    // Prevent duplicate calls
+    if (markAsReadRef.current === selectedConversation) return;
+    markAsReadRef.current = selectedConversation;
+    
+    // Small delay to ensure socket is ready
+    const timeoutId = setTimeout(() => {
+      if (socket && isConnected) {
+        // Use socket for real-time marking (faster, no HTTP overhead)
+        socket.emit('mark_read', selectedConversation);
+      } else if (!socket || !isConnected) {
+        // Fallback to HTTP only if socket is not available
+        markAsReadMutation.mutate(selectedConversation);
+      }
+    }, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [selectedConversation, socket, isConnected, markAsReadMutation]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -375,9 +511,15 @@ const SellerChat = () => {
                   style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}
                   onScroll={(e) => {
                     // Infinite scroll: Load older messages when scrolling to top
+                    // Add slight delay to prevent rapid firing
                     const { scrollTop } = e.target;
-                    if (scrollTop < 100 && hasNextPage && !isFetchingNextPage) {
-                      fetchNextPage();
+                    if (scrollTop < 200 && hasNextPage && !isFetchingNextPage) {
+                      // Small delay to simulate natural loading (1-2 seconds as requested)
+                      setTimeout(() => {
+                        if (hasNextPage && !isFetchingNextPage) {
+                          fetchNextPage();
+                        }
+                      }, 300); // 300ms delay for smooth UX
                     }
                   }}
                 >
@@ -385,10 +527,28 @@ const SellerChat = () => {
                     <div className="flex items-center justify-center h-full">
                       <Loading message="Loading messages..." />
                     </div>
+                  ) : messagesError ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                      <p className="text-red-400 mb-2 font-medium">Failed to load messages</p>
+                      <p className="text-gray-400 text-sm mb-4">
+                        {messagesError?.response?.data?.message || messagesError?.message || 'Please try again'}
+                      </p>
+                      <Button 
+                        onClick={() => queryClient.refetchQueries({ queryKey: ['conversation-messages', selectedConversation] })}
+                        variant="outline"
+                        size="sm"
+                      >
+                        Retry
+                      </Button>
+                    </div>
                   ) : (
                     <>
                       {messages.length === 0 ? (
-                        <div className="text-center py-8 text-gray-400">No messages yet</div>
+                        <div className="flex flex-col items-center justify-center h-full text-center py-12 px-4">
+                          <MessageSquare className="h-16 w-16 text-gray-600 mb-4 opacity-50" />
+                          <p className="text-gray-400 text-lg font-medium mb-2">No messages yet</p>
+                          <p className="text-gray-500 text-sm">Start the conversation by sending a message</p>
+                        </div>
                       ) : (
                         <div className="max-w-2xl mx-auto">
                           {isFetchingNextPage && (

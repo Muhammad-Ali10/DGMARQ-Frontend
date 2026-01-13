@@ -9,16 +9,65 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true,
-  timeout: 30000, // 30 second timeout to prevent hanging requests
+  timeout: 20000, // 20 second timeout (increased for chat messages with large history)
 });
 
-// Request interceptor to add auth token
+// Track page load time to suppress toasts during initial load
+let pageLoadTime = typeof window !== 'undefined' ? Date.now() : 0;
+const INITIAL_LOAD_GRACE_PERIOD = 5000; // 5 seconds after page load
+
+// Reset page load time on navigation (SPA navigation)
+if (typeof window !== 'undefined') {
+  // Track initial page load
+  const initPageLoad = () => {
+    pageLoadTime = Date.now();
+  };
+  
+  if (document.readyState === 'loading') {
+    window.addEventListener('load', initPageLoad, { once: true });
+  } else {
+    initPageLoad();
+  }
+  
+  // Track SPA navigation (React Router) - only in browser
+  try {
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    history.pushState = function(...args) {
+      pageLoadTime = Date.now();
+      return originalPushState.apply(history, args);
+    };
+    
+    history.replaceState = function(...args) {
+      pageLoadTime = Date.now();
+      return originalReplaceState.apply(history, args);
+    };
+    
+    // Also listen to popstate (back/forward)
+    window.addEventListener('popstate', () => {
+      pageLoadTime = Date.now();
+    }, { passive: true });
+  } catch (e) {
+    // Fallback if history API is not available
+    console.warn('Could not set up page load tracking:', e);
+  }
+}
+
+// Request interceptor to add auth token and handle skipErrorToast flag
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Extract skipErrorToast from config and set on request object for response interceptor
+    if (config.skipErrorToast !== undefined) {
+      config.skipToast = config.skipErrorToast;
+      delete config.skipErrorToast; // Remove from config to avoid sending as param
+    }
+    
     return config;
   },
   (error) => {
@@ -99,9 +148,55 @@ api.interceptors.response.use(
       }
     }
     
-    // Show error toast for all other errors (unless skipToast is set)
-    if (!originalRequest?.skipToast) {
-      showApiError(error);
+    // CRITICAL: Don't show toast for errors during React Query retries or timeouts
+    // React Query handles retries, we shouldn't spam user with error toasts
+    const isTimeout = error.code === 'ECONNABORTED' || 
+                      error.message?.toLowerCase().includes('timeout') ||
+                      error.code === 'ETIMEDOUT' ||
+                      (error.response?.status === 408); // Request Timeout
+    
+    // Detect request cancellation (AbortController / component unmount)
+    const isCancelled = error.code === 'ERR_CANCELED' || 
+                       error.message?.toLowerCase().includes('cancel') ||
+                       axios.isCancel?.(error);
+    
+    // Check if request should skip toast (set by explicit flag in config)
+    const shouldSkipToast = originalRequest?.skipToast || 
+                           originalRequest?.skipErrorToast ||
+                           isTimeout || // Always skip toast for timeouts
+                           isCancelled; // Always skip toast for cancelled requests
+    
+    // CRITICAL: For chat/query requests, NEVER show toast - errors are handled in UI
+    // This prevents multiple toasts during React Query retries
+    const isChatRequest = originalRequest?.url?.includes('/messages') || 
+                         originalRequest?.url?.includes('/conversations') ||
+                         originalRequest?.url?.includes('/chat/conversation') ||
+                         originalRequest?.url?.includes('/chat/unread-count');
+    
+    // Detect if this is a GET request (data fetching) vs user action (POST/PUT/DELETE/PATCH)
+    const isGetRequest = !originalRequest?.method || originalRequest.method.toUpperCase() === 'GET';
+    const isUserAction = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(originalRequest?.method?.toUpperCase());
+    
+    // Check if we're in initial page load grace period
+    const timeSincePageLoad = Date.now() - pageLoadTime;
+    const isInitialLoad = timeSincePageLoad < INITIAL_LOAD_GRACE_PERIOD;
+    
+    // CRITICAL: Suppress toasts for GET requests during initial page load
+    // GET requests are data-fetching queries that should fail silently with UI fallbacks
+    // Only show toasts for:
+    // 1. User-initiated actions (POST/PUT/DELETE/PATCH) - force show
+    // 2. GET requests AFTER initial load period (user is actively using the app)
+    // 3. Explicit errors that need user attention (not during initial load)
+    const shouldShowToastForError = !shouldSkipToast && !isChatRequest && (
+      // Always show for user actions (force = true to bypass deduplication)
+      (isUserAction && (error.response || (!error.response && !isTimeout))) ||
+      // Show for GET requests only AFTER initial load period
+      (isGetRequest && !isInitialLoad && (error.response || (!error.response && !isTimeout)))
+    );
+    
+    if (shouldShowToastForError) {
+      // Force show for user actions, normal deduplication for GET requests
+      showApiError(error, undefined, isUserAction);
     }
     
     return Promise.reject(error);

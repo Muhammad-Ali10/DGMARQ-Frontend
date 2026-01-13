@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Plus, Edit, X, Trash2, Package, ChevronLeft, ChevronRight, Image as ImageIcon, XCircle } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
-import { showSuccess, showApiError } from '../../utils/toast';
+import { showSuccess, showApiError, showError, showWarning } from '../../utils/toast';
 
 const BundleDeals = () => {
   const [page, setPage] = useState(1);
@@ -28,6 +28,8 @@ const BundleDeals = () => {
   const [endDate, setEndDate] = useState('');
   const [bannerImage, setBannerImage] = useState(null);
   const [bannerPreview, setBannerPreview] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: bundlesData, isLoading, isError, error } = useQuery({
@@ -109,10 +111,10 @@ const BundleDeals = () => {
     mutationFn: (id) => adminAPI.toggleBundleDealStatus(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['bundle-deals']);
-      toast.success('Bundle deal status updated successfully');
+      showSuccess('Bundle deal status updated successfully');
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.message || 'Failed to update bundle deal status');
+      showApiError(err, 'Failed to update bundle deal status');
     },
   });
 
@@ -130,11 +132,11 @@ const BundleDeals = () => {
 
   const handleProductSelect = (product) => {
     if (selectedProducts.length >= 2) {
-      toast.warning('Bundle can only contain 2 products');
+      showWarning('Bundle can only contain 2 products');
       return;
     }
     if (selectedProducts.find((p) => p._id === product._id)) {
-      toast.warning('Product already selected');
+      showWarning('Product already selected');
       return;
     }
     setSelectedProducts([...selectedProducts, product]);
@@ -159,18 +161,18 @@ const BundleDeals = () => {
 
   const handleCreate = () => {
     if (!title || selectedProducts.length !== 2 || !discountValue || !startDate || !endDate || !bannerImage) {
-      toast.error('Please fill all fields and select exactly 2 products');
+      showError('Please fill all fields and select exactly 2 products');
       return;
     }
 
     const discountNum = parseFloat(discountValue);
     if (isNaN(discountNum) || discountNum <= 0) {
-      toast.error('Invalid discount value');
+      showError('Invalid discount value');
       return;
     }
 
     if (discountType === 'percentage' && (discountNum > 100 || discountNum <= 0)) {
-      toast.error('Percentage discount must be between 1 and 100');
+      showError('Percentage discount must be between 1 and 100');
       return;
     }
 
@@ -200,13 +202,13 @@ const BundleDeals = () => {
 
   const handleUpdate = () => {
     if (!title || selectedProducts.length !== 2 || !discountValue || !startDate || !endDate) {
-      toast.error('Please fill all fields and select exactly 2 products');
+      showError('Please fill all fields and select exactly 2 products');
       return;
     }
 
     const discountNum = parseFloat(discountValue);
     if (isNaN(discountNum) || discountNum <= 0) {
-      toast.error('Invalid discount value');
+      showError('Invalid discount value');
       return;
     }
 

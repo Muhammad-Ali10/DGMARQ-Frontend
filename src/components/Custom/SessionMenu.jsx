@@ -16,7 +16,22 @@ const SessionMenu = ({ onItemClick } = {}) => {
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
 
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { isAuthenticated, user, roles } = useSelector((state) => state.auth);
+  
+  // Determine dashboard route based on user role (priority: admin > seller > customer)
+  const getDashboardRoute = () => {
+    const normalizedRoles = Array.isArray(roles) && roles.length > 0
+      ? roles.map(r => String(r).toLowerCase())
+      : [];
+    
+    if (normalizedRoles.includes('admin')) {
+      return '/admin/dashboard';
+    } else if (normalizedRoles.includes('seller')) {
+      return '/seller/dashboard';
+    } else {
+      return '/user/dashboard';
+    }
+  };
 
   const handleItemClick = (callback) => {
     setIsOpen(false);
@@ -208,32 +223,36 @@ const SessionMenu = ({ onItemClick } = {}) => {
                 </div>
               </div>
 
-              {/* Dashboard Link */}
+              {/* Dashboard Link - Role-based routing */}
               <button
-                onClick={() => handleItemClick(() => navigate('/user/dashboard'))}
+                onClick={() => handleItemClick(() => navigate(getDashboardRoute()))}
                 className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
               >
                 <LayoutDashboard className="w-5 h-5" />
                 <span>Dashboard</span>
               </button>
 
-              {/* Orders Link */}
-              <button
-                onClick={() => handleItemClick(() => navigate('/user/orders'))}
-                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
-              >
-                <ShoppingBag className="w-5 h-5" />
-                <span>Orders</span>
-              </button>
+              {/* Orders Link - Only show for customers (sellers have their own orders page) */}
+              {!roles?.some(r => String(r).toLowerCase() === 'seller') && (
+                <>
+                  <button
+                    onClick={() => handleItemClick(() => navigate('/user/orders'))}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                  >
+                    <ShoppingBag className="w-5 h-5" />
+                    <span>Orders</span>
+                  </button>
 
-              {/* License Keys Link */}
-              <button
-                onClick={() => handleItemClick(() => navigate('/user/license-keys'))}
-                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
-              >
-                <Key className="w-5 h-5" />
-                <span>License Keys</span>
-              </button>
+                  {/* License Keys Link - Only for customers */}
+                  <button
+                    onClick={() => handleItemClick(() => navigate('/user/license-keys'))}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                  >
+                    <Key className="w-5 h-5" />
+                    <span>License Keys</span>
+                  </button>
+                </>
+              )}
 
               <div className="border-t border-gray-700 my-1"></div>
 
