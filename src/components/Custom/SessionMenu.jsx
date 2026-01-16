@@ -223,14 +223,62 @@ const SessionMenu = ({ onItemClick } = {}) => {
                 </div>
               </div>
 
-              {/* Dashboard Link - Role-based routing */}
-              <button
-                onClick={() => handleItemClick(() => navigate(getDashboardRoute()))}
-                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
-              >
-                <LayoutDashboard className="w-5 h-5" />
-                <span>Dashboard</span>
-              </button>
+              {/* Dashboard Links - Show all relevant dashboards */}
+              {(() => {
+                const normalizedRoles = Array.isArray(roles) && roles.length > 0
+                  ? roles.map(r => String(r).toLowerCase().trim())
+                  : [];
+                const hasAdmin = normalizedRoles.includes('admin');
+                const hasSeller = normalizedRoles.includes('seller');
+                const hasCustomer = normalizedRoles.includes('customer');
+                
+                // Show multiple dashboards if user has admin or seller role
+                if (hasAdmin || hasSeller) {
+                  return (
+                    <>
+                      {hasAdmin && (
+                        <button
+                          onClick={() => handleItemClick(() => navigate('/admin/dashboard'))}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                        >
+                          <LayoutDashboard className="w-5 h-5" />
+                          <span>Admin Dashboard</span>
+                        </button>
+                      )}
+                      {hasSeller && (
+                        <button
+                          onClick={() => handleItemClick(() => navigate('/seller/dashboard'))}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                        >
+                          <LayoutDashboard className="w-5 h-5" />
+                          <span>Seller Dashboard</span>
+                        </button>
+                      )}
+                      {/* Always show customer dashboard for sellers and admins (they can shop too) */}
+                      {(hasSeller || hasAdmin) && (
+                        <button
+                          onClick={() => handleItemClick(() => navigate('/user/dashboard'))}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                        >
+                          <LayoutDashboard className="w-5 h-5" />
+                          <span>Customer Dashboard</span>
+                        </button>
+                      )}
+                    </>
+                  );
+                }
+                
+                // Single role (customer only) - show default dashboard
+                return (
+                  <button
+                    onClick={() => handleItemClick(() => navigate(getDashboardRoute()))}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                    <span>Dashboard</span>
+                  </button>
+                );
+              })()}
 
               {/* Orders Link - Only show for customers (sellers have their own orders page) */}
               {!roles?.some(r => String(r).toLowerCase() === 'seller') && (

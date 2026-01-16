@@ -94,7 +94,7 @@ const AboutCompany = () => {
             <CallToAction />
             {/* Call to Action section ends here */}
             {/* Footer Blogs section starts here */}
-            <FooterBlogs />
+             
             {/* Footer Blogs section ends here */}
         </div>
     );

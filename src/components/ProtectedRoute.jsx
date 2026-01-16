@@ -44,9 +44,12 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
         return <Navigate to="/admin/dashboard" replace />;
       }
     } else if (normalizedRoles.includes('seller')) {
+      // Check if seller has explicit permission to access customer routes
+      const explicitAccess = sessionStorage.getItem('allowCustomerAccess') === 'true';
+      
       // Seller should NOT access customer-only routes (even if they have customer role)
-      // Sellers must use seller routes, not user routes
-      if (normalizedAllowedRoles.includes('customer') && !normalizedAllowedRoles.includes('seller')) {
+      // UNLESS they explicitly navigated here using the switch button
+      if (normalizedAllowedRoles.includes('customer') && !normalizedAllowedRoles.includes('seller') && !explicitAccess) {
         // Trying to access customer route but is a seller - redirect to seller dashboard
         return <Navigate to="/seller/dashboard" replace />;
       }

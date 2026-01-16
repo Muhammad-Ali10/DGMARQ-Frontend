@@ -254,7 +254,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-primary border-gray-700 max-w-4xl max-h-[95vh] overflow-y-auto">
+      <DialogContent className="bg-primary border-gray-700 !max-w-7xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>

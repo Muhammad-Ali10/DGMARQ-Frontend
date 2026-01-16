@@ -40,14 +40,14 @@ const Footer = () => {
                     <Link to="/stay-safe" className="font-poppins font-normal text-sm leading-7 underline ">Stay Safe</Link>
                     <Link to="/partnerships" className="font-poppins font-normal text-sm leading-7 underline ">Creator Partnership</Link>
                 </div>
-                <div className="flex flex-col">
+                {/* <div className="flex flex-col">
                     <h3 className="text-base font-poppins font-semibold uppercase pb-4">Media</h3>
                     <Link to="/" className="font-poppins font-normal text-sm leading-7 underline "><span className="no-underline">DGMARQ</span> News - gaming and trends</Link>
                     <Link to="/" className="font-poppins font-normal text-sm leading-7 underline "><span className="no-underline">DGMARQ</span>insights - business and tech</Link>
                     <Link to="/" className="font-poppins font-normal text-sm leading-7 underline ">Press releases</Link>
                     <Link to="/" className="font-poppins font-normal text-sm leading-7 underline ">Media Partnership</Link>
                     <Link to="/" className="font-poppins font-normal text-sm leading-7 underline ">Corporate site</Link>
-                </div>
+                </div> */}
             </div>
         </div>
     )

@@ -541,31 +541,61 @@ const ProductCreate = () => {
               <CardHeader>
                 <CardTitle className="text-white">SEO Settings</CardTitle>
                 <CardDescription className="text-gray-400">
-                  Optional SEO fields
+                  Optional SEO fields to help your product rank on Google
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="metaTitle" className="text-gray-300">Meta Title</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="metaTitle" className="text-gray-300">Meta Title</Label>
+                    <div className="group relative">
+                      <span className="text-gray-500 text-xs cursor-help">ℹ️</span>
+                      <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-gray-800 border border-gray-700 rounded text-xs text-gray-300 z-10">
+                        This appears as the title in Google search results. Recommended: 50-60 characters.
+                      </div>
+                    </div>
+                  </div>
                   <Input
                     id="metaTitle"
                     name="metaTitle"
                     value={formData.metaTitle}
                     onChange={handleInputChange}
+                    maxLength={60}
+                    placeholder="e.g., Game Name - Platform | Category"
                     className="bg-secondary border-gray-700 text-white"
                   />
+                  <div className="flex justify-end">
+                    <p className={`text-xs ${formData.metaTitle.length > 60 ? 'text-red-400' : formData.metaTitle.length > 50 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                      {formData.metaTitle.length}/60
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="metaDescription" className="text-gray-300">Meta Description</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="metaDescription" className="text-gray-300">Meta Description</Label>
+                    <div className="group relative">
+                      <span className="text-gray-500 text-xs cursor-help">ℹ️</span>
+                      <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-gray-800 border border-gray-700 rounded text-xs text-gray-300 z-10">
+                        This appears as the description in Google search results. Recommended: 120-160 characters.
+                      </div>
+                    </div>
+                  </div>
                   <textarea
                     id="metaDescription"
                     name="metaDescription"
                     value={formData.metaDescription}
                     onChange={handleInputChange}
+                    maxLength={160}
+                    placeholder="e.g., Buy Game Name at the best price. Instant delivery, secure purchase, and 24/7 support."
                     className="w-full px-3 py-2 bg-secondary border border-gray-700 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent"
                     rows={3}
                   />
+                  <div className="flex justify-end">
+                    <p className={`text-xs ${formData.metaDescription.length > 160 ? 'text-red-400' : formData.metaDescription.length > 120 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                      {formData.metaDescription.length}/160
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productAPI, cartAPI, reviewAPI, userAPI } from '../../services/api';
+import { useSEO, generateProductSEO } from '../../hooks/useSEO';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
@@ -234,6 +235,18 @@ const ProductDetail = () => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength).trim() + '...';
   };
+
+  // Generate SEO for product - MUST be before conditional returns
+  const productSEO = product ? generateProductSEO(product) : null;
+
+  // Update SEO meta tags using custom hook
+  // MUST be called before any conditional returns to maintain hooks order
+  // Automatically updates on route change and when product changes
+  useSEO({
+    title: productSEO?.title,
+    description: productSEO?.description,
+    useDefaults: true, // Use default values if product is not loaded
+  });
 
   if (isLoading) {
     return <Loading message="Loading product details..." />;

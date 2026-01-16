@@ -6,7 +6,7 @@ import ProductCard from "../../components/ProductCard";
 import { Loading, ErrorMessage } from "../../components/ui/loading";
 import { Button } from "../../components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import FooterBlogs from "../../components/FooterBlogs";
+  
 const PlatformsButton = [
   { name: "steam Games", url: "#" },
   { name: "Origin Games ", url: "#" },
@@ -200,7 +200,7 @@ const BestSellers = () => {
           ))}
         </div>
       </div>
-      <FooterBlogs />
+       
     </div>
   );
 };

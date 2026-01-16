@@ -352,7 +352,7 @@ const Header = () => {
             {/* Search Bar - Desktop */}
             <form
               onSubmit={handleSearch}
-              className="hidden md:flex flex-1 max-w-2xl mx-4"
+              className="hidden md:flex flex-1 w-full mx-4"
               ref={searchContainerRef}
             >
               <div className="relative w-full">
@@ -489,11 +489,11 @@ const Header = () => {
           isScrolled ? "bg-[#060318]/80 backdrop-blur-sm" : "bg-[#060318]/20"
         )}>
           {/* Secondary Navigation Row - Desktop */}
-          <div className="hidden md:flex items-center justify-between gap-4 px-4 py-3 container mx-auto">
-            <div className="flex items-center gap-4">
+          <div className="hidden md:flex items-center justify-center gap-2 px-4 py-3 container mx-auto">
+            <div className="flex items-center gap-2 flex-wrap w-full justify-between">
               {/* Categories with Mega Dropdown */}
               <div
-                className="relative"
+                className="relative flex grow"
                 ref={categoriesDropdownRef}
                 onMouseEnter={() => {
                   // Clear any pending timeout
@@ -513,10 +513,10 @@ const Header = () => {
                 }}
               >
                 <button
-                  className="text-white hover:text-accent transition-colors w-[181px] h-[43px] px-5 py-[10px] bg-[#07142E]  flex items-center justify-center  font-medium gap-3"
+                  className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center font-medium gap-3 rounded-lg whitespace-nowrap grow"
                   type="button"
                 >
-                  <Menu className="h-6 w-6" />
+                  <Menu className="h-6 w-6 shrink-0" />
                   Categories
                 </button>
 
@@ -574,7 +574,7 @@ const Header = () => {
                                 setShowCategoriesDropdown(false);
                               }}
                               className={cn(
-                                "w-full px-4 py-3 text-left text-white hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-gray-800/30 last:border-b-0",
+                                "w-full px-4 py-3 text-left text-white hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-gray-800/30 last:border-b-0 ",
                                 hoveredCategory?._id === category._id &&
                                   "bg-gray-800/50"
                               )}
@@ -649,30 +649,30 @@ const Header = () => {
               {/* Navigation Links */}
               <Link
                 to="/bestsellers"
-                className="text-white hover:text-accent transition-colors w-[181px] h-[43px] px-5 py-[10px] bg-[#07142E]  flex items-center justify-center"
+                className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center rounded-lg whitespace-nowrap grow"
               >
                 Bestsellers
               </Link>
               <Link
                 to="/gift-cards"
-                className="text-white hover:text-accent transition-colors w-[181px] h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center"
+                className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center rounded-lg whitespace-nowrap grow"
               >
                 Gift Cards
               </Link>
               <Link
                 to="/random-keys"
-                className="text-white hover:text-accent transition-colors w-[181px] h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center"
+                className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center rounded-lg whitespace-nowrap grow"
               >
                 Random Keys
               </Link>
               <Link
                 to="/software"
-                className="text-white hover:text-accent transition-colors w-[181px] h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center"
+                className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center rounded-lg whitespace-nowrap grow"
               >
                 Software
               </Link>
-            </div>
 
+              
             {/* CTA Button */}
             <Button
               onClick={() => navigate("/dgmarq-plus")}
@@ -680,6 +680,15 @@ const Header = () => {
             >
               Save more with DGMAQ Plus
             </Button>
+            </div>
+
+            {/* CTA Button */}
+            {/* <Button
+              onClick={() => navigate("/dgmarq-plus")}
+              className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium shadow-lg"
+            >
+              Save more with DGMAQ Plus
+            </Button> */}
           </div>
         </div>
 

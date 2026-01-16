@@ -92,7 +92,18 @@ const ReturnRefundManagement = () => {
                         {refund.userId?.name || refund.userId?.email || 'N/A'}
                       </TableCell>
                       <TableCell className="text-gray-400">
-                        {refund.orderId ? `#${refund.orderId.slice(-8)}` : '-'}
+                        {(() => {
+                          if (!refund.orderId) return '-';
+                          try {
+                            // Handle populated orderId (object) or direct orderId (string/ObjectId)
+                            const orderIdStr = refund.orderId._id 
+                              ? String(refund.orderId._id)
+                              : String(refund.orderId);
+                            return `#${orderIdStr.slice(-8)}`;
+                          } catch (error) {
+                            return '-';
+                          }
+                        })()}
                       </TableCell>
                       <TableCell className="text-white font-semibold">
                         <DollarSign className="w-4 h-4 inline mr-1" />

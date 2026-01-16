@@ -133,7 +133,7 @@ const Marketplace = () => {
       <Slider2 />
       <Faqs data={FaqsData} />
       <CallToAction />
-      <FooterBlogs />
+       
     </div>
   );
 };

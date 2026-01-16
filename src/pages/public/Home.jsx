@@ -16,9 +16,11 @@ import {
   upcomingGamesAPI,
   trendingCategoryAPI,
   softwareAPI,
+  seoAPI,
 } from "../../services/api";
 import { Loading } from "../../components/ui/loading";
-import FooterBlogs from "../../components/FooterBlogs";
+import { useSEO } from "../../hooks/useSEO";
+  
 
 
 const widths= [
@@ -91,6 +93,30 @@ const Home = () => {
     },
     staleTime: 120000, // 2 minutes
     retry: 2,
+  });
+
+  // Fetch home page SEO settings
+  const { data: seoSettings } = useQuery({
+    queryKey: ["home-page-seo-public"],
+    queryFn: async () => {
+      try {
+        const response = await seoAPI.getHomePageSEO();
+        return response.data.data;
+      } catch (err) {
+        console.error('SEO fetch error:', err);
+        return null;
+      }
+    },
+    staleTime: 300000, // 5 minutes
+    retry: 1,
+  });
+
+  // Update SEO meta tags using custom hook
+  // Automatically updates on route change and when seoSettings changes
+  useSEO({
+    title: seoSettings?.metaTitle,
+    description: seoSettings?.metaDescription,
+    useDefaults: true, // Use default values if seoSettings is not available
   });
 
   const microsoftProducts = softwarePageData?.microsoft || [];
@@ -636,7 +662,7 @@ const Home = () => {
       )}
 
       
-      <FooterBlogs />
+       
     </div>
   );
 };

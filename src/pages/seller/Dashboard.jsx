@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { sellerAPI } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { DollarSign, Package, ShoppingCart, TrendingUp } from 'lucide-react';
+import { DollarSign, Package, ShoppingCart, TrendingUp, User } from 'lucide-react';
 
 const SellerDashboard = () => {
   const { data: sellerInfo, isLoading: infoLoading, isError: infoError } = useQuery({
@@ -51,9 +52,28 @@ const SellerDashboard = () => {
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Seller Dashboard</h1>
-        <p className="text-sm sm:text-base text-gray-400 mt-1">Welcome back, {sellerInfo?.shopName || 'Seller'}</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Seller Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-400 mt-1">Welcome back, {sellerInfo?.shopName || 'Seller'}</p>
+        </div>
+        
+        {/* Switch to Customer Dashboard Button - Always show (sellers can shop as customers) */}
+        <div className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+          <Button
+            variant="outline"
+            onClick={() => {
+              // Set flag to allow access to customer dashboard
+              sessionStorage.setItem('allowCustomerAccess', 'true');
+              // Use window.location to force full navigation
+              window.location.href = '/user/dashboard';
+            }}
+            className="w-full sm:w-auto border-2 border-accent text-white hover:bg-accent/20 hover:border-accent/90 bg-transparent dark:bg-transparent dark:border-accent dark:text-white whitespace-nowrap font-medium shadow-sm"
+          >
+            <User className="h-4 w-4 mr-2" />
+            Switch to Customer Dashboard
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -78,7 +98,7 @@ const SellerDashboard = () => {
         <Card className="bg-primary border-gray-700 border-l-4 border-l-yellow-500">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
                   <TrendingUp className="h-4 w-4 text-yellow-500" />
                 </div>

@@ -31,7 +31,7 @@ const Security = () => {
             <Help />
 
             <CallToAction />
-            <FooterBlogs />
+             
         </div>
 
 

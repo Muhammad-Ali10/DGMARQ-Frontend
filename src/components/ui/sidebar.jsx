@@ -270,6 +270,7 @@ export const AdminSidebar = () => {
 };
 
 export const SellerSidebar = () => {
+
   return (
     <aside className="w-64 bg-secondary h-full flex flex-col shadow-lg border-r border-border">
       {/* Logo at Top */}
@@ -351,12 +352,15 @@ export const UserSidebar = () => {
   // Normalize roles to lowercase for comparison
   const normalizedRoles = roles?.map((r) => r.toLowerCase()) || [];
   const isSeller = normalizedRoles.includes("seller");
+  
+  // Check if seller has explicit permission to access customer dashboard
+  const explicitAccess = typeof window !== 'undefined' && sessionStorage.getItem('allowCustomerAccess') === 'true';
 
-  // CRITICAL: If user is a seller, they should not see this sidebar
-  // This component should only render for pure customers
-  // Sellers will be redirected to seller layout before this renders
-  if (isSeller) {
-    return null; // Don't render user sidebar for sellers
+  // Allow sidebar to show if:
+  // 1. User is not a seller, OR
+  // 2. User is a seller but has explicit access (switched to customer dashboard)
+  if (isSeller && !explicitAccess) {
+    return null; // Don't render user sidebar for sellers without explicit access
   }
 
   return (

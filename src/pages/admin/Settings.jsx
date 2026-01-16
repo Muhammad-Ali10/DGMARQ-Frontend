@@ -5,12 +5,15 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight, Search } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
 
 const Settings = () => {
   const [commissionRate, setCommissionRate] = useState('');
+  const [seoMetaTitle, setSeoMetaTitle] = useState('');
+  const [seoMetaDescription, setSeoMetaDescription] = useState('');
   const queryClient = useQueryClient();
 
   // Commission Rate Query
@@ -41,11 +44,32 @@ const Settings = () => {
     retry: 1,
   });
 
+  // Home Page SEO Query
+  const { data: seoSettings, isLoading: isLoadingSEO } = useQuery({
+    queryKey: ['home-page-seo'],
+    queryFn: async () => {
+      try {
+        const response = await adminAPI.getHomePageSEO();
+        return response.data.data;
+      } catch (err) {
+        throw err;
+      }
+    },
+    retry: 1,
+  });
+
   useEffect(() => {
     if (settings?.commissionRate !== undefined) {
       setCommissionRate(settings.commissionRate.toString());
     }
   }, [settings]);
+
+  useEffect(() => {
+    if (seoSettings) {
+      setSeoMetaTitle(seoSettings.metaTitle || '');
+      setSeoMetaDescription(seoSettings.metaDescription || '');
+    }
+  }, [seoSettings]);
 
   const updateMutation = useMutation({
     mutationFn: (rate) => adminAPI.updateCommissionRate({ commissionRate: rate }),
@@ -84,7 +108,42 @@ const Settings = () => {
     autoApproveMutation.mutate(newValue);
   };
 
-  if (isLoading || isLoadingAutoApprove) return <Loading message="Loading settings..." />;
+  // SEO Update Mutation
+  const seoUpdateMutation = useMutation({
+    mutationFn: (data) => adminAPI.updateHomePageSEO(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['home-page-seo']);
+      showSuccess('Home page SEO settings updated successfully');
+    },
+    onError: (error) => {
+      showApiError(error, 'Failed to update SEO settings');
+    },
+  });
+
+  const handleSEOUpdate = () => {
+    if (!seoMetaTitle.trim()) {
+      showError('Meta title is required');
+      return;
+    }
+    if (!seoMetaDescription.trim()) {
+      showError('Meta description is required');
+      return;
+    }
+    if (seoMetaTitle.length > 60) {
+      showError('Meta title must be 60 characters or less');
+      return;
+    }
+    if (seoMetaDescription.length > 160) {
+      showError('Meta description must be 160 characters or less');
+      return;
+    }
+    seoUpdateMutation.mutate({
+      metaTitle: seoMetaTitle.trim(),
+      metaDescription: seoMetaDescription.trim(),
+    });
+  };
+
+  if (isLoading || isLoadingAutoApprove || isLoadingSEO) return <Loading message="Loading settings..." />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || "Error loading settings"} />;
 
   return (
@@ -203,6 +262,82 @@ const Settings = () => {
               Enter a value between 0 and 1 (e.g., 0.1 = 10%, 0.15 = 15%)
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Home Page SEO Settings */}
+      <Card className="bg-primary border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Home Page SEO Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <p className="text-sm text-gray-400 mb-4">
+              Configure the meta title and description for the home page. These appear in Google search results.
+            </p>
+            {seoSettings?.lastUpdated && (
+              <p className="text-xs text-gray-500 mb-4">
+                Last updated: {new Date(seoSettings.lastUpdated).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="seoMetaTitle" className="text-gray-300">
+              Meta Title <span className="text-red-400">*</span>
+            </Label>
+            <Input
+              id="seoMetaTitle"
+              type="text"
+              maxLength={60}
+              value={seoMetaTitle}
+              onChange={(e) => setSeoMetaTitle(e.target.value)}
+              placeholder="e.g., DG Marq - Digital Marketplace for Games & Software"
+              className="bg-gray-800 border-gray-700 text-white"
+            />
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-gray-400">
+                Recommended: 50-60 characters for optimal display in search results
+              </p>
+              <p className={`text-xs ${seoMetaTitle.length > 60 ? 'text-red-400' : seoMetaTitle.length > 50 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                {seoMetaTitle.length}/60
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="seoMetaDescription" className="text-gray-300">
+              Meta Description <span className="text-red-400">*</span>
+            </Label>
+            <Textarea
+              id="seoMetaDescription"
+              maxLength={160}
+              value={seoMetaDescription}
+              onChange={(e) => setSeoMetaDescription(e.target.value)}
+              placeholder="e.g., Buy digital games, software licenses, and accounts at the best prices. Instant delivery, secure transactions, and 24/7 support."
+              className="bg-gray-800 border-gray-700 text-white min-h-[100px]"
+              rows={4}
+            />
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-gray-400">
+                Recommended: 120-160 characters for optimal display in search results
+              </p>
+              <p className={`text-xs ${seoMetaDescription.length > 160 ? 'text-red-400' : seoMetaDescription.length > 120 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                {seoMetaDescription.length}/160
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSEOUpdate}
+            disabled={seoUpdateMutation.isPending || !seoMetaTitle.trim() || !seoMetaDescription.trim()}
+            className="w-full"
+          >
+            {seoUpdateMutation.isPending ? 'Updating...' : 'Update SEO Settings'}
+          </Button>
         </CardContent>
       </Card>
     </div>

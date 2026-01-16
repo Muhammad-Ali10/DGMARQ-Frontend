@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useSEO } from "./hooks/useSEO";
 import Login from "./pages/public/Login";
 import Register from "./pages/public/Register";
 import ForgotPassword from "./pages/public/ForgotPassword";
@@ -108,6 +109,10 @@ import CategoryListing from "./pages/public/CategoryListing";
 
 
 function App() {
+  // Set default SEO globally for all routes
+  // This ensures DEFAULT_SEO is always applied, even if page-specific SEO hasn't loaded yet
+  useSEO();
+
   return (
     <Routes>
       <Route path="/auth/callback" element={<AuthCallback />} />

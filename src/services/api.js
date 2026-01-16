@@ -59,6 +59,8 @@ export const adminAPI = {
   updateCommissionRate: (data) => api.patch('/admin/settings/commission-rate', data),
   getAutoApproveSetting: () => api.get('/admin/settings/auto-approve-products'),
   updateAutoApproveSetting: (data) => api.patch('/admin/settings/auto-approve-products', data),
+  getHomePageSEO: () => api.get('/admin/settings/seo/home'),
+  updateHomePageSEO: (data) => api.patch('/admin/settings/seo/home', data),
   getAllSupportChats: () => api.get('/support/admin/chats'),
   assignAdminToChat: (chatId, assignTo = null) => api.post(`/support/admin/${chatId}/assign`, assignTo ? { assignTo } : {}),
   getSupportStats: () => api.get('/support/admin/stats'),
@@ -496,4 +498,9 @@ export const upcomingGamesAPI = {
 // Software Page APIs
 export const softwareAPI = {
   getSoftwarePage: () => api.get('/product/pages/software'),
+};
+
+// SEO APIs (Public)
+export const seoAPI = {
+  getHomePageSEO: () => api.get('/seo/home'),
 };

@@ -5,7 +5,6 @@ import { cn } from '../lib/utils';
 const menuItems = [
   { id: 'bestsellers', label: 'Bestsellers' },
   { id: 'upcoming-games', label: 'Upcoming Games' },
-  { id: 'best-pc-ports', label: 'Best PC Ports' },
   { id: 'trending-categories', label: 'Trending Categories' },
   { id: 'software', label: 'Software' },
   { id: 'gaming-gift-cards', label: 'Gaming Gift Cards' },

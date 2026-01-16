@@ -95,89 +95,126 @@ const BundleDealsSection = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-white">Exclusive Bundle Deals</h2>
-          <p className="text-gray-400 mt-1">Save more when you buy together</p>
+          <p className="text-gray-400 mt-1">Add Some Funds In A Flash And Enjoy New Games, DLC, And More!</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-8">
         {bundleDeals.map((bundle) => {
           const priceInfo = calculateBundlePrice(bundle);
+          const products = bundle.products?.slice(0, 2) || [];
+          
+          if (products.length !== 2) return null;
 
           return (
-            <Card key={bundle._id} className="bg-primary border-gray-700 overflow-hidden hover:border-accent transition-colors">
-              {/* Banner Image */}
-              <div className="relative w-full h-48 bg-secondary/30">
-                {bundle.bannerImage ? (
-                  <img
-                    src={bundle.bannerImage}
-                    alt={bundle.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Package className="w-16 h-16 text-gray-500" />
-                  </div>
-                )}
-                {/* Discount Badge */}
-                <div className="absolute top-4 right-4">
-                  <Badge variant="destructive" className="text-lg px-3 py-1">
-                    {bundle.discountType === 'percentage' ? `${bundle.discountValue}% OFF` : `$${bundle.discountValue} OFF`}
-                  </Badge>
-                </div>
-              </div>
-
+            <Card key={bundle._id} className="bg-[#07142E] border-gray-700 overflow-hidden hover:border-accent transition-colors">
               <CardContent className="p-6">
-                {/* Bundle Title */}
-                <h3 className="text-xl font-bold text-white mb-4">{bundle.title}</h3>
-
-                {/* Products */}
-                <div className="space-y-3 mb-4">
-                  {bundle.products?.slice(0, 2).map((product) => (
-                    <div key={product._id || product} className="flex items-center gap-3">
-                      {product.images?.[0] ? (
+                {/* Bundle Layout: Product + Product = Price Card */}
+                <div className="flex flex-col lg:flex-row items-center justify-center gap-4 lg:gap-6">
+                  {/* First Product Card */}
+                  <div className="flex-shrink-0 w-full sm:w-auto">
+                    <div className="bg-primary border border-gray-700 rounded-lg p-4 w-full sm:w-[280px]">
+                      {products[0]?.images?.[0] ? (
                         <img
-                          src={product.images[0]}
-                          alt={product.name}
-                          className="w-12 h-12 object-cover rounded-lg border border-gray-700"
+                          src={products[0].images[0]}
+                          alt={products[0].name}
+                          className="w-full h-48 object-cover rounded-lg mb-3"
                         />
                       ) : (
-                        <div className="w-12 h-12 bg-secondary/50 rounded-lg border border-gray-700 flex items-center justify-center">
-                          <Package className="w-5 h-5 text-gray-500" />
+                        <div className="w-full h-48 bg-secondary/50 rounded-lg border border-gray-700 flex items-center justify-center mb-3">
+                          <Package className="w-16 h-16 text-gray-500" />
                         </div>
                       )}
-                      <div className="flex-1">
-                        <div className="font-medium text-white text-sm">{product.name || product}</div>
-                        <div className="text-sm text-gray-400">${product.price?.toFixed(2) || '0.00'}</div>
+                      <div className="space-y-1">
+                        <div className="font-medium text-white text-sm line-clamp-2">{products[0].name}</div>
+                        <div className="text-xs text-gray-400">{products[0].platform?.name || 'Microsoft Store'}</div>
+                        <div className="text-xs text-gray-400">Key GLOBAL</div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-white font-semibold">${products[0].price?.toFixed(2) || '0.00'}</span>
+                          {products[0].price && products[0].originalPrice && products[0].originalPrice > products[0].price && (
+                            <span className="text-gray-400 line-through text-xs">
+                              ${products[0].originalPrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        {bundle.discountType === 'percentage' && bundle.discountValue && (
+                          <Badge className="bg-blue-600 text-white text-xs mt-1">
+                            -{bundle.discountValue}%
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
 
-                {/* Pricing */}
-                <div className="border-t border-gray-700 pt-4 mb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400">Original Price:</span>
-                    <span className="text-gray-400 line-through">${priceInfo.original.toFixed(2)}</span>
+                  {/* Plus Sign */}
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                      <span className="text-black font-bold text-xl">+</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400">Discount:</span>
-                    <span className="text-green-400 font-semibold">-${priceInfo.discount.toFixed(2)}</span>
+
+                  {/* Second Product Card */}
+                  <div className="flex-shrink-0 w-full sm:w-auto">
+                    <div className="bg-primary border border-gray-700 rounded-lg p-4 w-full sm:w-[280px]">
+                      {products[1]?.images?.[0] ? (
+                        <img
+                          src={products[1].images[0]}
+                          alt={products[1].name}
+                          className="w-full h-48 object-cover rounded-lg mb-3"
+                        />
+                      ) : (
+                        <div className="w-full h-48 bg-secondary/50 rounded-lg border border-gray-700 flex items-center justify-center mb-3">
+                          <Package className="w-16 h-16 text-gray-500" />
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <div className="font-medium text-white text-sm line-clamp-2">{products[1].name}</div>
+                        <div className="text-xs text-gray-400">{products[1].platform?.name || 'Microsoft Store'}</div>
+                        <div className="text-xs text-gray-400">Key GLOBAL</div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-white font-semibold">${products[1].price?.toFixed(2) || '0.00'}</span>
+                          {products[1].price && products[1].originalPrice && products[1].originalPrice > products[1].price && (
+                            <span className="text-gray-400 line-through text-xs">
+                              ${products[1].originalPrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        {bundle.discountType === 'percentage' && bundle.discountValue && (
+                          <Badge className="bg-blue-600 text-white text-xs mt-1">
+                            -{bundle.discountValue}%
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-semibold">Final Price:</span>
-                    <span className="text-white text-xl font-bold">${priceInfo.final.toFixed(2)}</span>
+
+                  {/* Equals Sign */}
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                      <span className="text-black font-bold text-xl">=</span>
+                    </div>
+                  </div>
+
+                  {/* Price Card */}
+                  <div className="flex-shrink-0 w-full sm:w-auto">
+                    <div className="bg-[#07142E] border-2 border-accent rounded-lg p-6 w-full sm:w-[280px] text-center">
+                      <div className="text-gray-400 text-sm mb-2">Price</div>
+                      <div className="text-white text-3xl font-bold mb-2">
+                        ${priceInfo.final.toFixed(2)}
+                      </div>
+                      <div className="text-gray-400 text-sm mb-4">
+                        You Save: ${priceInfo.discount.toFixed(2)}
+                      </div>
+                      <Button
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => handleAddToCart(bundle)}
+                        disabled={addBundleMutation.isPending}
+                      >
+                        {addBundleMutation.isPending ? 'Adding...' : 'Add To Cart'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-
-                {/* Add to Cart Button */}
-                <Button
-                  className="w-full"
-                  onClick={() => handleAddToCart(bundle)}
-                  disabled={addBundleMutation.isPending}
-                >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  {addBundleMutation.isPending ? 'Adding...' : 'Add Bundle to Cart'}
-                </Button>
               </CardContent>
             </Card>
           );

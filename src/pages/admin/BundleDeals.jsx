@@ -10,7 +10,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Plus, Edit, X, Trash2, Package, ChevronLeft, ChevronRight, Image as ImageIcon, XCircle } from 'lucide-react';
+import { Plus, Edit, X, Trash2, Package, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { showSuccess, showApiError, showError, showWarning } from '../../utils/toast';
 
@@ -26,8 +26,6 @@ const BundleDeals = () => {
   const [discountValue, setDiscountValue] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [bannerImage, setBannerImage] = useState(null);
-  const [bannerPreview, setBannerPreview] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const queryClient = useQueryClient();
@@ -126,8 +124,6 @@ const BundleDeals = () => {
     setDiscountValue('');
     setStartDate('');
     setEndDate('');
-    setBannerImage(null);
-    setBannerPreview(null);
   };
 
   const handleProductSelect = (product) => {
@@ -147,20 +143,9 @@ const BundleDeals = () => {
     setSelectedProducts(selectedProducts.filter((p) => p._id !== productId));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setBannerImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setBannerPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleCreate = () => {
-    if (!title || selectedProducts.length !== 2 || !discountValue || !startDate || !endDate || !bannerImage) {
+    if (!title || selectedProducts.length !== 2 || !discountValue || !startDate || !endDate) {
       showError('Please fill all fields and select exactly 2 products');
       return;
     }
@@ -183,7 +168,6 @@ const BundleDeals = () => {
     formData.append('discountValue', discountNum);
     formData.append('startDate', startDate);
     formData.append('endDate', endDate);
-    formData.append('bannerImage', bannerImage);
 
     createMutation.mutate(formData);
   };
@@ -196,7 +180,6 @@ const BundleDeals = () => {
     setDiscountValue(bundle.discountValue?.toString() || '');
     setStartDate(new Date(bundle.startDate).toISOString().split('T')[0]);
     setEndDate(new Date(bundle.endDate).toISOString().split('T')[0]);
-    setBannerPreview(bundle.bannerImage || null);
     setIsEditDialogOpen(true);
   };
 
@@ -219,9 +202,6 @@ const BundleDeals = () => {
     formData.append('discountValue', discountNum);
     formData.append('startDate', startDate);
     formData.append('endDate', endDate);
-    if (bannerImage) {
-      formData.append('bannerImage', bannerImage);
-    }
 
     updateMutation.mutate({ id: selectedBundle._id, formData });
   };
@@ -310,7 +290,6 @@ const BundleDeals = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-gray-700">
-                      <TableHead className="text-gray-300">Banner</TableHead>
                       <TableHead className="text-gray-300">Title</TableHead>
                       <TableHead className="text-gray-300">Products</TableHead>
                       <TableHead className="text-gray-300">Discount</TableHead>
@@ -322,19 +301,6 @@ const BundleDeals = () => {
                   <TableBody>
                     {bundles.map((bundle) => (
                       <TableRow key={bundle._id} className="border-gray-700">
-                        <TableCell>
-                          {bundle.bannerImage ? (
-                            <img
-                              src={bundle.bannerImage}
-                              alt={bundle.title}
-                              className="w-16 h-16 object-cover rounded-lg"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 bg-secondary/50 rounded-lg flex items-center justify-center">
-                              <ImageIcon className="w-6 h-6 text-gray-500" />
-                            </div>
-                          )}
-                        </TableCell>
                         <TableCell className="text-white font-medium">{bundle.title}</TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1">
@@ -528,18 +494,6 @@ const BundleDeals = () => {
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label className="text-gray-300">Banner Image</Label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="bg-secondary border-gray-700 text-white"
-              />
-              {bannerPreview && (
-                <img src={bannerPreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
-              )}
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); resetForm(); }}>
@@ -660,19 +614,6 @@ const BundleDeals = () => {
                   className="bg-secondary border-gray-700 text-white"
                 />
               </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label className="text-gray-300">Banner Image</Label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="bg-secondary border-gray-700 text-white"
-              />
-              {bannerPreview && (
-                <img src={bannerPreview} alt="Preview" className="w-full h-48 object-cover rounded-lg" />
-              )}
             </div>
           </div>
           <DialogFooter>

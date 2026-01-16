@@ -1,13 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
 import { userAPI, notificationAPI } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp } from 'lucide-react';
+import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store } from 'lucide-react';
 
 const UserDashboard = () => {
+  const { roles } = useSelector((state) => state.auth);
+  const normalizedRoles = Array.isArray(roles) && roles.length > 0
+    ? roles.map(r => String(r).toLowerCase().trim())
+    : [];
+  const hasSellerRole = normalizedRoles.includes('seller');
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['user-orders-summary'],
     queryFn: () => userAPI.getMyOrders({ page: 1, limit: 5 }).then(res => res.data.data),
@@ -106,9 +112,29 @@ const UserDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard</h1>
-        <p className="text-gray-400 mt-1">Welcome to your dashboard</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard</h1>
+          <p className="text-gray-400 mt-1">Welcome to your dashboard</p>
+        </div>
+        {/* Switch to Seller Dashboard Button - Show if user has seller role */}
+        {hasSellerRole && (
+          <div className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                // Clear the customer access flag when switching back to seller
+                sessionStorage.removeItem('allowCustomerAccess');
+                // Use window.location to force full navigation
+                window.location.href = '/seller/dashboard';
+              }}
+              className="w-full sm:w-auto border-2 border-accent text-white hover:bg-accent/20 hover:border-accent/90 bg-transparent dark:bg-transparent dark:border-accent dark:text-white whitespace-nowrap font-medium shadow-sm"
+            >
+              <Store className="h-4 w-4 mr-2" />
+              Switch to Seller Dashboard
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

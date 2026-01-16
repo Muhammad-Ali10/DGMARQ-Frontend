@@ -5,7 +5,7 @@ import ProductCard from "../../components/ProductCard";
 import MicrosoftCard from "../../components/MicrosoftCard";
 import { productAPI, bestsellerAPI, categoryAPI, typeAPI } from "../../services/api";
 import { Loading } from "../../components/ui/loading";
-import FooterBlogs from "../../components/FooterBlogs";
+  
 // Skeleton loader for product sections
 const ProductSectionSkeleton = ({ count = 6, vertical = false }) => (
   <div
@@ -894,7 +894,7 @@ const RandomKeys = () => {
         isLoading={isLoadingMonthlySubscription}
         showMoreLink={getShowMoreLink("search", "monthly subscription")}
       />
-      <FooterBlogs />
+       
     </div>
   );
 };
