@@ -1,21 +1,53 @@
-import { useQuery } from '@tanstack/react-query';
-import { sellerAPI } from '../../services/api';
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { ShoppingCart, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
+import { useQuery } from "@tanstack/react-query";
+import { sellerAPI } from "../../services/api";
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../../components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { Loading, ErrorMessage } from "../../components/ui/loading";
+import {
+  ShoppingCart,
+  ChevronLeft,
+  ChevronRight,
+  DollarSign,
+  Eye
+} from "lucide-react";
+import { Link } from "react-router-dom";
 
 const SellerOrders = () => {
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState("");
 
-  const { data: ordersData, isLoading, isError } = useQuery({
-    queryKey: ['seller-orders', page, status],
-    queryFn: () => sellerAPI.getMyOrders({ page, limit: 10, status }).then(res => res.data.data),
+  const {
+    data: ordersData,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["seller-orders", page, status],
+    queryFn: () =>
+      sellerAPI
+        .getMyOrders({ page, limit: 10, status })
+        .then((res) => res.data.data),
   });
 
   if (isLoading) return <Loading message="Loading orders..." />;
@@ -35,7 +67,13 @@ const SellerOrders = () => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle className="text-white">Orders</CardTitle>
-            <Select value={status || "all"} onValueChange={(value) => { setStatus(value === "all" ? "" : value); setPage(1); }}>
+            <Select
+              value={status || "all"}
+              onValueChange={(value) => {
+                setStatus(value === "all" ? "" : value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-48 bg-secondary border-gray-700 text-white">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
@@ -77,37 +115,59 @@ const SellerOrders = () => {
                           {order._id.slice(-8)}
                         </TableCell>
                         <TableCell className="text-white">
-                          {order.buyer?.name || order.userId?.name || 'N/A'}
+                          {order.buyer?.name || order.userId?.name || "N/A"}
                         </TableCell>
-                        <TableCell className="text-white">{order.items?.length || 0}</TableCell>
-                        <TableCell className="text-white">${order.totalAmount?.toFixed(2)}</TableCell>
+                        <TableCell className="text-white">
+                          {order.items?.length || 0}
+                        </TableCell>
+                        <TableCell className="text-white">
+                          ${order.totalAmount?.toFixed(2)}
+                        </TableCell>
                         <TableCell className="text-green-400 font-semibold">
                           <div className="flex items-center gap-1">
                             <DollarSign className="w-4 h-4" />
-                            {order.items?.reduce((sum, item) => sum + (item.sellerEarning || 0), 0).toFixed(2)}
+                            {order.items
+                              ?.reduce(
+                                (sum, item) => sum + (item.sellerEarning || 0),
+                                0
+                              )
+                              .toFixed(2)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant={
-                              order.orderStatus === 'completed' ? 'success' :
-                              order.orderStatus === 'cancelled' ? 'destructive' :
-                              order.orderStatus === 'processing' ? 'default' :
-                              'warning'
+                              order.orderStatus === "completed"
+                                ? "success"
+                                : order.orderStatus === "cancelled"
+                                ? "destructive"
+                                : order.orderStatus === "processing"
+                                ? "default"
+                                : order.orderStatus === "partially_completed" || order.orderStatus === "returned"
+                                ? "secondary"
+                                : "warning"
                             }
                           >
-                            {order.orderStatus}
+                            {order.orderStatus === "partially_completed" ? "Partially completed" : order.orderStatus}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-gray-400">
                           {new Date(order.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                        <Link to={`/seller/orders/${order._id}`}>
+                        <Button variant="outline" size="sm" className="bg-accent hover:bg-blue-700 text-white border-0">
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Details
+                        </Button>
+                      </Link> 
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
-              {pagination.totalPages > 1 && (
+              {(pagination.total ?? 0) > 0 && (
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
                   <p className="text-sm text-gray-400">
                     Page {page} of {pagination.totalPages}
@@ -126,7 +186,9 @@ const SellerOrders = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                      onClick={() =>
+                        setPage((p) => Math.min(pagination.totalPages, p + 1))
+                      }
                       disabled={page >= pagination.totalPages}
                       className="border-gray-700 text-gray-300"
                     >
@@ -145,4 +207,3 @@ const SellerOrders = () => {
 };
 
 export default SellerOrders;
-

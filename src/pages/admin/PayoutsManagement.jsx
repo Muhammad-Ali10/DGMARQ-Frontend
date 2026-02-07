@@ -44,12 +44,11 @@ const PayoutsManagement = () => {
       try {
         const response = await adminAPI.getAllPayouts({
           page,
-          limit: 20,
+          limit: 10,
           status: statusFilter || undefined,
         });
         return response.data.data;
       } catch (err) {
-        console.error("Payouts error:", err);
         throw err;
       }
     },
@@ -77,6 +76,8 @@ const PayoutsManagement = () => {
 
   const payoutList = payouts?.payouts || [];
   const pagination = payouts?.pagination || {};
+  const totalItems = pagination.total ?? 0;
+  const showPagination = totalItems > 0;
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -180,29 +181,31 @@ const PayoutsManagement = () => {
                   </TableBody>
                 </Table>
               </div>
-              {pagination.pages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
-                  </Button>
-                  <span className="text-gray-300">
-                    Page {page} of {pagination.pages || 1}
+              {showPagination && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
+                  <span className="text-sm text-gray-400">
+                    Page {page} of {pagination.pages || 1} ({totalItems} total)
                   </span>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      setPage((p) => Math.min(pagination.pages || 1, p + 1))
-                    }
-                    disabled={page >= (pagination.pages || 1)}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(pagination.pages || 1, p + 1))}
+                      disabled={page >= (pagination.pages || 1)}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </>

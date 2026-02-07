@@ -50,7 +50,6 @@ if (typeof window !== 'undefined') {
     }, { passive: true });
   } catch (e) {
     // Fallback if history API is not available
-    console.warn('Could not set up page load tracking:', e);
   }
 }
 
@@ -61,7 +60,11 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     // Extract skipErrorToast from config and set on request object for response interceptor
     if (config.skipErrorToast !== undefined) {
       config.skipToast = config.skipErrorToast;

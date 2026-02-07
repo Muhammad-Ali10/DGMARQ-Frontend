@@ -59,7 +59,6 @@ const RegionsManagement = () => {
       toast.success('Region created successfully');
     },
     onError: (error) => {
-      console.error('Create region error:', error);
       toast.error(error?.response?.data?.message || 'Failed to create region');
     },
   });
@@ -73,7 +72,6 @@ const RegionsManagement = () => {
       toast.success('Region updated successfully');
     },
     onError: (error) => {
-      console.error('Update region error:', error);
       toast.error(error?.response?.data?.message || 'Failed to update region');
     },
   });
@@ -88,7 +86,6 @@ const RegionsManagement = () => {
       toast.success('Region deleted successfully');
     },
     onError: (error) => {
-      console.error('Delete region error:', error);
       toast.error(error?.response?.data?.message || 'Failed to delete region');
     },
   });
@@ -168,7 +165,7 @@ const RegionsManagement = () => {
               Create Region
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-w-md">
+          <DialogContent size="sm" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">Create New Region</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -358,7 +355,7 @@ const RegionsManagement = () => {
           </div>
           
           {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (
+          {(pagination.totalDocs ?? 0) > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
               <div className="flex items-center gap-2">
                 <Button
@@ -392,7 +389,7 @@ const RegionsManagement = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Edit Region</DialogTitle>
             <DialogDescription className="text-gray-400">

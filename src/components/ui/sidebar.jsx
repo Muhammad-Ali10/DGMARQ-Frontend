@@ -81,8 +81,7 @@ const LogoutButton = () => {
       queryClient.clear();
       navigate("/");
     },
-    onError: (err) => {
-      console.error("Logout failed:", err);
+    onError: () => {
       // Even if backend logout fails, clear frontend state for UX
       dispatch(logout());
       queryClient.clear();
@@ -243,9 +242,6 @@ export const AdminSidebar = () => {
           <p className="text-xs text-gray-500 uppercase px-4 py-2">
             Management
           </p>
-          <SidebarItem to="/admin/disputes" icon={AlertTriangle}>
-            Disputes
-          </SidebarItem>
           <SidebarItem to="/admin/return-refund" icon={RotateCcw}>
             Return/Refund
           </SidebarItem>
@@ -313,9 +309,6 @@ export const SellerSidebar = () => {
         </SidebarItem>
         <SidebarItem to="/seller/notifications" icon={Bell}>
           Notifications
-        </SidebarItem>
-        <SidebarItem to="/seller/disputes" icon={AlertTriangle}>
-          Disputes
         </SidebarItem>
         <SidebarItem to="/seller/return-refunds" icon={RotateCcw}>
           Return/Refunds
@@ -411,9 +404,6 @@ export const UserSidebar = () => {
         </SidebarItem>
         <SidebarItem to="/user/subscriptions" icon={Repeat}>
           Subscriptions
-        </SidebarItem>
-        <SidebarItem to="/user/disputes" icon={AlertTriangle}>
-          Disputes
         </SidebarItem>
         <SidebarItem to="/user/return-refunds" icon={RotateCcw}>
           Return/Refunds

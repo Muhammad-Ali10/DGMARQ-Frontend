@@ -15,7 +15,6 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
           await api.get('/user/profile');
         } catch (error) {
           // Token invalid, will be handled by axios interceptor
-          console.error('Token verification failed:', error);
         }
       }
     };

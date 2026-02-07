@@ -18,10 +18,7 @@ const ContactFrom = () => {
         }
     })
 
-    const onSubmit = (data) => {
-        // TODO: Implement form submission logic
-        // Submit data to backend API
-    }
+    const onSubmit = (data) => {}
 
     return (
         <div className="max-w-[615px] w-full flex flex-col p-8  rounded-21 bg-[#060721]">

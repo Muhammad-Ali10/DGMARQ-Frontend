@@ -25,8 +25,7 @@ const AvatarDropdown = ({ user }) => {
       setIsOpen(false);
       navigate('/');
     },
-    onError: (err) => {
-      console.error('Logout failed:', err);
+    onError: () => {
       // Even if backend logout fails, clear frontend state for UX
       dispatch(logout());
       queryClient.clear();

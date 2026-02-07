@@ -6,7 +6,7 @@ import ProductListingLayout from '../../components/ProductListing/ProductListing
 const GiftCards = () => {
   // Fetch Gift Cards category
   const { data: categoriesData } = useQuery({
-    queryKey: ['categories', 'gift-cards'],
+    queryKey: ['categories', 'gift-cards'], 
     queryFn: async () => {
       const response = await categoryAPI.getCategories({ isActive: true, limit: 100 });
       return response.data.data;
@@ -23,7 +23,6 @@ const GiftCards = () => {
     );
   }, [categoriesData]);
 
-  // Use ProductListingLayout with locked category
   return (
     <ProductListingLayout
       lockedCategoryId={giftCardCategory?._id}

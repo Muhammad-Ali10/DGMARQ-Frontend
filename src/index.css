@@ -204,6 +204,10 @@
 {
   max-width: 1260px;
 }
+.max-w-sm
+{
+  max-width: 150px;
+}
 
 .gap-7-5{
   gap: 30px;

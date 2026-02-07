@@ -165,7 +165,7 @@ const HomepageSlidersManagement = () => {
               Add Slide
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-h-[90vh] overflow-y-auto">
+          <DialogContent size="lg" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white">Add New Slide</DialogTitle>
             </DialogHeader>
@@ -405,7 +405,7 @@ const HomepageSlidersManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-h-[90vh] overflow-y-auto">
+        <DialogContent size="lg" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Homepage Slider</DialogTitle>
           </DialogHeader>

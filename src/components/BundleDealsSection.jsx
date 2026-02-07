@@ -8,6 +8,7 @@ import { Loading } from './ui/loading';
 import { ShoppingCart, Package, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { addToGuestCart } from '../utils/guestCart';
 
 /**
  * Bundle Deals Section Component
@@ -26,7 +27,6 @@ const BundleDealsSection = () => {
         const response = await bundleDealAPI.getActiveBundleDeals();
         return response.data.data || [];
       } catch (err) {
-        console.error('Bundle deals error:', err);
         return [];
       }
     },
@@ -51,11 +51,25 @@ const BundleDealsSection = () => {
 
   const handleAddToCart = (bundleDeal) => {
     if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      navigate('/login');
+      if (bundleDeal.products && Array.isArray(bundleDeal.products)) {
+        for (const product of bundleDeal.products) {
+          addToGuestCart({
+            productId: product._id,
+            qty: 1,
+            price: product.price,
+            sellerId: product.sellerId,
+            name: product.name,
+            slug: product.slug,
+            image: product.images?.[0],
+          });
+        }
+        toast.success('Bundle products added to cart');
+      } else {
+        toast.error('Please sign in to add this bundle');
+        navigate('/login');
+      }
       return;
     }
-
     addBundleMutation.mutate(bundleDeal._id);
   };
 

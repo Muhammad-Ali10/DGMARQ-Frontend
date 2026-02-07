@@ -57,9 +57,6 @@ const Slider = () => {
             <Swiper
                 slidesPerView={4}
                 spaceBetween={10}
-                // pagination={{
-                //     clickable: true,
-                // }}
                 modules={[Pagination]}
                 className="mySwiper max-w-1260"
             >

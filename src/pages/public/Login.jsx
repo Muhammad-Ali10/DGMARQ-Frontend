@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import api from '../../lib/axios';
+import { Chrome } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -122,6 +123,13 @@ const Login = () => {
     loginMutation.mutate({ email, password });
   };
 
+  const handleGoogleLogin = () => {
+    // Redirect to backend Google OAuth endpoint
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+    const baseUrl = apiBaseUrl.replace('/api/v1', '');
+    window.location.href = `${baseUrl}/api/v1/user/auth/google`;
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card border-border shadow-xl">
@@ -182,6 +190,28 @@ const Login = () => {
               {loginMutation.isPending ? 'Logging in...' : 'Login'}
             </Button>
           </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogleLogin}
+              className="w-full mt-4"
+              size="lg"
+            >
+              <Chrome className="mr-2 h-5 w-5" />
+              Continue with Google
+            </Button>
+          </div>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             Don't have an account?{' '}

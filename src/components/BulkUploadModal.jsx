@@ -8,7 +8,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { SearchableSelect } from './ui/searchable-select';
-import { Upload, FileText, CheckCircle2, Key, User, X, AlertCircle, Info, Loader2, FileCheck } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, Key, User, X, AlertCircle, Info, Loader2, FileCheck, Check } from 'lucide-react';
 
 const BulkUploadModal = ({ open, onOpenChange }) => {
   const queryClient = useQueryClient();
@@ -254,7 +254,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-primary border-gray-700 !max-w-7xl max-h-[95vh] overflow-y-auto">
+      <DialogContent size="lg" className="bg-primary border-gray-700">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>

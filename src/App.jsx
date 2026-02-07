@@ -19,6 +19,7 @@ import SellerProfileView from "./pages/admin/SellerProfileView";
 import ProductsManagement from "./pages/admin/ProductsManagement";
 import ProductDetailView from "./pages/admin/ProductDetailView";
 import OrdersManagement from "./pages/admin/OrdersManagement";
+import AdminOrderDetail from "./pages/admin/AdminOrderDetail";
 import PayoutsManagement from "./pages/admin/PayoutsManagement";
 import UsersManagement from "./pages/admin/UsersManagement";
 import SupportManagement from "./pages/admin/SupportManagement";
@@ -40,7 +41,6 @@ import TrendingOffersManagement from "./pages/admin/TrendingOffersManagement";
 import UpcomingReleasesManagement from "./pages/admin/UpcomingReleasesManagement";
 import UpcomingGamesManagement from "./pages/admin/UpcomingGamesManagement";
 import CouponsManagement from "./pages/admin/CouponsManagement";
-import DisputesManagement from "./pages/admin/DisputesManagement";
 import ReturnRefundManagement from "./pages/admin/ReturnRefundManagement";
 import SubscriptionsManagement from "./pages/admin/SubscriptionsManagement";
 import PayoutAccountsManagement from "./pages/admin/PayoutAccountsManagement";
@@ -50,6 +50,7 @@ import AdminNotifications from "./pages/admin/Notifications";
 // Seller Pages
 import SellerDashboard from "./pages/seller/Dashboard";
 import SellerOrders from "./pages/seller/Orders";
+import SellerOrderDetail from "./pages/seller/SellerOrderDetail"
 import SellerProducts from "./pages/seller/Products";
 import SellerEarnings from "./pages/seller/Earnings";
 import SellerPerformance from "./pages/seller/Performance";
@@ -57,7 +58,6 @@ import SellerSupport from "./pages/seller/Support";
 import PayoutAccount from "./pages/seller/PayoutAccount";
 import SellerChat from "./pages/seller/Chat";
 import SellerNotifications from "./pages/seller/Notifications";
-import SellerDisputes from "./pages/seller/Disputes";
 import SellerReturnRefunds from "./pages/seller/ReturnRefunds";
 import SellerSubscriptions from "./pages/seller/Subscriptions";
 import SellerLicenseKeys from "./pages/seller/LicenseKeys";
@@ -81,7 +81,6 @@ import UserCheckout from "./pages/user/Checkout";
 import LicenseKeys from "./pages/user/LicenseKeys";
 import UserNotifications from "./pages/user/Notifications";
 import UserSubscriptions from "./pages/user/Subscriptions";
-import UserDisputes from "./pages/user/Disputes";
 import UserReturnRefunds from "./pages/user/ReturnRefunds";
 import BecomeSeller from "./pages/user/BecomeSeller";
 
@@ -160,6 +159,7 @@ function App() {
         <Route path="products" element={<ProductsManagement />} />
         <Route path="products/:productId" element={<ProductDetailView />} />
         <Route path="orders" element={<OrdersManagement />} />
+        <Route path="orders/:orderId" element={<AdminOrderDetail />} />
         <Route path="payouts" element={<PayoutsManagement />} />
         <Route path="users" element={<UsersManagement />} />
         <Route path="support" element={<SupportManagement />} />
@@ -194,7 +194,7 @@ function App() {
           element={<UpcomingGamesManagement />}
         />
         <Route path="coupons" element={<CouponsManagement />} />
-        <Route path="disputes" element={<DisputesManagement />} />
+        <Route path="disputes" element={<Navigate to="/admin/return-refund" replace />} />
         <Route path="return-refund" element={<ReturnRefundManagement />} />
         <Route path="subscriptions" element={<SubscriptionsManagement />} />
         <Route path="payout-accounts" element={<PayoutAccountsManagement />} />
@@ -213,6 +213,7 @@ function App() {
       >
         <Route path="dashboard" element={<SellerDashboard />} />
         <Route path="orders" element={<SellerOrders />} />
+        <Route path="orders/:orderId" element={<SellerOrderDetail />} />
         <Route path="products" element={<SellerProducts />} />
         <Route path="earnings" element={<SellerEarnings />} />
         <Route path="payout-account" element={<PayoutAccount />} />
@@ -220,7 +221,7 @@ function App() {
         <Route path="support" element={<SellerSupport />} />
         <Route path="chat" element={<SellerChat />} />
         <Route path="notifications" element={<SellerNotifications />} />
-        <Route path="disputes" element={<SellerDisputes />} />
+        <Route path="disputes" element={<Navigate to="/seller/return-refunds" replace />} />
         <Route path="return-refunds" element={<SellerReturnRefunds />} />
         <Route path="subscriptions" element={<SellerSubscriptions />} />
         <Route path="license-keys" element={<SellerLicenseKeys />} />
@@ -258,7 +259,7 @@ function App() {
         <Route path="license-keys" element={<LicenseKeys />} />
         <Route path="notifications" element={<UserNotifications />} />
         <Route path="subscriptions" element={<UserSubscriptions />} />
-        <Route path="disputes" element={<UserDisputes />} />
+        <Route path="disputes" element={<Navigate to="/user/return-refunds" replace />} />
         <Route path="return-refunds" element={<UserReturnRefunds />} />
         <Route path="" element={<Navigate to="/user/dashboard" replace />} />
       </Route>

@@ -1,22 +1,17 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { sellerAPI } from '../../services/api';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Loading } from '../../components/ui/loading';
 import { DollarSign, FileText, Settings, History, Eye } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { showSuccess, showError, showApiError } from '../../utils/toast';
+import { showApiError } from '../../utils/toast';
 
 const SellerEarnings = () => {
-  const [requestAmount, setRequestAmount] = useState('');
-  const [minimumThreshold, setMinimumThreshold] = useState('');
   const [selectedPayoutId, setSelectedPayoutId] = useState(null);
-  const queryClient = useQueryClient();
 
   const { data: balance } = useQuery({
     queryKey: ['seller-balance'],
@@ -25,7 +20,7 @@ const SellerEarnings = () => {
 
   const { data: payouts, isLoading } = useQuery({
     queryKey: ['seller-payouts'],
-    queryFn: () => sellerAPI.getMyPayouts({ page: 1, limit: 20 }).then(res => res.data.data),
+    queryFn: () => sellerAPI.getMyPayouts({ page: 1, limit: 10 }).then(res => res.data.data),
   });
 
   const { data: withdrawalHistory } = useQuery({
@@ -34,7 +29,6 @@ const SellerEarnings = () => {
     retry: false,
     onError: (error) => {
       // Silently handle error - withdrawal history is optional
-      console.error('Failed to load withdrawal history:', error);
     },
   });
 
@@ -44,7 +38,6 @@ const SellerEarnings = () => {
     retry: false,
     onError: (error) => {
       // Silently handle error
-      console.error('Failed to load payout requests:', error);
     },
   });
 
@@ -54,7 +47,6 @@ const SellerEarnings = () => {
     retry: false,
     onError: (error) => {
       // Silently handle error
-      console.error('Failed to load payout reports:', error);
     },
   });
 
@@ -69,47 +61,6 @@ const SellerEarnings = () => {
     },
   });
 
-  const updateThresholdMutation = useMutation({
-    mutationFn: (data) => sellerAPI.updateMinimumPayoutThreshold(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['seller-balance']);
-      setMinimumThreshold('');
-      showSuccess('Minimum payout threshold updated successfully');
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to update minimum payout threshold');
-    },
-  });
-
-  const requestMutation = useMutation({
-    mutationFn: (amount) => sellerAPI.requestPayout({ requestedAmount: parseFloat(amount) }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['seller-balance']);
-      queryClient.invalidateQueries(['seller-payouts']);
-      setRequestAmount('');
-      showSuccess('Payout request submitted successfully');
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to submit payout request');
-    },
-  });
-
-  const handleRequest = () => {
-    const amount = parseFloat(requestAmount);
-    if (amount > 0 && amount <= (balance?.available || 0)) {
-      requestMutation.mutate(amount);
-    } else {
-      showError('Invalid amount. Please enter a valid amount within your available balance.');
-    }
-  };
-
-  const handleUpdateThreshold = (e) => {
-    e.preventDefault();
-    if (minimumThreshold && parseFloat(minimumThreshold) > 0) {
-      updateThresholdMutation.mutate({ minimumThreshold: parseFloat(minimumThreshold) });
-    }
-  };
-
   if (isLoading || requestsLoading || reportsLoading) {
     return <Loading message="Loading earnings data..." />;
   }
@@ -118,20 +69,24 @@ const SellerEarnings = () => {
     <div className="space-y-6 px-4 sm:px-0">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Earnings & Payouts</h1>
-        <p className="text-gray-400 mt-1">Manage your earnings and payout requests</p>
+        <p className="text-gray-400 mt-1">View your earnings and payout history</p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-primary border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Available Balance</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium text-gray-300">
+              {balance?.holdReason ? 'Available (On Hold)' : 'Available Balance'}
+            </CardTitle>
+            <DollarSign className={`h-4 w-4 ${balance?.holdReason ? 'text-amber-500' : 'text-green-500'}`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
               ${balance?.available?.toFixed(2) || '0.00'}
             </div>
-            <p className="text-xs text-gray-400 mt-1">Ready for withdrawal</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {balance?.holdReason ? balance.holdReason : 'Released automatically when eligible'}
+            </p>
           </CardContent>
         </Card>
         <Card className="bg-primary border-gray-700">
@@ -164,12 +119,36 @@ const SellerEarnings = () => {
         </Card>
       </div>
 
+      {/* Payout blocked – show why */}
+      {balance?.holdReason && (balance?.available > 0 || balance?.pending?.amount > 0) && (
+        <Card className="bg-primary border-gray-700 border-l-4 border-l-amber-500">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0">
+                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <DollarSign className="h-4 w-4 text-amber-500" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-white font-semibold mb-1">Payouts on hold</h3>
+                <p className="text-gray-300 text-sm">
+                  {balance.holdReason} Payouts are released by the system or admin once your payout account is eligible.
+                </p>
+                <p className="text-gray-400 text-xs mt-2">
+                  Go to <a href="/seller/payout-account" className="text-accent hover:underline">Payout Account</a> to connect or verify PayPal.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Hold Period Information */}
       {balance?.pending?.amount > 0 && balance?.pending?.daysUntilAvailable > 0 && (
         <Card className="bg-primary border-gray-700 border-l-4 border-l-yellow-500">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
                   <DollarSign className="h-4 w-4 text-yellow-500" />
                 </div>
@@ -191,19 +170,15 @@ const SellerEarnings = () => {
         </Card>
       )}
 
-      <Tabs defaultValue="request" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 bg-primary border-gray-700">
-          <TabsTrigger value="request" className="data-[state=active]:bg-accent data-[state=active]:text-white">
-            <DollarSign className="w-4 h-4 mr-2" />
-            Request
+      <Tabs defaultValue="history" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 bg-primary border-gray-700">
+          <TabsTrigger value="history" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+            <History className="w-4 h-4 mr-2" />
+            History
           </TabsTrigger>
           <TabsTrigger value="requests" className="data-[state=active]:bg-accent data-[state=active]:text-white">
             <History className="w-4 h-4 mr-2" />
             Requests
-          </TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-accent data-[state=active]:text-white">
-            <History className="w-4 h-4 mr-2" />
-            History
           </TabsTrigger>
           <TabsTrigger value="settings" className="data-[state=active]:bg-accent data-[state=active]:text-white">
             <Settings className="w-4 h-4 mr-2" />
@@ -211,48 +186,11 @@ const SellerEarnings = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="request">
-          <Card className="bg-primary border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white">Request Payout</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex space-x-2">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={requestAmount}
-                    onChange={(e) => setRequestAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    className="bg-secondary border-gray-700 text-white flex-1"
-                  />
-                  <Button
-                    onClick={handleRequest}
-                    disabled={requestMutation.isPending || !requestAmount}
-                    className="bg-accent hover:bg-blue-700"
-                  >
-                    {requestMutation.isPending ? 'Requesting...' : 'Request Payout'}
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-400">
-                  Available: ${balance?.available?.toFixed(2) || '0.00'}
-                  {balance?.pending?.amount > 0 && balance?.pending?.daysUntilAvailable > 0 && (
-                    <span className="block mt-1 text-yellow-400">
-                      ${balance.pending.amount.toFixed(2)} on hold for {balance.pending.daysUntilAvailable} more day{balance.pending.daysUntilAvailable > 1 ? 's' : ''}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="requests">
           <Card className="bg-primary border-gray-700">
             <CardHeader>
               <CardTitle className="text-white">Payout Requests</CardTitle>
+              <p className="text-sm text-gray-400 mt-1">Payouts are released automatically by the system after the hold period. Sellers cannot request or trigger payouts.</p>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -351,7 +289,7 @@ const SellerEarnings = () => {
                                   Details
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="bg-primary border-gray-700 max-h-[90vh] overflow-y-auto">
+                              <DialogContent size="md" className="bg-primary border-gray-700">
                                 <DialogHeader>
                                   <DialogTitle className="text-white">Payout Details</DialogTitle>
                                   <DialogDescription className="text-gray-400">
@@ -427,42 +365,6 @@ const SellerEarnings = () => {
 
         <TabsContent value="settings">
           <div className="space-y-6">
-            <Card className="bg-primary border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Minimum Payout Threshold
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleUpdateThreshold} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="threshold" className="text-gray-300">Minimum Amount ($)</Label>
-                    <Input
-                      id="threshold"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={minimumThreshold}
-                      onChange={(e) => setMinimumThreshold(e.target.value)}
-                      placeholder={balance?.minimumThreshold?.toString() || '0.00'}
-                      className="bg-secondary border-gray-700 text-white"
-                    />
-                    <p className="text-xs text-gray-400">
-                      Current: ${balance?.minimumThreshold?.toFixed(2) || '0.00'}
-                    </p>
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={updateThresholdMutation.isPending || !minimumThreshold}
-                    className="bg-accent hover:bg-blue-700"
-                  >
-                    {updateThresholdMutation.isPending ? 'Updating...' : 'Update Threshold'}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
             {payoutReports && (
               <Card className="bg-primary border-gray-700">
                 <CardHeader>

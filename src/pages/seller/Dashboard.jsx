@@ -4,21 +4,29 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { DollarSign, Package, ShoppingCart, TrendingUp, User } from 'lucide-react';
+import { DollarSign, Package, ShoppingCart, TrendingUp, User, RefreshCw, AlertCircle } from 'lucide-react';
 
 const SellerDashboard = () => {
   const { data: sellerInfo, isLoading: infoLoading, isError: infoError } = useQuery({
     queryKey: ['seller-info'],
     queryFn: () => sellerAPI.getSellerInfo().then(res => res.data.data),
+    refetchOnWindowFocus: true,
   });
 
   const { data: balance, isLoading: balanceLoading, isError: balanceError } = useQuery({
     queryKey: ['seller-balance'],
     queryFn: () => sellerAPI.getPayoutBalance().then(res => res.data.data),
+    refetchOnWindowFocus: true,
   });
 
-  const isLoading = infoLoading || balanceLoading;
-  const isError = infoError || balanceError;
+  const { data: performanceMetrics, isLoading: metricsLoading, isError: metricsError } = useQuery({
+    queryKey: ['seller-performance-metrics'],
+    queryFn: () => sellerAPI.getPerformanceMetrics().then(res => res.data.data),
+    refetchOnWindowFocus: true,
+  });
+
+  const isLoading = infoLoading || balanceLoading || metricsLoading;
+  const isError = infoError || balanceError || metricsError;
 
   if (isLoading) return <Loading message="Loading seller dashboard..." />;
   if (isError) return <ErrorMessage message="Error loading seller dashboard" />;
@@ -29,24 +37,58 @@ const SellerDashboard = () => {
       value: `$${balance?.available?.toFixed(2) || '0.00'}`,
       icon: DollarSign,
       color: 'text-green-500',
+      description: 'Ready to withdraw',
     },
     {
       title: 'Pending Balance',
       value: `$${balance?.pending?.amount?.toFixed(2) || '0.00'}`,
       icon: TrendingUp,
       color: 'text-yellow-500',
+      description: 'On hold (15 days)',
+    },
+    {
+      title: 'Total Revenue',
+      value: `$${(performanceMetrics?.sales?.totalRevenue || 0).toFixed(2)}`,
+      icon: DollarSign,
+      color: 'text-blue-500',
+      description: 'All-time revenue',
+    },
+    {
+      title: 'Net Earnings',
+      value: `$${(performanceMetrics?.sales?.netEarnings || 0).toFixed(2)}`,
+      icon: TrendingUp,
+      color: 'text-purple-500',
+      description: 'After commission',
+    },
+    {
+      title: 'Total Sales',
+      value: performanceMetrics?.sales?.totalSales || 0,
+      icon: ShoppingCart,
+      color: 'text-indigo-500',
+      description: 'Units sold',
     },
     {
       title: 'Total Products',
-      value: sellerInfo?.stats?.totalProducts || 0,
+      value: performanceMetrics?.products?.total || sellerInfo?.stats?.totalProducts || 0,
       icon: Package,
-      color: 'text-blue-500',
+      color: 'text-cyan-500',
+      description: `${performanceMetrics?.products?.active || 0} active`,
     },
     {
       title: 'Total Orders',
       value: sellerInfo?.stats?.totalOrders || 0,
       icon: ShoppingCart,
-      color: 'text-purple-500',
+      color: 'text-pink-500',
+      description: 'All paid orders',
+    },
+    {
+      title: 'Average Rating',
+      value: performanceMetrics?.reviews?.averageRating 
+        ? performanceMetrics.reviews.averageRating.toFixed(1)
+        : 'N/A',
+      icon: TrendingUp,
+      color: 'text-orange-500',
+      description: `${performanceMetrics?.reviews?.totalReviews || 0} reviews`,
     },
   ];
 
@@ -87,11 +129,99 @@ const SellerDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-white">{stat.value}</div>
+                {stat.description && (
+                  <p className="text-xs text-gray-400 mt-1">{stat.description}</p>
+                )}
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {/* Performance Metrics Section */}
+      {performanceMetrics && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="bg-primary border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Sales Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Total Revenue</span>
+                  <span className="text-white font-semibold">
+                    ${(performanceMetrics.sales?.totalRevenue || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Net Earnings</span>
+                  <span className="text-green-400 font-semibold">
+                    ${(performanceMetrics.sales?.netEarnings || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Total Commission</span>
+                  <span className="text-yellow-400 font-semibold">
+                    ${(performanceMetrics.sales?.totalCommission || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Total Sales</span>
+                  <span className="text-white font-semibold">
+                    {performanceMetrics.sales?.totalSales || 0} units
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-primary border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Product Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Total Products</span>
+                  <span className="text-white font-semibold">
+                    {performanceMetrics.products?.total || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Active Products</span>
+                  <span className="text-green-400 font-semibold">
+                    {performanceMetrics.products?.active || 0}
+                  </span>
+                </div>
+                {performanceMetrics.reviews && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-300">Total Reviews</span>
+                      <span className="text-white font-semibold">
+                        {performanceMetrics.reviews.totalReviews || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-300">Average Rating</span>
+                      <span className="text-yellow-400 font-semibold">
+                        {performanceMetrics.reviews.averageRating 
+                          ? performanceMetrics.reviews.averageRating.toFixed(1)
+                          : 'N/A'}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Hold Period Information */}
       {balance?.pending?.amount > 0 && balance?.pending?.daysUntilAvailable > 0 && (

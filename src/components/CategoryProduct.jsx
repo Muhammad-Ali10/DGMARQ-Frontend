@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { userAPI } from '../services/api';
-import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getRegionName, getTypeName } from '../utils/productUtils';
+import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getRegionName, getTypeName, getDeviceName } from '../utils/productUtils';
 
 const CategoryProduct = ({ product }) => {
   const queryClient = useQueryClient();
@@ -17,6 +17,7 @@ const CategoryProduct = ({ product }) => {
   const title = getProductName(product);
   const platformName = getPlatformName(product);
   const typeName = getTypeName(product);
+  const deviceName = getDeviceName(product);
   const regionName = getRegionName(product);
   const regionText = regionName === 'Global' ? 'Global' : `For ${regionName} Currency only`;
   
@@ -103,7 +104,7 @@ const CategoryProduct = ({ product }) => {
           />
         </div>
         <div className="flex flex-col flex-1">
-          <h2 className="text-xl md:text-3xl font-semibold text-white flex justify-between w-full">
+          <h2 className="text-xl md:text-3xl font-semibold text-white flex justify-between w-full mb-4">
             <Link 
               to={`/product/${product.slug || product._id}`}
               className="hover:underline flex-1"
@@ -128,6 +129,10 @@ const CategoryProduct = ({ product }) => {
               <p className="w-24 text-white">Region</p>
               <p className="text-white">{regionText}</p>
             </div>
+            <div className="flex">
+              <p className="w-24 text-white">Device</p>
+              <p className="text-white">{deviceName}</p>
+            </div>
 
             {canActivate && (
               <div className="flex gap-2.5">
@@ -140,9 +145,9 @@ const CategoryProduct = ({ product }) => {
           </div>
 
           <div className="flex justify-between w-full">
-            {isSponsored && (
+            {/* {isSponsored && (
               <p className="text-sm font-bold text-white">SPONSORED</p>
-            )}
+            )} */}
             {!isSponsored && <div></div>}
             <button
               onClick={handleWishlistClick}

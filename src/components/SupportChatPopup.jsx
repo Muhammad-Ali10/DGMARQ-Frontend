@@ -74,7 +74,6 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
 
     // Listen for errors
     const handleError = (error) => {
-      console.error('Support chat socket error:', error);
     };
 
     // Handle connection
@@ -334,7 +333,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
 
       {/* Create New Chat Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="md" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Create Support Ticket</DialogTitle>
             <DialogDescription className="text-gray-400">

@@ -157,7 +157,7 @@ const BestSellers = () => {
         )}
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-7 bg-[#0E092C] py-12  w-full">
+      {/* <div className="flex flex-col items-center justify-center gap-7 bg-[#0E092C] py-12  w-full">
         <h3 className="text-2xl font-semibold text-white">
           TOP Game Platforms
         </h3>
@@ -200,7 +200,7 @@ const BestSellers = () => {
           ))}
         </div>
       </div>
-       
+        */}
     </div>
   );
 };

@@ -23,7 +23,6 @@ function updateMetaDescription(content) {
 
   // Ensure document head exists
   if (!document.head) {
-    console.warn('[useSEO] Document head not available');
     return;
   }
 

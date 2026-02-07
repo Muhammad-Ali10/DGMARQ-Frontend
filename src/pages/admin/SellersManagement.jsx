@@ -32,10 +32,9 @@ const SellersManagement = () => {
     queryKey: ['pending-sellers', page],
     queryFn: async () => {
       try {
-        const response = await adminAPI.getPendingSellers({ page, limit: 20 });
+        const response = await adminAPI.getPendingSellers({ page, limit: 10 });
         return response.data.data;
       } catch (err) {
-        console.error('Pending sellers error:', err);
         throw err;
       }
     },
@@ -48,10 +47,9 @@ const SellersManagement = () => {
     queryKey: ['active-sellers', page],
     queryFn: async () => {
       try {
-        const response = await adminAPI.getAllSellers({ page, limit: 20, status: 'active' });
+        const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'active' });
         return response.data.data;
       } catch (err) {
-        console.error('Active sellers error:', err);
         throw err;
       }
     },
@@ -64,10 +62,9 @@ const SellersManagement = () => {
     queryKey: ['banned-sellers', page],
     queryFn: async () => {
       try {
-        const response = await adminAPI.getAllSellers({ page, limit: 20, status: 'banned' });
+        const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'banned' });
         return response.data.data;
       } catch (err) {
-        console.error('Banned sellers error:', err);
         throw err;
       }
     },
@@ -199,7 +196,9 @@ const SellersManagement = () => {
     ? (activeSellers?.pagination || {})
     : (bannedSellers?.pagination || {});
 
-  // Filter sellers by search term
+  const totalItems = pagination.total ?? 0;
+  const showPagination = totalItems > 0;
+
   const filteredSellers = sellers.filter(seller => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
@@ -387,7 +386,7 @@ const SellersManagement = () => {
                       </TableBody>
                     </Table>
                   </div>
-                  {pagination.pages > 1 && (
+                  {showPagination && (
                     <div className="flex items-center justify-between px-6 py-4 border-t border-gray-700 bg-secondary/30">
                       <div className="text-sm text-gray-400">
                         Showing page {page} of {pagination.pages || 1} ({pagination.total || 0} total)
@@ -450,7 +449,7 @@ const SellersManagement = () => {
 
       {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Reject Seller Application</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -486,7 +485,7 @@ const SellersManagement = () => {
 
       {/* Block Dialog */}
       <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Block Seller</DialogTitle>
             <DialogDescription className="text-gray-400">

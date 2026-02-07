@@ -94,7 +94,6 @@ const GenresManagement = () => {
       toast.success("Genre created successfully");
     },
     onError: (error) => {
-      console.error("Create genre error:", error);
       toast.error(error?.response?.data?.message || "Failed to create genre");
     },
   });
@@ -108,7 +107,6 @@ const GenresManagement = () => {
       toast.success("Genre updated successfully");
     },
     onError: (error) => {
-      console.error("Update genre error:", error);
       toast.error(error?.response?.data?.message || "Failed to update genre");
     },
   });
@@ -123,7 +121,6 @@ const GenresManagement = () => {
       toast.success("Genre deleted successfully");
     },
     onError: (error) => {
-      console.error("Delete genre error:", error);
       toast.error(error?.response?.data?.message || "Failed to delete genre");
     },
   });
@@ -213,7 +210,7 @@ const GenresManagement = () => {
               Create Genre
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-w-md">
+          <DialogContent size="sm" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">
                 Create New Genre
@@ -444,7 +441,7 @@ const GenresManagement = () => {
             </Table>
           </div>
 
-          {pagination.totalPages > 1 && (
+          {(pagination.totalDocs ?? 0) > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
               <div className="flex items-center gap-2">
                 <Button
@@ -475,7 +472,7 @@ const GenresManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">
               Edit Genre

@@ -61,6 +61,9 @@ export const adminAPI = {
   updateAutoApproveSetting: (data) => api.patch('/admin/settings/auto-approve-products', data),
   getHomePageSEO: () => api.get('/admin/settings/seo/home'),
   updateHomePageSEO: (data) => api.patch('/admin/settings/seo/home', data),
+  getBuyerHandlingFeeSetting: () => api.get('/admin/settings/buyer-handling-fee'),
+  updateBuyerHandlingFeeSetting: (data) => api.patch('/admin/settings/buyer-handling-fee', data),
+  getHandlingFeeStats: () => api.get('/admin/stats/handling-fees'),
   getAllSupportChats: () => api.get('/support/admin/chats'),
   assignAdminToChat: (chatId, assignTo = null) => api.post(`/support/admin/${chatId}/assign`, assignTo ? { assignTo } : {}),
   getSupportStats: () => api.get('/support/admin/stats'),
@@ -100,14 +103,17 @@ export const sellerAPI = {
   getMyPayouts: (params) => api.get('/payout/my-payouts', { params }),
   getPayoutBalance: () => api.get('/payout/balance'),
   getPayoutDetails: (payoutId) => api.get(`/payout/${payoutId}`),
-  requestPayout: (data) => api.post('/payout/request', data),
   getPayoutRequests: () => api.get('/payout/requests'),
-  updateMinimumPayoutThreshold: (data) => api.patch('/payout/minimum-threshold', data),
+  // License Key Management
+  getLicenseKeys: (productId, params) => api.get(`/seller/license-keys/${productId}`, { params }),
+  revealLicenseKey: (keyId) => api.get(`/seller/license-keys/${keyId}/reveal`),
+  deleteLicenseKey: (keyId) => api.delete(`/seller/license-keys/${keyId}`),
   getPayoutReports: () => api.get('/payout/reports'),
   getSellerMonthlyAnalytics: (params) => api.get('/analytics/seller/monthly', { params }),
-  // Payout account
-  linkPayoutAccount: (data) => api.post('/payout-account/link', data),
+  // Payout account (PayPal OAuth only – no email link)
+  getPayPalConnectUrl: () => api.get('/payout-account/paypal/connect'),
   getMyPayoutAccount: () => api.get('/payout-account/my'),
+  linkPayoutAccount: (data) => api.post('/payout-account/link', data),
   // Apply seller
   applySeller: (formData) => api.post('/seller/apply-seller', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -124,7 +130,7 @@ export const sellerAPI = {
 export const userAPI = {
   getMyOrders: (params) => api.get('/order/my-orders', { params }),
   getOrderById: (orderId) => api.get(`/order/${orderId}`),
-  getOrderKeys: (orderId) => api.get(`/order/${orderId}/keys`),
+  getOrderKeys: (orderId, params) => api.get(`/order/${orderId}/keys`, { params: params || {} }),
   cancelOrder: (orderId, data) => api.post(`/order/${orderId}/cancel`, data),
   reorder: (orderId) => api.post(`/order/${orderId}/reorder`),
   getWishlist: () => api.get('/wishlist/get-wishlist'),
@@ -200,7 +206,8 @@ export const chatAPI = {
     skipErrorToast: true,
     timeout: 25000, // 25 seconds for message loading (longer than default)
   }),
-  sendMessage: (data) => api.post('/chat/message', data), // Keep toast for send errors (user action)
+  sendMessage: (data) => api.post('/chat/message', data),
+  sendImageMessage: (formData) => api.post('/chat/message/image', formData),
   markAsRead: (conversationId) => api.patch(`/chat/conversation/${conversationId}/read`, {}, { 
     skipErrorToast: true,
     timeout: 5000, // 5 second timeout (should be fast, background operation)
@@ -221,9 +228,11 @@ export const notificationAPI = {
 // Checkout APIs
 export const checkoutAPI = {
   createCheckoutSession: (data) => api.post('/checkout/create', data),
+  createGuestCheckoutSession: (data) => api.post('/checkout/guest/create', data),
   getCheckoutStatus: (checkoutId) => api.get(`/checkout/${checkoutId}`),
+  getHandlingFeeEstimate: (amount) => api.get('/checkout/handling-fee-estimate', { params: { amount } }),
   cancelCheckout: (checkoutId) => api.post(`/checkout/${checkoutId}/cancel`),
-  // REMOVED: processCardPayment - Card payments now use PayPal CardFields
+  payWithWallet: (checkoutId) => api.post(`/checkout/${checkoutId}/pay-with-wallet`),
 };
 
 // PayPal Order APIs
@@ -242,16 +251,6 @@ export const cartAPI = {
   addBundle: (data) => api.post('/cart/add-bundle', data),
 };
 
-// Dispute APIs
-export const disputeAPI = {
-  createDispute: (data) => api.post('/dispute', data),
-  getMyDisputes: (params) => api.get('/dispute/my-disputes', { params }),
-  getDisputeById: (disputeId) => api.get(`/dispute/${disputeId}`),
-  getSellerDisputes: (params) => api.get('/dispute/seller/my-disputes', { params }),
-  getAllDisputes: (params) => api.get('/dispute/admin/all', { params }),
-  updateDispute: (disputeId, data) => api.patch(`/dispute/admin/${disputeId}`, data),
-};
-
 // Coupon APIs
 export const couponAPI = {
   getActiveCoupons: () => api.get('/coupon/active'),
@@ -264,17 +263,33 @@ export const couponAPI = {
   deleteCoupon: (couponId) => api.delete(`/coupon/${couponId}`),
 };
 
-// Return-Refund APIs
+// Return-Refund APIs (refund-only; no disputes)
 export const returnRefundAPI = {
   createRefundRequest: (data) => api.post('/return-refund', data),
+  uploadEvidence: (formData) => api.post('/return-refund/upload-evidence', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getMyRefunds: (params) => api.get('/return-refund/my-refunds', { params }),
   getRefundById: (refundId) => api.get(`/return-refund/${refundId}`),
   cancelRefund: (refundId) => api.delete(`/return-refund/${refundId}`),
-  // Seller - uses same endpoint, backend filters by seller's products
-  getSellerRefunds: (params) => api.get('/return-refund/my-refunds', { params }),
-  // Admin only
+  getCompletedOrders: () => api.get('/return-refund/completed-orders'),
+  getOrderItemLicenseKeys: (orderId, productId) =>
+    api.get('/return-refund/order-item-keys', { params: { orderId, productId } }),
+  escalateToAdmin: (refundId) => api.post(`/return-refund/${refundId}/escalate`),
+  getRefundMessages: (refundId) => api.get(`/return-refund/${refundId}/messages`),
+  addRefundMessage: (refundId, message) => api.post(`/return-refund/${refundId}/messages`, { message }),
+  getSellerRefundList: (params) => api.get('/return-refund/seller/list', { params }),
+  sellerApproveRefund: (refundId) => api.patch(`/return-refund/seller/${refundId}/approve`),
+  sellerRejectRefund: (refundId, reason) => api.patch(`/return-refund/seller/${refundId}/reject`, { reason }),
+  sellerSubmitFeedback: (refundId, feedback) => api.patch(`/return-refund/seller/${refundId}/feedback`, { feedback }),
   getAllRefunds: (params) => api.get('/return-refund/admin/all', { params }),
   updateRefundStatus: (refundId, data) => api.patch(`/return-refund/admin/${refundId}`, data),
+  markManualRefund: (refundId, data) => api.patch(`/return-refund/admin/${refundId}/mark-manual-refund`, data || {}),
+  requestSellerInput: (refundId, note) => api.patch(`/return-refund/admin/${refundId}/request-seller-input`, { note }),
+};
+
+// Wallet APIs
+export const walletAPI = {
+  getBalance: () => api.get('/wallet/balance'),
+  getTransactions: (params) => api.get('/wallet/transactions', { params }),
 };
 
 // Subscription APIs
@@ -407,6 +422,7 @@ export const typeAPI = {
   toggleTypeStatus: (id) => api.patch(`/type/toggle-product-type-status/${id}`),
   deleteType: (id) => api.delete(`/type/delete-product-type/${id}`),
 };
+
 
 // Flash Deal APIs
 export const flashDealAPI = {

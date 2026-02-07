@@ -98,7 +98,7 @@ const CouponsManagement = () => {
               Create Coupon
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-h-[90vh] overflow-y-auto">
+          <DialogContent size="lg" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white">Create Coupon</DialogTitle>
             </DialogHeader>
@@ -293,7 +293,7 @@ const CouponsManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-h-[90vh] overflow-y-auto">
+        <DialogContent size="lg" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Coupon</DialogTitle>
           </DialogHeader>

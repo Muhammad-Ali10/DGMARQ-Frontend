@@ -98,3 +98,20 @@ export const getRegionName = (product) => {
 export const getTypeName = (product) => {
   return product?.type?.name || 'KEY';
 };
+
+/**
+ * Get device name
+ * @param {Object} product - Product object
+ * @returns {string} - Device name or fallback
+ */
+export const getDeviceName = (product) => {
+  return product?.device?.name || 'Unknown Device';
+};
+
+export const getKeyTypeName = (product) => {
+  return product?.keyType?.name || 'KEY';
+};
+
+export const getKeyType = (product) => {
+  return product?.keyType?.name || 'KEY';
+};

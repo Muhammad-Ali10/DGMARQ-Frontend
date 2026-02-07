@@ -7,13 +7,17 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight, Search } from 'lucide-react';
+import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight, Search, DollarSign } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
 
 const Settings = () => {
   const [commissionRate, setCommissionRate] = useState('');
   const [seoMetaTitle, setSeoMetaTitle] = useState('');
   const [seoMetaDescription, setSeoMetaDescription] = useState('');
+  const [handlingFeeEnabled, setHandlingFeeEnabled] = useState(false);
+  const [handlingFeeType, setHandlingFeeType] = useState('percentage');
+  const [handlingFeePercentage, setHandlingFeePercentage] = useState('5');
+  const [handlingFeeFixed, setHandlingFeeFixed] = useState('0');
   const queryClient = useQueryClient();
 
   // Commission Rate Query
@@ -58,6 +62,20 @@ const Settings = () => {
     retry: 1,
   });
 
+  // Buyer Handling Fee Query
+  const { data: handlingFeeSettings, isLoading: isLoadingHandlingFee } = useQuery({
+    queryKey: ['buyer-handling-fee'],
+    queryFn: async () => {
+      try {
+        const response = await adminAPI.getBuyerHandlingFeeSetting();
+        return response.data.data;
+      } catch (err) {
+        throw err;
+      }
+    },
+    retry: 1,
+  });
+
   useEffect(() => {
     if (settings?.commissionRate !== undefined) {
       setCommissionRate(settings.commissionRate.toString());
@@ -70,6 +88,15 @@ const Settings = () => {
       setSeoMetaDescription(seoSettings.metaDescription || '');
     }
   }, [seoSettings]);
+
+  useEffect(() => {
+    if (handlingFeeSettings) {
+      setHandlingFeeEnabled(!!handlingFeeSettings.enabled);
+      setHandlingFeeType(handlingFeeSettings.feeType === 'fixed' ? 'fixed' : 'percentage');
+      setHandlingFeePercentage(String(handlingFeeSettings.percentageValue ?? 5));
+      setHandlingFeeFixed(String(handlingFeeSettings.fixedAmount ?? 0));
+    }
+  }, [handlingFeeSettings]);
 
   const updateMutation = useMutation({
     mutationFn: (rate) => adminAPI.updateCommissionRate({ commissionRate: rate }),
@@ -120,6 +147,40 @@ const Settings = () => {
     },
   });
 
+  // Buyer Handling Fee Update Mutation
+  const handlingFeeUpdateMutation = useMutation({
+    mutationFn: (data) => adminAPI.updateBuyerHandlingFeeSetting(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['buyer-handling-fee']);
+      showSuccess('Buyer handling fee settings updated successfully');
+    },
+    onError: (error) => {
+      showApiError(error, 'Failed to update buyer handling fee');
+    },
+  });
+
+  const handleHandlingFeeUpdate = () => {
+    if (handlingFeeEnabled) {
+      if (handlingFeeType === 'percentage') {
+        const pct = parseFloat(handlingFeePercentage);
+        if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+          showError('Percentage must be between 0 and 100');
+          return;
+        }
+        handlingFeeUpdateMutation.mutate({ enabled: true, feeType: 'percentage', percentageValue: pct });
+      } else {
+        const fixed = parseFloat(handlingFeeFixed);
+        if (Number.isNaN(fixed) || fixed < 0) {
+          showError('Fixed amount must be a non-negative number');
+          return;
+        }
+        handlingFeeUpdateMutation.mutate({ enabled: true, feeType: 'fixed', fixedAmount: fixed });
+      }
+    } else {
+      handlingFeeUpdateMutation.mutate({ enabled: false });
+    }
+  };
+
   const handleSEOUpdate = () => {
     if (!seoMetaTitle.trim()) {
       showError('Meta title is required');
@@ -143,7 +204,7 @@ const Settings = () => {
     });
   };
 
-  if (isLoading || isLoadingAutoApprove || isLoadingSEO) return <Loading message="Loading settings..." />;
+  if (isLoading || isLoadingAutoApprove || isLoadingSEO || isLoadingHandlingFee) return <Loading message="Loading settings..." />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || "Error loading settings"} />;
 
   return (
@@ -154,7 +215,7 @@ const Settings = () => {
       </div>
 
       Auto-Approve Products Setting
-      <Card className="bg-primary border-gray-700 hidden">
+      <Card className="bg-primary border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Package className="h-5 w-5" />
@@ -209,6 +270,100 @@ const Settings = () => {
                 : 'New products from sellers will appear in "Pending Products" for your review.'}
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Buyer Handling Fee Setting */}
+      <Card className="bg-primary border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Buyer Handling Fee
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <p className="text-sm text-gray-400">
+            Fee charged only to the buyer at checkout. 100% goes to admin. Separate from seller commission.
+          </p>
+          <div className="flex items-center justify-between">
+            <Label className="text-gray-300">Enable / Disable</Label>
+            <button
+              onClick={() => setHandlingFeeEnabled(!handlingFeeEnabled)}
+              disabled={handlingFeeUpdateMutation.isPending}
+              className={`p-2 rounded-lg transition-all ${handlingFeeEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+            >
+              {handlingFeeEnabled ? <ToggleRight className="h-8 w-8 text-white" /> : <ToggleLeft className="h-8 w-8 text-white" />}
+            </button>
+          </div>
+          {handlingFeeEnabled && (
+            <>
+              <div className="space-y-2">
+                <Label className="text-gray-300">Fee Type</Label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="feeType"
+                      checked={handlingFeeType === 'percentage'}
+                      onChange={() => setHandlingFeeType('percentage')}
+                      className="rounded border-gray-600"
+                    />
+                    <span className="text-white">Percentage (default 5%)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="feeType"
+                      checked={handlingFeeType === 'fixed'}
+                      onChange={() => setHandlingFeeType('fixed')}
+                      className="rounded border-gray-600"
+                    />
+                    <span className="text-white">Fixed amount</span>
+                  </label>
+                </div>
+              </div>
+              {handlingFeeType === 'percentage' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="handlingFeePct" className="text-gray-300">Percentage (0–100)</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      id="handlingFeePct"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={handlingFeePercentage}
+                      onChange={(e) => setHandlingFeePercentage(e.target.value)}
+                      className="bg-gray-800 border-gray-700 text-white w-32"
+                    />
+                    <span className="text-gray-400">%</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="handlingFeeFixed" className="text-gray-300">Fixed Amount ($)</Label>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-gray-400">$</span>
+                    <Input
+                      id="handlingFeeFixed"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={handlingFeeFixed}
+                      onChange={(e) => setHandlingFeeFixed(e.target.value)}
+                      className="bg-gray-800 border-gray-700 text-white w-32"
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+          {handlingFeeSettings?.lastUpdated && (
+            <p className="text-xs text-gray-500">Last updated: {new Date(handlingFeeSettings.lastUpdated).toLocaleDateString()}</p>
+          )}
+          <Button onClick={handleHandlingFeeUpdate} disabled={handlingFeeUpdateMutation.isPending}>
+            {handlingFeeUpdateMutation.isPending ? 'Updating...' : 'Update Buyer Handling Fee'}
+          </Button>
         </CardContent>
       </Card>
 

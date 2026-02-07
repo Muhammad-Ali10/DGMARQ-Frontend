@@ -30,13 +30,12 @@ const UsersManagement = () => {
       try {
         const response = await adminAPI.getAllUsers({ 
           page, 
-          limit: 20, 
+          limit: 10, 
           role: roleFilter || undefined,
           isActive: statusFilter || undefined,
         });
         return response.data.data;
       } catch (err) {
-        console.error('Users error:', err);
         throw err;
       }
     },
@@ -99,6 +98,9 @@ const UsersManagement = () => {
 
   const users = usersData?.users || [];
   const pagination = usersData?.pagination || {};
+  const totalItems = pagination.total ?? users.length;
+  const totalPages = pagination.pages ?? 1;
+  const showPagination = totalItems > 0;
 
   const getRoleBadges = (roles) => {
     if (!roles || roles.length === 0) {
@@ -231,27 +233,32 @@ const UsersManagement = () => {
                   </TableBody>
                 </Table>
               </div>
-              {pagination.pages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
-                  </Button>
-                  <span className="text-gray-300">
-                    Page {page} of {pagination.pages || 1}
+              {showPagination && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
+                  <span className="text-sm text-gray-400">
+                    Page {page} of {totalPages} ({totalItems} total)
                   </span>
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage((p) => Math.min(pagination.pages || 1, p + 1))}
-                    disabled={page >= (pagination.pages || 1)}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <span className="text-gray-300 text-sm px-2">Page {page} of {totalPages}</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </>
@@ -261,7 +268,7 @@ const UsersManagement = () => {
 
       {/* Ban Dialog */}
       <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <UserX className="h-5 w-5" />
@@ -305,7 +312,7 @@ const UsersManagement = () => {
 
       {/* Unban Dialog */}
       <Dialog open={unbanDialogOpen} onOpenChange={setUnbanDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <UserCheck className="h-5 w-5" />

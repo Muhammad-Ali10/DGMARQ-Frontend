@@ -11,7 +11,7 @@ const menuItems = [
   { id: 'random-keys', label: 'Random Keys' },
   { id: 'crypto-currencies', label: 'Crypto Currencies' },
   { id: 'game-accounts', label: 'Game Accounts' },
-];
+]; 
 
 const CategoryNavigation = ({ scrollOffset = 140 }) => {
   const [activeItem, setActiveItem] = useState('');

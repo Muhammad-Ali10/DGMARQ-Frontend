@@ -60,7 +60,6 @@ const PlatformsManagement = () => {
       toast.success('Platform created successfully');
     },
     onError: (error) => {
-      console.error('Create platform error:', error);
       toast.error(error?.response?.data?.message || 'Failed to create platform');
     },
   });
@@ -74,7 +73,6 @@ const PlatformsManagement = () => {
       toast.success('Platform updated successfully');
     },
     onError: (error) => {
-      console.error('Update platform error:', error);
       toast.error(error?.response?.data?.message || 'Failed to update platform');
     },
   });
@@ -86,7 +84,6 @@ const PlatformsManagement = () => {
       toast.success('Platform status updated successfully');
     },
     onError: (error) => {
-      console.error('Toggle status error:', error);
       toast.error(error?.response?.data?.message || 'Failed to update status');
     },
   });
@@ -101,7 +98,6 @@ const PlatformsManagement = () => {
       toast.success('Platform deleted successfully');
     },
     onError: (error) => {
-      console.error('Delete platform error:', error);
       toast.error(error?.response?.data?.message || 'Failed to delete platform');
     },
   });
@@ -181,7 +177,7 @@ const PlatformsManagement = () => {
               Create Platform
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-w-md">
+          <DialogContent size="sm" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">Create New Platform</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -373,7 +369,7 @@ const PlatformsManagement = () => {
           </div>
           
           {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (
+          {(pagination.totalDocs ?? 0) > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
               <div className="flex items-center gap-2">
                 <Button
@@ -407,7 +403,7 @@ const PlatformsManagement = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Edit Platform</DialogTitle>
             <DialogDescription className="text-gray-400">

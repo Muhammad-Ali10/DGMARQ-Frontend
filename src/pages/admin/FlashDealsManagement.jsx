@@ -45,7 +45,7 @@ const FlashDealsManagement = () => {
     queryKey: ['products-search', debouncedSearch],
     queryFn: () => productAPI.getProducts({ 
       search: debouncedSearch, 
-      limit: 20,
+      limit: 10,
       status: 'approved'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,
@@ -158,7 +158,7 @@ const FlashDealsManagement = () => {
               Create Flash Deal
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-h-[90vh] overflow-y-auto">
+          <DialogContent size="lg" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white">Create Flash Deal</DialogTitle>
             </DialogHeader>
@@ -396,7 +396,7 @@ const FlashDealsManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-h-[90vh] overflow-y-auto">
+        <DialogContent size="lg" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Flash Deal</DialogTitle>
           </DialogHeader>

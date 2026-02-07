@@ -1,25 +1,34 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { subscriptionAPI } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Users, DollarSign, Calendar } from 'lucide-react';
+import { Users, DollarSign, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const SubscriptionsManagement = () => {
-  const { data: subscriptions, isLoading: isLoadingSubs, isError: isErrorSubs, error: errorSubs } = useQuery({
-    queryKey: ['admin-subscriptions'],
+  const [page, setPage] = useState(1);
+
+  const { data: subsData, isLoading: isLoadingSubs, isError: isErrorSubs, error: errorSubs } = useQuery({
+    queryKey: ['admin-subscriptions', page],
     queryFn: async () => {
       try {
-        const response = await subscriptionAPI.getAllSubscriptions();
+        const response = await subscriptionAPI.getAllSubscriptions({ page, limit: 10 });
         return response.data.data;
       } catch (err) {
-        console.error('Subscriptions error:', err);
         throw err;
       }
     },
     retry: 1,
   });
+
+  const subscriptionList = subsData?.subscriptions || [];
+  const pagination = subsData?.pagination || {};
+  const totalItems = pagination.total ?? 0;
+  const totalPages = pagination.pages ?? 1;
+  const showPagination = totalItems > 0;
 
   const { data: stats, isLoading: isLoadingStats, isError: isErrorStats, error: errorStats } = useQuery({
     queryKey: ['subscription-stats'],
@@ -28,7 +37,6 @@ const SubscriptionsManagement = () => {
         const response = await subscriptionAPI.getSubscriptionStats();
         return response.data.data;
       } catch (err) {
-        console.error('Subscription stats error:', err);
         throw err;
       }
     },
@@ -113,8 +121,8 @@ const SubscriptionsManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {subscriptions?.subscriptions?.length > 0 ? (
-                  subscriptions.subscriptions.map((subscription) => (
+                {subscriptionList.length > 0 ? (
+                  subscriptionList.map((subscription) => (
                     <TableRow key={subscription._id} className="border-gray-700">
                       <TableCell className="text-white">
                         {subscription.userId?.name || subscription.userId?.email || 'N/A'}
@@ -142,6 +150,33 @@ const SubscriptionsManagement = () => {
               </TableBody>
             </Table>
           </div>
+          {showPagination && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
+              <span className="text-sm text-gray-400">
+                Page {page} of {totalPages} ({totalItems} total)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

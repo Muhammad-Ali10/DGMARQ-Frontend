@@ -236,7 +236,7 @@ const TypesManagement = () => {
               Create Type
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-w-md">
+          <DialogContent size="sm" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">
                 Create New Product Type
@@ -506,7 +506,7 @@ const TypesManagement = () => {
             </Table>
           </div>
 
-          {pagination.totalPages > 1 && (
+          {(pagination.totalDocs ?? 0) > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
               <div className="flex items-center gap-2">
                 <Button
@@ -537,7 +537,7 @@ const TypesManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">
               Edit Product Type

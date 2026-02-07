@@ -19,7 +19,6 @@ const ProductDetailView = () => {
         const response = await adminAPI.getProductDetails(productId);
         return response.data.data;
       } catch (err) {
-        console.error('Product details error:', err);
         throw err;
       }
     },

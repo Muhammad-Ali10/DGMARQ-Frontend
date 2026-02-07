@@ -31,7 +31,6 @@ const ProductsManagement = () => {
         const response = await adminAPI.getPendingProducts({ page, limit: 10 });
         return response.data.data;
       } catch (err) {
-        console.error('Pending products error:', err);
         throw err;
       }
     },
@@ -46,7 +45,6 @@ const ProductsManagement = () => {
         const response = await adminAPI.getAllProducts({ page, limit: 10, status: 'approved' });
         return response.data.data;
       } catch (err) {
-        console.error('Approved products error:', err);
         throw err;
       }
     },
@@ -61,7 +59,6 @@ const ProductsManagement = () => {
         const response = await adminAPI.getAllProducts({ page, limit: 10, status: 'rejected' });
         return response.data.data;
       } catch (err) {
-        console.error('Rejected products error:', err);
         throw err;
       }
     },
@@ -80,7 +77,6 @@ const ProductsManagement = () => {
       }
     },
     onError: (err) => {
-      console.error('Approve product error:', err);
       toast.error(err?.response?.data?.message || 'Failed to approve product');
     },
   });
@@ -100,7 +96,6 @@ const ProductsManagement = () => {
       }
     },
     onError: (err) => {
-      console.error('Reject product error:', err);
       toast.error(err?.response?.data?.message || 'Failed to reject product');
     },
   });
@@ -259,9 +254,9 @@ const ProductsManagement = () => {
                         </div>
                       )}
                       <div>
-                        <div className="font-semibold text-white">{product.name}</div>
+                        <div className="font-semibold text-white max-w-sm truncate">{product.name}</div>
                         {product.description && (
-                          <div className="text-xs text-gray-500 mt-1 max-w-xs truncate">
+                          <div className="text-xs text-gray-500 mt-1 max-w-sm truncate">
                             {product.description}
                           </div>
                         )}
@@ -363,7 +358,7 @@ const ProductsManagement = () => {
         </div>
 
         {/* Pagination Controls */}
-        {pagination.pages > 1 && (
+        {(pagination.total ?? 0) > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
             <div className="flex items-center gap-2">
               <Button
@@ -546,7 +541,7 @@ const ProductsManagement = () => {
 
       {/* Reject Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Reject Product</DialogTitle>
             <DialogDescription className="text-gray-400">

@@ -53,7 +53,6 @@ const SupportManagement = () => {
         const response = await adminAPI.getAllSupportChats();
         return response.data.data;
       } catch (err) {
-        console.error('Support chats error:', err);
         throw err;
       }
     },
@@ -67,7 +66,6 @@ const SupportManagement = () => {
         const response = await adminAPI.getSupportStats();
         return response.data.data;
       } catch (err) {
-        console.error('Support stats error:', err);
         throw err;
       }
     },
@@ -103,7 +101,6 @@ const SupportManagement = () => {
 
     // Listen for errors
     const handleError = (error) => {
-      console.error('Support chat socket error:', error);
     };
 
     socket.on('support_message', handleNewMessage);
@@ -266,7 +263,7 @@ const SupportManagement = () => {
 
       {/* Chat View Dialog */}
       <Dialog open={chatDialogOpen} onOpenChange={setChatDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-4xl max-h-[80vh] flex flex-col">
+        <DialogContent size="lg" className="bg-primary border-gray-700 flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center justify-between">
               <div>

@@ -224,7 +224,7 @@ const SellerReviews = () => {
                           Reply
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="bg-primary border-gray-700">
+                      <DialogContent size="sm" className="bg-primary border-gray-700">
                         <DialogHeader>
                           <DialogTitle className="text-white">Reply to Review</DialogTitle>
                           <DialogDescription className="text-gray-400">
@@ -272,7 +272,7 @@ const SellerReviews = () => {
               </CardContent>
             </Card>
           ))}
-          {pagination.totalPages > 1 && (
+          {(pagination.total ?? pagination.totalDocs ?? 0) > 0 && (
             <div className="flex items-center justify-between pt-4">
               <p className="text-sm text-gray-400">
                 Page {page} of {pagination.totalPages}

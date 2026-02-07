@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Input } from '../../components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { ShoppingCart, X, RotateCcw, Eye } from 'lucide-react';
+import { ShoppingCart, X, RotateCcw, Eye, RefreshCw } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import RefundRequestModal from '../../components/RefundRequestModal';
 import { showSuccess, showApiError } from '../../utils/toast';
 
 const UserOrders = () => {
@@ -20,6 +21,7 @@ const UserOrders = () => {
   const [cancellingId, setCancellingId] = useState(null);
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [reorderOrderId, setReorderOrderId] = useState(null);
+  const [showRefundModal, setShowRefundModal] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: ordersData, isLoading } = useQuery({
@@ -72,8 +74,10 @@ const UserOrders = () => {
       processing: 'default',
       cancelled: 'destructive',
       returned: 'secondary',
+      partially_completed: 'secondary',
     };
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+    const labels = { partially_completed: 'Partially completed' };
+    return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
   };
 
   return (
@@ -97,6 +101,7 @@ const UserOrders = () => {
               <SelectItem value="completed">Completed</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
               <SelectItem value="returned">Returned</SelectItem>
+              <SelectItem value="partially_completed">Partially completed</SelectItem>
             </SelectContent>
           </Select>
         </CardHeader>
@@ -143,11 +148,22 @@ const UserOrders = () => {
                           View Details
                         </Button>
                       </Link>
+                      {order.orderStatus === 'completed' && order.paymentStatus === 'paid' && (
+                        <Button
+                          onClick={() => setShowRefundModal(true)}
+                          variant="outline"
+                          size="sm"
+                          className="bg-orange-600 hover:bg-orange-700 text-white border-0"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Request Refund
+                        </Button>
+                      )}
                       {order.orderStatus !== 'cancelled' && order.orderStatus !== 'completed' && order.paymentStatus === 'paid' && (
                         <>
                           {cancellingId === order._id ? (
                             <Dialog open={true} onOpenChange={(open) => { if (!open) { setCancellingId(null); setCancelReason(''); } }}>
-                              <DialogContent className="bg-primary border-gray-700">
+                              <DialogContent size="sm" className="bg-primary border-gray-700">
                                 <DialogHeader>
                                   <DialogTitle className="text-white">Cancel Order</DialogTitle>
                                   <DialogDescription className="text-gray-400">
@@ -215,7 +231,7 @@ const UserOrders = () => {
             )}
           </div>
 
-          {ordersData?.pagination && (
+          {(ordersData?.pagination?.total ?? ordersData?.orders?.length ?? 0) > 0 && (
             <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
               <span className="text-sm text-gray-400">
                 Page {ordersData.pagination.page} of {ordersData.pagination.pages} 
@@ -257,6 +273,11 @@ const UserOrders = () => {
             setReorderOrderId(null);
           }
         }}
+      />
+
+      <RefundRequestModal
+        open={showRefundModal}
+        onOpenChange={setShowRefundModal}
       />
     </div>
   );

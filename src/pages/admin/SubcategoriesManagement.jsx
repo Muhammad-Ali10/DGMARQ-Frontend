@@ -67,7 +67,6 @@ const SubcategoriesManagement = () => {
       toast.success('Subcategory created successfully');
     },
     onError: (error) => {
-      console.error('Create subcategory error:', error);
       toast.error(error?.response?.data?.message || 'Failed to create subcategory');
     },
   });
@@ -81,7 +80,6 @@ const SubcategoriesManagement = () => {
       toast.success('Subcategory updated successfully');
     },
     onError: (error) => {
-      console.error('Update subcategory error:', error);
       toast.error(error?.response?.data?.message || 'Failed to update subcategory');
     },
   });
@@ -95,7 +93,6 @@ const SubcategoriesManagement = () => {
       toast.success('Subcategory image updated successfully');
     },
     onError: (error) => {
-      console.error('Update image error:', error);
       toast.error(error?.response?.data?.message || 'Failed to update image');
     },
   });
@@ -110,7 +107,6 @@ const SubcategoriesManagement = () => {
       toast.success(`Subcategory ${status} successfully`);
     },
     onError: (error) => {
-      console.error('Update status error:', error);
       toast.error(error?.response?.data?.message || 'Failed to update status');
     },
   });
@@ -125,7 +121,6 @@ const SubcategoriesManagement = () => {
       toast.success('Subcategory deleted successfully');
     },
     onError: (error) => {
-      console.error('Delete subcategory error:', error);
       toast.error(error?.response?.data?.message || 'Failed to delete subcategory');
     },
   });
@@ -250,7 +245,7 @@ const SubcategoriesManagement = () => {
               Create Subcategory
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-w-md">
+          <DialogContent size="sm" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">Create New Subcategory</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -612,7 +607,7 @@ const SubcategoriesManagement = () => {
           </div>
           
           {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (
+          {pagination.totalDocs > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
               <div className="flex items-center gap-2">
                 <Button
@@ -646,7 +641,7 @@ const SubcategoriesManagement = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Edit Subcategory</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -734,7 +729,7 @@ const SubcategoriesManagement = () => {
 
       {/* Image Update Dialog */}
       <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Update Subcategory Image</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -792,7 +787,7 @@ const SubcategoriesManagement = () => {
 
       {/* Status Update Dialog */}
       <Dialog open={isStatusOpen} onOpenChange={setIsStatusOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Update Subcategory Status</DialogTitle>
             <DialogDescription className="text-gray-400">

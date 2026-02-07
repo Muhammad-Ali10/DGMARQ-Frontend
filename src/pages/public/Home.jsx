@@ -103,7 +103,6 @@ const Home = () => {
         const response = await seoAPI.getHomePageSEO();
         return response.data.data;
       } catch (err) {
-        console.error('SEO fetch error:', err);
         return null;
       }
     },
@@ -584,12 +583,14 @@ const Home = () => {
       </section>
 
       {/* Software Section */}
+      <div id="software"></div>
       <CategoryProductSection
         title="Software"
         description="Top-rated software products from our best sellers"
         categoryName="Software"
         sortBy="rating"
         limit={6}
+       
       />
 
       {/* Gaming Accounts Section */}
@@ -611,13 +612,13 @@ const Home = () => {
       />
 
       {/* Crypto Section */}
-      <CategoryProductSection
+      {/* <CategoryProductSection
         title="Crypto"
         description="Cryptocurrency products and services"
         categoryName="Crypto"
         sortBy="rating"
         limit={6}
-      />
+      /> */}
 
 {/* Microsoft Section */}
       {microsoftProducts.length > 0 && (

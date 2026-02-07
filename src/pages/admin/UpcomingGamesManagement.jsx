@@ -38,7 +38,7 @@ const UpcomingGamesManagement = () => {
     queryKey: ['products-search-upcoming', debouncedSearch],
     queryFn: () => productAPI.getProducts({ 
       search: debouncedSearch, 
-      limit: 20,
+      limit: 10,
       status: 'active'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,

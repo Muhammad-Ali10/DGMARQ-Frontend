@@ -19,7 +19,7 @@ const LicenseKeys = () => {
 
   const { data: licenseKeysData, isLoading, isError, error } = useQuery({
     queryKey: ['license-keys', page],
-    queryFn: () => licenseKeyAPI.getMyLicenseKeys({ page, limit: 20 }).then(res => res.data.data),
+    queryFn: () => licenseKeyAPI.getMyLicenseKeys({ page, limit: 10 }).then(res => res.data.data),
     retry: 2,
   });
 
@@ -134,7 +134,7 @@ const LicenseKeys = () => {
               </TableBody>
             </Table>
           </div>
-          {pagination.pages > 1 && (
+          {(pagination.total ?? 0) > 0 && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
               <p className="text-sm text-gray-400">
                 Page {pagination.page || page} of {pagination.pages || 1} 
@@ -169,7 +169,7 @@ const LicenseKeys = () => {
 
       {/* Reveal Dialog */}
       <Dialog open={isRevealOpen} onOpenChange={setIsRevealOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="md" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">License Key</DialogTitle>
           </DialogHeader>

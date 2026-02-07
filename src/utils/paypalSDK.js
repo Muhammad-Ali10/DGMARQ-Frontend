@@ -33,20 +33,6 @@ export const getPayPalSDK = async () => {
         throw new Error('VITE_PAYPAL_CLIENT_ID is not configured in environment variables');
       }
 
-      // FIX: Validate HTTPS connection for PayPal CardFields
-      // PayPal CardFields requires HTTPS to enable automatic payment method filling
-      const isHTTPS = window.location.protocol === 'https:' || 
-                      window.location.hostname === 'localhost' || 
-                      window.location.hostname === '127.0.0.1';
-      
-      if (!isHTTPS && import.meta.env.PROD) {
-        console.warn(
-          '⚠️  PayPal CardFields requires HTTPS. ' +
-          'Automatic payment method filling may be disabled. ' +
-          'Please ensure your site is served over HTTPS.'
-        );
-      }
-
       // FIX: Load SDK with CardFields support and disable Pay Later
       // Use "disable-funding" with hyphen as string key (paypal-js format)
       const sdk = await loadScript({

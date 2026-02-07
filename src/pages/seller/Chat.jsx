@@ -1,16 +1,18 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatAPI } from '../../services/api';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { MessageSquare, Send } from 'lucide-react';
+import { MessageSquare, Send, ImagePlus } from 'lucide-react';
 import { useSocket } from '../../hooks/useSocket';
 import { useChatNotifications } from '../../hooks/useChatNotifications';
 import MessageBubble from '../../components/chat/MessageBubble';
+import VirtualizedMessageList from '../../components/chat/VirtualizedMessageList';
+import ChatMessageSkeleton from '../../components/chat/ChatMessageSkeleton';
 import { useSelector } from 'react-redux';
 import { showApiError } from '../../utils/toast';
 
@@ -20,6 +22,9 @@ const SellerChat = () => {
   const [selectedConversation, setSelectedConversation] = useState(conversationFromUrl || null);
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const fetchNextPageTimeoutRef = useRef(null);
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
   const { markNotificationAsRead } = useChatNotifications();
@@ -62,8 +67,8 @@ const SellerChat = () => {
     queryFn: ({ pageParam }) => {
       // Use cursor-based pagination for better performance
       const params = pageParam 
-        ? { cursor: pageParam, limit: 15 } 
-        : { limit: 15 }; // Initial load: 15 messages
+        ? { cursor: pageParam, limit: 20 } 
+        : { limit: 20 }; // Initial load: 15 messages
       return chatAPI.getMessages(selectedConversation, params).then(res => res.data.data);
     },
     enabled: !!selectedConversation && !!user, // Only fetch when conversation is selected and user is authenticated
@@ -85,11 +90,9 @@ const SellerChat = () => {
     gcTime: 600000, // Keep in cache for 10 minutes
     refetchOnWindowFocus: false, // Don't refetch on window focus
     getNextPageParam: (lastPage) => {
-      // Use cursor-based pagination: return nextCursor if hasMore
-      if (lastPage?.pagination?.hasMore && lastPage.pagination.nextCursor) {
-        return lastPage.pagination.nextCursor;
-      }
-      return undefined;
+      const hasMore = lastPage?.hasMore ?? lastPage?.pagination?.hasMore;
+      const nextCursor = lastPage?.nextCursor ?? lastPage?.pagination?.nextCursor;
+      return hasMore && nextCursor ? nextCursor : undefined;
     },
     // IMPORTANT: Don't show error toasts during loading - only show real failures
     meta: {
@@ -112,14 +115,10 @@ const SellerChat = () => {
     // Handle socket errors for room join
     const handleSocketError = (error) => {
       // Don't show toast - errors are handled in UI
-      // The message fetch will show error state if it fails
-      // Removed console.error for production
     };
     
     // Handle successful room join
     const handleJoinedConversation = (data) => {
-      // Room joined successfully - no action needed
-      // Removed console.log for production
     };
     
     // Join room immediately when conversation is selected
@@ -154,14 +153,14 @@ const SellerChat = () => {
     if (socketHandlersRef.current.handleMessageReceived) {
       socket.off('message_received', socketHandlersRef.current.handleMessageReceived);
     }
+    if (socketHandlersRef.current.handleMessageUpdated) {
+      socket.off('message_updated', socketHandlersRef.current.handleMessageUpdated);
+    }
     if (socketHandlersRef.current.handleSocketError) {
       socket.off('error', socketHandlersRef.current.handleSocketError);
     }
 
-    // Handle socket errors (separate from room join errors)
     const handleSocketError = (error) => {
-      // Don't show toast - this is handled by message fetch error state
-      // Removed console.error for production
     };
 
     const handleNewMessage = (newMessage) => {
@@ -242,21 +241,36 @@ const SellerChat = () => {
       queryClient.invalidateQueries(['seller-conversations']);
     };
 
-    const handleMessageReceived = (data) => {
-      // Don't invalidate queries - we already handle new messages via 'new_message' event
-      // Invalidating here causes unnecessary refetch and performance issues
-      // The message is already added to cache in handleNewMessage above
+    const handleMessageReceived = (data) => {};
+
+    const handleMessageUpdated = (updatedMessage) => {
+      if (updatedMessage.conversationId?.toString() !== selectedConversation?.toString()) return;
+      queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            messages: (page.messages || []).map((msg) =>
+              msg._id?.toString() === updatedMessage._id?.toString()
+                ? { ...msg, ...updatedMessage }
+                : msg
+            ),
+          })),
+        };
+      });
     };
-    
-    // Store handlers in ref for cleanup
+
     socketHandlersRef.current = {
       handleNewMessage,
       handleMessageReceived,
+      handleMessageUpdated,
       handleSocketError,
     };
-    
+
     socket.on('new_message', handleNewMessage);
     socket.on('message_received', handleMessageReceived);
+    socket.on('message_updated', handleMessageUpdated);
     socket.on('error', handleSocketError);
     
     return () => {
@@ -267,12 +281,58 @@ const SellerChat = () => {
       if (socketHandlersRef.current.handleMessageReceived) {
         socket.off('message_received', socketHandlersRef.current.handleMessageReceived);
       }
+      if (socketHandlersRef.current.handleMessageUpdated) {
+        socket.off('message_updated', socketHandlersRef.current.handleMessageUpdated);
+      }
       if (socketHandlersRef.current.handleSocketError) {
         socket.off('error', socketHandlersRef.current.handleSocketError);
       }
       socketHandlersRef.current = {};
     };
   }, [socket, selectedConversation, queryClient]);
+
+  const sendImageMessageMutation = useMutation({
+    mutationFn: ({ formData }) => chatAPI.sendImageMessage(formData),
+    onSuccess: (response, variables) => {
+      const sentMessage = response?.data?.data;
+      const tempId = variables.tempId;
+      if (variables.localPreviewUrl) URL.revokeObjectURL(variables.localPreviewUrl);
+      if (sentMessage && selectedConversation) {
+        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
+          if (!old?.pages?.length) return old;
+          const lastPage = old.pages[old.pages.length - 1];
+          const filtered = (lastPage.messages || []).filter(
+            (m) => m._id?.toString() !== sentMessage._id?.toString() && m._id !== tempId
+          );
+          const merged = { ...sentMessage, localPreviewUrl: variables.localPreviewUrl };
+          return {
+            ...old,
+            pages: old.pages.map((page, i) =>
+              i === old.pages.length - 1
+                ? { ...page, messages: [...filtered, merged] }
+                : page
+            ),
+          };
+        });
+      }
+      queryClient.invalidateQueries(['seller-conversations']);
+    },
+    onError: (error, variables) => {
+      if (selectedConversation && variables.tempId) {
+        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: (page.messages || []).filter((m) => m._id !== variables.tempId),
+            })),
+          };
+        });
+      }
+      showApiError(error, 'Failed to send image');
+    },
+  });
 
   const sendMessageMutation = useMutation({
     mutationFn: (data) => chatAPI.sendMessage(data),
@@ -338,30 +398,31 @@ const SellerChat = () => {
     retry: false, // Don't retry - if it fails, socket will handle it
   });
 
-  // Smooth scroll to bottom only on new messages (not on initial load or pagination)
   const prevMessagesLengthRef = useRef(0);
   useEffect(() => {
     const currentLength = messages.length;
     const prevLength = prevMessagesLengthRef.current;
-    
-    // Only auto-scroll if new message was added at the end (not pagination)
-    if (currentLength > prevLength && messagesEndRef.current) {
-      // Check if we're near the bottom before scrolling
-      const messagesContainer = messagesEndRef.current.parentElement;
-      if (messagesContainer) {
-        const isNearBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 200;
-        if (isNearBottom) {
-          // Use requestAnimationFrame for smooth scroll
-          requestAnimationFrame(() => {
-            if (messagesEndRef.current) {
-              messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-          });
-        }
+    if (currentLength > prevLength && scrollContainerRef.current && messages.length < 40) {
+      const el = scrollContainerRef.current;
+      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+      if (isNearBottom) {
+        requestAnimationFrame(() => {
+          if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        });
       }
     }
     prevMessagesLengthRef.current = currentLength;
   }, [messages.length]);
+
+  const handleScrollToTop = useCallback(() => {
+    if (fetchNextPageTimeoutRef.current) return;
+    fetchNextPageTimeoutRef.current = setTimeout(() => {
+      fetchNextPage();
+      fetchNextPageTimeoutRef.current = null;
+    }, 200);
+  }, [fetchNextPage]);
 
   // Mark as read when conversation is selected
   // Use socket if available (faster), fallback to HTTP only if socket not connected
@@ -388,6 +449,53 @@ const SellerChat = () => {
       clearTimeout(timeoutId);
     };
   }, [selectedConversation, socket, isConnected, markAsReadMutation]);
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConversation) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      showApiError({ message: 'Invalid file type. Use JPEG, PNG, GIF or WebP' }, 'Invalid image');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showApiError({ message: 'Image must be under 5MB' }, 'File too large');
+      return;
+    }
+    const tempId = `temp-img-${Date.now()}`;
+    const localPreviewUrl = URL.createObjectURL(file);
+    const optimisticMessage = {
+      _id: tempId,
+      conversationId: selectedConversation,
+      senderId: user,
+      receiverId: conversation?.buyerId,
+      messageText: 'Image',
+      messageType: 'image',
+      uploadStatus: 'pending',
+      localPreviewUrl,
+      isRead: false,
+      sentAt: new Date(),
+      isOptimistic: true,
+    };
+    queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
+      if (!old?.pages?.length) return old;
+      const lastPage = old.pages[old.pages.length - 1];
+      return {
+        ...old,
+        pages: old.pages.map((page, i) =>
+          i === old.pages.length - 1
+            ? { ...page, messages: [...(page.messages || []), optimisticMessage] }
+            : page
+        ),
+      };
+    });
+    const formData = new FormData();
+    formData.append('conversationId', selectedConversation);
+    formData.append('messageText', 'Image');
+    formData.append('image', file);
+    sendImageMessageMutation.mutate({ formData, tempId, localPreviewUrl });
+    e.target.value = '';
+  };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -496,8 +604,8 @@ const SellerChat = () => {
         </Card>
 
         {/* Chat Messages - Fixed Width Container */}
-        <Card className="lg:col-span-2 bg-primary border-gray-700 flex flex-col max-w-full h-full min-h-0 overflow-hidden">
-          <CardHeader className="shrink-0 border-b border-gray-700 px-4 py-3">
+        <Card className="lg:col-span-2 bg-primary border-gray-700 flex flex-col max-w-full py-2 h-full min-h-0 overflow-hidden">
+          <CardHeader className="shrink-0 border-b border-gray-700 px-4 !py-0">
             <CardTitle className="text-white text-lg">
               {conversation ? `Chat with ${conversation.buyerId?.name || 'Buyer'}` : 'Select a conversation'}
             </CardTitle>
@@ -549,8 +657,17 @@ const SellerChat = () => {
                           <p className="text-gray-400 text-lg font-medium mb-2">No messages yet</p>
                           <p className="text-gray-500 text-sm">Start the conversation by sending a message</p>
                         </div>
+                      ) : messages.length > 40 ? (
+                        <VirtualizedMessageList
+                          messages={messages}
+                          currentUserId={user}
+                          scrollContainerRef={scrollContainerRef}
+                          onScrollToTop={handleScrollToTop}
+                          hasNextPage={hasNextPage}
+                          isFetchingNextPage={isFetchingNextPage}
+                        />
                       ) : (
-                        <div className="max-w-2xl mx-auto">
+                        <div className="max-w-4xl mx-auto">
                           {isFetchingNextPage && (
                             <div className="flex justify-center py-2">
                               <Loading message="Loading older messages..." />
@@ -586,6 +703,23 @@ const SellerChat = () => {
                 {/* Input Area - Fixed at bottom */}
                 <div className="shrink-0 p-4 border-t border-gray-700 bg-primary">
                   <form onSubmit={handleSendMessage} className="flex gap-2 max-w-2xl mx-auto">
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                      onChange={handleImageSelect}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      disabled={sendImageMessageMutation.isPending || (!isConnected && !socket)}
+                      onClick={() => imageInputRef.current?.click()}
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                    </Button>
                     <Input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}

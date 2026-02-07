@@ -9,6 +9,7 @@ import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { authAPI } from '../../services/api';
 import { showSuccess, showApiError } from '../../utils/toast';
+import { Chrome } from 'lucide-react';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -75,7 +76,6 @@ const Register = () => {
       } catch (error) {
         // Fallback to prevent blank page
         setError('Registration failed. Please try again.');
-        console.error('Error handling registration error:', error);
       }
     },
   });
@@ -119,8 +119,14 @@ const Register = () => {
     } catch (err) {
       // Fallback error handling to prevent blank page
       setError('Registration failed. Please try again.');
-      console.error('Registration error:', err);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    // Redirect to backend Google OAuth endpoint
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+    const baseUrl = apiBaseUrl.replace('/api/v1', '');
+    window.location.href = `${baseUrl}/api/v1/user/auth/google`;
   };
 
   return (
@@ -208,6 +214,28 @@ const Register = () => {
               {registerMutation.isPending ? 'Creating account...' : 'Create Account'}
             </Button>
           </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogleLogin}
+              className="w-full mt-4"
+              size="lg"
+            >
+              <Chrome className="mr-2 h-5 w-5" />
+              Continue with Google
+            </Button>
+          </div>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}

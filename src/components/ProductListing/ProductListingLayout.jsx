@@ -39,18 +39,20 @@ const ProductListingLayout = ({
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Filter states from URL params
+  // Filter states from URL params (support 'q' for /search route from Header)
   const [page, setPage] = useState(parseInt(searchParams.get('page')) || 1);
-  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [search, setSearch] = useState(searchParams.get('search') || searchParams.get('q') || '');
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [layout, setLayout] = useState(searchParams.get('layout') || 'listing');
   
   // Checkbox filters - if lockedCategoryId exists, always use it and lock it
   const [checkboxFilters, setCheckboxFilters] = useState(() => {
+    const categoryFromUrl = searchParams.get('categoryId')?.split(',').filter(Boolean) ||
+      (searchParams.get('category') ? [searchParams.get('category')] : []);
     const categoryId = lockedCategoryId 
       ? [lockedCategoryId] 
-      : (searchParams.get('categoryId')?.split(',').filter(Boolean) || []);
+      : categoryFromUrl;
     
     if (defaultCategoryId && !categoryId.length && !lockedCategoryId) {
       categoryId.push(defaultCategoryId);

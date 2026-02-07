@@ -16,7 +16,6 @@ const Footer = () => {
                     <Link to="/about-company" className="font-poppins font-normal text-sm leading-7 underline ">Company</Link>
                     <Link to="/marketplace" className="font-poppins font-normal text-sm leading-7 underline ">Marketplace</Link>
                     <Link to="/security" className="font-poppins font-normal text-sm leading-7 underline ">Security</Link>
-                    <Link to="/careers" className="font-poppins font-normal text-sm leading-7 underline ">Careers</Link>
                     <Link to="/contactus" className="font-poppins font-normal text-sm leading-7 underline ">Contact</Link>
                 </div>
                 <div className="flex flex-col">

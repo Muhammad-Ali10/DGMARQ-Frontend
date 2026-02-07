@@ -47,7 +47,7 @@ const BundleDeals = () => {
     queryKey: ['products-search', productSearch],
     queryFn: async () => {
       try {
-        const response = await productAPI.getProducts({ search: productSearch, limit: 20, status: 'approved' });
+        const response = await productAPI.getProducts({ search: productSearch, limit: 10, status: 'approved' });
         return response.data.data;
       } catch (err) {
         return { products: [] };
@@ -354,7 +354,7 @@ const BundleDeals = () => {
                 </Table>
               </div>
 
-              {pagination.totalPages > 1 && (
+              {(pagination.totalDocs ?? 0) > 0 && (
                 <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-700">
                   <div className="flex items-center gap-2">
                     <Button
@@ -386,7 +386,7 @@ const BundleDeals = () => {
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent size="lg" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Create Bundle Deal</DialogTitle>
           </DialogHeader>
@@ -508,7 +508,7 @@ const BundleDeals = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent size="lg" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Bundle Deal</DialogTitle>
           </DialogHeader>

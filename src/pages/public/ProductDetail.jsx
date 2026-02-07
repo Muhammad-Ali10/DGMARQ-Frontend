@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
+import { addToGuestCart } from '../../utils/guestCart';
 
 const ProductDetail = () => {
   const { identifier } = useParams();
@@ -55,7 +56,6 @@ const ProductDetail = () => {
         const response = await productAPI.getProductById(identifier);
         return response.data.data;
       } catch (err) {
-        console.error('Product fetch error:', err);
         throw err;
       }
     },
@@ -78,7 +78,6 @@ const ProductDetail = () => {
         );
         return ordersWithProduct;
       } catch (err) {
-        console.error('Orders fetch error:', err);
         return [];
       }
     },
@@ -99,7 +98,6 @@ const ProductDetail = () => {
         });
         return response.data.data;
       } catch (err) {
-        console.error('Reviews fetch error:', err);
         return { docs: [], totalDocs: 0 };
       }
     },
@@ -132,7 +130,6 @@ const ProductDetail = () => {
         });
         return { ...response.data.data, docs: prioritized.slice(0, 6) };
       } catch (err) {
-        console.error('Related products error:', err);
         return { docs: [] };
       }
     },
@@ -168,19 +165,29 @@ const ProductDetail = () => {
       queryClient.invalidateQueries(['product-detail', identifier]);
     },
     onError: (error) => {
-      toast.error(error?.response?.data?.message || 'Failed to submit review');
+      const errors = error?.response?.data?.errors;
+      const firstError = Array.isArray(errors) && errors[0]?.message ? errors[0].message : error?.response?.data?.message;
+      toast.error(firstError || 'Failed to submit review');
     },
   });
 
   const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      navigate('/login');
+    if (!product.stock || product.stock < quantity) {
+      toast.error('Insufficient stock');
       return;
     }
 
-    if (!product.stock || product.stock < quantity) {
-      toast.error('Insufficient stock');
+    if (!isAuthenticated) {
+      addToGuestCart({
+        productId: product._id,
+        qty: quantity,
+        price: product.price,
+        sellerId: product.sellerId,
+        name: product.name,
+        slug: product.slug,
+        image: product.images?.[0],
+      });
+      toast.success('Added to cart');
       return;
     }
 
@@ -207,16 +214,21 @@ const ProductDetail = () => {
       return;
     }
 
-    if (!reviewComment.trim()) {
+    const trimmedComment = reviewComment.trim();
+    if (!trimmedComment) {
       toast.error('Please enter a comment');
+      return;
+    }
+    if (trimmedComment.length < 10) {
+      toast.error('Comment must be at least 10 characters');
       return;
     }
 
     submitReviewMutation.mutate({
-      productId: product._id,
-      orderId: selectedOrderId,
-      rating: reviewRating,
-      comment: reviewComment.trim(),
+      productId: String(product._id),
+      orderId: String(selectedOrderId),
+      rating: Number(reviewRating),
+      comment: trimmedComment,
     });
   };
 
@@ -545,6 +557,20 @@ const ProductDetail = () => {
               <ShoppingCart className="h-5 w-5 mr-2" />
               {addToCartMutation.isPending ? 'Adding...' : 'Add to Cart'}
             </Button>
+            {!isAuthenticated && product.stock > 0 && (
+              <Button
+                onClick={() =>
+                  navigate('/checkout', {
+                    state: { guestItems: [{ productId: product._id, qty: quantity }] },
+                  })
+                }
+                variant="outline"
+                className="w-full h-12 text-lg border-gray-600 text-gray-300 hover:bg-gray-800"
+                size="lg"
+              >
+                Purchase as guest
+              </Button>
+            )}
           </div>
 
           {/* Product Attributes - Compact Layout */}
@@ -757,13 +783,13 @@ const ProductDetail = () => {
                     maxLength={1000}
                   />
                   <p className="text-gray-500 text-xs mt-1">
-                    {reviewComment.length}/1000 characters
+                    {reviewComment.length}/1000 characters {reviewComment.trim().length > 0 && reviewComment.trim().length < 10 && '(min 10 required)'}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Button
                     onClick={handleSubmitReview}
-                    disabled={submitReviewMutation.isPending || !selectedOrderId || reviewRating === 0 || !reviewComment.trim()}
+                    disabled={submitReviewMutation.isPending || !selectedOrderId || reviewRating === 0 || !reviewComment.trim() || reviewComment.trim().length < 10}
                     className="flex-1"
                   >
                     <Send className="h-4 w-4 mr-2" />

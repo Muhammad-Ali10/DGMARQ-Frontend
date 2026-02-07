@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { Loader2, X, Lock, CreditCard } from 'lucide-react';
+import { Loader2, X, Lock, CreditCard, Wallet } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { getPayPalSDK } from '../utils/paypalSDK';
-import { paypalAPI } from '../services/api';
+import { paypalAPI, checkoutAPI } from '../services/api';
 import { toast } from 'sonner';
 
 /**
@@ -29,9 +29,16 @@ const PaymentModal = ({
   checkoutId, 
   totalAmount, 
   currency = 'USD', 
-  onSuccess 
+  onSuccess,
+  walletBalance = 0,
+  walletAmount = 0,
+  cardAmount = 0,
+  paymentMethod = 'PayPal',
 }) => {
-  const [selectedMethod, setSelectedMethod] = useState('paypal'); // 'paypal' or 'card'
+  const [selectedMethod, setSelectedMethod] = useState(
+    paymentMethod === 'Wallet' ? 'wallet' : 
+    paymentMethod === 'Card' ? 'card' : 'paypal'
+  ); // 'wallet', 'paypal', or 'card'
   const [isLoading, setIsLoading] = useState(false);
   const [paypalSDK, setPaypalSDK] = useState(null);
   const [cardFields, setCardFields] = useState(null);
@@ -51,13 +58,6 @@ const PaymentModal = ({
         const sdk = await getPayPalSDK();
 
         setPaypalSDK(sdk);
-        
-        // FIX: Debug logging (non-sensitive)
-        console.log('[PAYMENT] PayPal SDK loaded:', {
-          hasButtons: !!sdk?.Buttons,
-          hasCardFields: !!sdk?.CardFields,
-        });
-        
             // Create CardFields instance immediately after SDK loads to check eligibility
             if (sdk?.CardFields) {
               try {
@@ -89,98 +89,45 @@ const PaymentModal = ({
                   },
                   createOrder: async () => {
                 try {
-                  console.log('[PAYMENT] createOrder -> called');
-                  
                   if (!checkoutId) {
                     const errorMsg = 'Checkout ID is missing. Please try again.';
-                    console.error('❌ [PAYMENT] createOrder -> Missing checkoutId:', { checkoutId });
                     toast.error(errorMsg);
                     throw new Error(errorMsg);
                   }
-
-                  console.log('[PAYMENT] createOrder -> Creating PayPal order with checkoutId:', checkoutId);
-                  
                   const response = await paypalAPI.createOrder({ checkoutId });
-                  
-                  // FIX: Handle response data structure (check multiple possible paths)
                   const orderId = response.data?.orderId || response.data?.data?.orderId;
-                  
                   if (!response.data?.ok && !orderId) {
-                    console.error('❌ [PAYMENT] createOrder -> Invalid response structure:', response.data);
                     throw new Error(response.data?.message || 'Failed to create order');
                   }
-
                   if (!orderId) {
-                    console.error('❌ [PAYMENT] createOrder -> orderId missing in response:', response.data);
                     throw new Error('Order ID not returned from server');
                   }
-
-                  console.log('[PAYMENT] createOrder -> orderId:', orderId);
                   return orderId;
                 } catch (error) {
-                  console.error('❌ [PAYMENT] createOrder -> error:', {
-                    error: error.message,
-                    checkoutId,
-                    response: error.response?.data,
-                  });
                   toast.error(error.response?.data?.message || error.message || 'Failed to create payment order');
                   throw error;
                 }
               },
               onApprove: async (data) => {
                 try {
-                  console.log('[PAYMENT] CardFields onApprove -> called with orderID:', data.orderID);
                   setIsLoading(true);
-                  
-                  // FIX: Add delay to ensure order is ready for capture
-                  // Sometimes PayPal needs a moment to process the approval
                   await new Promise(resolve => setTimeout(resolve, 500));
-                  
                   const captureResponse = await paypalAPI.captureOrder(data.orderID, checkoutId);
-                  
-                  console.log('[PAYMENT] CardFields capture -> Full response:', captureResponse);
-                  
-                  // FIX: Handle multiple possible response structures
                   const responseData = captureResponse.data || captureResponse;
                   const captureStatus = responseData?.status || responseData?.data?.status;
                   const captureId = responseData?.captureId || responseData?.data?.captureId;
                   const isOk = responseData?.ok !== false; // Default to true if not explicitly false
                   
-                  // FIX: Check if capture was successful
-                  // PayPal returns status: 'COMPLETED' when successful
                   if (!isOk || (captureStatus && captureStatus !== 'COMPLETED')) {
                     const errorMessage = responseData?.message || 
                                       responseData?.data?.message || 
                                       `Payment capture failed. Status: ${captureStatus || 'unknown'}`;
-                    
-                    console.error('❌ [PAYMENT] CardFields onApprove -> Capture failed:', {
-                      status: captureStatus,
-                      ok: isOk,
-                      response: responseData,
-                      fullResponse: captureResponse,
-                    });
-                    
                     throw new Error(errorMessage);
                   }
-
-                  console.log('[PAYMENT] CardFields capture -> Success:', {
-                    status: captureStatus,
-                    captureId,
-                    orderId: data.orderID,
-                  });
-
                   toast.success('Payment successful!');
                   onSuccess?.(responseData);
                   onOpenChange(false);
                 } catch (error) {
-                  console.error('❌ [PAYMENT] CardFields onApprove -> capture error:', {
-                    error: error.message,
-                    stack: error.stack,
-                    response: error.response?.data,
-                    orderID: data.orderID,
-                  });
-                  
-                  // FIX: Provide more helpful error messages
                   let errorMessage = 'Payment capture failed';
                   if (error.response?.data?.message) {
                     errorMessage = error.response.data.message;
@@ -194,14 +141,6 @@ const PaymentModal = ({
                 }
               },
               onError: (err) => {
-                console.error('❌ [PAYMENT] CardFields onError ->', {
-                  error: err,
-                  message: err?.message || 'Unknown error',
-                  details: err?.details,
-                  orderID: err?.orderID,
-                });
-                
-                // FIX: Provide more specific error messages
                 let errorMessage = 'Payment processing error. Please try again.';
                 if (err?.message) {
                   errorMessage = err.message;
@@ -214,21 +153,17 @@ const PaymentModal = ({
               },
             });
 
-            // Log eligibility immediately after creation
             const eligible = fields.isEligible();
-            console.log('[PAYMENT] CardFields eligible:', eligible);
             setIsCardFieldsEligible(eligible);
             setCardFields(fields);
             cardFieldsRef.current = fields; // Store in ref for submit()
           } catch (error) {
-            console.error('❌ [PAYMENT] Failed to create CardFields instance:', error);
             setIsCardFieldsEligible(false);
             setCardFields(null);
             cardFieldsRef.current = null;
           }
         }
       } catch (error) {
-        console.error('Failed to load PayPal SDK:', error);
         toast.error(error.message || 'Failed to load payment system. Please refresh and try again.');
       } finally {
         setIsLoading(false);
@@ -257,20 +192,11 @@ const PaymentModal = ({
       const containersReady = cardNumberEl && cardExpiryEl && cardCvvEl && cardNameEl;
 
       if (!containersReady) {
-        console.log(`[PAYMENT] container ready: false${isRetry ? ' (retry failed)' : ''}`);
-        
-        // Single retry after 200ms if first attempt
         if (!isRetry) {
-          console.log('[PAYMENT] Retrying container check after 200ms...');
           retryTimer = setTimeout(() => checkContainersAndRender(true), 200);
-        } else {
-          console.warn('[PAYMENT] CardFields containers not found after retry. Will wait for next render.');
         }
         return;
       }
-
-      console.log('[PAYMENT] container ready: true');
-      console.log('[PAYMENT] rendering started');
 
       try {
         // Clear containers first to prevent duplicate renders
@@ -303,9 +229,7 @@ const PaymentModal = ({
           placeholder: 'Cardholder Name',
         }).render('#card-name');
 
-        console.log('[PAYMENT] rendering success');
       } catch (renderError) {
-        console.error('❌ [PAYMENT] Failed to render CardFields:', renderError);
         toast.error('Failed to render card payment form. Please try again.');
       }
     };
@@ -361,41 +285,22 @@ const PaymentModal = ({
         const buttons = paypalSDK.Buttons({
           createOrder: async () => {
             try {
-              console.log('[PAYMENT] PayPal Buttons createOrder -> called');
               setIsLoading(true);
-              
               if (!checkoutId) {
                 const errorMsg = 'Checkout ID is missing. Please try again.';
-                console.error('❌ [PAYMENT] PayPal Buttons createOrder -> Missing checkoutId:', { checkoutId });
                 toast.error(errorMsg);
                 throw new Error(errorMsg);
               }
-
-              console.log('[PAYMENT] PayPal Buttons createOrder -> Creating order with checkoutId:', checkoutId);
-              
               const response = await paypalAPI.createOrder({ checkoutId });
-              
-              // FIX: Handle response data structure
               const orderId = response.data?.orderId || response.data?.data?.orderId;
-              
               if (!response.data?.ok && !orderId) {
-                console.error('❌ [PAYMENT] PayPal Buttons createOrder -> Invalid response:', response.data);
                 throw new Error(response.data?.message || 'Failed to create order');
               }
-
               if (!orderId) {
-                console.error('❌ [PAYMENT] PayPal Buttons createOrder -> orderId missing:', response.data);
                 throw new Error('Order ID not returned from server');
               }
-
-              console.log('[PAYMENT] PayPal Buttons createOrder -> orderId:', orderId);
               return orderId;
             } catch (error) {
-              console.error('❌ [PAYMENT] PayPal Buttons createOrder -> error:', {
-                error: error.message,
-                checkoutId,
-                response: error.response?.data,
-              });
               toast.error(error.response?.data?.message || error.message || 'Failed to create payment order');
               throw error;
             } finally {
@@ -404,56 +309,22 @@ const PaymentModal = ({
           },
           onApprove: async (data) => {
             try {
-              console.log('[PAYMENT] PayPal Buttons onApprove -> called with orderID:', data.orderID);
               setIsLoading(true);
-              
-              // FIX: Add delay to ensure order is ready for capture
               await new Promise(resolve => setTimeout(resolve, 500));
-              
               const captureResponse = await paypalAPI.captureOrder(data.orderID, checkoutId);
-              
-              console.log('[PAYMENT] PayPal Buttons capture -> Full response:', captureResponse);
-              
-              // FIX: Handle multiple possible response structures
               const responseData = captureResponse.data || captureResponse;
               const captureStatus = responseData?.status || responseData?.data?.status;
-              const captureId = responseData?.captureId || responseData?.data?.captureId;
-              const isOk = responseData?.ok !== false; // Default to true if not explicitly false
-              
-              // FIX: Check if capture was successful
+              const isOk = responseData?.ok !== false;
               if (!isOk || (captureStatus && captureStatus !== 'COMPLETED')) {
                 const errorMessage = responseData?.message || 
                                     responseData?.data?.message || 
                                     `Payment capture failed. Status: ${captureStatus || 'unknown'}`;
-                
-                console.error('❌ [PAYMENT] PayPal Buttons onApprove -> Capture failed:', {
-                  status: captureStatus,
-                  ok: isOk,
-                  response: responseData,
-                  fullResponse: captureResponse,
-                });
-                
                 throw new Error(errorMessage);
               }
-
-              console.log('[PAYMENT] PayPal Buttons capture -> Success:', {
-                status: captureStatus,
-                captureId,
-                orderId: data.orderID,
-              });
-
               toast.success('Payment successful!');
               onSuccess?.(responseData);
               onOpenChange(false);
             } catch (error) {
-              console.error('❌ [PAYMENT] PayPal Buttons onApprove -> capture error:', {
-                error: error.message,
-                stack: error.stack,
-                response: error.response?.data,
-                orderID: data.orderID,
-              });
-              
-              // FIX: Provide more helpful error messages
               let errorMessage = 'Payment capture failed';
               if (error.response?.data?.message) {
                 errorMessage = error.response.data.message;
@@ -467,14 +338,6 @@ const PaymentModal = ({
             }
           },
           onError: (err) => {
-            console.error('❌ [PAYMENT] PayPal Buttons onError ->', {
-              error: err,
-              message: err?.message || 'Unknown error',
-              details: err?.details,
-              orderID: err?.orderID,
-            });
-            
-            // FIX: Provide more specific error messages
             let errorMessage = 'Payment processing error. Please try again.';
             if (err?.message) {
               errorMessage = err.message;
@@ -497,7 +360,6 @@ const PaymentModal = ({
 
         buttons.render(container);
       } catch (error) {
-        console.error('Failed to initialize PayPal Buttons:', error);
         toast.error('Failed to initialize PayPal payment.');
       }
     };
@@ -521,20 +383,14 @@ const PaymentModal = ({
     const fields = cardFieldsRef.current || cardFields;
     
     if (!fields) {
-      console.error('❌ [PAYMENT] handleCardSubmit -> CardFields instance not available');
       toast.error('Card payment form not ready. Please wait.');
       return;
     }
 
     try {
-      console.log('[PAYMENT] handleCardSubmit -> Calling cardFields.submit()');
       setIsLoading(true);
-      // FIX: cardFields.submit() triggers the full flow: createOrder -> onApprove -> capture
-      // This is handled by PayPal SDK automatically
       await fields.submit();
-      // Note: setIsLoading(false) is handled in onApprove/onError callbacks
     } catch (error) {
-      console.error('❌ [PAYMENT] handleCardSubmit -> submit error:', error);
       toast.error('Failed to process card payment.');
       setIsLoading(false);
     }
@@ -542,7 +398,7 @@ const PaymentModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-primary border-gray-700 max-w-md max-h-[90vh] overflow-y-auto p-6">
+      <DialogContent size="sm" className="bg-primary border-gray-700 p-6">
         {/* Global styles to override PayPal CardFields default styling */}
         <style>{`
           .paypal-card-field-container {
@@ -584,7 +440,26 @@ const PaymentModal = ({
 
         <div className="space-y-5 mt-4">
           {/* Payment Method Selection */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${walletBalance >= totalAmount ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {walletBalance >= totalAmount && (
+              <Button
+                type="button"
+                onClick={() => setSelectedMethod('wallet')}
+                variant={selectedMethod === 'wallet' ? 'default' : 'outline'}
+                className={`h-auto py-4 ${
+                  selectedMethod === 'wallet'
+                    ? 'bg-accent hover:bg-accent/90 text-white'
+                    : 'border-gray-600 text-gray-300 hover:bg-gray-800'
+                }`}
+                disabled={isLoading}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <Wallet className="w-6 h-6" />
+                  <span className="text-xs font-medium">Wallet</span>
+                  <span className="text-xs text-gray-400">${walletBalance.toFixed(2)}</span>
+                </div>
+              </Button>
+            )}
             <Button
               type="button"
               onClick={() => setSelectedMethod('paypal')}
@@ -624,15 +499,80 @@ const PaymentModal = ({
             </Button>
           </div>
 
+          {/* Wallet Payment Option */}
+          {selectedMethod === 'wallet' && walletBalance >= totalAmount && (
+            <div className="space-y-4">
+              <Card className="bg-gray-800/50 border-gray-700">
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-accent/10 rounded-lg border border-accent/30">
+                      <div>
+                        <p className="text-sm text-gray-300">Wallet Balance</p>
+                        <p className="text-2xl font-bold text-white">${walletBalance.toFixed(2)}</p>
+                      </div>
+                      <Wallet className="w-8 h-8 text-accent" />
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                      <p className="text-sm text-gray-300">Order Total</p>
+                      <p className="text-xl font-semibold text-white">${totalAmount.toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-lg border border-green-500/30">
+                      <p className="text-sm text-gray-300">Remaining Balance</p>
+                      <p className="text-xl font-bold text-green-400">${(walletBalance - totalAmount).toFixed(2)}</p>
+                    </div>
+                    <Button
+                      onClick={async () => {
+                        if (!checkoutId) {
+                          toast.error('Checkout session not found');
+                          return;
+                        }
+                        setIsLoading(true);
+                        try {
+                          const response = await checkoutAPI.payWithWallet(checkoutId);
+                          toast.success('Payment successful!');
+                          if (onSuccess) {
+                            onSuccess(response.data.data);
+                          }
+                          onOpenChange(false);
+                        } catch (error) {
+                          toast.error(error.response?.data?.message || 'Wallet payment failed');
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                      disabled={isLoading}
+                      className="w-full bg-accent hover:bg-accent/90 text-white"
+                      size="lg"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          Pay ${totalAmount.toFixed(2)} with Wallet
+                          <Lock className="w-4 h-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {/* Divider */}
-          <div className="relative py-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-700"></div>
+          {selectedMethod !== 'wallet' && (
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-primary px-3 text-gray-400">or</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-primary px-3 text-gray-400">or</span>
-            </div>
-          </div>
+          )}
 
           {/* PayPal Payment Option */}
           {selectedMethod === 'paypal' && (

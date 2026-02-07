@@ -56,7 +56,7 @@ const UpcomingReleasesManagement = () => {
     queryKey: ['products-search', debouncedSearch[1]],
     queryFn: () => productAPI.getProducts({ 
       search: debouncedSearch[1], 
-      limit: 20,
+      limit: 10,
       status: 'active'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen[1] || debouncedSearch[1].length > 0,
@@ -66,7 +66,7 @@ const UpcomingReleasesManagement = () => {
     queryKey: ['products-search', debouncedSearch[2]],
     queryFn: () => productAPI.getProducts({ 
       search: debouncedSearch[2], 
-      limit: 20,
+      limit: 10,
       status: 'active'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen[2] || debouncedSearch[2].length > 0,

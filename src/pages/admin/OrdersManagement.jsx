@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { orderAPI } from '../../services/api';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Button } from '../../components/ui/button';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 
 const OrdersManagement = () => {
   const [page, setPage] = useState(1);
@@ -19,12 +20,11 @@ const OrdersManagement = () => {
       try {
         const response = await orderAPI.getAllOrders({ 
           page, 
-          limit: 20, 
+          limit: 10, 
           status: status || undefined 
         });
         return response.data.data;
       } catch (err) {
-        console.error('Orders error:', err);
         throw err;
       }
     },
@@ -37,16 +37,16 @@ const OrdersManagement = () => {
     return <ErrorMessage message={errorMessage} />;
   }
 
-  // Handle different response structures
+  // Handle different response structures (backend returns { orders, pagination: { page, limit, total, pages } })
   const orders = Array.isArray(ordersData) 
     ? ordersData 
     : (ordersData?.orders || ordersData?.docs || []);
-  const pagination = ordersData?.pagination || { 
-    page: 1, 
-    limit: 20, 
-    total: orders.length, 
-    pages: 1 
-  };
+  const pagination = ordersData?.pagination || {};
+  const currentPage = pagination.page ?? page;
+  const totalItems = pagination.total ?? orders.length;
+  const totalPages = pagination.pages ?? pagination.totalPages ?? 1;
+  const limit = pagination.limit ?? 20;
+  const showPagination = totalItems > 0;
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -55,8 +55,10 @@ const OrdersManagement = () => {
       processing: 'default',
       cancelled: 'destructive',
       returned: 'secondary',
+      partially_completed: 'secondary',
     };
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+    const labels = { partially_completed: 'Partially completed' };
+    return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
   };
 
   return (
@@ -98,6 +100,7 @@ const OrdersManagement = () => {
                       <TableHead className="text-gray-300">Status</TableHead>
                       <TableHead className="text-gray-300">Payment</TableHead>
                       <TableHead className="text-gray-300">Date</TableHead>
+                      <TableHead className="text-gray-300 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -125,12 +128,20 @@ const OrdersManagement = () => {
                             <TableCell className="text-gray-300">
                               {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Link to={`/admin/orders/${order._id}`}>
+                                <Button variant="outline" size="sm" className="gap-1.5">
+                                  <Eye className="h-4 w-4" />
+                                  View Order Detail
+                                </Button>
+                              </Link>
+                            </TableCell>
                           </TableRow>
                         );
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan="6" className="text-center py-12 text-gray-400">
+                        <TableCell colSpan="7" className="text-center py-12 text-gray-400">
                           No orders found
                         </TableCell>
                       </TableRow>
@@ -138,27 +149,34 @@ const OrdersManagement = () => {
                   </TableBody>
                 </Table>
               </div>
-              {pagination.pages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
-                  </Button>
-                  <span className="text-gray-300">
-                    Page {page} of {pagination.pages || 1}
+              {showPagination && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
+                  <span className="text-sm text-gray-400">
+                    Showing page {currentPage} of {totalPages} ({totalItems} total orders)
                   </span>
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage((p) => Math.min(pagination.pages || 1, p + 1))}
-                    disabled={page === (pagination.pages || 1)}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <span className="text-gray-300 text-sm px-2">
+                      Page {page} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </>

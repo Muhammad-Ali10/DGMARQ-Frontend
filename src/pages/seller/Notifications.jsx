@@ -13,7 +13,7 @@ const SellerNotifications = () => {
 
   const { data: notificationsData, isLoading } = useQuery({
     queryKey: ['seller-notifications', page],
-    queryFn: () => notificationAPI.getNotifications({ page, limit: 20 }).then(res => res.data.data),
+    queryFn: () => notificationAPI.getNotifications({ page, limit: 10 }).then(res => res.data.data),
   });
 
   const { data: unreadCount } = useQuery({
@@ -139,7 +139,7 @@ const SellerNotifications = () => {
               </div>
             )}
           </div>
-          {notificationsData?.pagination && notificationsData.pagination.totalPages > 1 && (
+          {notificationsData?.pagination && (notificationsData.pagination.total ?? 0) > 0 && (
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
               <p className="text-sm text-gray-400">
                 Page {page} of {notificationsData.pagination.totalPages}

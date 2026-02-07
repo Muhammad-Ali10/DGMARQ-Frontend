@@ -336,7 +336,7 @@ const UserProfile = () => {
                     
                     {/* OTP Verification Dialog */}
                     <Dialog open={otpDialogOpen} onOpenChange={setOtpDialogOpen}>
-                      <DialogContent className="bg-primary border-gray-700">
+                      <DialogContent size="sm" className="bg-primary border-gray-700">
                         <DialogHeader>
                           <DialogTitle className="text-white">Enter Verification OTP</DialogTitle>
                           <DialogDescription className="text-gray-400">
@@ -573,7 +573,7 @@ const UserProfile = () => {
                         Delete Account
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-primary border-gray-700">
+                    <DialogContent size="sm" className="bg-primary border-gray-700">
                       <DialogHeader>
                         <DialogTitle className="text-white">Delete Account</DialogTitle>
                         <DialogDescription className="text-gray-400">

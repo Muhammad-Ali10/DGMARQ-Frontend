@@ -31,21 +31,23 @@ export const ConfirmationModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false}>
+      <DialogContent showCloseButton={false} size="sm" className="bg-primary border-gray-700">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle className="text-white">{title}</DialogTitle>
+          <DialogDescription className="text-gray-400">{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white order-2 sm:order-1"
           >
             {cancelText}
           </Button>
           <Button
             onClick={handleConfirm}
             variant={variant === 'destructive' ? 'destructive' : 'default'}
+            className="order-1 sm:order-2"
           >
             {confirmText}
           </Button>

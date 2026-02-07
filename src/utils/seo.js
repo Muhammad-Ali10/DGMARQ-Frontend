@@ -34,7 +34,6 @@ const updateMetaDescription = (content) => {
   }
 
   if (!document.head) {
-    console.warn('[SEO] Document head not available');
     return;
   }
 

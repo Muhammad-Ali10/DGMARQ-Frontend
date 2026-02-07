@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Loading } from './ui/loading';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { addToGuestCart } from '../utils/guestCart';
 
 const FlashDeal = () => {
   const navigate = useNavigate();
@@ -119,11 +120,17 @@ const FlashDeal = () => {
 
   const handleBuyNow = () => {
     if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      navigate('/login');
+      addToGuestCart({
+        productId: id,
+        qty: 1,
+        price: discountPrice ?? actualPrice,
+        sellerId: activeDeal.sellerId,
+        name: title,
+        image: image,
+      });
+      toast.success('Product added to cart');
       return;
     }
-
     addToCartMutation.mutate({
       productId: id,
       qty: 1,

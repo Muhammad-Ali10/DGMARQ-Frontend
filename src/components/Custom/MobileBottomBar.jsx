@@ -6,6 +6,7 @@ import { Search, Heart, ShoppingCart, User, UserPlus, X, LogIn, LogOut, LayoutDa
 import { cartAPI, userAPI, productAPI, authAPI } from '../../services/api';
 import { logout } from '../../store/slices/authSlice';
 import { cn } from '../../lib/utils';
+import { getGuestCartCount } from '../../utils/guestCart';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
@@ -92,7 +93,7 @@ const MobileBottomBar = () => {
     };
   }, [accountMenuOpen]);
 
-  // Fetch cart count
+  // Fetch cart count (server when authenticated, guest cart when not)
   const { data: cartData } = useQuery({
     queryKey: ['cart-count', 'mobile'],
     queryFn: async () => {
@@ -108,7 +109,17 @@ const MobileBottomBar = () => {
     refetchInterval: 30000,
   });
 
-  const cartCount = cartData?.count || 0;
+  const [guestCartCount, setGuestCartCount] = useState(() => (typeof getGuestCartCount === 'function' ? getGuestCartCount() : 0));
+  useEffect(() => {
+    if (!isAuthenticated && typeof getGuestCartCount === 'function') {
+      setGuestCartCount(getGuestCartCount());
+      const onGuestCartChange = () => setGuestCartCount(getGuestCartCount());
+      window.addEventListener('guestCartChange', onGuestCartChange);
+      return () => window.removeEventListener('guestCartChange', onGuestCartChange);
+    }
+  }, [isAuthenticated]);
+
+  const cartCount = isAuthenticated ? (cartData?.count || 0) : guestCartCount;
 
   // Fetch wishlist count
   const { data: wishlistData } = useQuery({

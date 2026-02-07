@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Trash2, ShoppingCart, Plus, Minus } from 'lucide-react';
+import { Trash2, ShoppingCart, Plus, Minus, Tag } from 'lucide-react';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -57,24 +57,22 @@ const Cart = () => {
       handleRemoveItem(productId);
       return;
     }
-    updateCartMutation.mutate({ productId, quantity: newQuantity });
+    updateCartMutation.mutate({ productId, qty: newQuantity });
   };
 
   const handleCheckout = () => {
     if (cart?.items?.length > 0) {
-      checkoutMutation.mutate({
-        items: cart.items.map(item => ({
-          productId: item.productId._id,
-          quantity: item.quantity,
-        })),
-      });
+      checkoutMutation.mutate({});
     }
   };
 
   if (isLoading) return <Loading message="Loading cart..." />;
   if (isError) return <ErrorMessage message="Error loading cart" />;
 
-  const total = cart?.items?.reduce((sum, item) => sum + (item.productId?.price || 0) * item.quantity, 0) || 0;
+  // Calculate totals using discounted prices from backend
+  const subtotal = cart?.subtotal || 0;
+  const bundleDiscount = cart?.bundleDiscount || 0;
+  const total = cart?.total || subtotal;
 
   return (
     <div className="space-y-6">
@@ -111,57 +109,102 @@ const Cart = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cart.items.map((item) => (
-                      <TableRow key={item.productId._id} className="border-gray-700">
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {item.productId.images?.[0] && (
-                              <img
-                                src={item.productId.images[0]}
-                                alt={item.productId.name}
-                                className="w-16 h-16 object-cover rounded"
-                              />
-                            )}
-                            <div>
-                              <p className="font-medium text-white">{item.productId.name}</p>
-                              <p className="text-sm text-gray-400">{item.productId.category?.name}</p>
+                    {cart.items.map((item) => {
+                      // Handle both response structures: { product, ... } and { productId, ... }
+                      const product = item.product || item.productId;
+                      const productId = product?._id || item.productId?._id || item.productId;
+                      const productName = product?.name || item.productId?.name;
+                      const productImage = product?.images?.[0] || item.productId?.images?.[0];
+                      
+                      // Get pricing information - prioritize stored discount data
+                      const originalPrice = item.originalPrice || product?.price || item.productId?.price || 0;
+                      const discountedPrice = item.discountedPrice || item.unitPrice || originalPrice;
+                      const discountAmount = item.discountAmount || 0;
+                      const discountPercentage = item.discountPercentage || 0;
+                      const hasDiscount = item.hasDiscount !== undefined ? item.hasDiscount : (discountAmount > 0 || discountPercentage > 0);
+                      const qty = item.qty || item.quantity || 1;
+                      const lineTotal = item.totalPrice || (discountedPrice * qty);
+
+                      return (
+                        <TableRow key={productId} className="border-gray-700">
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              {productImage && (
+                                <img
+                                  src={productImage}
+                                  alt={productName}
+                                  className="w-16 h-16 object-cover rounded"
+                                />
+                              )}
+                              <div>
+                                <p className="font-medium text-white">{productName}</p>
+                                {hasDiscount && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Tag className="w-3 h-3 text-green-400" />
+                                    <span className="text-xs text-green-400 font-medium">
+                                      {discountPercentage > 0 
+                                        ? `${discountPercentage.toFixed(0)}% OFF`
+                                        : `$${discountAmount.toFixed(2)} OFF`
+                                      }
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-white">${item.productId.price?.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              {hasDiscount ? (
+                                <>
+                                  <span className="text-gray-400 line-through text-sm">
+                                    ${originalPrice.toFixed(2)}
+                                  </span>
+                                  <span className="text-white font-semibold">
+                                    ${discountedPrice.toFixed(2)}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-white">${originalPrice.toFixed(2)}</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateQuantity(productId, qty - 1)}
+                                disabled={updateCartMutation.isPending}
+                              >
+                                <Minus className="w-4 h-4" />
+                              </Button>
+                              <span className="text-white w-8 text-center">{qty}</span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUpdateQuantity(productId, qty + 1)}
+                                disabled={updateCartMutation.isPending}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-white font-semibold">
+                            ${lineTotal.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
                             <Button
                               size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateQuantity(item.productId._id, item.quantity - 1)}
+                              variant="destructive"
+                              onClick={() => handleRemoveItem(productId)}
+                              disabled={removeItemMutation.isPending}
                             >
-                              <Minus className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
-                            <span className="text-white w-8 text-center">{item.quantity}</span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUpdateQuantity(item.productId._id, item.quantity + 1)}
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-white font-semibold">
-                          ${((item.productId.price || 0) * item.quantity).toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleRemoveItem(item.productId._id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -175,8 +218,14 @@ const Cart = () => {
             <CardContent className="space-y-4">
               <div className="flex justify-between text-gray-300">
                 <span>Subtotal</span>
-                <span className="text-white">${total.toFixed(2)}</span>
+                <span className="text-white">${subtotal.toFixed(2)}</span>
               </div>
+              {bundleDiscount > 0 && (
+                <div className="flex justify-between text-green-400">
+                  <span>Bundle Discount</span>
+                  <span className="font-semibold">-${bundleDiscount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-gray-300">
                 <span>Tax</span>
                 <span className="text-white">$0.00</span>

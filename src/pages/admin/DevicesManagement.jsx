@@ -62,7 +62,6 @@ const DevicesManagement = () => {
       toast.success('Device created successfully');
     },
     onError: (error) => {
-      console.error('Create device error:', error);
       toast.error(error?.response?.data?.message || 'Failed to create device');
     },
   });
@@ -76,7 +75,6 @@ const DevicesManagement = () => {
       toast.success('Device updated successfully');
     },
     onError: (error) => {
-      console.error('Update device error:', error);
       toast.error(error?.response?.data?.message || 'Failed to update device');
     },
   });
@@ -88,7 +86,6 @@ const DevicesManagement = () => {
       toast.success('Device status updated successfully');
     },
     onError: (error) => {
-      console.error('Toggle status error:', error);
       toast.error(error?.response?.data?.message || 'Failed to update status');
     },
   });
@@ -103,7 +100,6 @@ const DevicesManagement = () => {
       toast.success('Device deleted successfully');
     },
     onError: (error) => {
-      console.error('Delete device error:', error);
       toast.error(error?.response?.data?.message || 'Failed to delete device');
     },
   });
@@ -188,7 +184,7 @@ const DevicesManagement = () => {
               Create Device
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-primary border-gray-700 max-w-md">
+          <DialogContent size="sm" className="bg-primary border-gray-700">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">Create New Device</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -409,7 +405,7 @@ const DevicesManagement = () => {
           </div>
           
           {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (
+          {(pagination.totalDocs ?? 0) > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
               <div className="flex items-center gap-2">
                 <Button
@@ -443,7 +439,7 @@ const DevicesManagement = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Edit Device</DialogTitle>
             <DialogDescription className="text-gray-400">

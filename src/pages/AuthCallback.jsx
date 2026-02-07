@@ -43,7 +43,6 @@ const AuthCallback = () => {
 
     // If API call failed, redirect to login
     if (tokenStored && isError) {
-      console.error('Failed to fetch user profile after OAuth');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       navigate('/login?error=oauth_failed', { replace: true });

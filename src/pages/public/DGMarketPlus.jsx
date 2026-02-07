@@ -49,7 +49,6 @@ const DGMarketPlus = () => {
       }
     },
     onError: (error) => {
-      console.error('Subscription error:', error);
     },
   });
 
@@ -100,11 +99,11 @@ const DGMarketPlus = () => {
         <section className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/30 mb-6">
             <Sparkles className="w-5 h-5 text-accent" />
-            <span className="text-accent font-semibold">DGMarket Plus</span>
+            <span className="text-accent font-semibold">DGMARQ Plus</span>
           </div>
           
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Save with <span className="text-accent">DGMarket Plus</span>
+            Save with <span className="text-accent">DGMARQ Plus</span>
           </h1>
           
           <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
@@ -171,7 +170,7 @@ const DGMarketPlus = () => {
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">1. Subscribe</h3>
                 <p className="text-gray-400">
-                  Choose DGMarket Plus and complete your subscription payment securely via PayPal.
+                  Choose DGMARQ Plus and complete your subscription payment securely via PayPal.
                 </p>
               </CardContent>
             </Card>
@@ -290,7 +289,7 @@ const DGMarketPlus = () => {
                   <div>
                     <h3 className="text-xl font-semibold text-white mb-2">Automatic Application</h3>
                     <p className="text-gray-400">
-                      Once you subscribe to DGMarket Plus, you'll automatically receive a{' '}
+                      Once you subscribe to DGMARQ Plus, you'll automatically receive a{' '}
                       <span className="text-accent font-semibold">{plan.discountPercentage}% discount</span> on all
                       your purchases. No coupon codes needed!
                     </p>
@@ -381,7 +380,7 @@ const DGMarketPlus = () => {
             <CardContent className="py-12">
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">Ready to Start Saving?</h2>
               <p className="text-gray-300 mb-8 max-w-2xl mx-auto">
-                Join thousands of satisfied customers who are already saving with DGMarket Plus. Subscribe today and
+                Join thousands of satisfied customers who are already saving with DGMARQ Plus. Subscribe today and
                 start enjoying instant discounts on every purchase!
               </p>
               {!hasActiveSubscription ? (
@@ -434,7 +433,7 @@ const DGMarketPlus = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-gray-400">
-                  You need to be signed in to subscribe to DGMarket Plus. Please log in or create an account to continue.
+                  You need to be signed in to subscribe to DGMARQ Plus. Please log in or create an account to continue.
                 </p>
                 <div className="flex gap-3">
                   <Button

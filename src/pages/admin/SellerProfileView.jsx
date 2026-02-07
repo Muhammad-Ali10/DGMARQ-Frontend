@@ -19,7 +19,6 @@ const SellerProfileView = () => {
         const response = await adminAPI.getSellerDetails(sellerId);
         return response.data.data;
       } catch (err) {
-        console.error('Seller details error:', err);
         throw err;
       }
     },

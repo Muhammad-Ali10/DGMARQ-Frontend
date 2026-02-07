@@ -35,26 +35,8 @@ const SellerProducts = () => {
   const { data: productsData, isLoading, isError, error } = useQuery({
     queryKey: ['seller-products', page, statusFilter],
     queryFn: async () => {
-      try {
-        console.log('[Frontend] Fetching products with params:', queryParams);
-        const response = await productAPI.getProducts(queryParams);
-        console.log('[Frontend] Products API response:', {
-          status: response.status,
-          dataStructure: Object.keys(response.data || {}),
-          dataKeys: Object.keys(response.data?.data || {}),
-          docsCount: response.data?.data?.docs?.length || 0,
-          totalDocs: response.data?.data?.totalDocs || 0,
-        });
-        return response.data.data;
-      } catch (err) {
-        console.error('[Frontend] Error fetching products:', {
-          error: err,
-          response: err?.response,
-          status: err?.response?.status,
-          data: err?.response?.data,
-        });
-        throw err;
-      }
+      const response = await productAPI.getProducts(queryParams);
+      return response.data.data;
     },
     retry: 2,
   });
@@ -136,11 +118,6 @@ const SellerProducts = () => {
   if (isLoading) return <Loading message="Loading products..." />;
   if (isError) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to load products. Please try again.";
-    console.error('Products loading error:', {
-      error,
-      response: error?.response,
-      data: error?.response?.data,
-    });
     return <ErrorMessage message={errorMessage} />;
   }
 
@@ -271,7 +248,7 @@ const SellerProducts = () => {
                               className="h-12 w-12 rounded object-cover"
                             />
                           )}
-                          <div>
+                          <div className="max-w-sm truncate">
                             <div className="font-medium text-white">{product.name}</div>
                             <div className="text-sm text-gray-400">{product.slug}</div>
                           </div>
@@ -317,7 +294,7 @@ const SellerProducts = () => {
                                 Images
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="bg-primary border-gray-700">
+                            <DialogContent size="sm" className="bg-primary border-gray-700">
                               <DialogHeader>
                                 <DialogTitle className="text-white">Update Product Images</DialogTitle>
                                 <DialogDescription className="text-gray-400">
@@ -382,7 +359,7 @@ const SellerProducts = () => {
                 </TableBody>
               </Table>
             </div>
-            {pagination.totalPages > 1 && (
+            {(productsData?.totalDocs ?? productsData?.docs?.length ?? 0) > 0 && (
               <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
                 <p className="text-sm text-gray-400">
                   Page {page} of {pagination.totalPages}

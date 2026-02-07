@@ -211,7 +211,7 @@ const PayoutAccountsManagement = () => {
       </Card>
 
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Payout Account Details</DialogTitle>
           </DialogHeader>
@@ -239,7 +239,7 @@ const PayoutAccountsManagement = () => {
       </Dialog>
 
       <Dialog open={isVerifyOpen} onOpenChange={setIsVerifyOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">Verify Payout Account</DialogTitle>
           </DialogHeader>
@@ -266,7 +266,7 @@ const PayoutAccountsManagement = () => {
       </Dialog>
 
       <Dialog open={isBlockOpen} onOpenChange={setIsBlockOpen}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="bg-primary border-gray-700">
           <DialogHeader>
             <DialogTitle className="text-white">
               {selectedAccount?.status === 'blocked' ? 'Unblock' : 'Block'} Payout Account

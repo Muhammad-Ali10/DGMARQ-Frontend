@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
-import { userAPI, notificationAPI } from '../../services/api';
+import { userAPI, notificationAPI, walletAPI } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store } from 'lucide-react';
+import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store, Wallet } from 'lucide-react';
 
 const UserDashboard = () => {
   const { roles } = useSelector((state) => state.auth);
@@ -37,7 +37,29 @@ const UserDashboard = () => {
     },
   });
 
-  const isLoading = ordersLoading || notifLoading || wishlistLoading;
+  // CRITICAL FIX: Fetch wallet balance for display
+  const { data: walletData, isLoading: walletLoading, refetch: refetchWallet } = useQuery({
+    queryKey: ['wallet-balance'],
+    queryFn: async () => {
+      try {
+        const response = await walletAPI.getBalance();
+        // Handle both response formats: response.data.data or response.data
+        const data = response.data?.data || response.data || {};
+        return {
+          balance: data.balance || 0,
+          balanceFormatted: data.balanceFormatted || (data.balance ? `$${parseFloat(data.balance).toFixed(2)}` : '$0.00'),
+          currency: data.currency || 'USD'
+        };
+      } catch (error) {
+        // If wallet doesn't exist yet, return 0 balance
+        return { balance: 0, balanceFormatted: '$0.00', currency: 'USD' };
+      }
+    },
+    retry: 1, // Only retry once
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+  });
+
+  const isLoading = ordersLoading || notifLoading || wishlistLoading || walletLoading;
   
   // Calculate stats from orders data
   const totalSpent = ordersData?.orders?.reduce((sum, order) => {
@@ -55,11 +77,33 @@ const UserDashboard = () => {
       pending: 'warning',
       processing: 'default',
       cancelled: 'destructive',
+      returned: 'secondary',
+      partially_completed: 'secondary',
     };
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+    const labels = { partially_completed: 'Partially completed' };
+    return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
   };
 
+  // CRITICAL FIX: Get wallet balance from API response
+  // Handle both number and formatted string
+  const walletBalance = walletData?.balance ?? 0;
+  const walletBalanceFormatted = walletData?.balanceFormatted 
+    || (typeof walletBalance === 'number' ? `$${walletBalance.toFixed(2)}` : '$0.00');
+
   const statsCards = [
+    {
+      title: 'Wallet Balance',
+      value: walletBalanceFormatted,
+      icon: Wallet,
+      color: 'text-emerald-500',
+      bgColor: 'bg-emerald-500/10',
+      link: '#', // Wallet page can be added later
+      onClick: (e) => {
+        e.preventDefault();
+        // Refresh wallet balance when clicked
+        refetchWallet();
+      },
+    },
     {
       title: 'Total Orders',
       value: ordersData?.pagination?.total || 0,
@@ -140,8 +184,12 @@ const UserDashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {statsCards.map((stat, index) => {
           const Icon = stat.icon;
+          const CardWrapper = stat.link === '#' && stat.onClick 
+            ? ({ children }) => <div onClick={stat.onClick} className="cursor-pointer">{children}</div>
+            : ({ children }) => <Link to={stat.link}>{children}</Link>;
+          
           return (
-            <Link key={index} to={stat.link}>
+            <CardWrapper key={index}>
               <Card className="bg-primary border-gray-700 hover:border-accent transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-accent/10">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
@@ -153,7 +201,7 @@ const UserDashboard = () => {
                   <div className="text-2xl font-bold text-white">{stat.value}</div>
                 </CardContent>
               </Card>
-            </Link>
+            </CardWrapper>
           );
         })}
       </div>

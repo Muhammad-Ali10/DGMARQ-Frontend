@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { getGuestCartCount } from "../../utils/guestCart";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
@@ -140,7 +141,7 @@ const Header = () => {
     }
   };
 
-  // Fetch cart count
+  // Fetch cart count (server cart when authenticated)
   const { data: cartData } = useQuery({
     queryKey: ["cart-count"],
     queryFn: async () => {
@@ -153,10 +154,20 @@ const Header = () => {
       }
     },
     enabled: isAuthenticated,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000,
   });
 
-  const cartCount = cartData?.count || 0;
+  const [guestCartCount, setGuestCartCount] = useState(() => (typeof getGuestCartCount === "function" ? getGuestCartCount() : 0));
+  useEffect(() => {
+    if (!isAuthenticated && typeof getGuestCartCount === "function") {
+      setGuestCartCount(getGuestCartCount());
+      const onGuestCartChange = () => setGuestCartCount(getGuestCartCount());
+      window.addEventListener("guestCartChange", onGuestCartChange);
+      return () => window.removeEventListener("guestCartChange", onGuestCartChange);
+    }
+  }, [isAuthenticated]);
+
+  const cartCount = isAuthenticated ? (cartData?.count || 0) : guestCartCount;
 
   // Fetch wishlist count
   const { data: wishlistData } = useQuery({

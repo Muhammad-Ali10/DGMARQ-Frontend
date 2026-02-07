@@ -1,26 +1,20 @@
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { userAPI, chatAPI } from '../../services/api';
+import { orderAPI } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import LicenseKeysModal from '../../components/LicenseKeysModal';
-import { ArrowLeft, Package, CreditCard, MapPin, Calendar, MessageSquare, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Package, CreditCard, MapPin, Calendar, ExternalLink } from 'lucide-react';
 import { showApiError } from '../../utils/toast';
-import { toast } from 'sonner';
 
-const OrderDetail = () => {
+const AdminOrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const [licenseKeysModalOpen, setLicenseKeysModalOpen] = useState(false);
 
   const { data: order, isLoading, isError, error } = useQuery({
-    queryKey: ['order-detail', orderId],
-    queryFn: () => userAPI.getOrderById(orderId).then(res => res.data.data),
+    queryKey: ['admin-order-detail', orderId],
+    queryFn: () => orderAPI.getOrderById(orderId).then(res => res.data.data),
     enabled: !!orderId,
     retry: 1,
     onError: (err) => {
@@ -28,30 +22,13 @@ const OrderDetail = () => {
     },
   });
 
-  const createConversationMutation = useMutation({
-    mutationFn: (data) => chatAPI.createConversation(data),
-    onSuccess: (response) => {
-      const conversation = response.data.data;
-      toast.success('Conversation created! Opening chat...');
-      navigate(`/user/chat?conversation=${conversation._id}`);
-    },
-    onError: (err) => {
-      if (err.response?.status === 200 && err.response?.data?.data) {
-        const conversation = err.response.data.data;
-        navigate(`/user/chat?conversation=${conversation._id}`);
-      } else {
-        toast.error(err.response?.data?.message || 'Failed to start conversation');
-      }
-    },
-  });
-
   if (isLoading) return <Loading message="Loading order details..." />;
-  
+
   if (isError) {
-    const errorMessage = error?.response?.data?.message || error?.message || "Error loading order details";
+    const errorMessage = error?.response?.data?.message || error?.message || 'Error loading order details';
     return (
-      <div className="space-y-6">
-        <Button onClick={() => navigate('/user/orders')} variant="outline" className="mb-4">
+      <div className="space-y-6 px-4 sm:px-0">
+        <Button onClick={() => navigate('/admin/orders')} variant="outline" className="mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Orders
         </Button>
@@ -62,8 +39,8 @@ const OrderDetail = () => {
 
   if (!order) {
     return (
-      <div className="space-y-6">
-        <Button onClick={() => navigate('/user/orders')} variant="outline" className="mb-4">
+      <div className="space-y-6 px-4 sm:px-0">
+        <Button onClick={() => navigate('/admin/orders')} variant="outline" className="mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Orders
         </Button>
@@ -95,32 +72,21 @@ const OrderDetail = () => {
     return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
   };
 
-  const handleContactSeller = (sellerId) => {
-    if (!isAuthenticated) {
-      toast.info('Please log in to contact the seller');
-      navigate('/login', { state: { from: `/user/orders/${orderId}` } });
-      return;
-    }
-    createConversationMutation.mutate({ sellerId });
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 sm:px-0">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Order Details</h1>
-          <p className="text-gray-400 mt-1">Order #{order._id.slice(-8)}</p>
+          <p className="text-gray-400 mt-1">Order #{order._id?.slice(-8)}</p>
         </div>
-        <Button onClick={() => navigate('/user/orders')} variant="outline">
+        <Button onClick={() => navigate('/admin/orders')} variant="outline">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Orders
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Order Information */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Order Items – product details + seller name, Contact Seller box, View Seller Profile per item */}
           <Card className="bg-primary border-gray-700">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
@@ -138,7 +104,6 @@ const OrderDetail = () => {
                   const displaySellerName = sellerName || 'Seller';
                   return (
                     <div key={idx} className="p-4 bg-secondary rounded-lg border border-gray-700 space-y-4">
-                      {/* Product information and details */}
                       <div className="flex items-start gap-4">
                         {productImage && (
                           <div className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-800">
@@ -154,14 +119,10 @@ const OrderDetail = () => {
                             {item.productId?.name || 'Product'}
                           </h4>
                           {item.productId?.slug && (
-                            <p className="text-sm text-gray-400 mb-1">
-                              SKU: {item.productId.slug}
-                            </p>
+                            <p className="text-sm text-gray-400 mb-1">SKU: {item.productId.slug}</p>
                           )}
                           {item.productId?.description && (
-                            <p className="text-sm text-gray-400 mb-2">
-                              {item.productId.description}
-                            </p>
+                            <p className="text-sm text-gray-400 mb-2">{item.productId.description}</p>
                           )}
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                             <span>Quantity: {item.qty}</span>
@@ -174,49 +135,26 @@ const OrderDetail = () => {
                           </p>
                         </div>
                       </div>
-
-                      {/* Seller: name + Contact Seller box + View Seller Profile (per order item) */}
                       {sellerId && (
                         <div className="border-t border-gray-700 pt-4">
-                          <p className="text-sm text-gray-400 mb-3">Sold by</p>
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg bg-[#0E092C]/60 border border-gray-700">
+                          <p className="text-sm text-gray-400 mb-2">Sold by</p>
+                          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-[#0E092C]/60 border border-gray-700">
                             <div className="flex items-center gap-3">
                               {sellerLogo && (
                                 <img
                                   src={sellerLogo}
                                   alt={displaySellerName}
-                                  className="w-10 h-10 rounded-full object-cover"
+                                  className="w-8 h-8 rounded-full object-cover"
                                 />
                               )}
-                              <div>
-                                <p className="font-medium text-white">{displaySellerName}</p>
-                                <p className="text-xs text-gray-400">Seller</p>
-                              </div>
+                              <span className="font-medium text-white">{displaySellerName}</span>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                              <div className="inline-flex flex-col gap-1">
-                                <span className="text-xs text-gray-400 uppercase tracking-wide">Contact Seller</span>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-2"
-                                  onClick={() => handleContactSeller(sellerId)}
-                                  disabled={createConversationMutation.isPending}
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Contact Seller
-                                </Button>
-                              </div>
-                              <div className="inline-flex flex-col gap-1">
-                                <span className="text-xs text-gray-400 uppercase tracking-wide">View Seller Profile</span>
-                                <Link to={`/seller/${sellerId}`}>
-                                  <Button variant="secondary" size="sm" className="gap-2">
-                                    <ExternalLink className="w-4 h-4" />
-                                    View Seller Profile
-                                  </Button>
-                                </Link>
-                              </div>
-                            </div>
+                            <Link to={`/seller/${sellerId}`}>
+                              <Button variant="secondary" size="sm" className="gap-1.5">
+                                <ExternalLink className="w-4 h-4" />
+                                View Seller Profile
+                              </Button>
+                            </Link>
                           </div>
                         </div>
                       )}
@@ -227,7 +165,6 @@ const OrderDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Shipping Information */}
           {order.shippingAddress && (
             <Card className="bg-primary border-gray-700">
               <CardHeader>
@@ -254,7 +191,6 @@ const OrderDetail = () => {
           )}
         </div>
 
-        {/* Order Summary */}
         <div className="space-y-6">
           <Card className="bg-primary border-gray-700">
             <CardHeader>
@@ -279,6 +215,14 @@ const OrderDetail = () => {
                     {new Date(order.createdAt).toLocaleDateString()}
                   </span>
                 </div>
+                {order.userId && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Customer:</span>
+                    <span className="text-white">
+                      {order.userId.name ?? order.userId.email ?? '—'}
+                    </span>
+                  </div>
+                )}
                 {order.updatedAt && order.updatedAt !== order.createdAt && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Last Updated:</span>
@@ -294,19 +238,19 @@ const OrderDetail = () => {
                   <span>Subtotal:</span>
                   <span>${order.subtotal?.toFixed(2) || order.totalAmount?.toFixed(2)}</span>
                 </div>
-                {order.shippingCost && order.shippingCost > 0 && (
+                {order.shippingCost > 0 && (
                   <div className="flex justify-between text-gray-400">
                     <span>Shipping:</span>
                     <span>${order.shippingCost.toFixed(2)}</span>
                   </div>
                 )}
-                {order.tax && order.tax > 0 && (
+                {order.tax > 0 && (
                   <div className="flex justify-between text-gray-400">
                     <span>Tax:</span>
                     <span>${order.tax.toFixed(2)}</span>
                   </div>
                 )}
-                {order.discount && order.discount > 0 && (
+                {order.discount > 0 && (
                   <div className="flex justify-between text-green-400">
                     <span>Discount:</span>
                     <span>-${order.discount.toFixed(2)}</span>
@@ -335,36 +279,10 @@ const OrderDetail = () => {
               )}
             </CardContent>
           </Card>
-
-          {/* License Keys: show when delivered and not fully refunded */}
-          {order.orderStatus === 'completed' &&
-            order.paymentStatus === 'paid' &&
-            !(order.items || []).every((item) => item.refunded) && (
-            <Card className="bg-primary border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">License Keys</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setLicenseKeysModalOpen(true)}
-                >
-                  View License Keys
-                </Button>
-                <LicenseKeysModal
-                  open={licenseKeysModalOpen}
-                  onOpenChange={setLicenseKeysModalOpen}
-                  orderId={order._id}
-                  guestEmail={order.isGuest ? order.guestEmail : undefined}
-                />
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default OrderDetail;
+export default AdminOrderDetail;
