@@ -18,6 +18,7 @@ import {
   softwareAPI,
   seoAPI,
 } from "../../services/api";
+import { productAPI } from "../../services/api";
 import { Loading } from "../../components/ui/loading";
 import { useSEO } from "../../hooks/useSEO";
   
@@ -40,6 +41,20 @@ const Home = () => {
     queryKey: ["bestsellers", "home"],
     queryFn: async () => {
       const response = await bestsellerAPI.getBestsellers({ forHome: "true" });
+      return response.data.data;
+    },
+  });
+
+  // Fetch featured products for home page
+  const { data: featuredProductsData, isLoading: isLoadingFeatured } = useQuery({
+    queryKey: ["featured-products", "home"],
+    queryFn: async () => {
+      const response = await productAPI.getProducts({
+        isFeatured: true,
+        limit: 6,
+        page: 1,
+        sort: "rating",
+      });
       return response.data.data;
     },
   });
@@ -127,6 +142,36 @@ const Home = () => {
 
       {/* Category Navigation Bar */}
       <CategoryNavigation scrollOffset={140} />
+
+      {/* Featured Products Section */}
+      {featuredProductsData?.docs && featuredProductsData.docs.length > 0 && (
+        <section id="featured-products" className="py-16">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                  Featured Products
+                </h2>
+                <p className="text-sm sm:text-base text-gray-400">
+                  Hand-picked products with extra visibility
+                </p>
+              </div>
+            </div>
+
+            {isLoadingFeatured ? (
+              <div className="flex justify-center items-center py-12">
+                <Loading message="Loading featured products..." />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {featuredProductsData.docs.map((product) => (
+                  <ProductCard key={product._id} product={product} />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Bestsellers Section */}
       <section id="bestsellers" className="py-16">

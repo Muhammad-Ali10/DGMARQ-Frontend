@@ -1,16 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Label } from '../../components/ui/label';
+import { Input } from '../../components/ui/input';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { ArrowLeft, Package, Store, Tag, DollarSign, Layers, Image as ImageIcon, Calendar, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 
 const ProductDetailView = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
+
+  const queryClient = useQueryClient();
 
   const { data: product, isLoading, isError, error } = useQuery({
     queryKey: ['admin-product-details', productId],
@@ -23,6 +27,17 @@ const ProductDetailView = () => {
       }
     },
     retry: 1,
+  });
+
+  const featuredMutation = useMutation({
+    mutationFn: (data) => adminAPI.updateProductFeaturedSettings(productId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin-product-details', productId]);
+      toast.success('Featured settings updated');
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || 'Failed to update featured settings');
+    },
   });
 
   if (isLoading) return <Loading message="Loading product details..." />;
@@ -98,6 +113,77 @@ const ProductDetailView = () => {
                   <Label className="text-gray-400">Discount</Label>
                   <p className="text-white font-medium mt-1">{product?.discount || 0}%</p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 items-end">
+                <div className="space-y-1">
+                  <Label className="text-gray-400">Featured Status</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    {product?.isFeatured ? (
+                      <Badge variant="success" className="text-xs px-2 py-0.5">
+                        Featured
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                        Not Featured
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-400">Featured Extra Commission (%)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      defaultValue={
+                        typeof product?.featuredExtraCommission === 'number'
+                          ? product.featuredExtraCommission
+                          : 10
+                      }
+                      onBlur={(e) => {
+                        const value = e.target.value;
+                        if (value === '' || !product?._id) return;
+                        const num = Number(value);
+                        if (!Number.isFinite(num) || num < 0 || num > 100) {
+                          toast.error('Featured extra commission must be between 0 and 100');
+                          e.target.value =
+                            typeof product.featuredExtraCommission === 'number'
+                              ? String(product.featuredExtraCommission)
+                              : '10';
+                          return;
+                        }
+                        featuredMutation.mutate({
+                          featuredExtraCommission: num,
+                          isFeatured: product.isFeatured ?? false,
+                        });
+                      }}
+                      className="bg-secondary border-gray-700 text-white max-w-[120px] h-9"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={product?.isFeatured ? 'secondary' : 'default'}
+                  size="sm"
+                  disabled={featuredMutation.isPending}
+                  onClick={() => {
+                    if (!product?._id) return;
+                    const nextFeatured = !product.isFeatured;
+                    featuredMutation.mutate({
+                      isFeatured: nextFeatured,
+                      featuredExtraCommission:
+                        typeof product.featuredExtraCommission === 'number'
+                          ? product.featuredExtraCommission
+                          : 10,
+                    });
+                  }}
+                >
+                  {product?.isFeatured ? 'Unmark as Featured' : 'Mark as Featured'}
+                </Button>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

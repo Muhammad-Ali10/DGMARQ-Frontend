@@ -72,6 +72,62 @@ const AdminOrderDetail = () => {
     return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
   };
 
+  const getItemCommissionBreakdown = (item) => {
+    const lineTotal = typeof item.lineTotal === 'number'
+      ? item.lineTotal
+      : (item.qty || 0) * (item.unitPrice || 0);
+    const sellerEarning = typeof item.sellerEarning === 'number' ? item.sellerEarning : 0;
+    const totalCommission = typeof item.commissionAmount === 'number'
+      ? item.commissionAmount
+      : Math.max(0, lineTotal - sellerEarning);
+    const featuredExtraCommission = typeof item.featuredExtraCommissionAmount === 'number'
+      ? item.featuredExtraCommissionAmount
+      : 0;
+    const normalCommission = typeof item.normalCommissionAmount === 'number'
+      ? item.normalCommissionAmount
+      : Math.max(0, totalCommission - featuredExtraCommission);
+    return {
+      lineTotal,
+      normalCommission,
+      featuredExtraCommission,
+      totalCommission,
+      sellerEarning,
+    };
+  };
+
+  const getOrderCommissionTotals = () => {
+    if (!order?.items || !Array.isArray(order.items)) {
+      return {
+        normalCommission: 0,
+        featuredExtraCommission: 0,
+        totalCommission: order?.commissionAmount || 0,
+        sellerEarning: order?.sellerEarning || 0,
+      };
+    }
+
+    let normal = 0;
+    let featured = 0;
+    let totalSeller = 0;
+
+    order.items.forEach((item) => {
+      const breakdown = getItemCommissionBreakdown(item);
+      normal += breakdown.normalCommission;
+      featured += breakdown.featuredExtraCommission;
+      totalSeller += breakdown.sellerEarning;
+    });
+
+    const totalCommission = normal + featured;
+
+    return {
+      normalCommission: normal,
+      featuredExtraCommission: featured,
+      totalCommission,
+      sellerEarning: totalSeller,
+    };
+  };
+
+  const commissionTotals = getOrderCommissionTotals();
+
   return (
     <div className="space-y-6 px-4 sm:px-0">
       <div className="flex items-center justify-between">
@@ -102,6 +158,7 @@ const AdminOrderDetail = () => {
                   const sellerName = item.sellerId?.shopName ?? (typeof item.sellerId === 'object' ? null : 'Seller');
                   const sellerLogo = item.sellerId?.shopLogo;
                   const displaySellerName = sellerName || 'Seller';
+                  const breakdown = getItemCommissionBreakdown(item);
                   return (
                     <div key={idx} className="p-4 bg-secondary rounded-lg border border-gray-700 space-y-4">
                       <div className="flex items-start gap-4">
@@ -127,12 +184,35 @@ const AdminOrderDetail = () => {
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                             <span>Quantity: {item.qty}</span>
                             <span>Unit price: ${item.unitPrice?.toFixed(2)}</span>
+                            <span>Product price: ${breakdown.lineTotal.toFixed(2)}</span>
                           </div>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-white text-lg">
                             ${(item.lineTotal ?? item.qty * item.unitPrice).toFixed(2)}
                           </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-gray-300 border-t border-gray-700 pt-3">
+                        <div className="flex justify-between">
+                          <span>Normal platform commission:</span>
+                          <span>${breakdown.normalCommission.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Featured extra commission:</span>
+                          <span>
+                            {breakdown.featuredExtraCommission > 0
+                              ? `$${breakdown.featuredExtraCommission.toFixed(2)}`
+                              : '$0.00'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Total platform commission:</span>
+                          <span>${breakdown.totalCommission.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Seller net earnings:</span>
+                          <span>${breakdown.sellerEarning.toFixed(2)}</span>
                         </div>
                       </div>
                       {sellerId && (
@@ -265,6 +345,30 @@ const AdminOrderDetail = () => {
                 <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-gray-700">
                   <span>{order.grandTotal != null ? 'Grand Total:' : 'Total:'}</span>
                   <span>${(order.grandTotal ?? order.totalAmount)?.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-700 space-y-2">
+                <p className="text-sm text-gray-300 font-semibold">Commission & Earnings Breakdown</p>
+                <div className="flex justify-between text-gray-400 text-sm">
+                  <span>Normal platform commission:</span>
+                  <span>${commissionTotals.normalCommission.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-400 text-sm">
+                  <span>Featured extra commission:</span>
+                  <span>
+                    {commissionTotals.featuredExtraCommission > 0
+                      ? `$${commissionTotals.featuredExtraCommission.toFixed(2)}`
+                      : '$0.00'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-gray-100 font-medium text-sm">
+                  <span>Total platform commission:</span>
+                  <span>${commissionTotals.totalCommission.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-100 font-medium text-sm">
+                  <span>Seller net earnings:</span>
+                  <span>${commissionTotals.sellerEarning.toFixed(2)}</span>
                 </div>
               </div>
 

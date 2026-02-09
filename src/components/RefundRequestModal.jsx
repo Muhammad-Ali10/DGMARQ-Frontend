@@ -60,7 +60,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       returnRefundAPI.getOrderItemLicenseKeys(selectedOrderId, selectedProductId).then(res => res.data.data),
     enabled: open && !!selectedOrderId && !!selectedProductId,
   });
-
+console.log(keysData)
   const licenseKeys = useMemo(() => keysData?.keys || [], [keysData]);
   const hasMultipleKeys = licenseKeys.length > 1;
 

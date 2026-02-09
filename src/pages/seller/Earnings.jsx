@@ -176,10 +176,10 @@ const SellerEarnings = () => {
             <History className="w-4 h-4 mr-2" />
             History
           </TabsTrigger>
-          <TabsTrigger value="requests" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+          {/* <TabsTrigger value="requests" className="data-[state=active]:bg-accent data-[state=active]:text-white">
             <History className="w-4 h-4 mr-2" />
             Requests
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger value="settings" className="data-[state=active]:bg-accent data-[state=active]:text-white">
             <Settings className="w-4 h-4 mr-2" />
             Settings

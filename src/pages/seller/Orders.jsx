@@ -50,6 +50,8 @@ const SellerOrders = () => {
         .then((res) => res.data.data),
   });
 
+  console.log(ordersData)
+
   if (isLoading) return <Loading message="Loading orders..." />;
   if (isError) return <ErrorMessage message="Error loading orders" />;
 

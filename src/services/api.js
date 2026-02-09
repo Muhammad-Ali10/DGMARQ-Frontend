@@ -35,7 +35,7 @@ export const authAPI = {
   revokeAllSessions: () => api.post('/user/sessions/revoke-all'),
   // Profile
   getProfile: () => api.get('/user/profile'),
-};
+};  
 
 // Admin APIs
 export const adminAPI = {
@@ -84,6 +84,7 @@ export const adminAPI = {
   }),
   deleteBundleDeal: (id) => api.delete(`/bundle-deal/${id}`),
   toggleBundleDealStatus: (id) => api.patch(`/bundle-deal/${id}/toggle-status`),
+  updateProductFeaturedSettings: (productId, data) => api.patch(`/admin/product/${productId}/featured`, data),
 };
 
 // Seller APIs
@@ -125,7 +126,7 @@ export const sellerAPI = {
   getSellerProducts: (sellerId, params) => api.get(`/seller/${sellerId}/products`, { params }),
   getSellerReviews: (sellerId) => api.get(`/seller/${sellerId}/reviews`),
 };
-
+ 
 // User APIs
 export const userAPI = {
   getMyOrders: (params) => api.get('/order/my-orders', { params }),
