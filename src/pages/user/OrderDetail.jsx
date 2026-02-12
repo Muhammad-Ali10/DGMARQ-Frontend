@@ -80,8 +80,15 @@ const OrderDetail = () => {
       cancelled: 'destructive',
       returned: 'secondary',
       partially_completed: 'secondary',
+      PARTIALLY_REFUNDED: 'secondary',
+      REFUNDED: 'secondary',
     };
-    const labels = { partially_completed: 'Partially completed' };
+    const labels = {
+      partially_completed: 'Partially refunded',
+      PARTIALLY_REFUNDED: 'Partially refunded',
+      REFUNDED: 'Refunded',
+      returned: 'Refunded',
+    };
     return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
   };
 
@@ -166,12 +173,22 @@ const OrderDetail = () => {
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                             <span>Quantity: {item.qty}</span>
                             <span>Unit price: ${item.unitPrice?.toFixed(2)}</span>
+                            {(item.refundedKeysCount > 0 || item.refundedAmount > 0) && (
+                              <span className="text-amber-400/90">
+                                Refunded: {item.refundedKeysCount || 0} key(s) · -${(Number(item.refundedAmount) || 0).toFixed(2)}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-white text-lg">
                             ${(item.lineTotal ?? item.qty * item.unitPrice).toFixed(2)}
                           </p>
+                          {(item.refundedAmount > 0) && (
+                            <p className="text-sm text-amber-400/90 mt-0.5">
+                              After refund: ${((item.lineTotal ?? item.qty * item.unitPrice) - (Number(item.refundedAmount) || 0)).toFixed(2)}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -318,10 +335,30 @@ const OrderDetail = () => {
                     <span>${order.buyerHandlingFee.toFixed(2)}</span>
                   </div>
                 )}
+                {(() => {
+                  const totalRefunded = (order.items || []).reduce((sum, item) => sum + (Number(item.refundedAmount) || 0), 0);
+                  return totalRefunded > 0 ? (
+                    <div className="flex justify-between text-amber-400/90">
+                      <span>Refunded:</span>
+                      <span>-${totalRefunded.toFixed(2)}</span>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-gray-700">
                   <span>{order.grandTotal != null ? 'Grand Total:' : 'Total:'}</span>
                   <span>${(order.grandTotal ?? order.totalAmount)?.toFixed(2)}</span>
                 </div>
+                {(() => {
+                  const totalRefunded = (order.items || []).reduce((sum, item) => sum + (Number(item.refundedAmount) || 0), 0);
+                  if (totalRefunded <= 0) return null;
+                  const paidAfterRefunds = (order.grandTotal ?? order.totalAmount ?? 0) - totalRefunded;
+                  return (
+                    <div className="flex justify-between text-gray-400 text-sm pt-1">
+                      <span>Amount after refunds:</span>
+                      <span>${paidAfterRefunds.toFixed(2)}</span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {order.paymentMethod && (
@@ -336,8 +373,8 @@ const OrderDetail = () => {
             </CardContent>
           </Card>
 
-          {/* License Keys: show when delivered and not fully refunded */}
-          {order.orderStatus === 'completed' &&
+          {/* License Keys: show when delivered and at least one key not refunded */}
+          {(order.orderStatus === 'completed' || order.orderStatus === 'PARTIALLY_REFUNDED' || order.orderStatus === 'partially_completed') &&
             order.paymentStatus === 'paid' &&
             !(order.items || []).every((item) => item.refunded) && (
             <Card className="bg-primary border-gray-700">

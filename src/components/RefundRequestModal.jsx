@@ -22,7 +22,7 @@ const REFUND_REASONS = [
 
 const REFUND_METHODS = [
   { value: 'WALLET', label: 'Refund to Wallet', description: 'Credit will be added to your account for future purchases.' },
-  { value: 'ORIGINAL_PAYMENT', label: 'Refund to PayPal (Manual)', description: 'Admin will send the refund to your PayPal email.' },
+  { value: 'ORIGINAL_PAYMENT', label: 'Refund to Original Payment Method', description: 'Admin will send the refund to your PayPal email.' },
 ];
 
 const PAYPAL_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

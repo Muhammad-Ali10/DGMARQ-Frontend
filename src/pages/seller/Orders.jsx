@@ -50,8 +50,6 @@ const SellerOrders = () => {
         .then((res) => res.data.data),
   });
 
-  console.log(ordersData)
-
   if (isLoading) return <Loading message="Loading orders..." />;
   if (isError) return <ErrorMessage message="Error loading orders" />;
 
@@ -105,13 +103,28 @@ const SellerOrders = () => {
                       <TableHead className="text-gray-300">Buyer</TableHead>
                       <TableHead className="text-gray-300">Items</TableHead>
                       <TableHead className="text-gray-300">Total</TableHead>
+                      <TableHead className="text-gray-300">Refunded</TableHead>
                       <TableHead className="text-gray-300">Earning</TableHead>
                       <TableHead className="text-gray-300">Status</TableHead>
                       <TableHead className="text-gray-300">Date</TableHead>
+                      <TableHead className="text-gray-300 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => (
+                    {orders.map((order) => {
+                      const sellerTotal = (order.items || []).reduce(
+                        (sum, item) => sum + (Number(item.lineTotal) || 0) - (Number(item.refundedAmount) || 0),
+                        0
+                      );
+                      const sellerEarning = (order.items || []).reduce(
+                        (sum, item) => sum + (Number(item.sellerEarning) || 0) - (Number(item.refundedSellerAmount) || 0),
+                        0
+                      );
+                      const refundedAmount = (order.items || []).reduce(
+                        (sum, item) => sum + (Number(item.refundedAmount) || 0),
+                        0
+                      );
+                      return (
                       <TableRow key={order._id} className="border-gray-700">
                         <TableCell className="text-white text-sm font-mono">
                           {order._id.slice(-8)}
@@ -123,17 +136,15 @@ const SellerOrders = () => {
                           {order.items?.length || 0}
                         </TableCell>
                         <TableCell className="text-white">
-                          ${order.totalAmount?.toFixed(2)}
+                          ${sellerTotal.toFixed(2)}
+                        </TableCell>
+                        <TableCell className={refundedAmount > 0 ? "text-amber-400/90" : "text-gray-500"}>
+                          {refundedAmount > 0 ? `-$${refundedAmount.toFixed(2)}` : "—"}
                         </TableCell>
                         <TableCell className="text-green-400 font-semibold">
                           <div className="flex items-center gap-1">
                             <DollarSign className="w-4 h-4" />
-                            {order.items
-                              ?.reduce(
-                                (sum, item) => sum + (item.sellerEarning || 0),
-                                0
-                              )
-                              .toFixed(2)}
+                            {sellerEarning.toFixed(2)}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -145,12 +156,12 @@ const SellerOrders = () => {
                                 ? "destructive"
                                 : order.orderStatus === "processing"
                                 ? "default"
-                                : order.orderStatus === "partially_completed" || order.orderStatus === "returned"
+                                : order.orderStatus === "partially_completed" || order.orderStatus === "returned" || order.orderStatus === "PARTIALLY_REFUNDED" || order.orderStatus === "REFUNDED"
                                 ? "secondary"
                                 : "warning"
                             }
                           >
-                            {order.orderStatus === "partially_completed" ? "Partially completed" : order.orderStatus}
+                            {order.orderStatus === "partially_completed" || order.orderStatus === "PARTIALLY_REFUNDED" ? "Partially refunded" : order.orderStatus === "returned" || order.orderStatus === "REFUNDED" ? "Refunded" : order.orderStatus}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-gray-400">
@@ -165,7 +176,8 @@ const SellerOrders = () => {
                       </Link> 
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               </div>

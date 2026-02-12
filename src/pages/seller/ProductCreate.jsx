@@ -9,11 +9,15 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { ArrowLeft, Upload, X } from 'lucide-react';
+import ConfirmationModal from '../../components/ConfirmationModal';
+
+const FEATURED_FEE_MESSAGE = 'If you mark this product as Featured, an additional 10% fee will be charged.';
 
 const ProductCreate = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [images, setImages] = useState([]);
+  const [showFeaturedConfirmModal, setShowFeaturedConfirmModal] = useState(false);
   const [formData, setFormData] = useState({
     categoryId: '',
     subCategoryId: '',
@@ -134,6 +138,23 @@ const ProductCreate = () => {
       }
       return newData;
     });
+  };
+
+  /** When seller tries to check Featured: show confirmation modal. Only set isFeatured on Confirm. */
+  const handleFeaturedCheckboxChange = (e) => {
+    if (e.target.name !== 'isFeatured') {
+      handleInputChange(e);
+      return;
+    }
+    if (!formData.isFeatured) {
+      setShowFeaturedConfirmModal(true);
+      return;
+    }
+    handleInputChange(e);
+  };
+
+  const handleFeaturedConfirm = () => {
+    setFormData((prev) => ({ ...prev, isFeatured: true }));
   };
 
   const handleImageChange = (e) => {
@@ -609,14 +630,25 @@ const ProductCreate = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="isFeatured" className="text-gray-300">Featured Product</Label>
+                  <Label
+                    htmlFor="isFeatured"
+                    className="text-gray-300 cursor-pointer"
+                    onClick={(e) => {
+                      if (!formData.isFeatured) {
+                        e.preventDefault();
+                        setShowFeaturedConfirmModal(true);
+                      }
+                    }}
+                  >
+                    Featured Product
+                  </Label>
                   <input
                     id="isFeatured"
                     name="isFeatured"
                     type="checkbox"
                     checked={formData.isFeatured}
-                    onChange={handleInputChange}
-                    className="w-4 h-4"
+                    onChange={handleFeaturedCheckboxChange}
+                    className="w-4 h-4 cursor-pointer"
                   />
                 </div>
 
@@ -656,6 +688,16 @@ const ProductCreate = () => {
           </div>
         </div>
       </form>
+
+      <ConfirmationModal
+        open={showFeaturedConfirmModal}
+        onOpenChange={setShowFeaturedConfirmModal}
+        title="Featured Product"
+        description={FEATURED_FEE_MESSAGE}
+        confirmText="Confirm"
+        cancelText="Cancel"
+        onConfirm={handleFeaturedConfirm}
+      />
     </div>
   );
 };

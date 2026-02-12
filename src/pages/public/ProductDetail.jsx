@@ -68,8 +68,9 @@ const ProductDetail = () => {
     queryFn: async () => {
       if (!isAuthenticated || !product?._id) return [];
       try {
+        // Include completed and partially refunded orders (buyer can still review after partial refund)
         const response = await userAPI.getMyOrders({ 
-          status: 'completed',
+          status: 'completed,PARTIALLY_REFUNDED,partially_completed',
           limit: 50 
         });
         // Filter orders that contain this product
@@ -198,6 +199,7 @@ const ProductDetail = () => {
   };
 
   const handleSubmitReview = () => {
+    // Guest users cannot submit reviews (marketplace rule)
     if (!isAuthenticated) {
       toast.error('Please login to submit a review');
       navigate('/login');
@@ -209,12 +211,12 @@ const ProductDetail = () => {
       return;
     }
 
-    if (reviewRating < 1 || reviewRating > 5) {
-      toast.error('Please select a rating');
+    if (!reviewRating || reviewRating < 1 || reviewRating > 5) {
+      toast.error('Please select a rating between 1 and 5 stars');
       return;
     }
 
-    const trimmedComment = reviewComment.trim();
+    const trimmedComment = (reviewComment || '').trim();
     if (!trimmedComment) {
       toast.error('Please enter a comment');
       return;
