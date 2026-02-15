@@ -41,7 +41,6 @@ const SellerChat = () => {
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
-  // Set conversation from URL param when conversations load
   useEffect(() => {
     if (conversationFromUrl && conversations && !selectedConversation) {
       const convExists = conversations.find(c => c._id === conversationFromUrl);
@@ -53,11 +52,9 @@ const SellerChat = () => {
     }
   }, [conversationFromUrl, conversations, selectedConversation]);
 
-  // Update URL when conversation changes
   useEffect(() => {
     if (selectedConversation) {
       setSearchParams({ conversation: selectedConversation });
-      // Mark notification as read when opening conversation
       markNotificationAsRead(selectedConversation);
     }
   }, [selectedConversation, setSearchParams, markNotificationAsRead]);
@@ -65,24 +62,20 @@ const SellerChat = () => {
   const { data: messagesData, isLoading: messagesLoading, fetchNextPage, hasNextPage, isFetchingNextPage, error: messagesError } = useInfiniteQuery({
     queryKey: ['conversation-messages', selectedConversation],
     queryFn: ({ pageParam }) => {
-      // Use cursor-based pagination for better performance
-      const params = pageParam 
+      const params = pageParam
         ? { cursor: pageParam, limit: 20 } 
-        : { limit: 20 }; // Initial load: 15 messages
+        : { limit: 20 };
       return chatAPI.getMessages(selectedConversation, params).then(res => res.data.data);
     },
     enabled: !!selectedConversation && !!user, // Only fetch when conversation is selected and user is authenticated
     initialPageParam: null, // Start with null (no cursor for initial load)
     retry: (failureCount, error) => {
-      // Don't retry on 4xx errors (client errors like 401, 403, 404)
       if (error?.response?.status >= 400 && error?.response?.status < 500) {
         return false;
       }
-      // Don't retry on timeout - let it fail fast
       if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
         return false;
       }
-      // Only retry once for network errors (not timeouts)
       return failureCount < 1;
     },
     retryDelay: 1000, // Fixed 1 second delay
@@ -94,59 +87,42 @@ const SellerChat = () => {
       const nextCursor = lastPage?.nextCursor ?? lastPage?.pagination?.nextCursor;
       return hasMore && nextCursor ? nextCursor : undefined;
     },
-    // IMPORTANT: Don't show error toasts during loading - only show real failures
     meta: {
       skipErrorToast: true, // Skip showing toast for query errors
     },
   });
 
-  // Flatten paginated messages
   const messages = useMemo(() => {
     if (!messagesData?.pages) return [];
     return messagesData.pages.flatMap(page => page.messages || []);
   }, [messagesData?.pages]);
 
-  // Socket.IO room join - IMMEDIATE and INDEPENDENT of message fetch
   useEffect(() => {
     if (!socket || !selectedConversation) return;
     
-    const DEBUG_SOCKET = import.meta.env.DEV;
-    
-    // Handle socket errors for room join
     const handleSocketError = (error) => {
-      // Don't show toast - errors are handled in UI
     };
-    
-    // Handle successful room join
+
     const handleJoinedConversation = (data) => {
     };
-    
-    // Join room immediately when conversation is selected
+
     socket.emit('join_conversation', selectedConversation);
-    
-    // Listen for join confirmation and errors
     socket.on('joined_conversation', handleJoinedConversation);
     socket.on('error', handleSocketError);
     
     return () => {
-      // Clean up listeners
       socket.off('joined_conversation', handleJoinedConversation);
       socket.off('error', handleSocketError);
-      // Leave room when conversation changes or component unmounts
       if (socket.connected) {
         socket.emit('leave_conversation', selectedConversation);
       }
     };
   }, [socket, selectedConversation]);
 
-  // Socket.IO event handlers - SEPARATE from room join
-  // Use refs to prevent duplicate listeners on re-render
   const socketHandlersRef = useRef({});
   
   useEffect(() => {
     if (!socket || !selectedConversation) return;
-
-    // Clean up previous handlers if they exist
     if (socketHandlersRef.current.handleNewMessage) {
       socket.off('new_message', socketHandlersRef.current.handleNewMessage);
     }
@@ -170,63 +146,48 @@ const SellerChat = () => {
           
           const lastPage = old.pages[old.pages.length - 1];
           const existingMessages = lastPage.messages || [];
-          
-          // Dedupe: Check if message already exists by _id
           const existingMessageIds = new Set(existingMessages.map(msg => msg._id?.toString()));
           const newMessageId = newMessage._id?.toString();
           
           if (newMessageId && existingMessageIds.has(newMessageId)) {
-            return old; // Message already exists by ID, don't add duplicate
+            return old;
           }
-          
-          // Remove optimistic message if this is the real one (replace temp message)
           const messageText = newMessage.messageText || newMessage.message || '';
           const senderId = newMessage.senderId?._id?.toString() || newMessage.senderId?.toString();
           const sentAt = newMessage.sentAt || newMessage.createdAt;
-          
-          // Check for optimistic message to replace
           const filteredMessages = existingMessages.filter(msg => {
             if (msg.isOptimistic) {
               const msgText = msg.messageText || msg.message || '';
               const msgSenderId = msg.senderId?._id?.toString() || msg.senderId?.toString();
               const msgSentAt = msg.sentAt || msg.createdAt;
-              
-              // Same text, same sender, within 5 seconds = replace optimistic with real
               if (msgText === messageText && 
                   msgSenderId === senderId && 
                   sentAt && msgSentAt) {
                 const timeDiff = Math.abs(new Date(sentAt) - new Date(msgSentAt));
-                if (timeDiff < 5000) { // 5 seconds
-                  return false; // Remove optimistic message
+                if (timeDiff < 5000) {
+                  return false;
                 }
               }
             }
             return true;
           });
-          
-          // Additional dedupe: Check by content + sender + timestamp (within 2 seconds)
           const isDuplicate = filteredMessages.some(msg => {
             const msgText = msg.messageText || msg.message || '';
             const msgSenderId = msg.senderId?._id?.toString() || msg.senderId?.toString();
             const msgSentAt = msg.sentAt || msg.createdAt;
-            
-            // Same text, same sender, within 2 seconds
             if (msgText === messageText && 
                 msgSenderId === senderId && 
                 sentAt && msgSentAt) {
               const timeDiff = Math.abs(new Date(sentAt) - new Date(msgSentAt));
-              if (timeDiff < 2000) { // 2 seconds
+              if (timeDiff < 2000) {
                 return true;
               }
             }
             return false;
           });
-          
           if (isDuplicate) {
-            return old; // Duplicate detected by content, don't add
+            return old;
           }
-          
-          // Update last page with new message
           return {
             ...old,
             pages: old.pages.map((page, index) => 
@@ -237,7 +198,6 @@ const SellerChat = () => {
           };
         });
       }
-      // Refresh conversations list
       queryClient.invalidateQueries(['seller-conversations']);
     };
 
@@ -274,7 +234,6 @@ const SellerChat = () => {
     socket.on('error', handleSocketError);
     
     return () => {
-      // Clean up listeners using stored handlers
       if (socketHandlersRef.current.handleNewMessage) {
         socket.off('new_message', socketHandlersRef.current.handleNewMessage);
       }
@@ -337,8 +296,6 @@ const SellerChat = () => {
   const sendMessageMutation = useMutation({
     mutationFn: (data) => chatAPI.sendMessage(data),
     onSuccess: (response) => {
-      // Message saved via HTTP API - socket event will update UI in real-time
-      // Just remove optimistic message if exists
       if (response?.data?.data && selectedConversation) {
         const sentMessage = response.data.data;
         queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
@@ -347,7 +304,6 @@ const SellerChat = () => {
           const lastPage = old.pages[old.pages.length - 1];
           const existingMessages = lastPage.messages || [];
           
-          // Remove optimistic message (socket event will add the real one)
           const filteredMessages = existingMessages.filter(msg => !msg.isOptimistic || msg._id?.toString() !== sentMessage._id?.toString());
           
           return {
@@ -363,7 +319,6 @@ const SellerChat = () => {
       queryClient.invalidateQueries(['seller-conversations']);
     },
     onError: (error) => {
-      // Remove optimistic message on error
       if (selectedConversation) {
         queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
           if (!old || !old.pages || old.pages.length === 0) return old;
@@ -381,7 +336,6 @@ const SellerChat = () => {
           };
         });
       }
-      // Show error toast with proper error handling
       showApiError(error, 'Failed to send message');
     },
   });
@@ -392,8 +346,6 @@ const SellerChat = () => {
       queryClient.invalidateQueries(['seller-conversations']);
     },
     onError: (error) => {
-      // Silently handle errors - mark as read is a background operation
-      // Don't show toast or log errors
     },
     retry: false, // Don't retry - if it fails, socket will handle it
   });
@@ -424,23 +376,17 @@ const SellerChat = () => {
     }, 200);
   }, [fetchNextPage]);
 
-  // Mark as read when conversation is selected
-  // Use socket if available (faster), fallback to HTTP only if socket not connected
   const markAsReadRef = useRef(null);
   useEffect(() => {
     if (!selectedConversation) return;
     
-    // Prevent duplicate calls
     if (markAsReadRef.current === selectedConversation) return;
     markAsReadRef.current = selectedConversation;
     
-    // Small delay to ensure socket is ready
     const timeoutId = setTimeout(() => {
       if (socket && isConnected) {
-        // Use socket for real-time marking (faster, no HTTP overhead)
         socket.emit('mark_read', selectedConversation);
       } else if (!socket || !isConnected) {
-        // Fallback to HTTP only if socket is not available
         markAsReadMutation.mutate(selectedConversation);
       }
     }, 100);
@@ -502,7 +448,6 @@ const SellerChat = () => {
     if (message.trim() && selectedConversation && socket) {
       const messageText = message.trim();
       
-      // Optimistic UI: Add message to cache immediately before sending
       const optimisticMessage = {
         _id: `temp-${Date.now()}`,
         conversationId: selectedConversation,
@@ -528,19 +473,14 @@ const SellerChat = () => {
         };
       });
       
-      // Clear input immediately for better UX
       setMessage('');
       
-      // Send via socket for real-time delivery
       socket.emit('send_message', {
         conversationId: selectedConversation,
         messageText,
       });
       
-      // If socket fails, we can add error handling here later
-      // For now, socket is the primary method and it handles everything
     } else if (message.trim() && selectedConversation && !socket) {
-      // Fallback: If socket is not available, use REST API
       sendMessageMutation.mutate({
         conversationId: selectedConversation,
         messageText: message.trim(),
@@ -618,11 +558,8 @@ const SellerChat = () => {
                   className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0" 
                   style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}
                   onScroll={(e) => {
-                    // Infinite scroll: Load older messages when scrolling to top
-                    // Add slight delay to prevent rapid firing
                     const { scrollTop } = e.target;
                     if (scrollTop < 200 && hasNextPage && !isFetchingNextPage) {
-                      // Small delay to simulate natural loading (1-2 seconds as requested)
                       setTimeout(() => {
                         if (hasNextPage && !isFetchingNextPage) {
                           fetchNextPage();
@@ -674,13 +611,11 @@ const SellerChat = () => {
                             </div>
                           )}
                           {messages.map((msg) => {
-                            // Get sender info (senderId is populated with User data)
                             const senderInfo = msg.senderId;
                             const senderId = senderInfo?._id?.toString() || senderInfo?.toString() || msg.senderId?.toString();
                             const senderName = senderInfo?.name || senderInfo?.username || 'Unknown';
                             const senderAvatar = senderInfo?.profileImage || null;
                             
-                            // Check if message is from current user (seller)
                             const isOwn = user?._id && senderId === user._id.toString();
                             
                             return (

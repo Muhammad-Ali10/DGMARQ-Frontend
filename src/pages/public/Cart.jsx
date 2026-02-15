@@ -81,7 +81,6 @@ const Cart = () => {
     }
   };
 
-  // Sync guest cart from localStorage (for guest users and for re-renders after mutations)
   useEffect(() => {
     if (!isAuthenticated) {
       setGuestCartItems(getGuestCart().items);
@@ -143,7 +142,6 @@ const Cart = () => {
     merge();
   }, [isAuthenticated, queryClient]);
 
-  // Guest cart view (not authenticated)
   if (!isAuthenticated) {
     const items = guestCartItems.length > 0 ? guestCartItems : getGuestCart().items;
     const subtotal = items.reduce((sum, i) => sum + (i.qty || 0) * (i.price || 0), 0);
@@ -305,7 +303,6 @@ const Cart = () => {
     );
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
@@ -317,7 +314,6 @@ const Cart = () => {
     );
   }
 
-  // Error state
   if (isError) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
@@ -342,12 +338,10 @@ const Cart = () => {
     );
   }
 
-  // Calculate totals using discounted prices from backend
   const subtotal = cart?.subtotal || 0;
   const bundleDiscount = cart?.bundleDiscount || 0;
   const total = cart?.total || (subtotal - bundleDiscount);
 
-  // Empty cart state
   if (!cart?.items || cart.items.length === 0) {
     return (
       <div className="min-h-[60vh] py-12">
@@ -376,8 +370,6 @@ const Cart = () => {
       </div>
     );
   }
-
-  // Cart with items
   return (
     <div className="min-h-[60vh] py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -407,8 +399,6 @@ const Cart = () => {
                 {cart.items.map((item) => {
                   const product = item.product || item.productId;
                   const qty = item.qty || item.quantity || 0;
-                  
-                  // Get pricing information - prioritize stored discount data
                   const originalPrice = item.originalPrice || product?.price || item.productId?.price || 0;
                   const discountedPrice = item.discountedPrice || item.unitPrice || originalPrice;
                   const discountAmount = item.discountAmount || 0;

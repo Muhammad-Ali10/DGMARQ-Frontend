@@ -25,7 +25,6 @@ const MobileBottomBar = () => {
   const accountMenuRef = useRef(null);
   const accountButtonRef = useRef(null);
 
-  // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -33,9 +32,8 @@ const MobileBottomBar = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch search suggestions
   const { data: searchSuggestions, isLoading: searchLoading } = useQuery({
-    queryKey: ['search-suggestions-mobile', debouncedSearchQuery],
+    queryKey: ['search-suggestions', debouncedSearchQuery, 'all'],
     queryFn: async () => {
       if (!debouncedSearchQuery.trim()) return [];
       try {
@@ -51,9 +49,9 @@ const MobileBottomBar = () => {
       }
     },
     enabled: debouncedSearchQuery.trim().length > 0,
+    staleTime: 60000,
   });
 
-  // Handle click outside search
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -71,7 +69,6 @@ const MobileBottomBar = () => {
     };
   }, []);
 
-  // Handle click outside account menu
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -93,9 +90,8 @@ const MobileBottomBar = () => {
     };
   }, [accountMenuOpen]);
 
-  // Fetch cart count (server when authenticated, guest cart when not)
   const { data: cartData } = useQuery({
-    queryKey: ['cart-count', 'mobile'],
+    queryKey: ['cart-count'],
     queryFn: async () => {
       if (!isAuthenticated) return { count: 0 };
       try {
@@ -121,9 +117,8 @@ const MobileBottomBar = () => {
 
   const cartCount = isAuthenticated ? (cartData?.count || 0) : guestCartCount;
 
-  // Fetch wishlist count
   const { data: wishlistData } = useQuery({
-    queryKey: ['wishlist-count', 'mobile'],
+    queryKey: ['wishlist-count'],
     queryFn: async () => {
       if (!isAuthenticated) return { count: 0 };
       try {
@@ -143,7 +138,6 @@ const MobileBottomBar = () => {
 
   const wishlistCount = wishlistData?.count || 0;
 
-  // Determine dashboard route based on user role
   const getDashboardRoute = () => {
     const normalizedRoles = Array.isArray(roles) && roles.length > 0
       ? roles.map(r => String(r).toLowerCase())
@@ -158,7 +152,6 @@ const MobileBottomBar = () => {
     }
   };
 
-  // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: () => authAPI.logout(),
     onSuccess: () => {
@@ -185,7 +178,6 @@ const MobileBottomBar = () => {
     window.location.href = `${baseUrl}/api/v1/user/auth/google`;
   };
 
-  // Get user avatar or initials
   const getUserDisplay = () => {
     if (user?.profileImage) {
       return (
@@ -213,7 +205,6 @@ const MobileBottomBar = () => {
     );
   };
 
-  // Check if route is active
   const isActive = (path) => {
     if (path === '/search') {
       return location.pathname === '/search';
@@ -225,7 +216,6 @@ const MobileBottomBar = () => {
       return location.pathname === '/cart' || location.pathname === '/user/cart';
     }
     if (path === '/account') {
-      // Check if on any dashboard or account-related page
       return location.pathname.startsWith('/admin/') || 
              location.pathname.startsWith('/seller/') || 
              location.pathname.startsWith('/user/');
@@ -237,7 +227,6 @@ const MobileBottomBar = () => {
     setSearchOpen(!searchOpen);
     setAccountMenuOpen(false);
     if (!searchOpen) {
-      // Focus search input when opening
       setTimeout(() => {
         const input = searchContainerRef.current?.querySelector('input');
         if (input) input.focus();
@@ -395,7 +384,6 @@ const MobileBottomBar = () => {
             </div>
             <div className="py-2">
               {!isAuthenticated ? (
-                // Logged-out State
                 <>
                   {/* Google Login */}
                   <button
@@ -464,7 +452,6 @@ const MobileBottomBar = () => {
                   </button>
                 </>
               ) : (
-                // Logged-in State
                 <>
                   {/* User Info Header */}
                   <div className="px-4 py-3 border-b border-gray-700">

@@ -18,7 +18,6 @@ const SessionMenu = ({ onItemClick } = {}) => {
 
   const { isAuthenticated, user, roles } = useSelector((state) => state.auth);
   
-  // Determine dashboard route based on user role (priority: admin > seller > customer)
   const getDashboardRoute = () => {
     const normalizedRoles = Array.isArray(roles) && roles.length > 0
       ? roles.map(r => String(r).toLowerCase())
@@ -39,17 +38,15 @@ const SessionMenu = ({ onItemClick } = {}) => {
     if (callback) callback();
   };
 
-  // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: () => authAPI.logout(),
     onSuccess: () => {
       dispatch(logout());
-      queryClient.clear(); // Clear all queries
+      queryClient.clear();
       setIsOpen(false);
       navigate('/');
     },
     onError: () => {
-      // Even if API call fails, clear local state
       dispatch(logout());
       queryClient.clear();
       setIsOpen(false);
@@ -62,13 +59,11 @@ const SessionMenu = ({ onItemClick } = {}) => {
   };
 
   const handleGoogleLogin = () => {
-    // Redirect to backend Google OAuth endpoint
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
     const baseUrl = apiBaseUrl.replace('/api/v1', '');
     window.location.href = `${baseUrl}/api/v1/user/auth/google`;
   };
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -92,7 +87,6 @@ const SessionMenu = ({ onItemClick } = {}) => {
     };
   }, [isOpen]);
 
-  // Get user avatar or initials
   const getUserDisplay = () => {
     if (user?.profileImage) {
       return (
@@ -150,7 +144,6 @@ const SessionMenu = ({ onItemClick } = {}) => {
           className="absolute top-full right-0 mt-2 w-64 bg-[#041536] border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden"
         >
           {!isAuthenticated ? (
-            // Logged-out State
             <div className="py-2">
               {/* Google Login */}
               <button
@@ -210,7 +203,6 @@ const SessionMenu = ({ onItemClick } = {}) => {
               </button>
             </div>
           ) : (
-            // Logged-in State
             <div className="py-2">
               {/* User Info Header */}
               <div className="px-4 py-3 border-b border-gray-700">
@@ -231,8 +223,6 @@ const SessionMenu = ({ onItemClick } = {}) => {
                 const hasAdmin = normalizedRoles.includes('admin');
                 const hasSeller = normalizedRoles.includes('seller');
                 const hasCustomer = normalizedRoles.includes('customer');
-                
-                // Show multiple dashboards if user has admin or seller role
                 if (hasAdmin || hasSeller) {
                   return (
                     <>
@@ -267,8 +257,6 @@ const SessionMenu = ({ onItemClick } = {}) => {
                     </>
                   );
                 }
-                
-                // Single role (customer only) - show default dashboard
                 return (
                   <button
                     onClick={() => handleItemClick(() => navigate(getDashboardRoute()))}

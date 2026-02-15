@@ -20,8 +20,6 @@ const AdminDashboard = () => {
     refetchInterval: 30000,
   });
 
-  console.log(stats);
-
   const { data: handlingFeeStats } = useQuery({
     queryKey: ['admin-handling-fee-stats'],
     queryFn: async () => {

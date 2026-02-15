@@ -87,11 +87,9 @@ const UserProfile = () => {
       toast.success('Email verified successfully!');
       setOtpDialogOpen(false);
       setOtp('');
-      // Update user state
       if (data?.data?.data) {
         dispatch(updateUser({ ...currentUser, emailVerified: true }));
       }
-      // Invalidate and refetch profile
       queryClient.invalidateQueries(['user-profile']);
     },
     onError: (error) => {

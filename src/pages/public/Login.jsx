@@ -18,12 +18,8 @@ const Login = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state) => state.auth);
 
-  // Only redirect if user navigates to /login while already authenticated
-  // This prevents showing login form to already logged-in users
   useEffect(() => {
     if (isAuthenticated && window.location.pathname === '/login') {
-      // User is already logged in and trying to access login page
-      // Redirect to home page instead
       navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate]);
@@ -36,14 +32,9 @@ const Login = () => {
     onSuccess: (data) => {
       // Backend now returns a single user object, but handle array for backward compatibility
       const user = Array.isArray(data.data.user) ? data.data.user[0] : data.data.user;
-      
-      // Ensure seller is properly handled (may be null if user doesn't have seller record)
       if (user && user.seller === null) {
-        user.seller = null; // Explicitly set to null to prevent undefined errors
+        user.seller = null;
       }
-      
-      // Normalize roles to array and lowercase for consistency
-      // Handle both roles array and single role field
       let roles = [];
       if (user?.roles) {
         if (Array.isArray(user.roles)) {
@@ -54,52 +45,36 @@ const Login = () => {
       } else if (user?.role) {
         roles = [String(user.role).toLowerCase().trim()];
       } else {
-        roles = ['customer']; // Default fallback
+        roles = ['customer'];
       }
-      
-      // Remove duplicates and ensure we have valid roles
-      roles = [...new Set(roles)].filter(r => r); // Remove empty strings
-      
-      // Dispatch credentials - this will normalize roles in Redux too
+      roles = [...new Set(roles)].filter(r => r);
       dispatch(setCredentials({
         user,
         accessToken: data.data.accessToken,
         refreshToken: data.data.refreshToken,
       }));
-      
-      // After successful login, redirect to role-based dashboard or previous location
       const previousLocation = sessionStorage.getItem('previousLocation');
-      
-      // If user was trying to access a protected route, redirect them there
       if (previousLocation && previousLocation !== '/login' && previousLocation !== '/') {
         sessionStorage.removeItem('previousLocation');
         navigate(previousLocation, { replace: true });
       } else {
-        // Redirect to appropriate dashboard based on role
-        // Priority: admin > seller > customer
-        // Roles are already normalized to lowercase above
         if (roles.includes('admin')) {
           navigate('/admin/dashboard', { replace: true });
         } else if (roles.includes('seller')) {
           navigate('/seller/dashboard', { replace: true });
         } else {
-          // Customer - redirect to user dashboard
           navigate('/user/dashboard', { replace: true });
         }
       }
     },
     onError: (err) => {
-      // Handle validation errors properly
       const errorData = err.response?.data;
       let errorMessage = 'Login failed';
       
       if (errorData) {
-        // Check if there are validation errors (array of objects)
         if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-          // Format validation errors as a readable string
           errorMessage = errorData.errors
             .map((error) => {
-              // Handle both object format {field, message, value} and string format
               if (typeof error === 'object' && error.message) {
                 return `${error.field ? error.field + ': ' : ''}${error.message}`;
               }
@@ -124,7 +99,6 @@ const Login = () => {
   };
 
   const handleGoogleLogin = () => {
-    // Redirect to backend Google OAuth endpoint
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
     const baseUrl = apiBaseUrl.replace('/api/v1', '');
     window.location.href = `${baseUrl}/api/v1/user/auth/google`;

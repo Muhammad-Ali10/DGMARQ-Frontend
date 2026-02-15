@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationAPI } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Bell, Check, Trash2, CheckCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, Check, Trash2, CheckCheck, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
 const SellerNotifications = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
 
   const { data: notificationsData, isLoading } = useQuery({
@@ -86,7 +88,14 @@ const SellerNotifications = () => {
                     notification.isRead
                       ? 'bg-secondary border-gray-700'
                       : 'bg-accent/10 border-accent'
-                  }`}
+                  } ${notification.actionUrl ? 'cursor-pointer hover:border-accent/50' : ''}`}
+                  role={notification.actionUrl ? 'button' : undefined}
+                  onClick={() => {
+                    if (notification.actionUrl) {
+                      navigate(notification.actionUrl);
+                      if (!notification.isRead) markAsReadMutation.mutate(notification._id);
+                    }
+                  }}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -97,19 +106,30 @@ const SellerNotifications = () => {
                             New
                           </Badge>
                         )}
+                        {notification.type === 'refund' && (
+                          <Badge variant="outline" className="border-amber-500 text-amber-400">
+                            Refund
+                          </Badge>
+                        )}
                         <span className="text-gray-400 text-sm">
                           {new Date(notification.createdAt).toLocaleString()}
                         </span>
                       </div>
                       <h3 className="text-white font-semibold mb-1">{notification.title || 'Notification'}</h3>
                       <p className="text-gray-300">{notification.message || notification.body}</p>
-                      {notification.type && (
+                      {notification.type && notification.type !== 'refund' && (
                         <Badge variant="outline" className="mt-2">
                           {notification.type}
                         </Badge>
                       )}
+                      {notification.actionUrl && (
+                        <p className="text-accent text-sm mt-2 flex items-center gap-1">
+                          <ExternalLink className="w-4 h-4" />
+                          View details
+                        </p>
+                      )}
                     </div>
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                       {!notification.isRead && (
                         <Button
                           size="sm"

@@ -30,7 +30,7 @@ const Checkout = () => {
   const [couponError, setCouponError] = useState('');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [currentCheckoutId, setCurrentCheckoutId] = useState(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('paypal'); // 'wallet', 'paypal', 'card'
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('paypal');
   const [walletBalance, setWalletBalance] = useState(0);
   const [guestEmail, setGuestEmail] = useState('');
   const [guestEmailError, setGuestEmailError] = useState('');
@@ -38,7 +38,6 @@ const Checkout = () => {
   const [guestLicenseDetails, setGuestLicenseDetails] = useState(null);
   const [guestGrandTotal, setGuestGrandTotal] = useState(0);
 
-  // Fetch cart
   const { data: cart, isLoading: cartLoading, isError: cartError } = useQuery({
     queryKey: ['cart'],
     queryFn: () => cartAPI.getCart().then(res => res.data.data),
@@ -67,7 +66,6 @@ const Checkout = () => {
     }
   }, [paymentStatus, location.state]);
 
-  // Fetch checkout status if checkoutId exists
   const { data: checkout, isLoading: checkoutLoading } = useQuery({
     queryKey: ['checkout', checkoutId],
     queryFn: () => checkoutAPI.getCheckoutStatus(checkoutId).then(res => res.data.data),
@@ -75,7 +73,6 @@ const Checkout = () => {
     retry: false,
   });
 
-  // Fetch user's subscription status
   const { data: userSubscription } = useQuery({
     queryKey: ['my-subscription'],
     queryFn: () => subscriptionAPI.getMySubscription().then(res => res.data.data),
@@ -83,7 +80,6 @@ const Checkout = () => {
     retry: false,
   });
 
-  // Fetch wallet balance
   const { data: walletData } = useQuery({
     queryKey: ['wallet-balance'],
     queryFn: () => walletAPI.getBalance().then(res => res.data.data),
@@ -94,33 +90,26 @@ const Checkout = () => {
     },
   });
 
-  // Create checkout session mutation
   const createCheckoutMutation = useMutation({
     mutationFn: (data) => checkoutAPI.createCheckoutSession(data),
     onSuccess: (data) => {
       const checkoutId = data.data.data?.checkoutId;
       const checkoutData = data.data.data;
-      
-      // Update wallet balance from response
       if (checkoutData?.walletBalance !== undefined) {
         setWalletBalance(checkoutData.walletBalance);
       }
       
       if (checkoutId) {
         setCurrentCheckoutId(checkoutId);
-        
-        // If wallet payment is selected and sufficient, process immediately
         if (selectedPaymentMethod === 'wallet' && checkoutData?.paymentMethod === 'Wallet') {
           processWalletPaymentMutation.mutate(checkoutId);
         } else {
-          // Otherwise, open payment modal for PayPal/Card
           setPaymentModalOpen(true);
         }
       }
     },
   });
 
-  // Guest checkout session mutation
   const createGuestCheckoutMutation = useMutation({
     mutationFn: (data) => checkoutAPI.createGuestCheckoutSession(data),
     onSuccess: (data) => {
@@ -138,7 +127,6 @@ const Checkout = () => {
     },
   });
 
-  // Process wallet payment mutation
   const processWalletPaymentMutation = useMutation({
     mutationFn: (checkoutId) => checkoutAPI.payWithWallet(checkoutId),
     onSuccess: (data) => {
@@ -153,13 +141,11 @@ const Checkout = () => {
     },
   });
 
-  // Process card payment mutation
   const processCardPaymentMutation = useMutation({
     mutationFn: ({ checkoutId, cardData }) => checkoutAPI.processCardPayment(checkoutId, cardData),
     onSuccess: (data) => {
       const checkoutId = data.data.data?.checkoutId;
       if (checkoutId) {
-        // Redirect to success page
         navigate(`/checkout?checkoutId=${checkoutId}&status=success`);
         setPaymentModalOpen(false);
         queryClient.invalidateQueries(['checkout', checkoutId]);
@@ -168,7 +154,6 @@ const Checkout = () => {
     onError: () => {},
   });
 
-  // Cancel checkout mutation
   const cancelCheckoutMutation = useMutation({
     mutationFn: () => checkoutAPI.cancelCheckout(checkoutId),
     onSuccess: () => {
@@ -177,7 +162,6 @@ const Checkout = () => {
     },
   });
 
-  // Totals (safe when cart/checkout missing e.g. on success page) – must run before any return for stable hook count
   const subtotal = cart?.subtotal ?? cart?.items?.reduce((sum, item) => {
     const product = item.product || item.productId;
     const price = product?.price || item.unitPrice || 0;
@@ -192,7 +176,6 @@ const Checkout = () => {
     ? cart.total - couponDiscount + (appliedCoupon ? (subtotal - bundleDiscount - subscriptionDiscount) * ((appliedCoupon.discountPercent ?? 0) / 100) : 0)
     : subtotal - totalDiscount;
 
-  // Buyer handling fee (hook must run every render; disabled when not needed)
   const { data: handlingFeeEstimate } = useQuery({
     queryKey: ['handling-fee-estimate', totalBeforeFee],
     queryFn: () => checkoutAPI.getHandlingFeeEstimate(totalBeforeFee).then(res => res.data.data),
@@ -204,13 +187,11 @@ const Checkout = () => {
   const handlingFeeEnabled = handlingFeeEstimate?.enabled ?? false;
   const feeLabel = handlingFeeEstimate?.feeLabel ?? null;
 
-  // Validate coupon mutation
   const validateCouponMutation = useMutation({
     mutationFn: ({ code, orderAmount }) => couponAPI.validateCoupon({ code, orderAmount }),
     onSuccess: (response) => {
       const couponData = response.data?.data?.coupon || response.data?.data;
       if (couponData) {
-        // Transform backend response to match frontend expectations
         const appliedCouponData = {
           code: couponData.code,
           discountType: couponData.discountType,
@@ -241,7 +222,6 @@ const Checkout = () => {
       return;
     }
     
-    // Calculate current order amount (subtotal after bundle/subscription discounts)
     const subtotalAfterDiscounts = subtotal - bundleDiscount - subscriptionDiscount;
     
     validateCouponMutation.mutate({ 
@@ -262,7 +242,6 @@ const Checkout = () => {
       return;
     }
     
-    // Validate wallet payment if selected
     if (selectedPaymentMethod === 'wallet') {
       if (walletBalance <= 0) {
         toast.error('Insufficient wallet balance. Please add funds or choose another payment method.');
@@ -274,7 +253,6 @@ const Checkout = () => {
       }
     }
     
-    // Create checkout session with preferred payment method
     createCheckoutMutation.mutate({
       couponCode: appliedCoupon?.code || couponCode || undefined,
       preferredPaymentMethod: selectedPaymentMethod === 'wallet' ? 'Wallet' : 
@@ -284,12 +262,10 @@ const Checkout = () => {
 
   const handlePayPalPayment = () => {
     if (!currentCheckoutId) {
-      // If no checkout session, create one first
       handleProceedToPayment();
       return;
     }
     
-    // Fetch checkout to get PayPal approval URL
     checkoutAPI.getCheckoutStatus(currentCheckoutId).then((res) => {
       const approvalUrl = res.data.data?.paypalApprovalUrl;
       if (approvalUrl) {
@@ -307,7 +283,6 @@ const Checkout = () => {
     });
   };
 
-  // Guest checkout success (data from capture response via state)
   const showGuestSuccess = !isAuthenticated && (guestOrderSuccess || location.state?.guestOrder) && (checkoutId && paymentStatus === 'success');
   const guestOrder = guestOrderSuccess || location.state?.guestOrder;
   const guestLicenses = guestLicenseDetails || location.state?.licenseDetails;
@@ -374,7 +349,6 @@ const Checkout = () => {
     );
   }
 
-  // Not authenticated + no guest items: offer sign in or buy as guest from product
   if (!isAuthenticated && (!guestItems || guestItems.length === 0) && !checkoutId) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
@@ -399,7 +373,6 @@ const Checkout = () => {
     );
   }
 
-  // Guest checkout form (not authenticated, has guest items, not on success)
   if (!isAuthenticated && guestItems.length > 0 && !showGuestSuccess) {
     const handleGuestProceed = () => {
       const email = (guestEmail || '').trim();
@@ -518,7 +491,6 @@ const Checkout = () => {
     );
   }
 
-  // Loading state
   if (cartLoading || checkoutLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
@@ -530,7 +502,6 @@ const Checkout = () => {
     );
   }
 
-  // Error state
   if (cartError && !checkoutId) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
@@ -555,7 +526,6 @@ const Checkout = () => {
     );
   }
 
-  // Handle PayPal return - show success/failure
   if (checkoutId && paymentStatus) {
     const isSuccess = paymentStatus === 'success' || paymentStatus === 'approved';
     
@@ -628,7 +598,6 @@ const Checkout = () => {
     );
   }
 
-  // Show checkout status if checkoutId exists but no payment status
   if (checkoutId && checkout) {
     const isExpired = checkout.status === 'expired';
     const isCancelled = checkout.status === 'cancelled';
@@ -712,7 +681,6 @@ const Checkout = () => {
     );
   }
 
-  // Empty cart state
   if (!cart?.items || cart.items.length === 0) {
     return (
       <div className="min-h-[60vh] py-12">
@@ -737,7 +705,6 @@ const Checkout = () => {
     );
   }
 
-  // Main checkout form
   return (
     <div className="min-h-[60vh] py-8">
       <div className="max-w-7xl mx-auto px-4">

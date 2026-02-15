@@ -20,27 +20,23 @@ const FlashDeal = () => {
   });
   const previousDataRef = useRef(null);
 
-  // Fetch active flash deals
   const { data: flashDealsData, isLoading } = useQuery({
     queryKey: ['flash-deals'],
     queryFn: () => flashDealAPI.getFlashDeals().then(res => res.data.data),
-    refetchInterval: 60000, // Refetch every minute
+    staleTime: 60000,
+    refetchInterval: 60000,
   });
 
-
-  // Memoize activeDeal to prevent unnecessary re-renders
   const activeDeal = useMemo(() => {
     return flashDealsData && flashDealsData.length > 0 ? flashDealsData[0] : null;
   }, [flashDealsData]);
 
-  // Track data changes
   useEffect(() => {
     if (flashDealsData && flashDealsData !== previousDataRef.current) {
       previousDataRef.current = flashDealsData;
     }
   }, [flashDealsData]);
 
-  // Add to cart mutation
   const addToCartMutation = useMutation({
     mutationFn: async ({ productId, qty }) => {
       return await cartAPI.addItem({ productId, qty });
@@ -54,7 +50,6 @@ const FlashDeal = () => {
     },
   });
 
-  // Update countdown timer - use stable dependency (activeDeal.id) instead of whole object
   useEffect(() => {
     if (!activeDeal) return;
 
@@ -97,15 +92,14 @@ const FlashDeal = () => {
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [activeDeal]); // activeDeal is memoized, so this is stable
+  }, [activeDeal]);
 
-  // Don't render if no active deal
   if (isLoading) {
-    return null; // Or show loading state if preferred
+    return null;
   }
 
   if (!activeDeal || timeLeft.status === 'Ended') {
-    return null; // Hide section if no active deal or deal ended
+    return null;
   }
 
   const {

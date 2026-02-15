@@ -11,27 +11,19 @@ const UserLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const { roles } = useSelector((state) => state.auth);
-  
-  // Allow sellers to access customer routes if they explicitly navigate here
-  // Check if this is an explicit navigation (not automatic redirect)
+
   useEffect(() => {
     const normalizedRoles = Array.isArray(roles) && roles.length > 0
       ? roles.map(r => String(r).toLowerCase())
       : [];
-    
-    // Only redirect if this is not an explicit navigation
-    // Check sessionStorage to see if user explicitly wanted to access customer dashboard
     const explicitAccess = sessionStorage.getItem('allowCustomerAccess') === 'true';
     
     if (normalizedRoles.includes('seller') && !explicitAccess) {
-      // Only redirect on initial load, not if user explicitly navigated here
       const isInitialLoad = !sessionStorage.getItem('hasNavigated');
       if (isInitialLoad) {
         navigate('/seller/dashboard', { replace: true });
       }
     }
-    
-    // Mark that navigation has occurred
     sessionStorage.setItem('hasNavigated', 'true');
   }, [roles, navigate]);
 

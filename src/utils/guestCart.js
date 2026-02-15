@@ -1,7 +1,5 @@
 /**
- * Guest cart stored in localStorage. Used when user is not authenticated.
- * Format: { items: [{ productId, qty, price, sellerId, name?, slug? }] }
- * Same key as Checkout expects for guest checkout.
+ * Guest cart in localStorage. Format: { items: [{ productId, qty, price, sellerId }] }
  */
 export const GUEST_CART_KEY = 'dgmarq_guest_cart';
 

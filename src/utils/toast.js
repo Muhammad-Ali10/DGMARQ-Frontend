@@ -1,12 +1,10 @@
 /**
- * Centralized toast notification utility
- * Uses sonner for consistent toast notifications across the app
+ * Centralized toast utility. Uses sonner for consistent notifications.
  */
 import { toast } from 'sonner';
 
-// Toast deduplication: Track recent toasts to prevent spam
 const recentToasts = new Map();
-const TOAST_DEBOUNCE_MS = 3000; // Don't show same toast within 3 seconds
+const TOAST_DEBOUNCE_MS = 3000;
 
 /**
  * Check if toast should be shown (deduplication)
@@ -17,12 +15,10 @@ const shouldShowToast = (message, description = null) => {
   const lastShown = recentToasts.get(key);
   
   if (lastShown && (now - lastShown) < TOAST_DEBOUNCE_MS) {
-    return false; // Too soon, skip this toast
+    return false;
   }
   
   recentToasts.set(key, now);
-  
-  // Cleanup old entries (keep only last 50)
   if (recentToasts.size > 50) {
     const oldestKey = recentToasts.keys().next().value;
     recentToasts.delete(oldestKey);
@@ -46,7 +42,7 @@ export const showSuccess = (message, description = null) => {
  */
 export const showError = (message, description = null, force = false) => {
   if (!force && !shouldShowToast(message, description)) {
-    return; // Skip duplicate toast
+    return;
   }
   
   toast.error(message, {
@@ -94,13 +90,14 @@ export const showApiError = (error, defaultMessage = 'An error occurred', force 
 
   if (error?.response?.data) {
     const errorData = error.response.data;
-    
-    // Handle different error response formats
-    if (errorData.message) {
+    if (error?.response?.status === 429 && defaultMessage === 'An error occurred') {
+      message = typeof errorData === 'object' && errorData?.message
+        ? errorData.message
+        : 'Too many requests. Please wait a moment and try again.';
+    }
+    else if (errorData.message) {
       message = errorData.message;
     }
-    
-    // Handle validation errors
     if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
       description = errorData.errors[0];
     } else if (errorData.details) {
@@ -115,15 +112,10 @@ export const showApiError = (error, defaultMessage = 'An error occurred', force 
   } else if (typeof error === 'string') {
     message = error;
   }
-
-  // Only show "Network error" if there's no response (actual network failure)
-  // For valid API responses (4xx/5xx), show the actual error message
   if (!error?.response) {
     message = 'Network error';
     description = 'Please check your internet connection';
   }
-  // If error.response exists, use the message we already extracted above
-
   showError(message, description, force);
 };
 

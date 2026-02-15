@@ -7,6 +7,7 @@ const Hero = () => {
   const { data: sliders, isLoading } = useQuery({
     queryKey: ['homepage-sliders'],
     queryFn: () => homepageSliderAPI.getHomepageSliders().then(res => res.data.data),
+    staleTime: 180000,
   });
 
   if (isLoading) {
@@ -22,28 +23,19 @@ const Hero = () => {
   }
 
   if (!sliders || sliders.length === 0) {
-    return null; // Don't show slider if no slides
+    return null;
   }
 
-
-  // Sort sliders by slideIndex (0-4)
   const sortedSliders = [...sliders].sort((a, b) => {
     const aIndex = a.slideIndex !== undefined ? a.slideIndex : a.order || 0;
     const bIndex = b.slideIndex !== undefined ? b.slideIndex : b.order || 0;
     return aIndex - bIndex;
   });
-
-  // Map positions to styles
   const positionStyles = [
-    // Position 0 - Left Small
     { className: 'basis-auto p-0 z-10 md:-mr-6', size: 'w-[180px] md:w-[259px] h-[280px] md:h-[349px] mb-10' },
-    // Position 1 - Left Medium
     { className: 'basis-auto p-0 z-20 md:-mr-20', size: 'w-[180px] md:w-[285px] h-[280px] md:h-[382px] mb-6' },
-    // Position 2 - Center Featured
     { className: 'basis-auto p-0 z-30', size: 'w-[220px] md:w-[409px] h-[320px] md:h-[529px]' },
-    // Position 3 - Right Medium
     { className: 'basis-auto p-0 z-20 md:-ml-20', size: 'w-[180px] md:w-[285px] h-[280px] md:h-[382px] mb-6' },
-    // Position 4 - Right Small
     { className: 'basis-auto p-0 z-10 md:-ml-6', size: 'w-[180px] md:w-[259px] h-[280px] md:h-[349px] mb-10' },
   ];
 
@@ -59,7 +51,7 @@ const Hero = () => {
             const product = slider.productId;
 
             const slideContent = (
-              <div className={`${style.size} rounded-2xl overflow-hidden ${isCenter ? 'shadow-xl' : 'shadow-lg'} relative`}>
+              <div className={`${style.size} rounded-2xl overflow-hidden ${isCenter ? 'shadow-xl' : 'shadow-lg'} relative transition-transform duration-300 ease-out group-hover:scale-105 group-hover:shadow-2xl`}>
                 <div className="relative h-full">
                   <img
                     src={slider.image}
@@ -84,7 +76,7 @@ const Hero = () => {
             );
 
             return (
-              <CarouselItem key={slider._id} className={style.className}>
+              <CarouselItem key={slider._id} className={`${style.className} group cursor-pointer hover:z-40`}>
                 {hasProduct ? (
                   <Link to={`/product/${product.slug || product._id}`}>
                     {slideContent}

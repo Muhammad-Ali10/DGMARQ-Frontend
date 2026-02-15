@@ -35,17 +35,14 @@ const widths= [
 
 const Home = () => {
   const navigate = useNavigate();
-
-  // Fetch best sellers for home page (6 products)
   const { data: bestsellersData, isLoading: isLoadingBestsellers } = useQuery({
     queryKey: ["bestsellers", "home"],
     queryFn: async () => {
       const response = await bestsellerAPI.getBestsellers({ forHome: "true" });
       return response.data.data;
     },
+    staleTime: 120000,
   });
-
-  // Fetch featured products for home page
   const { data: featuredProductsData, isLoading: isLoadingFeatured } = useQuery({
     queryKey: ["featured-products", "home"],
     queryFn: async () => {
@@ -57,9 +54,8 @@ const Home = () => {
       });
       return response.data.data;
     },
+    staleTime: 120000,
   });
-
-  // Fetch trending offers for home page
   const { data: trendingOffersData, isLoading: isLoadingTrendingOffers } =
     useQuery({
       queryKey: ["trending-offers", "home"],
@@ -67,9 +63,8 @@ const Home = () => {
         const response = await trendingOfferAPI.getTrendingOffers();
         return response.data.data;
       },
+      staleTime: 120000,
     });
-
-  // Fetch upcoming releases for home page
   const { data: upcomingReleasesData, isLoading: isLoadingUpcomingReleases } =
     useQuery({
       queryKey: ["upcoming-releases", "home"],
@@ -77,9 +72,9 @@ const Home = () => {
         const response = await upcomingReleaseAPI.getUpcomingReleases();
         return response.data.data;
       },
+      staleTime: 120000,
     });
 
-  // Fetch upcoming games for home page (6 products)
   const { data: upcomingGamesData, isLoading: isLoadingUpcomingGames } =
     useQuery({
       queryKey: ["upcoming-games", "home"],
@@ -87,9 +82,9 @@ const Home = () => {
         const response = await upcomingGamesAPI.getUpcomingGames();
         return response.data.data;
       },
+      staleTime: 120000,
     });
 
-  // Fetch trending categories (automated, sales-based)
   const { data: trendingCategoriesData, isLoading: isLoadingTrendingCategories } =
     useQuery({
       queryKey: ["trending-categories", "home"],
@@ -97,53 +92,45 @@ const Home = () => {
         const response = await trendingCategoryAPI.getTrendingCategories();
         return response.data.data;
       },
+      staleTime: 120000,
     });
 
-  // Fetch Microsoft products for home page
   const { data: softwarePageData, isLoading: isLoadingMicrosoft } = useQuery({
     queryKey: ["software-page", "home"],
     queryFn: async () => {
       const response = await softwareAPI.getSoftwarePage();
       return response.data.data;
     },
-    staleTime: 120000, // 2 minutes
+    staleTime: 120000,
     retry: 2,
   });
 
-  // Fetch home page SEO settings
   const { data: seoSettings } = useQuery({
     queryKey: ["home-page-seo-public"],
     queryFn: async () => {
       try {
         const response = await seoAPI.getHomePageSEO();
         return response.data.data;
-      } catch (err) {
+      } catch {
         return null;
       }
     },
-    staleTime: 300000, // 5 minutes
+    staleTime: 300000,
     retry: 1,
   });
 
-  // Update SEO meta tags using custom hook
-  // Automatically updates on route change and when seoSettings changes
   useSEO({
     title: seoSettings?.metaTitle,
     description: seoSettings?.metaDescription,
-    useDefaults: true, // Use default values if seoSettings is not available
+    useDefaults: true,
   });
 
   const microsoftProducts = softwarePageData?.microsoft || [];
 
   return (
     <div className="min-h-screen">
-      {/* Hero Slider Section */}
       <Hero />
-
-      {/* Category Navigation Bar */}
       <CategoryNavigation scrollOffset={140} />
-
-      {/* Featured Products Section */}
       {featuredProductsData?.docs && featuredProductsData.docs.length > 0 && (
         <section id="featured-products" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
@@ -173,7 +160,6 @@ const Home = () => {
         </section>
       )}
 
-      {/* Bestsellers Section */}
       <section id="bestsellers" className="py-16">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -217,21 +203,17 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Flash Deal Section */}
       <section id="flash-deal" className="py-16">
         <div className="max-w-7xl mx-auto px-4"></div>
       </section>
 
-      {/* Trending Offers Section */}
       <section id="trending-offers" className="py-16">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-8">
-            {/* Left Side: Flash Deal */}
             <div className="shrink-0 lg:w-1/3">
               <FlashDeal />
             </div>
 
-            {/* Right Side: More Currently Trending Offers */}
             <div className="flex-1 lg:w-2/3">
               <div className="mb-6">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 font-poppins">
@@ -248,7 +230,6 @@ const Home = () => {
                 </div>
               ) : trendingOffersData?.length > 0 ? (
                 (() => {
-                  // Flatten and deduplicate products from all offers, limit to 6
                   const productMap = new Map();
                   trendingOffersData.forEach((offer) => {
                     offer.products?.forEach((product) => {
@@ -296,7 +277,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Upcoming Releases Section */}
       {upcomingReleasesData && upcomingReleasesData.length >= 2 && (
         <section id="upcoming-releases" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
@@ -334,12 +314,9 @@ const Home = () => {
                           backgroundPosition: "center",
                         }}
                       >
-                        {/* Dark overlay for text readability */}
                         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60" />
 
-                        {/* Content */}
                         <div className="relative h-full flex flex-col justify-between p-6 text-white">
-                          {/* Top: Game Title/Logo area */}
                           <div className="flex-1 flex items-start">
                             <div>
                               <h3 className="text-lg sm:text-xl md:text-2xl font-bold font-poppins mb-2">
@@ -352,7 +329,6 @@ const Home = () => {
                             </div>
                           </div>
 
-                          {/* Bottom: Price and CTA */}
                           <div className="mt-auto">
                             <div className="flex items-center justify-between mb-4">
                               <div>
@@ -386,7 +362,6 @@ const Home = () => {
         </section>
       )}
 
-      {/* Upcoming Games Section */}
       {upcomingGamesData && upcomingGamesData.length > 0 && (
         <section id="upcoming-games" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
@@ -422,80 +397,6 @@ const Home = () => {
         </section>
       )}
 
-      {/* Trending Offers Section */}
-      <section id="trending-offers" className="py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Left Side: Trending Offers */}
-            <div className="flex-1 lg:w-2/3">
-              <div className="mb-6">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 font-poppins">
-                  More Currently Trending Offers
-                </h2>
-                <p className="text-sm sm:text-base text-gray-400 font-poppins">
-                  Don't Miss Out – Grab Them While You Still Have The Chance!
-                </p>
-              </div>
-
-              {isLoadingTrendingOffers ? (
-                <div className="flex justify-center items-center py-12">
-                  <Loading message="Loading trending offers..." />
-                </div>
-              ) : trendingOffersData?.length > 0 ? (
-                (() => {
-                  // Flatten and deduplicate products from all offers, limit to 6
-                  const productMap = new Map();
-                  trendingOffersData.forEach((offer) => {
-                    offer.products?.forEach((product) => {
-                      if (!productMap.has(product._id)) {
-                        productMap.set(product._id, {
-                          ...product,
-                          trendingOffer: {
-                            discountPercent: offer.discountPercent,
-                            offerId: offer._id,
-                          },
-                        });
-                      }
-                    });
-                  });
-                  const uniqueProducts = Array.from(productMap.values()).slice(
-                    0,
-                    6
-                  );
-
-                  return uniqueProducts.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {uniqueProducts.map((product) => (
-                        <div key={product._id} className="relative w-full">
-                          <ProductVerticalCard product={product} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-400">
-                        No products available in trending offers.
-                      </p>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-400">
-                    No trending offers available at the moment.
-                  </p>
-                </div>
-              )}
-            </div>
-            {/* Left Side: Flash Deal */}
-            <div className="shrink-0 lg:w-1/3">
-              <FlashDeal />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Trending Categories Section */}
       <section id="trending-categories" className="py-16">
         <div className="flex w-full justify-center relative gap-5">
           <img src="/images/CenterShedow.png" className="absolute z-10" alt="" />
@@ -515,7 +416,6 @@ const Home = () => {
               </div>
             ) : trendingCategoriesData && trendingCategoriesData.length > 0 ? (
               <>
-                {/* First Row: 2 cards */}
                 <div className="flex flex-col md:flex-row w-full justify-between gap-4 md:gap-8">
                   {trendingCategoriesData.slice(0, 2).map((item, index) => {
                     const category = item.category;
@@ -564,7 +464,6 @@ const Home = () => {
                   })}
                 </div>
 
-                {/* Second Row: 2 cards (reversed on desktop) */}
                 {trendingCategoriesData.length > 2 && (
                   <div className="flex flex-col md:flex-row-reverse w-full justify-between z-20 gap-4 md:gap-8">
                     {trendingCategoriesData.slice(2, 4).map((item, index) => {
@@ -627,7 +526,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Software Section */}
       <div id="software"></div>
       <CategoryProductSection
         title="Software"
@@ -638,7 +536,6 @@ const Home = () => {
        
       />
 
-      {/* Gaming Accounts Section */}
       <CategoryProductSection
         title="Gaming Accounts"
         description="Premium gaming accounts with the best reviews"
@@ -647,7 +544,6 @@ const Home = () => {
         limit={6}
       />
 
-      {/* Random Keys Section */}
       <CategoryProductSection
         title="Random Keys"
         description="Discover random game keys and digital products"
@@ -656,20 +552,9 @@ const Home = () => {
         limit={6}
       />
 
-      {/* Crypto Section */}
-      {/* <CategoryProductSection
-        title="Crypto"
-        description="Cryptocurrency products and services"
-        categoryName="Crypto"
-        sortBy="rating"
-        limit={6}
-      /> */}
-
-{/* Microsoft Section */}
       {microsoftProducts.length > 0 && (
         <section id="microsoft" className="py-8 md:py-16">
           <div className="max-w-7xl mx-auto px-4">
-            {/* Microsoft Product Grid */}
             {isLoadingMicrosoft ? (
               <div className="flex flex-row flex-wrap gap-4 sm:gap-6">
                 {Array.from({ length: 6 }).map((_, i) => (

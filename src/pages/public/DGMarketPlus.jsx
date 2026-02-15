@@ -19,6 +19,7 @@ import {
   Star,
   TrendingUp,
 } from 'lucide-react';
+import FAQAccordion from '@/components/marketplace/FAQAccordion';
 
 const DGMarketPlus = () => {
   const navigate = useNavigate();
@@ -93,10 +94,10 @@ const DGMarketPlus = () => {
   }
 
   return (
-    <div className="min-h-screen py-12">
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen py-12 text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Hero Section */}
-        <section className="text-center mb-16">
+        <section className="text-center mb-16 relative overflow-hidden rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent py-16 px-6">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/30 mb-6">
             <Sparkles className="w-5 h-5 text-accent" />
             <span className="text-accent font-semibold">DGMARQ Plus</span>
@@ -330,47 +331,29 @@ const DGMarketPlus = () => {
 
         {/* FAQ Section */}
         <section className="mb-20">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">Frequently Asked Questions</h2>
-          <div className="max-w-3xl mx-auto space-y-4">
-            <Card className="bg-primary border-gray-700">
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold text-white mb-2">Can I cancel my subscription anytime?</h3>
-                <p className="text-gray-400">
-                  Yes! You can cancel your subscription at any time from your account settings. Your discount will remain
-                  active until the end of your current billing period.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-primary border-gray-700">
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold text-white mb-2">Do discounts work with coupon codes?</h3>
-                <p className="text-gray-400">
-                  Absolutely! Your subscription discount is applied first, and then any coupon codes you apply will
-                  give you additional savings on top of that.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-primary border-gray-700">
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold text-white mb-2">How is the discount calculated?</h3>
-                <p className="text-gray-400">
-                  The {plan.discountPercentage}% discount is calculated on your subtotal after bundle deals are applied.
-                  This ensures you get the maximum possible savings.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-primary border-gray-700">
-              <CardContent className="pt-6">
-                <h3 className="text-lg font-semibold text-white mb-2">What payment methods are accepted?</h3>
-                <p className="text-gray-400">
-                  We accept PayPal for subscription payments. Your subscription will be automatically renewed each month
-                  until you cancel.
-                </p>
-              </CardContent>
-            </Card>
+          <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-4">Frequently Asked Questions</h2>
+          <p className="text-center text-gray-400 mb-8">Click on a question to expand the answer.</p>
+          <div className="max-w-3xl mx-auto">
+            <FAQAccordion
+              items={[
+                {
+                  q: 'Can I cancel my subscription anytime?',
+                  a: 'Yes! You can cancel your subscription at any time from your account settings. Your discount will remain active until the end of your current billing period.',
+                },
+                {
+                  q: 'Do discounts work with coupon codes?',
+                  a: 'Absolutely! Your subscription discount is applied first, and then any coupon codes you apply will give you additional savings on top of that.',
+                },
+                {
+                  q: 'How is the discount calculated?',
+                  a: `The ${plan.discountPercentage}% discount is calculated on your subtotal after bundle deals are applied. This ensures you get the maximum possible savings.`,
+                },
+                {
+                  q: 'What payment methods are accepted?',
+                  a: 'We accept PayPal for subscription payments. Your subscription will be automatically renewed each month until you cancel.',
+                },
+              ]}
+            />
           </div>
         </section>
 

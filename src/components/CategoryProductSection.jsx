@@ -10,11 +10,10 @@ const CategoryProductSection = ({
   description,
   categoryName,
   productTypeName,
-  sortBy = "rating", // "rating" or "sales"
+  sortBy = "rating",
   limit = 6,
   seeMoreLink,
 }) => {
-  // Fetch category data to get slug for clean URLs
   const { data: categoryData } = useQuery({
     queryKey: ["category-by-name-for-slug", categoryName],
     queryFn: async () => {
@@ -25,7 +24,6 @@ const CategoryProductSection = ({
         limit: 100 
       });
       const categories = response.data.data?.docs || [];
-      // Try exact match first, then partial match
       return categories.find(cat => 
         cat.name.toLowerCase() === categoryName.toLowerCase()
       ) || categories.find(cat => 
@@ -33,9 +31,9 @@ const CategoryProductSection = ({
       ) || null;
     },
     enabled: !!categoryName,
+    staleTime: 300000,
   });
 
-  // Fetch type data to get ID for clean URLs
   const { data: typeData } = useQuery({
     queryKey: ["type-by-name-for-url", productTypeName],
     queryFn: async () => {
@@ -45,7 +43,6 @@ const CategoryProductSection = ({
         limit: 100 
       });
       const types = response.data.data?.docs || [];
-      // Try exact match first, then partial match
       return types.find(t => 
         t.name.toLowerCase() === productTypeName.toLowerCase()
       ) || types.find(t => 
@@ -53,9 +50,9 @@ const CategoryProductSection = ({
       ) || null;
     },
     enabled: !!productTypeName,
+    staleTime: 300000,
   });
 
-  // Fetch products based on category name or product type name (backend handles the lookup)
   const { data: productsData, isLoading } = useQuery({
     queryKey: ["category-products", categoryName, productTypeName, sortBy, limit],
     queryFn: async () => {
@@ -64,13 +61,9 @@ const CategoryProductSection = ({
         page: 1,
         sort: sortBy === "rating" ? "rating" : "newest",
       };
-
-      // Use categoryName parameter - backend will look up the category
       if (categoryName) {
         params.categoryName = categoryName;
       }
-
-      // Use typeName parameter - backend will look up the type
       if (productTypeName) {
         params.typeName = productTypeName;
       }
@@ -84,27 +77,22 @@ const CategoryProductSection = ({
       };
     },
     enabled: !!categoryName || !!productTypeName,
+    staleTime: 120000,
   });
 
   const products = productsData?.docs || [];
-
-  // Generate "See More" link dynamically if not provided
   const getSeeMoreLink = () => {
     if (seeMoreLink) return seeMoreLink;
-    // Use category slug for clean URL if available, otherwise use category name
     if (categoryName) {
       if (categoryData?.slug) {
         return `/category/${categoryData.slug}`;
       }
-      // Fallback to search if slug not available
       return `/search?categoryName=${encodeURIComponent(categoryName)}`;
     }
     if (productTypeName) {
-      // Use type ID for cleaner URL if available
       if (typeData?._id) {
         return `/search?type=${typeData._id}`;
       }
-      // Fallback to type name
       return `/search?type=${encodeURIComponent(productTypeName)}`;
     }
     return null;

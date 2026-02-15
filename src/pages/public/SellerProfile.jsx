@@ -28,37 +28,31 @@ const PublicSellerProfile = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [productsPage, setProductsPage] = useState(1);
 
-  // Fetch seller profile
   const { data: sellerProfile, isLoading: profileLoading, isError: profileError } = useQuery({
     queryKey: ['seller-profile', sellerId],
     queryFn: () => sellerAPI.getPublicSellerProfile(sellerId).then(res => res.data.data),
   });
 
-  // Fetch seller products
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['seller-products', sellerId, productsPage],
     queryFn: () => sellerAPI.getSellerProducts(sellerId, { page: productsPage, limit: 10 }).then(res => res.data.data),
     enabled: !!sellerId,
   });
 
-  // Fetch seller reviews
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
     queryKey: ['seller-reviews', sellerId],
     queryFn: () => sellerAPI.getSellerReviews(sellerId).then(res => res.data.data),
     enabled: !!sellerId,
   });
 
-  // Create conversation mutation
   const createConversationMutation = useMutation({
     mutationFn: (data) => chatAPI.createConversation(data),
     onSuccess: (response) => {
       const conversation = response.data.data;
       toast.success('Conversation created! Opening chat...');
-      // Navigate to chat page with conversation ID
       navigate(`/user/chat?conversation=${conversation._id}`);
     },
     onError: (error) => {
-      // If conversation already exists, try to get it
       if (error.response?.status === 200) {
         const conversation = error.response.data.data;
         navigate(`/user/chat?conversation=${conversation._id}`);
@@ -77,7 +71,6 @@ const PublicSellerProfile = () => {
 
     createConversationMutation.mutate({
       sellerId: sellerId,
-      // No orderId - this is a pre-sale inquiry
     });
   };
 

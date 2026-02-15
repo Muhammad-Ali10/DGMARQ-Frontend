@@ -5,8 +5,7 @@ import { chatAPI, notificationAPI } from '../services/api';
 import { useSelector } from 'react-redux';
 
 /**
- * Hook to manage real-time chat notifications
- * Fetches notifications from API and listens for new messages via socket
+ * Fetches chat notifications and listens for new messages via socket.
  */
 export const useChatNotifications = () => {
   const { socket, isConnected } = useSocket();
@@ -15,25 +14,20 @@ export const useChatNotifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch chat notifications from API
   const { data: notificationsData, error: notificationsError, isLoading: notificationsLoading } = useQuery({
     queryKey: ['chat-notifications'],
     queryFn: async () => {
       try {
         const res = await notificationAPI.getNotifications({ page: 1, limit: 20, type: 'chat' });
-        // Axios response: res.data = ApiResponse object
-        // ApiResponse structure: { statusCode, data: { notifications, pagination, unreadCount }, message, success }
         const responseData = res?.data;
         if (responseData?.data) {
           return responseData.data;
         }
-        // Fallback: try direct access
         if (responseData?.notifications) {
           return responseData;
         }
         return { notifications: [], pagination: {}, unreadCount: 0 };
       } catch (error) {
-        // Return empty structure on error
         return { notifications: [], pagination: {}, unreadCount: 0 };
       }
     },
@@ -46,13 +40,11 @@ export const useChatNotifications = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Fetch unread count from API (includes all notification types)
   const { data: unreadCountData } = useQuery({
     queryKey: ['notification-unread-count'],
     queryFn: async () => {
       try {
         const res = await notificationAPI.getUnreadCount();
-        // ApiResponse structure: { statusCode, data: { unreadCount }, message, success }
         return res.data?.data?.unreadCount || 0;
       } catch (error) {
         return 0;
@@ -67,7 +59,6 @@ export const useChatNotifications = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Update notifications from API data
   useEffect(() => {
     if (notificationsData) {
       const notificationsList = Array.isArray(notificationsData.notifications) 
@@ -90,36 +81,26 @@ export const useChatNotifications = () => {
       });
       setNotifications(chatNotifications);
     } else if (!notificationsLoading) {
-      // If data is null/undefined and not loading, set empty array
       setNotifications([]);
     }
   }, [notificationsData, notificationsLoading]);
 
-  // Update unread count from API
   useEffect(() => {
     if (unreadCountData !== undefined) {
       setUnreadCount(unreadCountData);
     }
   }, [unreadCountData]);
 
-  // Listen for new messages via socket and notification updates
   useEffect(() => {
     if (!socket || !isConnected || !user) return;
 
     const handleMessageReceived = (data) => {
       const { conversationId, message } = data;
-      
       if (!message || !message.senderId) return;
-
-      // Extract sender info
       const senderId = message.senderId._id || message.senderId;
-      
-      // Don't show notification if message is from current user
       if (senderId.toString() === user._id?.toString()) {
         return;
       }
-
-      // Invalidate queries to refetch from API (notification is already created in DB)
       queryClient.invalidateQueries(['chat-notifications']);
       queryClient.invalidateQueries(['notification-unread-count']);
       queryClient.invalidateQueries(['seller-conversations']);
@@ -127,7 +108,6 @@ export const useChatNotifications = () => {
     };
 
     const handleNotificationNew = () => {
-      // Refetch notifications when new notification is created
       queryClient.invalidateQueries(['chat-notifications']);
       queryClient.invalidateQueries(['notification-unread-count']);
     };
@@ -141,47 +121,34 @@ export const useChatNotifications = () => {
     };
   }, [socket, isConnected, user, queryClient]);
 
-  // Mark notification as read (when user opens chat)
   const markNotificationAsRead = useCallback(async (conversationId) => {
-    // Find and mark all chat notifications for this conversation as read
     const conversationNotifications = notifications.filter(
       n => n.conversationId === conversationId.toString() && !n.isRead
     );
-
-    // Mark each notification as read via API
     for (const notif of conversationNotifications) {
       if (notif.notificationId) {
         try {
           await notificationAPI.markAsRead(notif.notificationId);
         } catch (error) {
-          // Silently fail - notification might already be marked as read
         }
       }
     }
-
-    // Invalidate queries to refresh
     queryClient.invalidateQueries(['chat-notifications']);
     queryClient.invalidateQueries(['notification-unread-count']);
     queryClient.invalidateQueries(['seller-conversations']);
     queryClient.invalidateQueries(['user-conversations']);
   }, [notifications, queryClient]);
 
-  // Clear all notifications
   const clearNotifications = useCallback(() => {
     setNotifications([]);
     setUnreadCount(0);
   }, []);
 
-  // Remove a specific notification
   const removeNotification = useCallback(async (notificationId) => {
-    // Delete notification from API
     try {
       await notificationAPI.deleteNotification(notificationId);
     } catch (error) {
-      // Silently fail - notification might already be deleted
     }
-
-    // Invalidate queries to refresh
     queryClient.invalidateQueries(['chat-notifications']);
     queryClient.invalidateQueries(['notification-unread-count']);
   }, [queryClient]);

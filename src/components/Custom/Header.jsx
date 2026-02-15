@@ -15,7 +15,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-// US Flag SVG Component
 const USFlag = () => (
   <svg
     width="20"
@@ -76,7 +75,6 @@ const Header = () => {
   const searchContainerRef = useRef(null);
   const categoriesDropdownRef = useRef(null);
 
-  // Fetch categories
   const { data: categoriesData } = useQuery({
     queryKey: ["header-categories"],
     queryFn: async () => {
@@ -86,11 +84,11 @@ const Header = () => {
       });
       return response.data.data?.docs || [];
     },
+    staleTime: 300000,
   });
 
   const categories = categoriesData || [];
 
-  // Fetch subcategories for hovered category
   const { data: subcategoriesData } = useQuery({
     queryKey: ["subcategories", hoveredCategory?._id],
     queryFn: async () => {
@@ -109,11 +107,9 @@ const Header = () => {
 
   const subcategories = subcategoriesData || [];
 
-  // Track which categories have subcategories (checked on first hover)
   const [categoriesWithSubcategories, setCategoriesWithSubcategories] =
     useState({});
 
-  // Check if category has subcategories when hovered
   const checkCategoryHasSubcategories = async (categoryId) => {
     if (categoriesWithSubcategories[categoryId] !== undefined) {
       return categoriesWithSubcategories[categoryId];
@@ -141,7 +137,6 @@ const Header = () => {
     }
   };
 
-  // Fetch cart count (server cart when authenticated)
   const { data: cartData } = useQuery({
     queryKey: ["cart-count"],
     queryFn: async () => {
@@ -169,7 +164,6 @@ const Header = () => {
 
   const cartCount = isAuthenticated ? (cartData?.count || 0) : guestCartCount;
 
-  // Fetch wishlist count
   const { data: wishlistData } = useQuery({
     queryKey: ["wishlist-count"],
     queryFn: async () => {
@@ -191,7 +185,6 @@ const Header = () => {
 
   const wishlistCount = wishlistData?.count || 0;
 
-  // Debounced search suggestions
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
   useEffect(() => {
@@ -202,7 +195,6 @@ const Header = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Fetch search suggestions
   const { data: searchSuggestions, isLoading: searchLoading } = useQuery({
     queryKey: ["search-suggestions", debouncedSearchQuery, selectedCategory],
     queryFn: async () => {
@@ -223,15 +215,14 @@ const Header = () => {
       }
     },
     enabled: debouncedSearchQuery.trim().length > 0,
+    staleTime: 60000,
   });
 
-  // Update search suggestions visibility based on query and results
   const shouldShowSuggestions =
     showSearchSuggestions &&
     debouncedSearchQuery.trim() &&
     (searchSuggestions?.length > 0 || searchLoading);
 
-  // Handle click outside search suggestions
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -246,7 +237,6 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Handle click outside categories dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -262,35 +252,29 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Handle scroll for background color change
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY;
       setIsScrolled(scrollPosition > 10);
     };
-
-    // Check initial scroll position
     handleScroll();
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Handle search input focus
   const handleSearchFocus = () => {
     if (searchQuery.trim()) {
       setShowSearchSuggestions(true);
     }
   };
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
     setShowSearchSuggestions(value.trim().length > 0);
   };
 
-  // Handle search submit
   const handleSearch = (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -304,17 +288,14 @@ const Header = () => {
     navigate(`/search?${params.toString()}`);
   };
 
-  // Handle suggestion click
   const handleSuggestionClick = (product) => {
     setShowSearchSuggestions(false);
     setSearchQuery("");
     navigate(`/product/${product._id}`);
   };
 
-  // Handle category hover
   const handleCategoryHover = async (category) => {
     setHoveredCategory(category);
-    // Check if category has subcategories (cache the result)
     if (categoriesWithSubcategories[category._id] === undefined) {
       await checkCategoryHasSubcategories(category._id);
     }
@@ -507,7 +488,6 @@ const Header = () => {
                 className="relative flex grow"
                 ref={categoriesDropdownRef}
                 onMouseEnter={() => {
-                  // Clear any pending timeout
                   if (categoriesDropdownTimeout) {
                     clearTimeout(categoriesDropdownTimeout);
                     setCategoriesDropdownTimeout(null);
@@ -515,11 +495,10 @@ const Header = () => {
                   setShowCategoriesDropdown(true);
                 }}
                 onMouseLeave={() => {
-                  // Add delay before hiding to allow smooth transition
                   const timeout = setTimeout(() => {
                     setShowCategoriesDropdown(false);
                     setHoveredCategory(null);
-                  }, 200); // 200ms delay for smooth hover transition
+                  }, 200);
                   setCategoriesDropdownTimeout(timeout);
                 }}
               >
@@ -544,7 +523,6 @@ const Header = () => {
                       transition: "width 0.2s ease-in-out",
                     }}
                     onMouseEnter={() => {
-                      // Keep dropdown open when hovering over it
                       if (categoriesDropdownTimeout) {
                         clearTimeout(categoriesDropdownTimeout);
                         setCategoriesDropdownTimeout(null);
@@ -552,7 +530,6 @@ const Header = () => {
                       setShowCategoriesDropdown(true);
                     }}
                     onMouseLeave={() => {
-                      // Hide when leaving dropdown
                       const timeout = setTimeout(() => {
                         setShowCategoriesDropdown(false);
                         setHoveredCategory(null);
@@ -692,14 +669,6 @@ const Header = () => {
               Save more with DGMAQ Plus
             </Button>
             </div>
-
-            {/* CTA Button */}
-            {/* <Button
-              onClick={() => navigate("/dgmarq-plus")}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium shadow-lg"
-            >
-              Save more with DGMAQ Plus
-            </Button> */}
           </div>
         </div>
 
@@ -751,10 +720,8 @@ const Header = () => {
                             <button
                               onClick={async () => {
                                 if (!isExpanded) {
-                                  // Check if category has subcategories first
                                   const hasSubs = await checkCategoryHasSubcategories(category._id);
                                   if (hasSubs) {
-                                    // Fetch subcategories if not already loaded
                                     if (!mobileSubcategories[category._id]) {
                                       try {
                                         const response = await subcategoryAPI.getSubcategoriesByCategoryId(
@@ -844,17 +811,6 @@ const Header = () => {
               >
                 Software
               </Link>
-
-              {/* Language Selector
-              <Button
-                variant="outline"
-                className="w-full justify-start border-accent text-white"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Globe className="h-4 w-4 mr-2" />
-                Language: ENG
-              </Button> */}
-
 
               {/* CTA Button */}
               <Button

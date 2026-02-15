@@ -14,7 +14,6 @@ import { Skeleton } from '../ui/skeleton';
 import { Card } from '../ui/card';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Search, Lock } from 'lucide-react';
 
-// useDebounce hook
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -38,15 +37,11 @@ const ProductListingLayout = ({
   defaultCategoryId = null 
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // Filter states from URL params (support 'q' for /search route from Header)
   const [page, setPage] = useState(parseInt(searchParams.get('page')) || 1);
   const [search, setSearch] = useState(searchParams.get('search') || searchParams.get('q') || '');
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [layout, setLayout] = useState(searchParams.get('layout') || 'listing');
-  
-  // Checkbox filters - if lockedCategoryId exists, always use it and lock it
   const [checkboxFilters, setCheckboxFilters] = useState(() => {
     const categoryFromUrl = searchParams.get('categoryId')?.split(',').filter(Boolean) ||
       (searchParams.get('category') ? [searchParams.get('category')] : []);
@@ -73,7 +68,6 @@ const ProductListingLayout = ({
     };
   });
 
-  // Ensure locked category is always in filters
   useEffect(() => {
     if (lockedCategoryId && !checkboxFilters.categoryId.includes(lockedCategoryId)) {
       setCheckboxFilters(prev => ({
@@ -85,8 +79,6 @@ const ProductListingLayout = ({
 
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true');
-
-  // Collapsible filter sections
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
     subcategories: true,
@@ -112,11 +104,8 @@ const ProductListingLayout = ({
   });
 
   const [isOpen, setIsOpen] = useState(false);
-
-  // Debounced search
   const debouncedSearch = useDebounce(search, 500);
 
-  // Fetch category info if locked
   const { data: lockedCategoryData } = useQuery({
     queryKey: ['category', lockedCategoryId],
     queryFn: async () => {
@@ -127,7 +116,6 @@ const ProductListingLayout = ({
     enabled: !!lockedCategoryId,
   });
 
-  // Fetch all platforms
   const { data: platformsData } = useQuery({
     queryKey: ['platforms', 'all'],
     queryFn: async () => {
@@ -136,7 +124,6 @@ const ProductListingLayout = ({
     },
   });
 
-  // Fetch all categories
   const { data: categoriesData } = useQuery({
     queryKey: ['categories', 'all'],
     queryFn: async () => {
@@ -145,7 +132,6 @@ const ProductListingLayout = ({
     },
   });
 
-  // Fetch subcategories for all selected categories
   const { data: subcategoriesData } = useQuery({
     queryKey: ['subcategories', lockedCategoryId || checkboxFilters.categoryId],
     queryFn: async () => {
@@ -155,7 +141,6 @@ const ProductListingLayout = ({
       
       if (!categoryIds.length) return { docs: [] };
       
-      // Fetch subcategories for all selected categories
       const subcategoryPromises = categoryIds.map(categoryId =>
         subcategoryAPI.getSubcategoriesByCategoryId(categoryId, { limit: 100 })
           .then(res => res.data.data?.docs || [])
@@ -163,7 +148,6 @@ const ProductListingLayout = ({
       );
       
       const allSubcategories = await Promise.all(subcategoryPromises);
-      // Flatten and deduplicate subcategories
       const uniqueSubcategories = Array.from(
         new Map(
           allSubcategories.flat().map(sub => [sub._id, sub])
@@ -175,7 +159,6 @@ const ProductListingLayout = ({
     enabled: !!(lockedCategoryId || checkboxFilters.categoryId.length > 0),
   });
 
-  // Fetch filter options
   const { data: regionsData } = useQuery({
     queryKey: ['regions'],
     queryFn: async () => {
@@ -224,7 +207,6 @@ const ProductListingLayout = ({
     },
   });
 
-  // Prepare filter options
   const categories = useMemo(() => {
     if (!categoriesData?.docs) return [];
     return categoriesData.docs.map(cat => ({
@@ -308,7 +290,6 @@ const ProductListingLayout = ({
     }));
   }, [modesData]);
 
-  // Build query params for products
   const productQueryParams = useMemo(() => {
     const params = {
       page,
@@ -316,15 +297,12 @@ const ProductListingLayout = ({
       status: 'active',
     };
 
-    // Include all selected categories (multiple selection support)
     if (checkboxFilters.categoryId.length > 0) {
       params.categoryId = checkboxFilters.categoryId.join(',');
     } else if (lockedCategoryId) {
-      // If lockedCategoryId exists but not in filters, use it (for initial load)
       params.categoryId = lockedCategoryId;
     }
 
-    // Include locked platform if exists, otherwise use all selected platforms
     if (lockedPlatformId) {
       params.platform = lockedPlatformId;
     } else if (checkboxFilters.platform.length > 0) {
@@ -343,7 +321,6 @@ const ProductListingLayout = ({
       params.maxPrice = parseFloat(maxPrice);
     }
 
-    // Support multiple selections for all filters
     if (checkboxFilters.subCategoryId.length > 0) {
       params.subCategoryId = checkboxFilters.subCategoryId.join(',');
     }
@@ -393,7 +370,6 @@ const ProductListingLayout = ({
     sortBy,
   ]);
 
-  // Fetch products
   const { data: productsData, isLoading, isError, error } = useQuery({
     queryKey: ['products-listing', productQueryParams],
     queryFn: async () => {
@@ -403,7 +379,6 @@ const ProductListingLayout = ({
     enabled: true,
   });
 
-  // Update URL params when filters change
   useEffect(() => {
     const params = new URLSearchParams();
     
@@ -412,7 +387,6 @@ const ProductListingLayout = ({
     if (minPrice) params.set('minPrice', minPrice);
     if (maxPrice) params.set('maxPrice', maxPrice);
     
-    // Add categoryId to URL params (always include locked category)
     const categoryIds = lockedCategoryId 
       ? [lockedCategoryId, ...checkboxFilters.categoryId.filter(id => id !== lockedCategoryId)]
       : checkboxFilters.categoryId;
@@ -448,7 +422,6 @@ const ProductListingLayout = ({
     setSearchParams,
   ]);
 
-  // Reset page when filters change
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, minPrice, maxPrice, checkboxFilters, inStock, sortBy]);
@@ -458,17 +431,14 @@ const ProductListingLayout = ({
   const totalDocs = productsData?.totalDocs || 0;
 
   const handleCheckboxChange = (type, id) => {
-    // Prevent changing locked platform filter
     if (lockedPlatformId && type === 'platform') return;
     
-    // Prevent changing locked category filter
     if (lockedCategoryId && type === 'categoryId' && id === lockedCategoryId) return;
 
     setCheckboxFilters(prev => {
       const current = prev[type] || [];
       const isChecked = current.includes(id);
       
-      // If removing a category and it's the locked one, prevent removal
       if (lockedCategoryId && type === 'categoryId' && isChecked && id === lockedCategoryId) {
         return prev;
       }
@@ -493,7 +463,6 @@ const ProductListingLayout = ({
     setMaxPrice('');
     setCheckboxFilters(prev => ({
       ...prev,
-      // Keep locked category and platform filters
       categoryId: lockedCategoryId ? [lockedCategoryId] : [],
       platform: lockedPlatformId ? [lockedPlatformId] : [],
       subCategoryId: [],
@@ -530,7 +499,6 @@ const ProductListingLayout = ({
     );
   };
 
-  // Filter sections component
   const FilterSection = ({ title, children, section, hasSearch = false, itemCount, totalItems = 0 }) => {
     const hasMoreItems = totalItems > 5;
     const isExpanded = expandedSections[section];
@@ -585,7 +553,6 @@ const ProductListingLayout = ({
     );
   };
 
-  // Checkbox item component with lock support (only for platform)
   const CheckboxItem = ({ id, title, type, count, isLocked = false }) => {
     const isChecked = checkboxFilters[type]?.includes(id);
     return (

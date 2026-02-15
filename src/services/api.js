@@ -1,6 +1,5 @@
 import api from '../lib/axios';
 
-// Auth APIs
 export const authAPI = {
   login: (credentials) => api.post('/user/login', credentials),
   register: (data) => api.post('/user/register', data),
@@ -15,29 +14,21 @@ export const authAPI = {
     return api.patch('/user/update-profile', data);
   },
   updatePassword: (data) => api.post('/user/update-password', data),
-  // OAuth
   linkOAuth: (data) => api.post('/user/link-oauth', data),
   unlinkOAuth: (data) => api.post('/user/unlink-oauth', data),
-  // Email verification
   sendEmailVerification: () => api.post('/user/send-verification'),
   verifyEmail: (data) => api.post('/user/verify-email', data),
-  // Password reset
   forgotPassword: (data) => api.post('/user/forgot-password', data),
   resetPassword: (data) => api.post('/user/reset-password', data),
-  // Email change
   changeEmail: (data) => api.post('/user/change-email', data),
   verifyEmailChange: (data) => api.post('/user/verify-email-change', data),
-  // Account management
   deleteAccount: (data) => api.post('/user/delete-account', data),
-  // Session management
   getActiveSessions: () => api.get('/user/sessions'),
   revokeSession: (sessionId) => api.post(`/user/sessions/${sessionId}/revoke`),
   revokeAllSessions: () => api.post('/user/sessions/revoke-all'),
-  // Profile
   getProfile: () => api.get('/user/profile'),
-};  
+};
 
-// Admin APIs
 export const adminAPI = {
   getDashboardStats: () => api.get('/admin/dashboard/stats'),
   getPendingSellers: (params) => api.get('/admin/sellers/pending', { params }),
@@ -68,12 +59,10 @@ export const adminAPI = {
   assignAdminToChat: (chatId, assignTo = null) => api.post(`/support/admin/${chatId}/assign`, assignTo ? { assignTo } : {}),
   getSupportStats: () => api.get('/support/admin/stats'),
   moderateChat: (conversationId, data) => api.post(`/admin/chat/${conversationId}/moderate`, data),
-  // Payout account management
   verifyPayoutAccount: (accountId) => api.patch(`/payout-account/${accountId}/verify`),
   blockPayoutAccount: (accountId, data) => api.patch(`/payout-account/${accountId}/block`, data),
   getSellerPayoutAccount: (sellerId) => api.get(`/payout-account/seller/${sellerId}`),
   getSellersPayoutStatus: () => api.get('/payout-account/sellers/status'),
-  // Bundle Deal management
   createBundleDeal: (formData) => api.post('/bundle-deal', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
@@ -87,7 +76,6 @@ export const adminAPI = {
   updateProductFeaturedSettings: (productId, data) => api.patch(`/admin/product/${productId}/featured`, data),
 };
 
-// Seller APIs
 export const sellerAPI = {
   getSellerInfo: () => api.get('/seller/get-seller-info'),
   updateProfile: (data) => api.patch('/seller/update-profile', data),
@@ -105,29 +93,23 @@ export const sellerAPI = {
   getPayoutBalance: () => api.get('/payout/balance'),
   getPayoutDetails: (payoutId) => api.get(`/payout/${payoutId}`),
   getPayoutRequests: () => api.get('/payout/requests'),
-  // License Key Management
   getLicenseKeys: (productId, params) => api.get(`/seller/license-keys/${productId}`, { params }),
   revealLicenseKey: (keyId) => api.get(`/seller/license-keys/${keyId}/reveal`),
   deleteLicenseKey: (keyId) => api.delete(`/seller/license-keys/${keyId}`),
   getPayoutReports: () => api.get('/payout/reports'),
   getSellerMonthlyAnalytics: (params) => api.get('/analytics/seller/monthly', { params }),
-  // Payout account (PayPal OAuth only – no email link)
   getPayPalConnectUrl: () => api.get('/payout-account/paypal/connect'),
   getMyPayoutAccount: () => api.get('/payout-account/my'),
   linkPayoutAccount: (data) => api.post('/payout-account/link', data),
-  // Apply seller
   applySeller: (formData) => api.post('/seller/apply-seller', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
-  // Check seller application status
   checkSellerApplicationStatus: () => api.get('/seller/check-application-status'),
-  // Public seller profile endpoints
   getPublicSellerProfile: (sellerId) => api.get(`/seller/public/${sellerId}`),
   getSellerProducts: (sellerId, params) => api.get(`/seller/${sellerId}/products`, { params }),
   getSellerReviews: (sellerId) => api.get(`/seller/${sellerId}/reviews`),
 };
- 
-// User APIs
+
 export const userAPI = {
   getMyOrders: (params) => api.get('/order/my-orders', { params }),
   getOrderById: (orderId) => api.get(`/order/${orderId}`),
@@ -147,7 +129,6 @@ export const userAPI = {
   getReviewReplies: (reviewId) => api.get(`/review/${reviewId}/replies`),
 };
 
-// Product APIs
 export const productAPI = {
   getProducts: (params) => api.get('/product/get-products', { params }),
   getProductById: (id) => api.get(`/product/${id}`),
@@ -165,13 +146,11 @@ export const productAPI = {
   duplicateProduct: (id) => api.post(`/product/${id}/duplicate`),
 };
 
-// Order APIs (for admin and users)
 export const orderAPI = {
   getAllOrders: (params) => api.get('/order/my-orders', { params }),
   getOrderById: (orderId) => api.get(`/order/${orderId}`),
 };
 
-// Analytics APIs
 export const analyticsAPI = {
   getDashboard: () => api.get('/analytics/dashboard'),
   getTopProducts: () => api.get('/analytics/top-products'),
@@ -188,7 +167,6 @@ export const analyticsAPI = {
   trackUserBehavior: (data) => api.post('/analytics/track-behavior', data),
 };
 
-// Support APIs
 export const supportAPI = {
   createSupportChat: (data) => api.post('/support', data),
   getMySupportChats: (params) => api.get('/support', { params }),
@@ -197,27 +175,24 @@ export const supportAPI = {
   closeSupportChat: (chatId, data = {}) => api.patch(`/support/${chatId}/close`, data),
 };
 
-// Chat APIs (buyer-seller conversations)
 export const chatAPI = {
   createConversation: (data) => api.post('/chat/conversation', data),
   getConversations: (params) => api.get('/chat/conversations', { params, skipErrorToast: true }),
-  // Increased timeout for message fetching (large chat history)
   getMessages: (conversationId, params) => api.get(`/chat/conversation/${conversationId}/messages`, { 
     params, 
     skipErrorToast: true,
-    timeout: 25000, // 25 seconds for message loading (longer than default)
+    timeout: 25000,
   }),
   sendMessage: (data) => api.post('/chat/message', data),
   sendImageMessage: (formData) => api.post('/chat/message/image', formData),
   markAsRead: (conversationId) => api.patch(`/chat/conversation/${conversationId}/read`, {}, { 
     skipErrorToast: true,
-    timeout: 5000, // 5 second timeout (should be fast, background operation)
+    timeout: 5000,
   }),
   deleteConversation: (conversationId) => api.delete(`/chat/conversation/${conversationId}`, { skipErrorToast: true }),
   getUnreadCount: () => api.get('/chat/unread-count', { skipErrorToast: true }),
 };
 
-// Notification APIs
 export const notificationAPI = {
   getNotifications: (params) => api.get('/notification/my-notifications', { params }),
   getUnreadCount: () => api.get('/notification/unread-count'),
@@ -226,7 +201,6 @@ export const notificationAPI = {
   deleteNotification: (notificationId) => api.delete(`/notification/${notificationId}`),
 };
 
-// Checkout APIs
 export const checkoutAPI = {
   createCheckoutSession: (data) => api.post('/checkout/create', data),
   createGuestCheckoutSession: (data) => api.post('/checkout/guest/create', data),
@@ -236,13 +210,11 @@ export const checkoutAPI = {
   payWithWallet: (checkoutId) => api.post(`/checkout/${checkoutId}/pay-with-wallet`),
 };
 
-// PayPal Order APIs
 export const paypalAPI = {
   createOrder: (data) => api.post('/paypal/orders', data),
   captureOrder: (orderId, checkoutId) => api.post(`/paypal/orders/${orderId}/capture`, { checkoutId }),
 };
 
-// Cart APIs
 export const cartAPI = {
   addItem: (data) => api.post('/cart/add-item', data),
   getCart: () => api.get('/cart/get-cart'),
@@ -252,11 +224,9 @@ export const cartAPI = {
   addBundle: (data) => api.post('/cart/add-bundle', data),
 };
 
-// Coupon APIs
 export const couponAPI = {
   getActiveCoupons: () => api.get('/coupon/active'),
   validateCoupon: (data) => api.post('/coupon/validate', data),
-  // Admin only
   createCoupon: (data) => api.post('/coupon', data),
   getAllCoupons: () => api.get('/coupon'),
   getCouponById: (couponId) => api.get(`/coupon/${couponId}`),
@@ -264,7 +234,6 @@ export const couponAPI = {
   deleteCoupon: (couponId) => api.delete(`/coupon/${couponId}`),
 };
 
-// Return-Refund APIs (refund-only; no disputes)
 export const returnRefundAPI = {
   createRefundRequest: (data) => api.post('/return-refund', data),
   uploadEvidence: (formData) => api.post('/return-refund/upload-evidence', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
@@ -287,13 +256,11 @@ export const returnRefundAPI = {
   requestSellerInput: (refundId, note) => api.patch(`/return-refund/admin/${refundId}/request-seller-input`, { note }),
 };
 
-// Wallet APIs
 export const walletAPI = {
   getBalance: () => api.get('/wallet/balance'),
   getTransactions: (params) => api.get('/wallet/transactions', { params }),
 };
 
-// Subscription APIs
 export const subscriptionAPI = {
   getSubscriptionPlans: () => api.get('/subscription/plans'),
   getMySubscription: () => api.get('/subscription/me'),
@@ -301,18 +268,15 @@ export const subscriptionAPI = {
   confirmSubscription: (data) => api.post('/subscription/confirm', data),
   cancelSubscription: () => api.post('/subscription/cancel'),
   renewSubscription: (data) => api.post('/subscription/renew', data),
-  // Admin only
   getAllSubscriptions: (params) => api.get('/subscription', { params }),
   getSubscriptionStats: () => api.get('/subscription/stats'),
 };
 
-// License Key APIs
 export const licenseKeyAPI = {
   getMyLicenseKeys: (params) => api.get('/license-key/my-keys', { params }),
   revealLicenseKey: (keyId) => api.get(`/license-key/${keyId}/reveal`),
 };
 
-// Review APIs (additional)
 export const reviewAPI = {
   getReviews: (params) => api.get('/review/get-reviews', { params }),
   createReview: (data) => api.post('/review/create-review', data),
@@ -328,8 +292,6 @@ export const reviewAPI = {
   moderateReview: (reviewId, data) => api.post(`/review/${reviewId}/moderate`, data),
 };
 
-
-// Category APIs (Admin)
 export const categoryAPI = {
   getCategories: (params) => api.get('/category/get-categories', { params }),
   getCategoryById: (categoryId) => api.get(`/category/get-category/${categoryId}`),
@@ -344,7 +306,6 @@ export const categoryAPI = {
   deleteCategory: (categoryId) => api.delete(`/category/delete-category/${categoryId}`),
 };
 
-// Subcategory APIs (Admin)
 export const subcategoryAPI = {
   getSubcategories: (params) => api.get('/subcategory/get-subcategories', { params }),
   getSubcategoryById: (subCategoryId) => api.get(`/subcategory/get-subcategory/${subCategoryId}`),
@@ -362,7 +323,6 @@ export const subcategoryAPI = {
   deleteSubcategory: (subCategoryId) => api.delete(`/subcategory/delete-subcategory/${subCategoryId}`),
 };
 
-// Platform APIs (Admin)
 export const platformAPI = {
   getAllPlatforms: (params) => api.get('/platform/get-all-platforms', { params }),
   createPlatform: (data) => api.post('/platform/create-platforms', data),
@@ -371,7 +331,6 @@ export const platformAPI = {
   deletePlatform: (id) => api.delete(`/platform/delete-platforms/${id}`),
 };
 
-// Device APIs (Admin)
 export const deviceAPI = {
   getDevices: (params) => api.get('/device/get-devices', { params }),
   getDeviceById: (id) => api.get(`/device/get-device/${id}`),
@@ -381,7 +340,6 @@ export const deviceAPI = {
   deleteDevice: (id) => api.delete(`/device/delete-device/${id}`),
 };
 
-// Region APIs (Admin)
 export const regionAPI = {
   getRegions: (params) => api.get('/region/get-regions', { params }),
   getRegionById: (regionId) => api.get(`/region/get-region/${regionId}`),
@@ -390,7 +348,6 @@ export const regionAPI = {
   deleteRegion: (regionId) => api.delete(`/region/delete-region/${regionId}`),
 };
 
-// Genre APIs (Admin)
 export const genreAPI = {
   getGenres: (params) => api.get('/genre/get-genres', { params }),
   createGenre: (data) => api.post('/genre/create-genre', data),
@@ -398,7 +355,6 @@ export const genreAPI = {
   deleteGenre: (id) => api.delete(`/genre/delete-genre/${id}`),
 };
 
-// Theme APIs (Admin)
 export const themeAPI = {
   getThemes: (params) => api.get('/theme/get-themes', { params }),
   createTheme: (data) => api.post('/theme/create-theme', data),
@@ -406,7 +362,6 @@ export const themeAPI = {
   deleteTheme: (id) => api.delete(`/theme/delete-theme/${id}`),
 };
 
-// Mode APIs (Admin)
 export const modeAPI = {
   getModes: (params) => api.get('/mode/get-modes', { params }),
   createMode: (data) => api.post('/mode/create-mode', data),
@@ -425,11 +380,9 @@ export const typeAPI = {
 };
 
 
-// Flash Deal APIs
 export const flashDealAPI = {
   getFlashDeals: () => api.get('/flash-deal'),
   getFlashDealById: (id) => api.get(`/flash-deal/${id}`),
-  // Admin only
   getAllFlashDeals: () => api.get('/flash-deal/admin/all'),
   createFlashDeal: (formData) => api.post('/flash-deal', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -441,11 +394,9 @@ export const flashDealAPI = {
 };
 
 
-// Homepage Slider APIs
 export const homepageSliderAPI = {
   getHomepageSliders: () => api.get('/homepage-slider'),
   getHomepageSliderById: (id) => api.get(`/homepage-slider/${id}`),
-  // Admin only
   getAllHomepageSliders: () => api.get('/homepage-slider/admin/all'),
   createHomepageSlider: (formData) => api.post('/homepage-slider', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -456,33 +407,27 @@ export const homepageSliderAPI = {
   deleteHomepageSlider: (id) => api.delete(`/homepage-slider/${id}`),
 };
 
-// Trending Category APIs
 export const trendingCategoryAPI = {
   getTrendingCategories: () => api.get('/trending-category'),
   getTrendingCategoryById: (id) => api.get(`/trending-category/${id}`),
-  // Admin only
   getAllTrendingCategories: () => api.get('/trending-category/admin/all'),
   updateTrendingCategories: (data) => api.post('/trending-category/update', data),
 };
 
-// Bestseller APIs
 export const bestsellerAPI = {
   getBestsellers: (params) => api.get('/bestseller', { params }),
   getBestsellerByProduct: (productId) => api.get(`/bestseller/product/${productId}`),
 };
 
-// Bundle Deal APIs (Public)
 export const bundleDealAPI = {
   getActiveBundleDeals: () => api.get('/bundle-deal/active'),
   getBundleDealById: (id) => api.get(`/bundle-deal/${id}`),
 };
 
-// Trending Offer APIs
 export const trendingOfferAPI = {
   getTrendingOffers: () => api.get('/trending-offer'),
   getTrendingOfferById: (id) => api.get(`/trending-offer/${id}`),
   getOfferByProduct: (productId) => api.get(`/trending-offer/product/${productId}`),
-  // Admin only
   getAllTrendingOffers: (params) => api.get('/trending-offer/admin/all', { params }),
   createTrendingOffer: (data) => api.post('/trending-offer', data),
   updateTrendingOffer: (id, data) => api.patch(`/trending-offer/${id}`, data),
@@ -490,10 +435,8 @@ export const trendingOfferAPI = {
   updateAllStatuses: () => api.post('/trending-offer/admin/update-statuses'),
 };
 
-// Upcoming Release APIs
 export const upcomingReleaseAPI = {
   getUpcomingReleases: () => api.get('/upcoming-release'),
-  // Admin only
   getUpcomingReleasesConfig: () => api.get('/upcoming-release/admin'),
   updateSlot: (slotNumber, data) => api.put(`/upcoming-release/slot/${slotNumber}`, data),
   updateSlotImage: (slotNumber, formData) => api.put(`/upcoming-release/slot/${slotNumber}/image`, formData, {
@@ -501,10 +444,8 @@ export const upcomingReleaseAPI = {
   }),
 };
 
-// Upcoming Games APIs
 export const upcomingGamesAPI = {
   getUpcomingGames: () => api.get('/upcoming-games'),
-  // Admin only
   getUpcomingGamesConfig: () => api.get('/upcoming-games/admin'),
   addProducts: (data) => api.post('/upcoming-games/add', data),
   removeProducts: (data) => api.delete('/upcoming-games/remove', { data }),
@@ -512,7 +453,6 @@ export const upcomingGamesAPI = {
   updateUpcomingGames: (data) => api.put('/upcoming-games', data),
 };
 
-// Software Page APIs
 export const softwareAPI = {
   getSoftwarePage: () => api.get('/product/pages/software'),
 };

@@ -52,7 +52,6 @@ import {
   Clock,
 } from "lucide-react";
 
-// Logo Component for Sidebar
 const SidebarLogo = () => {
   return (
     <Link
@@ -68,7 +67,6 @@ const SidebarLogo = () => {
   );
 };
 
-// Logout Button Component
 const LogoutButton = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -82,7 +80,6 @@ const LogoutButton = () => {
       navigate("/");
     },
     onError: () => {
-      // Even if backend logout fails, clear frontend state for UX
       dispatch(logout());
       queryClient.clear();
       navigate("/");
@@ -342,18 +339,11 @@ export const SellerSidebar = () => {
 
 export const UserSidebar = () => {
   const { roles } = useSelector((state) => state.auth);
-  // Normalize roles to lowercase for comparison
   const normalizedRoles = roles?.map((r) => r.toLowerCase()) || [];
   const isSeller = normalizedRoles.includes("seller");
-  
-  // Check if seller has explicit permission to access customer dashboard
   const explicitAccess = typeof window !== 'undefined' && sessionStorage.getItem('allowCustomerAccess') === 'true';
-
-  // Allow sidebar to show if:
-  // 1. User is not a seller, OR
-  // 2. User is a seller but has explicit access (switched to customer dashboard)
   if (isSeller && !explicitAccess) {
-    return null; // Don't render user sidebar for sellers without explicit access
+    return null;
   }
 
   return (

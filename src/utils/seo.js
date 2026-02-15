@@ -1,13 +1,8 @@
 /**
- * SEO Utility Functions
- * 
- * NOTE: For React components, use the useSEO hook instead.
- * These utilities are kept for backward compatibility and non-React usage.
+ * SEO utilities. Prefer useSEO hook for React components.
  */
-
 import { DEFAULT_SEO, generateProductSEO as generateProductSEOFromHook } from '../hooks/useSEO';
 
-// Re-export for backward compatibility
 export { DEFAULT_SEO, generateProductSEOFromHook as generateProductSEO };
 
 /**

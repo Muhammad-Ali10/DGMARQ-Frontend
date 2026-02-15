@@ -37,22 +37,15 @@ const UserSupport = () => {
 
   const messages = messagesData?.messages || [];
 
-  // Socket event handlers for real-time updates
   useEffect(() => {
     if (!socket || !isConnected || !selectedChat) return;
-
-    // Join support chat room
     socket.emit('join_support_chat', selectedChat);
-
-    // Listen for new messages
     const handleNewMessage = (message) => {
       if (message.supportChatId?.toString() === selectedChat) {
         queryClient.invalidateQueries(['support-messages', selectedChat]);
         queryClient.invalidateQueries(['user-support-chats']);
       }
     };
-
-    // Listen for errors
     const handleError = (error) => {
     };
 
@@ -107,7 +100,6 @@ const UserSupport = () => {
     },
   });
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;

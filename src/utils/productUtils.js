@@ -19,13 +19,10 @@ export const calculateProductPrice = (product) => {
   const originalPrice = product.price;
   let discountPrice = originalPrice;
   let discountPercentage = 0;
-
-  // Trending offer discount takes priority
   if (product.trendingOffer?.discountPercent) {
     discountPercentage = product.trendingOffer.discountPercent;
     discountPrice = originalPrice * (1 - discountPercentage / 100);
   } else if (product.discount) {
-    // Regular product discount
     discountPercentage = product.discount;
     discountPrice = originalPrice * (1 - product.discount / 100);
   }

@@ -21,7 +21,6 @@ const Register = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state) => state.auth);
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && window.location.pathname === '/register') {
       navigate('/', { replace: true });
@@ -34,24 +33,18 @@ const Register = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      // After successful registration, automatically log the user in
-      // The backend returns user data, but we need to login to get tokens
       showSuccess('Account created successfully! Please login to continue.');
       navigate('/login', { replace: true });
     },
     onError: (err) => {
       try {
-        // Handle validation errors properly
         const errorData = err.response?.data;
         let errorMessage = 'Registration failed. Please check your input and try again.';
         
         if (errorData) {
-          // Check if there are validation errors (array of objects)
           if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-            // Format validation errors as a readable string
             errorMessage = errorData.errors
               .map((error) => {
-                // Handle both object format {field, message, value} and string format
                 if (typeof error === 'object' && error.message) {
                   const fieldName = error.field ? error.field.charAt(0).toUpperCase() + error.field.slice(1) + ': ' : '';
                   return `${fieldName}${error.message}`;
@@ -65,8 +58,6 @@ const Register = () => {
             errorMessage = errorData.error;
           }
         }
-        
-        // Ensure errorMessage is always a string
         if (typeof errorMessage !== 'string') {
           errorMessage = 'Registration failed. Please check your input and try again.';
         }
@@ -74,7 +65,6 @@ const Register = () => {
         setError(errorMessage);
         showApiError(err, 'Registration failed');
       } catch (error) {
-        // Fallback to prevent blank page
         setError('Registration failed. Please try again.');
       }
     },
@@ -83,8 +73,6 @@ const Register = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-
-    // Client-side validation (must match backend validation rules)
     if (name.length < 2 || name.length > 50) {
       setError('Name must be between 2 and 50 characters');
       return;
@@ -94,8 +82,6 @@ const Register = () => {
       setError('Password must be at least 6 characters long');
       return;
     }
-
-    // Match backend password validation: uppercase, lowercase, and number
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
     if (!passwordRegex.test(password)) {
       setError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
@@ -106,8 +92,6 @@ const Register = () => {
       setError('Passwords do not match');
       return;
     }
-
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address');
@@ -117,13 +101,11 @@ const Register = () => {
     try {
       registerMutation.mutate({ name, email, password });
     } catch (err) {
-      // Fallback error handling to prevent blank page
       setError('Registration failed. Please try again.');
     }
   };
 
   const handleGoogleLogin = () => {
-    // Redirect to backend Google OAuth endpoint
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
     const baseUrl = apiBaseUrl.replace('/api/v1', '');
     window.location.href = `${baseUrl}/api/v1/user/auth/google`;

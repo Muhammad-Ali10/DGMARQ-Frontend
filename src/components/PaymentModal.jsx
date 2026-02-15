@@ -8,20 +8,7 @@ import { paypalAPI, checkoutAPI } from '../services/api';
 import { toast } from 'sonner';
 
 /**
- * PaymentModal Component
- * 
- * SECURITY:
- * - Uses PayPal-hosted CardFields (no card data in React state)
- * - Uses PayPal Buttons for PayPal wallet payments
- * - All card data handled by PayPal SDK (never touches our servers)
- * 
- * FLOW:
- * 1. User selects payment method (PayPal or Card)
- * 2. For Card: PayPal CardFields component renders
- * 3. For PayPal: PayPal Buttons component renders
- * 4. Both call backend /api/v1/paypal/orders with checkoutId
- * 5. Backend recalculates amount from DB (secure)
- * 6. After approval, capture via /api/v1/paypal/orders/:orderId/capture
+ * Payment modal using PayPal CardFields and Buttons. No card data in React state.
  */
 const PaymentModal = ({ 
   open, 
@@ -38,27 +25,23 @@ const PaymentModal = ({
   const [selectedMethod, setSelectedMethod] = useState(
     paymentMethod === 'Wallet' ? 'wallet' : 
     paymentMethod === 'Card' ? 'card' : 'paypal'
-  ); // 'wallet', 'paypal', or 'card'
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [paypalSDK, setPaypalSDK] = useState(null);
   const [cardFields, setCardFields] = useState(null);
-  const cardFieldsRef = useRef(null); // Use ref to ensure same instance for submit()
+  const cardFieldsRef = useRef(null);
   const paypalButtonsContainerRef = useRef(null);
   const [isCardFieldsEligible, setIsCardFieldsEligible] = useState(false);
 
-  // Load PayPal SDK (singleton - prevents double-loading)
   useEffect(() => {
     if (!open) return;
 
     const loadPayPalSDK = async () => {
       try {
         setIsLoading(true);
-        
-        // Use singleton loader (prevents double-loading)
         const sdk = await getPayPalSDK();
 
         setPaypalSDK(sdk);
-            // Create CardFields instance immediately after SDK loads to check eligibility
             if (sdk?.CardFields) {
               try {
                 const fields = sdk.CardFields({
@@ -173,16 +156,12 @@ const PaymentModal = ({
     loadPayPalSDK();
   }, [open, checkoutId, onSuccess, onOpenChange]);
 
-  // Render CardFields ONLY when modal is open, card method selected, and containers exist
   useEffect(() => {
-    // Don't render if conditions not met
     if (!open || selectedMethod !== 'card' || !cardFields || !isCardFieldsEligible) {
       return;
     }
 
     let retryTimer = null;
-
-    // Check if container elements exist
     const checkContainersAndRender = (isRetry = false) => {
       const cardNumberEl = document.getElementById('card-number');
       const cardExpiryEl = document.getElementById('card-expiry');
@@ -199,20 +178,14 @@ const PaymentModal = ({
       }
 
       try {
-        // Clear containers first to prevent duplicate renders
         const cardNumberEl = document.getElementById('card-number');
         const cardExpiryEl = document.getElementById('card-expiry');
         const cardCvvEl = document.getElementById('card-cvv');
         const cardNameEl = document.getElementById('card-name');
-
-        // Clear any existing content
         if (cardNumberEl) cardNumberEl.innerHTML = '';
         if (cardExpiryEl) cardExpiryEl.innerHTML = '';
         if (cardCvvEl) cardCvvEl.innerHTML = '';
         if (cardNameEl) cardNameEl.innerHTML = '';
-
-        // Render CardFields into containers
-        // Styling is inherited from CardFields initialization above
         cardFields.NumberField({
           placeholder: 'Card Number',
         }).render('#card-number');
@@ -233,11 +206,7 @@ const PaymentModal = ({
         toast.error('Failed to render card payment form. Please try again.');
       }
     };
-
-    // Initial attempt to render
     checkContainersAndRender(false);
-
-    // Cleanup
     return () => {
       if (retryTimer) {
         clearTimeout(retryTimer);
@@ -245,7 +214,6 @@ const PaymentModal = ({
     };
   }, [open, selectedMethod, cardFields, isCardFieldsEligible]);
 
-  // Cleanup CardFields when modal closes
   useEffect(() => {
     if (!open) {
       const fields = cardFieldsRef.current || cardFields;
@@ -253,19 +221,16 @@ const PaymentModal = ({
         try {
           fields.close();
         } catch {
-          // Ignore cleanup errors
         }
         cardFieldsRef.current = null;
       }
     }
   }, [open, cardFields]);
 
-  // Initialize PayPal Buttons when SDK is loaded and PayPal method is selected
   useEffect(() => {
     const container = paypalButtonsContainerRef.current;
     
     if (!paypalSDK || !open || selectedMethod !== 'paypal') {
-      // Cleanup
       if (container) {
         container.innerHTML = '';
       }
@@ -279,7 +244,6 @@ const PaymentModal = ({
       if (!container) return;
       
       try {
-        // Clean up existing buttons
         container.innerHTML = '';
 
         const buttons = paypalSDK.Buttons({
@@ -348,7 +312,6 @@ const PaymentModal = ({
             toast.error(errorMessage);
             setIsLoading(false);
           },
-          // FIX: Disable Pay Later (PayPal wallet only - enforced at SDK level via 'disable-funding')
           disableFunding: 'paylater',
           style: {
             layout: 'vertical',
@@ -363,8 +326,6 @@ const PaymentModal = ({
         toast.error('Failed to initialize PayPal payment.');
       }
     };
-
-    // Small delay to ensure container is ready
     const timer = setTimeout(initializePayPalButtons, 100);
     return () => {
       clearTimeout(timer);
@@ -374,12 +335,8 @@ const PaymentModal = ({
     };
   }, [paypalSDK, open, selectedMethod, checkoutId, onSuccess, onOpenChange]);
 
-  // FIX: CardFields submit() automatically triggers createOrder -> onApprove -> capture
-  // Use ref to ensure we call submit() on the same instance
   const handleCardSubmit = async (e) => {
     e.preventDefault();
-    
-    // Use ref first, fallback to state
     const fields = cardFieldsRef.current || cardFields;
     
     if (!fields) {

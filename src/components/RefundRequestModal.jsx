@@ -22,10 +22,8 @@ const REFUND_REASONS = [
 
 const REFUND_METHODS = [
   { value: 'WALLET', label: 'Refund to Wallet', description: 'Credit will be added to your account for future purchases.' },
-  { value: 'ORIGINAL_PAYMENT', label: 'Refund to Original Payment Method', description: 'Admin will send the refund to your PayPal email.' },
+  { value: 'ORIGINAL_PAYMENT', label: 'Admin will Refund Through the Original Payment Method', description: 'Refund will be processed to the original payment method.' },
 ];
-
-const PAYPAL_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const RefundRequestModal = ({ open, onOpenChange }) => {
   const queryClient = useQueryClient();
@@ -34,12 +32,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   const [refundReason, setRefundReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [refundMethod, setRefundMethod] = useState('WALLET');
-  const [customerPayPalEmail, setCustomerPayPalEmail] = useState('');
   const [selectedLicenseKeyIds, setSelectedLicenseKeyIds] = useState([]);
   const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [errors, setErrors] = useState({});
 
-  // Fetch completed orders for dropdown
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['completed-orders-for-refund'],
     queryFn: () => returnRefundAPI.getCompletedOrders().then(res => res.data.data),
@@ -52,19 +48,14 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
 
   const selectedOrder = useMemo(() => orders.find(o => o._id === selectedOrderId), [orders, selectedOrderId]);
   const orderProducts = useMemo(() => (selectedOrder?.items || []), [selectedOrder]);
-
-  // Fetch license keys for selected order + product (for multi-quantity / key-level refund)
   const { data: keysData, isLoading: keysLoading } = useQuery({
     queryKey: ['refund-order-item-keys', selectedOrderId, selectedProductId],
     queryFn: () =>
       returnRefundAPI.getOrderItemLicenseKeys(selectedOrderId, selectedProductId).then(res => res.data.data),
     enabled: open && !!selectedOrderId && !!selectedProductId,
   });
-console.log(keysData)
   const licenseKeys = useMemo(() => keysData?.keys || [], [keysData]);
   const hasMultipleKeys = licenseKeys.length > 1;
-
-  // Preview URLs for evidence images (revoked on cleanup)
   const evidencePreviewUrls = useMemo(() => {
     if (!evidenceFiles.length) return [];
     const urls = evidenceFiles.map((f) => (f && typeof f === 'object' && f instanceof File ? URL.createObjectURL(f) : null)).filter(Boolean);
@@ -79,7 +70,6 @@ console.log(keysData)
     };
   }, [evidencePreviewUrls]);
 
-  // Reset form when modal closes
   useEffect(() => {
     if (!open) {
       setSelectedOrderId('');
@@ -87,14 +77,12 @@ console.log(keysData)
       setRefundReason('');
       setCustomReason('');
       setRefundMethod('WALLET');
-      setCustomerPayPalEmail('');
       setSelectedLicenseKeyIds([]);
       setEvidenceFiles([]);
       setErrors({});
     }
   }, [open]);
 
-  // When product changes, reset key selection
   useEffect(() => {
     setSelectedLicenseKeyIds([]);
   }, [selectedOrderId, selectedProductId]);
@@ -105,10 +93,6 @@ console.log(keysData)
     if (!selectedProductId) newErrors.productId = 'Please select a product';
     if (!refundReason) newErrors.reason = 'Please select a refund reason';
     else if (refundReason === 'Other' && !customReason.trim()) newErrors.customReason = 'Please provide a reason';
-    if (refundMethod === 'ORIGINAL_PAYMENT') {
-      if (!customerPayPalEmail.trim()) newErrors.customerPayPalEmail = 'PayPal email is required';
-      else if (!PAYPAL_EMAIL_REGEX.test(customerPayPalEmail.trim())) newErrors.customerPayPalEmail = 'Enter a valid PayPal email address';
-    }
     if (evidenceFiles.length === 0) newErrors.evidence = 'Please upload at least one evidence image (screenshot or proof)';
     if (hasMultipleKeys && selectedLicenseKeyIds.length === 0) {
       newErrors.licenseKeys = 'Please select at least one license key to refund';
@@ -127,7 +111,7 @@ console.log(keysData)
       toast.success(
         isWallet
           ? 'Refund request created. Admin will review.'
-          : 'Refund request submitted. Admin will process your PayPal refund.'
+          : 'Refund request submitted. Admin will process the refund to your original payment method.'
       );
       queryClient.invalidateQueries(['user-refunds']);
       queryClient.invalidateQueries(['completed-orders-for-refund']);
@@ -162,7 +146,6 @@ console.log(keysData)
       toast.error('Please upload at least one evidence image.');
       return;
     }
-
     const payload = {
       orderId: orderIdToSend,
       productId: productIdToSend,
@@ -170,9 +153,6 @@ console.log(keysData)
       refundMethod: refundMethod,
       evidenceFiles: evidenceUrls,
     };
-    if (refundMethod === 'ORIGINAL_PAYMENT' && customerPayPalEmail.trim()) {
-      payload.customerPayPalEmail = customerPayPalEmail.trim();
-    }
     const keyIdsToSend = selectedLicenseKeyIds.length > 0
       ? selectedLicenseKeyIds
       : licenseKeys.map((k) => k.keyId || k.licenseKeyId).filter(Boolean);
@@ -210,7 +190,6 @@ console.log(keysData)
     selectedProductId &&
     refundReason &&
     (refundReason !== 'Other' || customReason.trim()) &&
-    (refundMethod !== 'ORIGINAL_PAYMENT' || (customerPayPalEmail.trim() && PAYPAL_EMAIL_REGEX.test(customerPayPalEmail.trim()))) &&
     evidenceFiles.length >= 1 &&
     (!hasMultipleKeys || selectedLicenseKeyIds.length > 0);
 
@@ -335,7 +314,6 @@ console.log(keysData)
                 className="w-full"
                 getOptionLabel={(product) => product.productName || 'Product'}
                 getOptionValue={(product) => {
-                  // Ensure productId is always a string
                   const pid = product.productId;
                   return pid ? String(pid) : '';
                 }}
@@ -500,11 +478,7 @@ console.log(keysData)
                       name="refundMethod"
                       value={m.value}
                       checked={refundMethod === m.value}
-                      onChange={() => {
-                        setRefundMethod(m.value);
-                        if (m.value === 'WALLET') setCustomerPayPalEmail('');
-                        setErrors((e) => ({ ...e, customerPayPalEmail: undefined }));
-                      }}
+                      onChange={() => setRefundMethod(m.value)}
                       className="mt-1 rounded-full border-gray-600 bg-secondary text-accent focus:ring-accent"
                     />
                     <div>
@@ -514,28 +488,6 @@ console.log(keysData)
                   </label>
                 ))}
               </div>
-              {refundMethod === 'ORIGINAL_PAYMENT' && (
-                <div className="space-y-2 pl-6">
-                  <Label htmlFor="paypal-email" className="text-white text-sm">PayPal email *</Label>
-                  <input
-                    id="paypal-email"
-                    type="email"
-                    value={customerPayPalEmail}
-                    onChange={(e) => {
-                      setCustomerPayPalEmail(e.target.value);
-                      setErrors((e) => ({ ...e, customerPayPalEmail: undefined }));
-                    }}
-                    placeholder="your@email.com"
-                    className="w-full px-3 py-2 rounded-md bg-secondary border border-gray-700 text-white placeholder:text-gray-500 focus:border-accent focus:ring-1 focus:ring-accent"
-                  />
-                  {errors.customerPayPalEmail && (
-                    <p className="text-sm text-red-400 flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4" />
-                      {errors.customerPayPalEmail}
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           )}
 

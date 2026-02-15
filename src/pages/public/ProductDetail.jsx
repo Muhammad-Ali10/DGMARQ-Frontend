@@ -48,7 +48,6 @@ const ProductDetail = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState('');
 
-  // Fetch product details
   const { data: product, isLoading, isError, error } = useQuery({
     queryKey: ['product-detail', identifier],
     queryFn: async () => {
@@ -62,18 +61,15 @@ const ProductDetail = () => {
     retry: 1,
   });
 
-  // Fetch user's completed orders for this product (for review submission)
   const { data: userOrders } = useQuery({
     queryKey: ['user-orders-for-review', product?._id],
     queryFn: async () => {
       if (!isAuthenticated || !product?._id) return [];
       try {
-        // Include completed and partially refunded orders (buyer can still review after partial refund)
         const response = await userAPI.getMyOrders({ 
           status: 'completed,PARTIALLY_REFUNDED,partially_completed',
           limit: 50 
         });
-        // Filter orders that contain this product
         const ordersWithProduct = response.data.data.orders.filter(order => 
           order.items?.some(item => item.productId?._id === product._id || item.productId === product._id)
         );
@@ -85,7 +81,6 @@ const ProductDetail = () => {
     enabled: isAuthenticated && !!product?._id,
   });
 
-  // Fetch reviews
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
     queryKey: ['product-reviews', product?._id, reviewsPage],
     queryFn: async () => {
@@ -105,7 +100,6 @@ const ProductDetail = () => {
     enabled: !!product?._id,
   });
 
-  // Fetch related products
   const { data: relatedProducts } = useQuery({
     queryKey: ['related-products', product?.categoryId?._id, product?._id, product?.platform?._id, product?.type?._id],
     queryFn: async () => {
@@ -137,7 +131,6 @@ const ProductDetail = () => {
     enabled: !!product?.categoryId?._id && !!product?._id,
   });
 
-  // Add to cart mutation
   const addToCartMutation = useMutation({
     mutationFn: async ({ productId, qty }) => {
       return await cartAPI.addItem({ productId, qty });
@@ -151,7 +144,6 @@ const ProductDetail = () => {
     },
   });
 
-  // Submit review mutation
   const submitReviewMutation = useMutation({
     mutationFn: async ({ productId, orderId, rating, comment }) => {
       return await reviewAPI.createReview({ productId, orderId, rating, comment });
@@ -199,7 +191,6 @@ const ProductDetail = () => {
   };
 
   const handleSubmitReview = () => {
-    // Guest users cannot submit reviews (marketplace rule)
     if (!isAuthenticated) {
       toast.error('Please login to submit a review');
       navigate('/login');
@@ -250,16 +241,12 @@ const ProductDetail = () => {
     return text.substring(0, maxLength).trim() + '...';
   };
 
-  // Generate SEO for product - MUST be before conditional returns
   const productSEO = product ? generateProductSEO(product) : null;
 
-  // Update SEO meta tags using custom hook
-  // MUST be called before any conditional returns to maintain hooks order
-  // Automatically updates on route change and when product changes
   useSEO({
     title: productSEO?.title,
     description: productSEO?.description,
-    useDefaults: true, // Use default values if product is not loaded
+    useDefaults: true,
   });
 
   if (isLoading) {
@@ -285,14 +272,11 @@ const ProductDetail = () => {
   const images = product.images || [];
   const reviews = reviewsData?.docs || [];
   
-  // Extract seller data - check multiple possible locations
   const seller = product?.sellerId || product?.seller || null;
   const shortDescription = truncateDescription(product.description, 150);
   const hasUserPurchased = userOrders && userOrders.length > 0;
   const userHasReviewed = reviews.some(r => r.userId === user?._id || r.user?._id === user?._id);
   
-  // Check if seller exists and has valid data
-  // Show section if seller is an object with data (shopName or _id), or if it's a valid string ID
   const hasSellerInfo = !!(
     seller && 
     seller !== null &&
@@ -303,21 +287,17 @@ const ProductDetail = () => {
     )
   );
 
-  // Get sellerId for navigation - handle both object and string formats
   const getSellerId = () => {
     if (!seller) return null;
     
-    // If seller is an object with _id (populated seller)
     if (typeof seller === 'object' && seller !== null && seller._id) {
       return seller._id.toString();
     }
     
-    // If seller is a string (unpopulated sellerId)
     if (typeof seller === 'string') {
       return seller;
     }
     
-    // Fallback: try to get from product.sellerId directly
     if (product?.sellerId) {
       if (typeof product.sellerId === 'object' && product.sellerId._id) {
         return product.sellerId._id.toString();
@@ -333,7 +313,6 @@ const ProductDetail = () => {
   const sellerId = getSellerId();
   const canNavigateToSeller = !!sellerId;
 
-  // Collect product attributes for compact display
   const attributes = [];
   if (product.categoryId) attributes.push({ label: 'Category', value: product.categoryId.name, icon: Tag });
   if (product.subCategoryId) attributes.push({ label: 'Subcategory', value: product.subCategoryId.name, icon: Tag });

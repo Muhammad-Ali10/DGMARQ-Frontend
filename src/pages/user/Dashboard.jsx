@@ -29,7 +29,6 @@ const UserDashboard = () => {
     queryFn: async () => {
       const response = await userAPI.getWishlist();
       const data = response.data.data;
-      // Handle both array response (empty) and object response (with products)
       if (Array.isArray(data)) {
         return { products: [] };
       }
@@ -37,13 +36,11 @@ const UserDashboard = () => {
     },
   });
 
-  // CRITICAL FIX: Fetch wallet balance for display
   const { data: walletData, isLoading: walletLoading, refetch: refetchWallet } = useQuery({
     queryKey: ['wallet-balance'],
     queryFn: async () => {
       try {
         const response = await walletAPI.getBalance();
-        // Handle both response formats: response.data.data or response.data
         const data = response.data?.data || response.data || {};
         return {
           balance: data.balance || 0,
@@ -51,7 +48,6 @@ const UserDashboard = () => {
           currency: data.currency || 'USD'
         };
       } catch (error) {
-        // If wallet doesn't exist yet, return 0 balance
         return { balance: 0, balanceFormatted: '$0.00', currency: 'USD' };
       }
     },
@@ -60,8 +56,6 @@ const UserDashboard = () => {
   });
 
   const isLoading = ordersLoading || notifLoading || wishlistLoading || walletLoading;
-  
-  // Calculate stats from orders data
   const totalSpent = ordersData?.orders?.reduce((sum, order) => {
     return sum + (order.totalAmount || 0);
   }, 0) || 0;
@@ -84,8 +78,6 @@ const UserDashboard = () => {
     return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
   };
 
-  // CRITICAL FIX: Get wallet balance from API response
-  // Handle both number and formatted string
   const walletBalance = walletData?.balance ?? 0;
   const walletBalanceFormatted = walletData?.balanceFormatted 
     || (typeof walletBalance === 'number' ? `$${walletBalance.toFixed(2)}` : '$0.00');
@@ -100,7 +92,6 @@ const UserDashboard = () => {
       link: '#', // Wallet page can be added later
       onClick: (e) => {
         e.preventDefault();
-        // Refresh wallet balance when clicked
         refetchWallet();
       },
     },
@@ -167,9 +158,7 @@ const UserDashboard = () => {
             <Button
               variant="outline"
               onClick={() => {
-                // Clear the customer access flag when switching back to seller
                 sessionStorage.removeItem('allowCustomerAccess');
-                // Use window.location to force full navigation
                 window.location.href = '/seller/dashboard';
               }}
               className="w-full sm:w-auto border-2 border-accent text-white hover:bg-accent/20 hover:border-accent/90 bg-transparent dark:bg-transparent dark:border-accent dark:text-white whitespace-nowrap font-medium shadow-sm"

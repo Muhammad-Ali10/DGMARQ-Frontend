@@ -6,13 +6,9 @@ import Register from "./pages/public/Register";
 import ForgotPassword from "./pages/public/ForgotPassword";
 import ResetPassword from "./pages/public/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
-
-// Layouts
 import AdminLayout from "./layouts/AdminLayout";
 import SellerLayout from "./layouts/SellerLayout";
 import UserLayout from "./layouts/UserLayout";
-
-// Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
 import SellersManagement from "./pages/admin/SellersManagement";
 import SellerProfileView from "./pages/admin/SellerProfileView";
@@ -46,8 +42,6 @@ import SubscriptionsManagement from "./pages/admin/SubscriptionsManagement";
 import PayoutAccountsManagement from "./pages/admin/PayoutAccountsManagement";
 import BundleDeals from "./pages/admin/BundleDeals";
 import AdminNotifications from "./pages/admin/Notifications";
-
-// Seller Pages
 import SellerDashboard from "./pages/seller/Dashboard";
 import SellerOrders from "./pages/seller/Orders";
 import SellerOrderDetail from "./pages/seller/SellerOrderDetail"
@@ -66,8 +60,6 @@ import SellerAnalytics from "./pages/seller/Analytics";
 import SellerReviews from "./pages/seller/Reviews";
 import ProductCreate from "./pages/seller/ProductCreate";
 import ProductEdit from "./pages/seller/ProductEdit";
-
-// User Pages
 import UserDashboard from "./pages/user/Dashboard";
 import UserOrders from "./pages/user/Orders";
 import OrderDetail from "./pages/user/OrderDetail";
@@ -83,8 +75,6 @@ import UserNotifications from "./pages/user/Notifications";
 import UserSubscriptions from "./pages/user/Subscriptions";
 import UserReturnRefunds from "./pages/user/ReturnRefunds";
 import BecomeSeller from "./pages/user/BecomeSeller";
-
-// Public Pages
 import PublicLayout from "./layouts/PublicLayout";
 import Home from "./pages/public/Home";
 import About from "./pages/public/About";
@@ -95,10 +85,15 @@ import Cart from "./pages/public/Cart";
 import Wishlist from "./pages/public/Wishlist";
 import Checkout from "./pages/public/Checkout";
 import DGMarketPlus from "./pages/public/DGMarketPlus";
-import AboutCompany from "./pages/public/AboutCompany";
 import Marketplace from "./pages/public/Marketplace";
 import Security from "./pages/public/Security";
 import ContactUs from "./pages/public/ContactUs";
+import BuyerSupport from "./pages/public/BuyerSupport";
+import HowToBuy from "./pages/public/HowToBuy";
+import PublicSellerSupport from "./pages/public/SellerSupport";
+import HowToSell from "./pages/public/HowToSell";
+import TermsConditions from "./pages/public/TermsConditions";
+import PrivacyPolicy from "./pages/public/PrivacyPolicy";
 import PublicSellerProfile from "./pages/public/SellerProfile";
 import Software from "./pages/public/Software";
 import RandomKeys from "./pages/public/RandomKeys";
@@ -108,15 +103,11 @@ import CategoryListing from "./pages/public/CategoryListing";
 
 
 function App() {
-  // Set default SEO globally for all routes
-  // This ensures DEFAULT_SEO is always applied, even if page-specific SEO hasn't loaded yet
   useSEO();
-
   return (
     <Routes>
       <Route path="/auth/callback" element={<AuthCallback />} />
 
-      {/* Public Routes */}
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
@@ -127,7 +118,7 @@ function App() {
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/dgmarq-plus" element={<DGMarketPlus />} />
-        <Route path="/about-company" element={<AboutCompany />} />
+        <Route path="/about-company" element={<About />} />
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -135,6 +126,14 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/security" element={<Security />} />
         <Route path="/contactus" element={<ContactUs />} />
+        <Route path="/buyer-support" element={<BuyerSupport />} />
+        <Route path="/how-to-buy" element={<HowToBuy />} />
+        <Route path="/seller-support" element={<PublicSellerSupport />} />
+        <Route path="/how-to-sell" element={<HowToSell />} />
+        <Route path="/terms" element={<TermsConditions />} />
+        <Route path="/terms-conditions" element={<TermsConditions />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/seller/:sellerId" element={<PublicSellerProfile />} />
         <Route path="/software" element={<Software />} />
         <Route path="/random-keys" element={<RandomKeys />} />
@@ -143,8 +142,6 @@ function App() {
         <Route path="/gift-cards" element={<GiftCards />} />
         <Route path="/category/:categoryId" element={<CategoryListing />} />
       </Route>
-
-      {/* Admin Routes */}
       <Route
         path="/admin"
         element={
@@ -201,8 +198,6 @@ function App() {
         <Route path="bundle-deals" element={<BundleDeals />} />
         <Route path="" element={<Navigate to="/admin/dashboard" replace />} />
       </Route>
-
-      {/* Seller Routes */}
       <Route
         path="/seller"
         element={
@@ -232,11 +227,6 @@ function App() {
         <Route path="products/:id/edit" element={<ProductEdit />} />
         <Route path="" element={<Navigate to="/seller/dashboard" replace />} />
       </Route>
-
-      {/* User Routes */}
-      {/* CRITICAL: Sellers are redirected away from /user routes by UserLayout
-          Even though sellers have ['customer', 'seller'] roles, they should use /seller routes
-          UserLayout will redirect sellers to /seller/dashboard */}
       <Route
         path="/user"
         element={
