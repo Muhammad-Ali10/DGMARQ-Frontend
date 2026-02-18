@@ -5,12 +5,14 @@ import { cn } from '../lib/utils';
 const menuItems = [
   { id: 'bestsellers', label: 'Bestsellers' },
   { id: 'upcoming-games', label: 'Upcoming Games' },
+  { id: 'upcoming-new-releases', label: 'Upcoming New Releases' },
+  { id: 'Featured-products', label: 'Featured Products' },
   { id: 'trending-categories', label: 'Trending Categories' },
   { id: 'software', label: 'Software' },
   { id: 'gaming-gift-cards', label: 'Gaming Gift Cards' },
   { id: 'random-keys', label: 'Random Keys' },
-  { id: 'crypto-currencies', label: 'Crypto Currencies' },
   { id: 'game-accounts', label: 'Game Accounts' },
+  { id: 'microsoft', label: 'Microsoft' },
 ]; 
 
 const CategoryNavigation = ({ scrollOffset = 140 }) => {

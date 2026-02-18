@@ -21,17 +21,8 @@ import {
 import { productAPI } from "../../services/api";
 import { Loading } from "../../components/ui/loading";
 import { useSEO } from "../../hooks/useSEO";
-  
 
-
-const widths= [
-  "w-1/4",
-  "w-1/4",
-  "w-1/2",
-  "w-1/4",
-  "w-1/4",
-  "w-1/2",
-]
+const widths = ["w-1/4", "w-1/4", "w-1/2", "w-1/4", "w-1/4", "w-1/2"];
 
 const Home = () => {
   const navigate = useNavigate();
@@ -43,19 +34,21 @@ const Home = () => {
     },
     staleTime: 120000,
   });
-  const { data: featuredProductsData, isLoading: isLoadingFeatured } = useQuery({
-    queryKey: ["featured-products", "home"],
-    queryFn: async () => {
-      const response = await productAPI.getProducts({
-        isFeatured: true,
-        limit: 6,
-        page: 1,
-        sort: "rating",
-      });
-      return response.data.data;
+  const { data: featuredProductsData, isLoading: isLoadingFeatured } = useQuery(
+    {
+      queryKey: ["featured-products", "home"],
+      queryFn: async () => {
+        const response = await productAPI.getProducts({
+          isFeatured: true,
+          limit: 6,
+          page: 1,
+          sort: "rating",
+        });
+        return response.data.data;
+      },
+      staleTime: 120000,
     },
-    staleTime: 120000,
-  });
+  );
   const { data: trendingOffersData, isLoading: isLoadingTrendingOffers } =
     useQuery({
       queryKey: ["trending-offers", "home"],
@@ -85,15 +78,17 @@ const Home = () => {
       staleTime: 120000,
     });
 
-  const { data: trendingCategoriesData, isLoading: isLoadingTrendingCategories } =
-    useQuery({
-      queryKey: ["trending-categories", "home"],
-      queryFn: async () => {
-        const response = await trendingCategoryAPI.getTrendingCategories();
-        return response.data.data;
-      },
-      staleTime: 120000,
-    });
+  const {
+    data: trendingCategoriesData,
+    isLoading: isLoadingTrendingCategories,
+  } = useQuery({
+    queryKey: ["trending-categories", "home"],
+    queryFn: async () => {
+      const response = await trendingCategoryAPI.getTrendingCategories();
+      return response.data.data;
+    },
+    staleTime: 120000,
+  });
 
   const { data: softwarePageData, isLoading: isLoadingMicrosoft } = useQuery({
     queryKey: ["software-page", "home"],
@@ -131,6 +126,7 @@ const Home = () => {
     <div className="min-h-screen">
       <Hero />
       <CategoryNavigation scrollOffset={140} />
+      <div id="featured-products"></div>
       {featuredProductsData?.docs && featuredProductsData.docs.length > 0 && (
         <section id="featured-products" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
@@ -160,7 +156,8 @@ const Home = () => {
         </section>
       )}
 
-      <section id="bestsellers" className="py-16">
+      <div id="bestsellers"></div>
+      <section id="bestsellers">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
@@ -203,11 +200,9 @@ const Home = () => {
         </div>
       </section>
 
-      <section id="flash-deal" className="py-16">
-        <div className="max-w-7xl mx-auto px-4"></div>
-      </section>
+      <div id="flash-deal"></div>
 
-      <section id="trending-offers" className="py-16">
+      <section id="trending-offers">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="shrink-0 lg:w-1/3">
@@ -246,7 +241,7 @@ const Home = () => {
                   });
                   const uniqueProducts = Array.from(productMap.values()).slice(
                     0,
-                    6
+                    6,
                   );
 
                   return uniqueProducts.length > 0 ? (
@@ -277,8 +272,10 @@ const Home = () => {
         </div>
       </section>
 
+      <div id="upcoming-new-releases"></div>
+
       {upcomingReleasesData && upcomingReleasesData.length >= 2 && (
-        <section id="upcoming-releases" className="py-16">
+        <section id="upcoming-new-releases" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 text-center font-poppins">
               New And Upcoming Releases
@@ -362,6 +359,7 @@ const Home = () => {
         </section>
       )}
 
+      <div id="upcoming-games">      </div>
       {upcomingGamesData && upcomingGamesData.length > 0 && (
         <section id="upcoming-games" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
@@ -397,16 +395,23 @@ const Home = () => {
         </section>
       )}
 
+     <div id="trending-categories"></div>
+
       <section id="trending-categories" className="py-16">
         <div className="flex w-full justify-center relative gap-5">
-          <img src="/images/CenterShedow.png" className="absolute z-10" alt="" />
+          <img
+            src="/images/CenterShedow.png"
+            className="absolute z-10"
+            alt=""
+          />
           <div className="flex flex-col items-center md:items-start max-w-1260 w-full gap-4 md:gap-8 z-20 px-4">
             <div>
               <h3 className="text-xl sm:text-2xl md:text-3xl -tracking-tight font-semibold text-start text-white">
                 Top Trending Categories
               </h3>
               <p className="text-sm sm:text-base font-normal -tracking-tight text-start text-white mb-4">
-                From popular subscriptions and software to e-learning, top-ups, and more.
+                From popular subscriptions and software to e-learning, top-ups,
+                and more.
               </p>
             </div>
 
@@ -420,9 +425,10 @@ const Home = () => {
                   {trendingCategoriesData.slice(0, 2).map((item, index) => {
                     const category = item.category;
                     if (!category) return null;
-                    
-                    const cardWidth = index === 0 ? 'max-w-[430px]' : 'max-w-[804px]';
-                    
+
+                    const cardWidth =
+                      index === 0 ? "max-w-[430px]" : "max-w-[804px]";
+
                     return (
                       <Card
                         key={item._id || index}
@@ -430,20 +436,22 @@ const Home = () => {
                           backgroundImage: category.image
                             ? `url('${category.image}')`
                             : `url('https://res.cloudinary.com/dptwervy7/image/upload/v1754393639/BgCategories1_cn0mq1.png')`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center'
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
                         }}
                         className={`rounded-21 flex justify-end ${cardWidth} w-full h-[300px] sm:h-[400px] md:h-[461px] p-4 sm:p-5 border-0 cursor-pointer hover:opacity-90 transition-opacity`}
-                        onClick={() => navigate(`/category/${category.slug || category._id}`)}
+                        onClick={() =>
+                          navigate(`/category/${category.slug || category._id}`)
+                        }
                       >
                         <div className="flex flex-row items-start gap-3 sm:gap-5">
                           {category.image && (
-                            <img 
-                              src={category.image} 
+                            <img
+                              src={category.image}
                               alt={category.name}
                               className="w-16 h-20 sm:w-24 sm:h-32 object-cover rounded-lg shrink-0"
                               onError={(e) => {
-                                e.target.style.display = 'none';
+                                e.target.style.display = "none";
                               }}
                             />
                           )}
@@ -455,7 +463,8 @@ const Home = () => {
                               {category.name}
                             </h3>
                             <span className="text-xs sm:text-sm md:text-base font-medium font-poppins text-white">
-                              {category.description || `${category.name} · Global · Key`}
+                              {category.description ||
+                                `${category.name} · Global · Key`}
                             </span>
                           </div>
                         </div>
@@ -469,10 +478,11 @@ const Home = () => {
                     {trendingCategoriesData.slice(2, 4).map((item, index) => {
                       const category = item.category;
                       if (!category) return null;
-                      
+
                       const actualIndex = index + 2;
-                      const cardWidth = actualIndex === 2 ? 'max-w-[430px]' : 'max-w-[804px]';
-                      
+                      const cardWidth =
+                        actualIndex === 2 ? "max-w-[430px]" : "max-w-[804px]";
+
                       return (
                         <Card
                           key={item._id || actualIndex}
@@ -480,20 +490,24 @@ const Home = () => {
                             backgroundImage: category.image
                               ? `url('${category.image}')`
                               : `url('https://res.cloudinary.com/dptwervy7/image/upload/v1754393639/BgCategories1_cn0mq1.png')`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center'
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
                           }}
                           className={`rounded-21 flex justify-end ${cardWidth} w-full h-[300px] sm:h-[400px] md:h-[461px] bg-cover bg-center p-4 sm:p-5 border-0 cursor-pointer hover:opacity-90 transition-opacity`}
-                          onClick={() => navigate(`/category/${category.slug || category._id}`)}
+                          onClick={() =>
+                            navigate(
+                              `/category/${category.slug || category._id}`,
+                            )
+                          }
                         >
                           <div className="flex flex-row items-start gap-3 sm:gap-5">
                             {category.image && (
-                              <img 
-                                src={category.image} 
+                              <img
+                                src={category.image}
                                 alt={category.name}
                                 className="w-16 h-20 sm:w-24 sm:h-32 object-cover rounded-lg shrink-0"
                                 onError={(e) => {
-                                  e.target.style.display = 'none';
+                                  e.target.style.display = "none";
                                 }}
                               />
                             )}
@@ -505,7 +519,8 @@ const Home = () => {
                                 {category.name}
                               </h3>
                               <span className="text-xs sm:text-sm md:text-base font-medium font-poppins text-white">
-                                {category.description || `${category.name} · Global · Key`}
+                                {category.description ||
+                                  `${category.name} · Global · Key`}
                               </span>
                             </div>
                           </div>
@@ -533,9 +548,9 @@ const Home = () => {
         categoryName="Software"
         sortBy="rating"
         limit={6}
-       
       />
 
+      <div id="gaming-accounts"></div>
       <CategoryProductSection
         title="Gaming Accounts"
         description="Premium gaming accounts with the best reviews"
@@ -544,6 +559,8 @@ const Home = () => {
         limit={6}
       />
 
+
+      <div id="random-keys"></div>
       <CategoryProductSection
         title="Random Keys"
         description="Discover random game keys and digital products"
@@ -552,6 +569,7 @@ const Home = () => {
         limit={6}
       />
 
+      <div id="microsoft"></div>
       {microsoftProducts.length > 0 && (
         <section id="microsoft" className="py-8 md:py-16">
           <div className="max-w-7xl mx-auto px-4">
@@ -576,9 +594,9 @@ const Home = () => {
             ) : microsoftProducts.length > 0 ? (
               <div className="flex flex-row flex-wrap gap-4 sm:gap-6 w-full">
                 {microsoftProducts.slice(0, 6).map((product, index) => (
-                  <MicrosoftCard 
-                    key={product._id} 
-                    product={product} 
+                  <MicrosoftCard
+                    key={product._id}
+                    product={product}
                     width={widths[index % widths.length]}
                   />
                 ))}
@@ -591,9 +609,6 @@ const Home = () => {
           </div>
         </section>
       )}
-
-      
-       
     </div>
   );
 };

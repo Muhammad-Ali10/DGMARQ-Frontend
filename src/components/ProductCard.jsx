@@ -56,7 +56,7 @@ const ProductCard = ({ product }) => {
           </span>
           {typeName && (
             <p className="text-xs md:text-sm font-normal -tracking-normal">
-              Key <span className="font-bold">{typeName}</span>
+              Type: <span className="font-bold">{typeName}</span>
             </p>
           )}
         </CardHeader>
