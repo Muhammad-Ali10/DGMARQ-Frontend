@@ -862,14 +862,14 @@ const Checkout = () => {
                     </div>
                   )}
 
-                  {/* Save with DGMarket Plus CTA */}
+                  {/* Save with DGMARQ Plus CTA */}
                   {!userSubscription?.hasSubscription && (
                     <div className="p-4 bg-gradient-to-r from-accent/10 to-accent/5 border border-accent/30 rounded-lg">
                       <div className="flex items-start gap-3">
                         <Sparkles className="w-5 h-5 text-accent shrink-0 mt-0.5" />
                         <div className="flex-1">
                           <p className="text-sm font-semibold text-white mb-1">
-                            Save with DGMarket Plus
+                            Save with DGMARQ Plus
                           </p>
                           <p className="text-xs text-gray-400 mb-3">
                             Get 2% off all purchases. Subscribe now and save on this order!

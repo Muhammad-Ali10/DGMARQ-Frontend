@@ -16,7 +16,10 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  ShoppingCart
+  ShoppingCart,
+  TrendingUp,
+  ShoppingBag,
+  DollarSign
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
@@ -165,30 +168,53 @@ const PublicSellerProfile = () => {
                     </Button>
                   </div>
 
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-700">
-                    <div className="text-center">
+                  {/* Stats – single row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-6 pt-6 border-t border-gray-700">
+                    <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">
-                        <Package className="h-5 w-5 text-primary" />
-                        <span className="text-2xl font-bold">{sellerProfile.stats.totalProducts}</span>
+                        <TrendingUp className="h-5 w-5 text-emerald-400" />
+                        <span className="text-xl sm:text-2xl font-bold">{sellerProfile.stats.totalProductsSold ?? 0}</span>
                       </div>
-                      <p className="text-sm text-gray-400">Products</p>
+                      <p className="text-xs sm:text-sm text-gray-400">Products Sold</p>
                     </div>
-                    <div className="text-center">
+                    <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">
-                        <Star className="h-5 w-5 text-yellow-400" />
-                        <span className="text-2xl font-bold">
-                          {reviewSummary.averageRating.toFixed(1)}
+                        <ShoppingBag className="h-5 w-5 text-blue-400" />
+                        <span className="text-xl sm:text-2xl font-bold">{sellerProfile.stats.totalOrdersCompleted ?? 0}</span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-400">Orders Completed</p>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <DollarSign className="h-5 w-5 text-amber-400" />
+                        <span className="text-xl sm:text-2xl font-bold">
+                          {typeof sellerProfile.stats.totalRevenue === 'number'
+                            ? `$ ${sellerProfile.stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                            : '$ 0'}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-400">Average Rating</p>
+                      <p className="text-xs sm:text-sm text-gray-400">Total Revenue</p>
                     </div>
-                    <div className="text-center">
+                    <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Package className="h-5 w-5 text-primary" />
+                        <span className="text-xl sm:text-2xl font-bold">{sellerProfile.stats.totalProducts}</span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-400">Products</p>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <Star className="h-5 w-5 text-yellow-400" />
+                        <span className="text-xl sm:text-2xl font-bold">{reviewSummary.averageRating.toFixed(1)}</span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-400">Average Rating</p>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <User className="h-5 w-5 text-blue-400" />
-                        <span className="text-2xl font-bold">{reviewSummary.totalReviews}</span>
+                        <span className="text-xl sm:text-2xl font-bold">{reviewSummary.totalReviews}</span>
                       </div>
-                      <p className="text-sm text-gray-400">Reviews</p>
+                      <p className="text-xs sm:text-sm text-gray-400">Reviews</p>
                     </div>
                   </div>
                 </div>

@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Loading } from './ui/loading';
-import { Send, X, Headphones, Plus } from 'lucide-react';
+import { Send, X, Headphones, Plus, ImagePlus, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
@@ -20,6 +20,8 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
   const [initialMessage, setInitialMessage] = useState('');
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(null);
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
   const { user } = useSelector((state) => state.auth);
@@ -135,6 +137,20 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
     },
   });
 
+  const sendImageMutation = useMutation({
+    mutationFn: ({ chatId, formData }) => supportAPI.sendSupportImageMessage(chatId, formData),
+    onSuccess: (_data, { preview }) => {
+      if (preview) URL.revokeObjectURL(preview);
+      setUploadingImage(null);
+      queryClient.invalidateQueries(['support-messages-popup', selectedChat]);
+      queryClient.invalidateQueries(['user-support-chats-popup']);
+    },
+    onError: (_err, { preview }) => {
+      if (preview) URL.revokeObjectURL(preview);
+      setUploadingImage(null);
+    },
+  });
+
   const handleCreateChat = (e) => {
     e.preventDefault();
     createChatMutation.mutate({
@@ -151,6 +167,18 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
         data: { messageText: message.trim() },
       });
     }
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChat) return;
+    const preview = URL.createObjectURL(file);
+    setUploadingImage({ preview });
+    const formData = new FormData();
+    formData.append('image', file);
+    if (message.trim()) formData.append('messageText', message.trim());
+    sendImageMutation.mutate({ chatId: selectedChat, formData, preview });
+    e.target.value = '';
   };
 
   const selectedChatData = chats?.find((c) => c._id === selectedChat);
@@ -213,20 +241,24 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                       : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium truncate">
+                  <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
+                    <span className="text-xs font-medium truncate min-w-0">
                       {chat.subject || 'No subject'}
                     </span>
                     {chat.unreadCountUser > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                      <span className="shrink-0 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
                         {chat.unreadCountUser > 9 ? '9+' : chat.unreadCountUser}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    {getStatusBadge(chat.status)}
-                    <span className="text-xs opacity-70">
-                      {new Date(chat.lastMessageAt || chat.updatedAt).toLocaleDateString()}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="shrink-0">{getStatusBadge(chat.status)}</span>
+                    <span className="text-xs opacity-70 truncate min-w-0">
+                      {new Date(chat.lastMessageAt || chat.updatedAt).toLocaleDateString(undefined, {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: '2-digit',
+                      })}
                     </span>
                   </div>
                 </div>
@@ -268,6 +300,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                 ) : (
                   messages.map((msg) => {
                     const isUser = msg.senderType === 'user';
+                    const isImage = msg.messageType === 'image' || msg.attachment;
                     return (
                       <div
                         key={msg._id}
@@ -280,7 +313,23 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                               : 'bg-gray-800 text-gray-200'
                           }`}
                         >
-                          <p className="text-sm">{msg.messageText}</p>
+                          {isImage && msg.attachment ? (
+                            <a
+                              href={msg.attachment}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block rounded overflow-hidden max-w-full"
+                            >
+                              <img
+                                src={msg.attachment}
+                                alt={msg.messageText || 'Attachment'}
+                                className="max-h-40 w-auto object-contain rounded"
+                              />
+                            </a>
+                          ) : null}
+                          {msg.messageText && (msg.messageText !== 'Image' || !isImage) && (
+                            <p className="text-sm">{msg.messageText}</p>
+                          )}
                           <p className="text-xs opacity-70 mt-1">
                             {new Date(msg.sentAt || msg.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
@@ -292,6 +341,23 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                     );
                   })
                 )}
+                {uploadingImage && (
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%] rounded-lg p-2 bg-accent text-white relative">
+                      <div className="relative inline-block">
+                        <img
+                          src={uploadingImage.preview}
+                          alt="Uploading"
+                          className="max-h-32 w-auto object-contain rounded opacity-80"
+                        />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded">
+                          <Loader2 className="h-6 w-6 animate-spin text-white mb-1" />
+                          <span className="text-xs font-medium">Uploading...</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
 
@@ -301,7 +367,24 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                   onSubmit={handleSendMessage}
                   className="p-4 border-t border-gray-700 bg-gray-800"
                 >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    className="hidden"
+                    onChange={handleImageSelect}
+                  />
                   <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      disabled={sendImageMutation.isPending}
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Attach image"
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                    </Button>
                     <Input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}

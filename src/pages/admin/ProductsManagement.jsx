@@ -11,7 +11,7 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { CheckCircle2, XCircle, ChevronLeft, ChevronRight, RefreshCw, Package, Store, Tag, Clock, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle2, XCircle, ChevronLeft, ChevronRight, RefreshCw, Package, Store, Tag, Clock, Eye, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const ProductsManagement = () => {
@@ -20,6 +20,8 @@ const ProductsManagement = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [rejectingId, setRejectingId] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -100,6 +102,25 @@ const ProductsManagement = () => {
     },
   });
 
+  const deleteProductMutation = useMutation({
+    mutationFn: (productId) => adminAPI.deleteProduct(productId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['pending-products']);
+      queryClient.invalidateQueries(['approved-products']);
+      queryClient.invalidateQueries(['rejected-products']);
+      queryClient.invalidateQueries(['admin-dashboard-stats']);
+      setProductToDelete(null);
+      setDeleteDialogOpen(false);
+      toast.success('Product deleted successfully');
+      if (products?.length === 1 && page > 1) {
+        setPage(page - 1);
+      }
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || 'Failed to delete product');
+    },
+  });
+
   const handleApprove = (productId) => {
     approveMutation.mutate(productId);
   };
@@ -116,6 +137,17 @@ const ProductsManagement = () => {
     }
     if (rejectingId) {
       rejectMutation.mutate({ productId: rejectingId, reason: rejectReason.trim() });
+    }
+  };
+
+  const handleDeleteClick = (product) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (productToDelete?._id) {
+      deleteProductMutation.mutate(productToDelete._id);
     }
   };
 
@@ -349,6 +381,17 @@ const ProductsManagement = () => {
                           </Button>
                         </>
                       )}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteClick(product)}
+                        disabled={deleteProductMutation.isPending}
+                        className="hover:bg-red-700 border-red-800"
+                        title="Delete Product (permanent)"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -591,6 +634,53 @@ const ProductsManagement = () => {
                 )}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Product Confirmation Modal */}
+      <Dialog open={deleteDialogOpen} onOpenChange={(open) => { setDeleteDialogOpen(open); if (!open) setProductToDelete(null); }}>
+        <DialogContent className="bg-primary border-gray-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl font-semibold">Delete Product</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              This will permanently remove the product from the system. Cart items, wishlists, and related data will be cleaned up. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {productToDelete && (
+            <div className="py-3 px-4 bg-secondary/50 rounded-lg border border-gray-700">
+              <p className="text-white font-medium truncate">{productToDelete.name}</p>
+              <p className="text-gray-500 text-sm mt-1">
+                {productToDelete.sellerId?.shopName && `Seller: ${productToDelete.sellerId.shopName}`}
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => { setDeleteDialogOpen(false); setProductToDelete(null); }}
+              className="border-gray-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleteProductMutation.isPending}
+              className="hover:bg-red-700"
+            >
+              {deleteProductMutation.isPending ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Permanently
+                </>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

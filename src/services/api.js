@@ -42,6 +42,7 @@ export const adminAPI = {
   getProductDetails: (productId) => api.get(`/admin/product/${productId}`),
   approveProduct: (productId) => api.post(`/admin/product/${productId}/approve`),
   rejectProduct: (productId, data) => api.post(`/admin/product/${productId}/reject`, data),
+  deleteProduct: (productId) => api.delete(`/admin/products/${productId}`),
   getAllPayouts: (params) => api.get('/admin/payouts', { params }),
   processPayout: (payoutId) => api.post(`/admin/payout/${payoutId}/process`),
   getAllUsers: (params) => api.get('/admin/users', { params }),
@@ -172,6 +173,7 @@ export const supportAPI = {
   getMySupportChats: (params) => api.get('/support', { params }),
   getSupportMessages: (chatId) => api.get(`/support/${chatId}/messages`),
   sendSupportMessage: (chatId, data) => api.post(`/support/${chatId}/message`, data),
+  sendSupportImageMessage: (chatId, formData) => api.post(`/support/${chatId}/message/image`, formData),
   closeSupportChat: (chatId, data = {}) => api.patch(`/support/${chatId}/close`, data),
 };
 
@@ -245,7 +247,14 @@ export const returnRefundAPI = {
     api.get('/return-refund/order-item-keys', { params: { orderId, productId } }),
   escalateToAdmin: (refundId) => api.post(`/return-refund/${refundId}/escalate`),
   getRefundMessages: (refundId) => api.get(`/return-refund/${refundId}/messages`),
-  addRefundMessage: (refundId, message) => api.post(`/return-refund/${refundId}/messages`, { message }),
+  addRefundMessage: (refundId, payload) => {
+    if (payload instanceof FormData) {
+      return api.post(`/return-refund/${refundId}/messages`, payload, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+    return api.post(`/return-refund/${refundId}/messages`, payload);
+  },
   getSellerRefundList: (params) => api.get('/return-refund/seller/list', { params }),
   sellerApproveRefund: (refundId) => api.patch(`/return-refund/seller/${refundId}/approve`),
   sellerRejectRefund: (refundId, reason) => api.patch(`/return-refund/seller/${refundId}/reject`, { reason }),

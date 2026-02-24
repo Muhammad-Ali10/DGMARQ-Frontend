@@ -63,7 +63,7 @@ const UserChat = () => {
     queryKey: ['conversation-messages', selectedConversation],
     queryFn: ({ pageParam }) => {
       const params = pageParam
-        ? { cursor: pageParam, limit: 20 } 
+        ? { cursor: pageParam, limit: 20 }
         : { limit: 20 };
       return chatAPI.getMessages(selectedConversation, params).then(res => res.data.data);
     },

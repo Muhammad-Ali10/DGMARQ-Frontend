@@ -10,7 +10,7 @@ import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
-import { Headphones, Send, Plus } from 'lucide-react';
+import { Headphones, Send, Plus, ImagePlus, Loader2 } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
 
 const UserSupport = () => {
@@ -19,8 +19,10 @@ const UserSupport = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [subject, setSubject] = useState('');
   const [initialMessage, setInitialMessage] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(null); // { preview: string }
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
 
@@ -89,6 +91,21 @@ const UserSupport = () => {
     },
   });
 
+  const sendImageMutation = useMutation({
+    mutationFn: ({ chatId, formData }) => supportAPI.sendSupportImageMessage(chatId, formData),
+    onSuccess: (_data, { preview }) => {
+      if (preview) URL.revokeObjectURL(preview);
+      setUploadingImage(null);
+      queryClient.invalidateQueries(['support-messages', selectedChat]);
+      queryClient.invalidateQueries(['user-support-chats']);
+    },
+    onError: (error, { preview }) => {
+      if (preview) URL.revokeObjectURL(preview);
+      setUploadingImage(null);
+      showApiError(error, 'Failed to upload image');
+    },
+  });
+
   const closeChatMutation = useMutation({
     mutationFn: (chatId) => supportAPI.closeSupportChat(chatId),
     onSuccess: () => {
@@ -122,6 +139,18 @@ const UserSupport = () => {
         messageText: message.trim(),
       });
     }
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChat) return;
+    const preview = URL.createObjectURL(file);
+    setUploadingImage({ preview });
+    const formData = new FormData();
+    formData.append('image', file);
+    if (message.trim()) formData.append('messageText', message.trim());
+    sendImageMutation.mutate({ chatId: selectedChat, formData, preview });
+    e.target.value = '';
   };
 
   if (chatsLoading) return <Loading message="Loading support chats..." />;
@@ -221,6 +250,7 @@ const UserSupport = () => {
                     ) : (
                       messages?.map((msg) => {
                         const isUser = msg.senderType === 'user';
+                        const isImage = msg.messageType === 'image' || msg.attachment;
                         return (
                           <div
                             key={msg._id}
@@ -233,7 +263,23 @@ const UserSupport = () => {
                                   : 'bg-gray-800 text-white'
                               }`}
                             >
-                              <p>{msg.messageText}</p>
+                              {isImage && msg.attachment ? (
+                                <a
+                                  href={msg.attachment}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block rounded overflow-hidden max-w-full"
+                                >
+                                  <img
+                                    src={msg.attachment}
+                                    alt={msg.messageText || 'Attachment'}
+                                    className="max-h-64 w-auto object-contain rounded"
+                                  />
+                                </a>
+                              ) : null}
+                              {msg.messageText && (msg.messageText !== 'Image' || !isImage) && (
+                                <p>{msg.messageText}</p>
+                              )}
                               <p className="text-xs opacity-70 mt-1">
                                 {new Date(msg.sentAt || msg.createdAt).toLocaleString()}
                               </p>
@@ -242,12 +288,46 @@ const UserSupport = () => {
                         );
                       })
                     )}
+                    {uploadingImage && (
+                      <div className="flex justify-end">
+                        <div className="max-w-[70%] rounded-lg p-3 bg-accent text-white relative">
+                          <div className="relative inline-block">
+                            <img
+                              src={uploadingImage.preview}
+                              alt="Uploading"
+                              className="max-h-48 w-auto object-contain rounded opacity-80"
+                            />
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded">
+                              <Loader2 className="h-8 w-8 animate-spin text-white mb-1" />
+                              <span className="text-xs font-medium">Uploading...</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
                 )}
 
                 {selectedChatData?.status !== 'closed' && (
                   <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                      onChange={handleImageSelect}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      disabled={sendImageMutation.isPending}
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Attach image"
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                    </Button>
                     <Input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
