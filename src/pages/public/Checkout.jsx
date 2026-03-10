@@ -306,31 +306,126 @@ const Checkout = () => {
               </div>
               {Array.isArray(guestLicenses) && guestLicenses.length > 0 && (
                 <div className="space-y-4 mb-6">
-                  {guestLicenses.map((detail, idx) => (
-                    <div key={idx} className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                      <p className="text-sm text-gray-400 mb-1">Product</p>
-                      <p className="text-white font-semibold mb-3">{detail.productName || 'Product'}</p>
-                      {detail.productType === 'ACCOUNT_BASED' && detail.keys?.length > 0 ? (
-                        <div className="space-y-2">
-                          <p className="text-sm text-gray-400">Account credentials:</p>
-                          {typeof detail.keys[0] === 'string' && detail.keys[0].startsWith('{') ? (
-                            <pre className="text-sm text-white bg-gray-900 p-3 rounded break-all">{detail.keys[0]}</pre>
-                          ) : (
-                            detail.keys.map((k, i) => (
-                              <p key={i} className="text-white font-mono text-sm break-all">{k}</p>
-                            ))
-                          )}
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="text-sm text-gray-400 mb-1">License key(s):</p>
-                          {detail.keys?.map((k, i) => (
-                            <p key={i} className="text-white font-mono text-sm break-all bg-gray-900 p-2 rounded mt-1">{k}</p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {guestLicenses.map((detail, idx) => {
+                    const isAccount = detail.productType === 'ACCOUNT_BASED';
+                    return (
+                      <div
+                        key={idx}
+                        className="p-4 bg-gray-800/50 rounded-lg border border-gray-700"
+                      >
+                        <p className="text-sm text-gray-400 mb-1">Product</p>
+                        <p className="text-white font-semibold mb-3">
+                          {detail.productName || 'Product'}
+                        </p>
+                        {isAccount && detail.keys?.length > 0 ? (
+                          <div className="space-y-3">
+                            <p className="text-sm text-gray-400">Account credentials:</p>
+                            {detail.keys.map((k, i) => {
+                              let creds = null;
+                              if (typeof k === 'string' && k.trim().startsWith('{')) {
+                                try {
+                                  creds = JSON.parse(k);
+                                } catch {
+                                  creds = null;
+                                }
+                              }
+
+                              if (!creds || typeof creds !== 'object') {
+                                return (
+                                  <p
+                                    key={i}
+                                    className="text-white font-mono text-sm break-all bg-gray-900 p-2 rounded mt-1"
+                                  >
+                                    {k}
+                                  </p>
+                                );
+                              }
+
+                              const email = creds.email || creds.emailAddress || null;
+                              const usernameId = creds.usernameId || creds.username || null;
+                              const rawPassword = creds.password || null;
+                              const emailPassword =
+                                creds.emailPassword ||
+                                (email && !usernameId ? rawPassword : null) ||
+                                null;
+                              const usernamePassword =
+                                creds.usernamePassword ||
+                                (usernameId ? rawPassword : null) ||
+                                null;
+                              const hasAnyUsername = !!usernameId || !!usernamePassword;
+
+                              return (
+                                <div
+                                  key={i}
+                                  className="space-y-2 bg-gray-900 p-3 rounded mt-1 text-left"
+                                >
+                                  {email && (
+                                    <div>
+                                      <p className="text-xs text-gray-400 mb-0.5">Email:</p>
+                                      <p className="text-white font-mono text-sm break-all">
+                                        {email}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {emailPassword && (
+                                    <div>
+                                      <p className="text-xs text-gray-400 mb-0.5">
+                                        Email Password:
+                                      </p>
+                                      <p className="text-white font-mono text-sm break-all">
+                                        {emailPassword}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {hasAnyUsername && (
+                                    <>
+                                      {usernameId && (
+                                        <div>
+                                          <p className="text-xs text-gray-400 mb-0.5">
+                                            Username ID:
+                                          </p>
+                                          <p className="text-white font-mono text-sm break-all">
+                                            {usernameId}
+                                          </p>
+                                        </div>
+                                      )}
+                                      {usernamePassword && (
+                                        <div>
+                                          <p className="text-xs text-gray-400 mb-0.5">
+                                            Username Password:
+                                          </p>
+                                          <p className="text-white font-mono text-sm break-all">
+                                            {usernamePassword}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                  {!email && !emailPassword && !hasAnyUsername && (
+                                    <pre className="text-xs text-gray-300 break-all">
+                                      {JSON.stringify(creds, null, 2)}
+                                    </pre>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-sm text-gray-400 mb-1">License key(s):</p>
+                            {detail.keys?.map((k, i) => (
+                              <p
+                                key={i}
+                                className="text-white font-mono text-sm break-all bg-gray-900 p-2 rounded mt-1"
+                              >
+                                {k}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               <p className="text-sm text-gray-400 text-center mb-6">A copy has been sent to your email.</p>

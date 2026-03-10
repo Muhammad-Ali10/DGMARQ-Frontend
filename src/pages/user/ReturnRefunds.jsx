@@ -19,7 +19,7 @@ const STATUS_LABELS = {
   SELLER_REVIEW: 'With seller',
   SELLER_APPROVED: 'Seller approved',
   SELLER_REJECTED: 'Seller rejected',
-  ADMIN_REVIEW: 'With admin',
+  ADMIN_REVIEW: 'In progress',
   ADMIN_APPROVED: 'Admin approved',
   ADMIN_REJECTED: 'Rejected',
   COMPLETED: 'Completed',

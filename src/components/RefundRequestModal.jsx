@@ -249,33 +249,45 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               className="w-full"
               getOptionLabel={(order) => {
                 const date = new Date(order.orderDate).toLocaleDateString();
-                return `Order #${order._id.slice(-8)} - ${date} - $${order.orderTotalAmount?.toFixed(2)}`;
+                const displayId = order.orderNumber || order._id.slice(-8);
+                return `Order #${displayId} - ${date} - $${order.orderTotalAmount?.toFixed(2)}`;
               }}
               getOptionValue={(order) => order._id}
               filterFunction={(order, searchQuery) => {
                 const query = searchQuery.toLowerCase();
                 const orderId = order._id.toLowerCase();
+                const orderNumber = (order.orderNumber || '').toLowerCase();
                 const date = new Date(order.orderDate).toLocaleDateString().toLowerCase();
                 const amount = order.orderTotalAmount?.toFixed(2) || '';
-                return orderId.includes(query) || date.includes(query) || amount.includes(query);
+                return (
+                  orderId.includes(query) ||
+                  orderNumber.includes(query) ||
+                  date.includes(query) ||
+                  amount.includes(query)
+                );
               }}
-              renderOption={(order, isSelected) => (
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
-                      Order #{order._id.slice(-8)}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                      <span>{new Date(order.orderDate).toLocaleDateString()}</span>
-                      <span>•</span>
-                      <span className="font-semibold text-white">${order.orderTotalAmount?.toFixed(2)}</span>
+              renderOption={(order, isSelected) => {
+                const displayId = order.orderNumber || order._id.slice(-8);
+                return (
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">
+                        Order #{displayId}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                        <span>{new Date(order.orderDate).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span className="font-semibold text-white">
+                          ${order.orderTotalAmount?.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
+                    {isSelected && (
+                      <CheckCircle2 className="h-4 w-4 text-accent ml-2 shrink-0" />
+                    )}
                   </div>
-                  {isSelected && (
-                    <CheckCircle2 className="h-4 w-4 text-accent ml-2 shrink-0" />
-                  )}
-                </div>
-              )}
+                );
+              }}
             />
             {errors.orderId && (
               <p className="text-sm text-red-400 flex items-center gap-1">

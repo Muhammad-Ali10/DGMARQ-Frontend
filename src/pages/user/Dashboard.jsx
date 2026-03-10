@@ -217,7 +217,9 @@ const UserDashboard = () => {
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
-                        <p className="font-medium text-white">Order #{order._id.slice(-8)}</p>
+                        <p className="font-medium text-white">
+                          Order #{order.orderNumber || order._id.slice(-8)}
+                        </p>
                         <p className="text-sm text-gray-400">
                           {new Date(order.createdAt).toLocaleDateString('en-US', {
                             year: 'numeric',

@@ -116,7 +116,9 @@ const OrderDetail = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Order Details</h1>
-          <p className="text-gray-400 mt-1">Order #{order._id.slice(-8)}</p>
+          <p className="text-gray-400 mt-1">
+            Order #{order.orderNumber || order._id.slice(-8)}
+          </p>
         </div>
         <Button onClick={() => navigate('/user/orders')} variant="outline">
           <ArrowLeft className="w-4 h-4 mr-2" />

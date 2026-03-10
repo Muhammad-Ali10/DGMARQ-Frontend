@@ -265,9 +265,43 @@ const ProductDetail = () => {
     return <ErrorMessage message="Product not found" />;
   }
 
-  const discountPrice = product.discount 
-    ? product.price * (1 - product.discount / 100)
-    : product.price;
+  const originalPrice = Number(product.price ?? 0);
+  const discountPercentRaw =
+    product.discount ??
+    product.discountPercentage ??
+    product.discountPercent ??
+    product?.trendingOffer?.discountPercent ??
+    product?.trendingOffer?.discountPercentage ??
+    0;
+  const discountPercent = Number(discountPercentRaw) || 0;
+
+  const apiDiscountedPriceRaw =
+    product.discountedPrice ?? product.salePrice ?? product?.pricing?.discountedPrice;
+  const apiDiscountedPriceNum = Number(apiDiscountedPriceRaw);
+  const apiDiscountedPrice =
+    apiDiscountedPriceRaw !== undefined &&
+    apiDiscountedPriceRaw !== null &&
+    !Number.isNaN(apiDiscountedPriceNum)
+      ? apiDiscountedPriceNum
+      : null;
+
+  const computedDiscountedPrice =
+    originalPrice - (originalPrice * discountPercent) / 100;
+
+  const discountedPrice = apiDiscountedPrice !== null ? apiDiscountedPrice : computedDiscountedPrice;
+
+  const hasDiscount =
+    (discountPercent > 0 && discountPercent <= 100) ||
+    (apiDiscountedPrice !== null && apiDiscountedPrice < originalPrice);
+
+  const safeOriginalPrice = Math.max(0, originalPrice);
+  const safeDiscountedPrice = Math.max(0, Math.min(safeOriginalPrice, discountedPrice));
+  const displayDiscountPercent =
+    discountPercent > 0
+      ? discountPercent
+      : hasDiscount && safeOriginalPrice > 0
+        ? Math.round((1 - safeDiscountedPrice / safeOriginalPrice) * 100)
+        : 0;
 
   const images = product.images || [];
   const reviews = reviewsData?.docs || [];
@@ -465,22 +499,28 @@ const ProductDetail = () => {
           </div>
 
           {/* Price */}
-          <div className="flex items-baseline gap-3 flex-wrap">
-            {product.discount > 0 ? (
+          <div className="flex flex-col gap-1">
+            {hasDiscount ? (
               <>
-                <span className="text-4xl font-bold text-accent">
-                  ${discountPrice.toFixed(2)}
-                </span>
-                <span className="text-2xl text-gray-500 line-through">
-                  ${product.price.toFixed(2)}
-                </span>
-                <Badge variant="destructive" className="text-lg px-3 py-1">
-                  -{product.discount}% OFF
-                </Badge>
+                <div className="flex items-baseline gap-3 flex-wrap">
+                  <span className="text-2xl text-gray-500 line-through">
+                    ${safeOriginalPrice.toFixed(2)}
+                  </span>
+                  {displayDiscountPercent > 0 && (
+                    <Badge variant="destructive" className="text-lg px-3 py-1">
+                      -{displayDiscountPercent}% OFF
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-3 flex-wrap">
+                  <span className="text-4xl font-bold text-accent">
+                    ${safeDiscountedPrice.toFixed(2)}
+                  </span>
+                </div>
               </>
             ) : (
               <span className="text-4xl font-bold text-accent">
-                ${product.price.toFixed(2)}
+                ${safeOriginalPrice.toFixed(2)}
               </span>
             )}
           </div>

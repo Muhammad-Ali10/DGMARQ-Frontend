@@ -165,22 +165,37 @@ const SellerLicenseKeys = () => {
 
   const formatKeyForDisplay = (keyData) => {
     if (!keyData) return 'XXXX-XXXX-XXXX';
-    
-    // If it's a string, return as-is
+
     if (typeof keyData === 'string') {
       return keyData;
     }
-    
-    // If it's an object (account-based product), format nicely
+
     if (typeof keyData === 'object') {
-      // Check if it's an account object with email/password
-      if (keyData.email && keyData.password) {
-        return `Email: ${keyData.email}\nPassword: ${keyData.password}`;
+      const email = keyData.email || keyData.emailAddress || null;
+      const usernameId = keyData.usernameId || keyData.username || null;
+      const rawPassword = keyData.password || null;
+      const emailPassword =
+        keyData.emailPassword ||
+        (email && !usernameId ? rawPassword : null) ||
+        null;
+      const usernamePassword =
+        keyData.usernamePassword ||
+        (usernameId ? rawPassword : null) ||
+        null;
+
+      const lines = [];
+      if (email) lines.push(`Email: ${email}`);
+      if (emailPassword) lines.push(`Email Password: ${emailPassword}`);
+      if (usernameId) lines.push(`Username ID: ${usernameId}`);
+      if (usernamePassword) lines.push(`Username Password: ${usernamePassword}`);
+
+      if (lines.length > 0) {
+        return lines.join('\n');
       }
-      // Otherwise, stringify
+
       return JSON.stringify(keyData, null, 2);
     }
-    
+
     return String(keyData);
   };
 

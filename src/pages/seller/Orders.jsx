@@ -126,8 +126,8 @@ const SellerOrders = () => {
                       );
                       return (
                       <TableRow key={order._id} className="border-gray-700">
-                        <TableCell className="text-white text-sm font-mono">
-                          {order._id.slice(-8)}
+                      <TableCell className="text-white text-sm font-mono">
+                          {order.orderNumber || order._id.slice(-8)}
                         </TableCell>
                         <TableCell className="text-white">
                           {order.buyer?.name || order.userId?.name || "N/A"}

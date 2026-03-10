@@ -36,12 +36,18 @@ const ReturnRefundManagement = () => {
 
   const updateMutation = useMutation({
     mutationFn: ({ refundId, data }) => returnRefundAPI.updateRefundStatus(refundId, data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       const message = actionType === 'approve'
         ? 'Refund approved and processed successfully'
         : 'Refund request rejected';
       toast.success(message);
+      // Refresh refunds and all affected order views (admin, seller, user)
       queryClient.invalidateQueries(['admin-refunds']);
+      queryClient.invalidateQueries(['admin-orders']);
+      queryClient.invalidateQueries(['admin-order-detail']);
+      queryClient.invalidateQueries(['seller-orders']);
+      queryClient.invalidateQueries(['user-orders']);
+      queryClient.invalidateQueries(['order-detail']);
       setIsActionOpen(false);
       setSelectedRefund(null);
       setAdminNotes('');
@@ -59,7 +65,13 @@ const ReturnRefundManagement = () => {
       returnRefundAPI.markManualRefund(refundId, manualRefundReference ? { manualRefundReference } : {}),
     onSuccess: () => {
       toast.success('Refund marked as completed (manual PayPal refund).');
+      // Refresh refunds and all affected order views (admin, seller, user)
       queryClient.invalidateQueries(['admin-refunds']);
+      queryClient.invalidateQueries(['admin-orders']);
+      queryClient.invalidateQueries(['admin-order-detail']);
+      queryClient.invalidateQueries(['seller-orders']);
+      queryClient.invalidateQueries(['user-orders']);
+      queryClient.invalidateQueries(['order-detail']);
       setIsViewOpen(false);
       setSelectedRefund(null);
       setManualRefundReference('');
@@ -130,7 +142,7 @@ const ReturnRefundManagement = () => {
     };
     const labels = {
       PENDING: 'Pending', SELLER_REVIEW: 'Seller review', SELLER_APPROVED: 'Seller approved', SELLER_REJECTED: 'Seller rejected',
-      ADMIN_REVIEW: 'Admin review', ADMIN_APPROVED: 'Admin approved', ADMIN_REJECTED: 'Rejected',
+      ADMIN_REVIEW: 'In progress', ADMIN_APPROVED: 'Admin approved', ADMIN_REJECTED: 'Rejected',
       COMPLETED: 'Completed', WAITING_FOR_MANUAL_REFUND: 'Waiting manual refund', ON_HOLD_INSUFFICIENT_FUNDS: 'On hold (insufficient funds)',
     };
     return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
@@ -187,7 +199,7 @@ const ReturnRefundManagement = () => {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="PENDING">Pending</SelectItem>
               <SelectItem value="SELLER_REVIEW">Seller review</SelectItem>
-              <SelectItem value="ADMIN_REVIEW">Admin review</SelectItem>
+              <SelectItem value="ADMIN_REVIEW">In progress</SelectItem>
               <SelectItem value="WAITING_FOR_MANUAL_REFUND">Waiting manual refund</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
               <SelectItem value="ADMIN_REJECTED">Rejected</SelectItem>
@@ -219,7 +231,9 @@ const ReturnRefundManagement = () => {
                         {refund._id.slice(-8)}
                       </TableCell>
                       <TableCell className="text-gray-300 font-mono text-sm">
-                        {refund.orderId?._id ? `#${String(refund.orderId._id).slice(-8)}` : 'N/A'}
+                        {refund.orderId
+                          ? `#${refund.orderId.orderNumber || String(refund.orderId._id).slice(-8)}`
+                          : 'N/A'}
                       </TableCell>
                       <TableCell className="text-gray-300">
                         <div className="flex flex-col">
@@ -353,7 +367,12 @@ const ReturnRefundManagement = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-400">Order ID:</span>
-                    <p className="text-white font-mono">{selectedRefund.orderId?._id ? String(selectedRefund.orderId._id).slice(-8) : 'N/A'}</p>
+                    <p className="text-white font-mono">
+                      {selectedRefund.orderId
+                        ? selectedRefund.orderId.orderNumber ||
+                          String(selectedRefund.orderId._id).slice(-8)
+                        : 'N/A'}
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-400">Order Date:</span>

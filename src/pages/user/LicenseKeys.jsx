@@ -181,59 +181,131 @@ const LicenseKeys = () => {
                 </p>
                 <div className="space-y-2">
                   {typeof revealedKey.keyData === 'object' ? (
-                    // Account credentials display
-                    <div className="space-y-2">
-                      {revealedKey.keyData.email && (
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">Email:</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-white font-mono text-sm flex-1 break-all">{revealedKey.keyData.email}</p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleCopy(revealedKey.keyData.email)}
-                              className="border-gray-700 text-gray-300"
-                            >
-                              {copied ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Copy className="w-4 h-4" />
+                    (() => {
+                      const creds = revealedKey.keyData || {};
+                      const email = creds.email || creds.emailAddress || null;
+                      const usernameId = creds.usernameId || creds.username || null;
+                      const rawPassword = creds.password || null;
+                      const emailPassword =
+                        creds.emailPassword ||
+                        (email && !usernameId ? rawPassword : null) ||
+                        null;
+                      const usernamePassword =
+                        creds.usernamePassword ||
+                        (usernameId ? rawPassword : null) ||
+                        null;
+
+                      const hasAnyUsername = !!usernameId || !!usernamePassword;
+
+                      return (
+                        <div className="space-y-3">
+                          {email && (
+                            <div>
+                              <p className="text-xs text-gray-400 mb-1">Email:</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-white font-mono text-sm flex-1 break-all">
+                                  {email}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCopy(email)}
+                                  className="border-gray-700 text-gray-300"
+                                >
+                                  {copied ? (
+                                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          {emailPassword && (
+                            <div>
+                              <p className="text-xs text-gray-400 mb-1">Email Password:</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-white font-mono text-sm flex-1 break-all">
+                                  {emailPassword}
+                                </p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCopy(emailPassword)}
+                                  className="border-gray-700 text-gray-300"
+                                >
+                                  {copied ? (
+                                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                  ) : (
+                                    <Copy className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                          {hasAnyUsername && (
+                            <>
+                              {usernameId && (
+                                <div>
+                                  <p className="text-xs text-gray-400 mb-1">Username ID:</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-white font-mono text-sm flex-1 break-all">
+                                      {usernameId}
+                                    </p>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCopy(usernameId)}
+                                      className="border-gray-700 text-gray-300"
+                                    >
+                                      {copied ? (
+                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                      ) : (
+                                        <Copy className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
                               )}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                      {revealedKey.keyData.password && (
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">Password:</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-white font-mono text-sm flex-1 break-all">{revealedKey.keyData.password}</p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleCopy(revealedKey.keyData.password)}
-                              className="border-gray-700 text-gray-300"
-                            >
-                              {copied ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                              ) : (
-                                <Copy className="w-4 h-4" />
+                              {usernamePassword && (
+                                <div>
+                                  <p className="text-xs text-gray-400 mb-1">Username Password:</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-white font-mono text-sm flex-1 break-all">
+                                      {usernamePassword}
+                                    </p>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCopy(usernamePassword)}
+                                      className="border-gray-700 text-gray-300"
+                                    >
+                                      {copied ? (
+                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                      ) : (
+                                        <Copy className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
                               )}
-                            </Button>
-                          </div>
+                            </>
+                          )}
+                          {!email && !emailPassword && !hasAnyUsername && (
+                            <div className="flex items-center gap-2">
+                              <p className="text-white font-mono text-sm flex-1 break-all">
+                                {JSON.stringify(creds, null, 2)}
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {revealedKey.keyData.username && (
-                        <div>
-                          <p className="text-xs text-gray-400 mb-1">Username:</p>
-                          <p className="text-white font-mono text-sm">{revealedKey.keyData.username}</p>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })()
                   ) : (
-                    // License key display
                     <div className="flex items-center gap-2">
-                      <p className="text-white font-mono text-lg flex-1 break-all">{revealedKey.keyData || revealedKey.key}</p>
+                      <p className="text-white font-mono text-lg flex-1 break-all">
+                        {revealedKey.keyData || revealedKey.key}
+                      </p>
                       <Button
                         size="sm"
                         variant="outline"

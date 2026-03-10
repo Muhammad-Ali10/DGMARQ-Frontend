@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { returnRefundAPI } from '../services/api';
+import { useSocket } from '../hooks/useSocket';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
@@ -22,9 +23,14 @@ export default function RefundChat({ refundId, canSend }) {
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
+  const { socket, isConnected } = useSocket();
+
   const { data, isLoading } = useQuery({
     queryKey: ['refund-messages', refundId],
-    queryFn: () => returnRefundAPI.getRefundMessages(refundId).then((res) => res.data.data?.messages || []),
+    queryFn: () =>
+      returnRefundAPI
+        .getRefundMessages(refundId)
+        .then((res) => res.data.data?.messages || []),
     enabled: !!refundId,
   });
 
@@ -56,6 +62,27 @@ export default function RefundChat({ refundId, canSend }) {
       selectedImagesRef.current.forEach((item) => URL.revokeObjectURL(item.preview));
     };
   }, []);
+
+  // Real-time updates via Socket.IO
+  useEffect(() => {
+    if (!socket || !refundId) return;
+
+    const handleRefundMessage = (payload) => {
+      if (!payload || !payload.refundId) return;
+      const incomingId = payload.refundId.toString();
+      const currentId = refundId.toString();
+      if (incomingId !== currentId) return;
+
+      // Re-fetch messages for this refund so both sides see updates instantly
+      queryClient.invalidateQueries(['refund-messages', refundId]);
+    };
+
+    socket.on('refund_message', handleRefundMessage);
+
+    return () => {
+      socket.off('refund_message', handleRefundMessage);
+    };
+  }, [socket, isConnected, refundId, queryClient]);
 
   function handleFileChange(event) {
     const incoming = Array.from(event.target.files || []);

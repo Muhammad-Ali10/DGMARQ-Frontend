@@ -99,37 +99,175 @@ export default function LicenseKeysModal({ open, onOpenChange, orderId, guestEma
                 <p className="text-gray-400">This license has been refunded and is no longer accessible.</p>
               )}
 
-              {details.map((item, idx) => (
-                <div key={idx} className="rounded-lg border border-gray-700 p-4 space-y-3">
-                  <p className="font-medium text-white">{item.productName}</p>
-                  {item.refunded ? (
-                    <p className="text-gray-400 text-sm">
-                      This license has been refunded and is no longer accessible.
-                    </p>
-                  ) : item.keys && item.keys.length > 0 ? (
-                    <div className="space-y-2">
-                      {item.keys.map((keyVal, kIdx) => (
-                        <div key={kIdx} className="flex items-center gap-2">
-                          <code className="flex-1 min-w-0 px-2 py-1.5 rounded bg-secondary text-gray-300 text-sm break-all font-mono">
-                            {keyVal}
-                          </code>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0"
-                            onClick={() => handleCopy(keyVal, item.productName)}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 text-sm">License not available yet.</p>
-                  )}
-                </div>
-              ))}
+              {details.map((item, idx) => {
+                const isAccount = item.productType === 'ACCOUNT_BASED';
+                return (
+                  <div key={idx} className="rounded-lg border border-gray-700 p-4 space-y-3">
+                    <p className="font-medium text-white">{item.productName}</p>
+                    {item.refunded ? (
+                      <p className="text-gray-400 text-sm">
+                        This license has been refunded and is no longer accessible.
+                      </p>
+                    ) : item.keys && item.keys.length > 0 ? (
+                      <div className="space-y-2">
+                        {isAccount
+                          ? item.keys.map((keyVal, kIdx) => {
+                              let creds = null;
+                              if (typeof keyVal === 'string' && keyVal.trim().startsWith('{')) {
+                                try {
+                                  creds = JSON.parse(keyVal);
+                                } catch {
+                                  creds = null;
+                                }
+                              }
+
+                              if (!creds || typeof creds !== 'object') {
+                                return (
+                                  <div key={kIdx} className="flex items-center gap-2">
+                                    <code className="flex-1 min-w-0 px-2 py-1.5 rounded bg-secondary text-gray-300 text-sm break-all font-mono">
+                                      {keyVal}
+                                    </code>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="shrink-0"
+                                      onClick={() => handleCopy(keyVal, item.productName)}
+                                    >
+                                      <Copy className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                );
+                              }
+
+                              const email = creds.email || creds.emailAddress || null;
+                              const usernameId = creds.usernameId || creds.username || null;
+                              const rawPassword = creds.password || null;
+                              const emailPassword =
+                                creds.emailPassword ||
+                                (email && !usernameId ? rawPassword : null) ||
+                                null;
+                              const usernamePassword =
+                                creds.usernamePassword ||
+                                (usernameId ? rawPassword : null) ||
+                                null;
+                              const hasAnyUsername = !!usernameId || !!usernamePassword;
+
+                              return (
+                                <div key={kIdx} className="space-y-2 rounded-md bg-secondary/40 p-3">
+                                  {email && (
+                                    <div>
+                                      <p className="text-xs text-gray-400 mb-1">Email:</p>
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-white font-mono text-sm flex-1 break-all">
+                                          {email}
+                                        </p>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="shrink-0"
+                                          onClick={() => handleCopy(email, 'Email')}
+                                        >
+                                          <Copy className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {emailPassword && (
+                                    <div>
+                                      <p className="text-xs text-gray-400 mb-1">Email Password:</p>
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-white font-mono text-sm flex-1 break-all">
+                                          {emailPassword}
+                                        </p>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="shrink-0"
+                                          onClick={() => handleCopy(emailPassword, 'Email Password')}
+                                        >
+                                          <Copy className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {hasAnyUsername && (
+                                    <>
+                                      {usernameId && (
+                                        <div>
+                                          <p className="text-xs text-gray-400 mb-1">Username ID:</p>
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-white font-mono text-sm flex-1 break-all">
+                                              {usernameId}
+                                            </p>
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              className="shrink-0"
+                                              onClick={() => handleCopy(usernameId, 'Username ID')}
+                                            >
+                                              <Copy className="w-4 h-4" />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      )}
+                                      {usernamePassword && (
+                                        <div>
+                                          <p className="text-xs text-gray-400 mb-1">Username Password:</p>
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-white font-mono text-sm flex-1 break-all">
+                                              {usernamePassword}
+                                            </p>
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              className="shrink-0"
+                                              onClick={() =>
+                                                handleCopy(usernamePassword, 'Username Password')
+                                              }
+                                            >
+                                              <Copy className="w-4 h-4" />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                  {!email && !emailPassword && !hasAnyUsername && (
+                                    <code className="flex-1 min-w-0 px-2 py-1.5 rounded bg-secondary text-gray-300 text-sm break-all font-mono block">
+                                      {JSON.stringify(creds)}
+                                    </code>
+                                  )}
+                                </div>
+                              );
+                            })
+                          : item.keys.map((keyVal, kIdx) => (
+                              <div key={kIdx} className="flex items-center gap-2">
+                                <code className="flex-1 min-w-0 px-2 py-1.5 rounded bg-secondary text-gray-300 text-sm break-all font-mono">
+                                  {keyVal}
+                                </code>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="shrink-0"
+                                  onClick={() => handleCopy(keyVal, item.productName)}
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 text-sm">License not available yet.</p>
+                    )}
+                  </div>
+                );
+              })}
             </>
           )}
         </div>

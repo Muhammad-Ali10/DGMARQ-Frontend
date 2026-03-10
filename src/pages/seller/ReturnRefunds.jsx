@@ -18,7 +18,7 @@ const STATUS_BADGES = {
   SELLER_REVIEW: { variant: 'warning', label: 'Your review' },
   SELLER_APPROVED: { variant: 'default', label: 'Approved' },
   SELLER_REJECTED: { variant: 'destructive', label: 'Rejected' },
-  ADMIN_REVIEW: { variant: 'secondary', label: 'With admin' },
+  ADMIN_REVIEW: { variant: 'secondary', label: 'In progress' },
   ADMIN_APPROVED: { variant: 'default', label: 'Admin approved' },
   ADMIN_REJECTED: { variant: 'destructive', label: 'Admin rejected' },
   COMPLETED: { variant: 'success', label: 'Completed' },
@@ -171,7 +171,9 @@ const SellerReturnRefunds = () => {
                 Customer requested a refund. Admin is reviewing. You cannot approve or reject; you may leave optional feedback below.
               </div>
               {isAdminHandledRefund(selectedRefund) && (
-                <p className="text-amber-200 text-sm">Refund to original payment (PayPal); admin will process manually.</p>
+                <p className="text-amber-200 text-sm">
+                  Refund Through the Original Payment Method may take up to 1-3 business days to fully process
+                </p>
               )}
               {selectedRefund.licenseKeyIds?.length > 0 && (
                 <div>

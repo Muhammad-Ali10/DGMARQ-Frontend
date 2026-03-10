@@ -6,10 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Input } from '../../components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { ShoppingCart, X, RotateCcw, Eye, RefreshCw } from 'lucide-react';
+import { Loading } from '../../components/ui/loading';
+import { ShoppingCart, RotateCcw, Eye, RefreshCw } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import RefundRequestModal from '../../components/RefundRequestModal';
 import { showSuccess, showApiError } from '../../utils/toast';
@@ -17,8 +15,6 @@ import { showSuccess, showApiError } from '../../utils/toast';
 const UserOrders = () => {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancellingId, setCancellingId] = useState(null);
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [reorderOrderId, setReorderOrderId] = useState(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
@@ -27,19 +23,6 @@ const UserOrders = () => {
   const { data: ordersData, isLoading } = useQuery({
     queryKey: ['user-orders', page, status],
     queryFn: () => userAPI.getMyOrders({ page, limit: 10, status }).then(res => res.data.data),
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: ({ orderId, reason }) => userAPI.cancelOrder(orderId, { reason }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['user-orders']);
-      setCancellingId(null);
-      setCancelReason('');
-      showSuccess('Order cancelled successfully');
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to cancel order');
-    },
   });
 
   const reorderMutation = useMutation({
@@ -53,12 +36,6 @@ const UserOrders = () => {
       showApiError(error, 'Failed to add items to cart');
     },
   });
-
-  const handleCancel = (orderId) => {
-    if (cancelReason.trim()) {
-      cancelMutation.mutate({ orderId, reason: cancelReason });
-    }
-  };
 
   const handleReorder = (orderId) => {
     setReorderOrderId(orderId);
@@ -115,7 +92,7 @@ const UserOrders = () => {
                     <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
                       <div>
                         <h3 className="font-semibold text-white text-lg">
-                          Order #{order._id.slice(-8)}
+                          Order #{order.orderNumber || order._id.slice(-8)}
                         </h3>
                         <p className="text-sm text-gray-400 mt-1">
                           {new Date(order.createdAt).toLocaleDateString()}
@@ -160,64 +137,14 @@ const UserOrders = () => {
                         </Button>
                       )}
                       {order.orderStatus !== 'cancelled' && order.orderStatus !== 'completed' && order.paymentStatus === 'paid' && (
-                        <>
-                          {cancellingId === order._id ? (
-                            <Dialog open={true} onOpenChange={(open) => { if (!open) { setCancellingId(null); setCancelReason(''); } }}>
-                              <DialogContent size="sm" className="bg-primary border-gray-700">
-                                <DialogHeader>
-                                  <DialogTitle className="text-white">Cancel Order</DialogTitle>
-                                  <DialogDescription className="text-gray-400">
-                                    Please provide a reason for cancellation
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <Input
-                                    value={cancelReason}
-                                    onChange={(e) => setCancelReason(e.target.value)}
-                                    placeholder="Cancellation reason"
-                                    className="bg-secondary border-gray-700 text-white"
-                                  />
-                                  <div className="flex gap-2">
-                                    <Button
-                                      onClick={() => handleCancel(order._id)}
-                                      className="bg-red-600 hover:bg-red-700"
-                                    >
-                                      Confirm
-                                    </Button>
-                                    <Button
-                                      onClick={() => {
-                                        setCancellingId(null);
-                                        setCancelReason('');
-                                      }}
-                                      variant="outline"
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          ) : (
-                            <>
-                              <Button
-                                onClick={() => setCancellingId(order._id)}
-                                variant="destructive"
-                                size="sm"
-                              >
-                                <X className="w-4 h-4 mr-2" />
-                                Cancel Order
-                              </Button>
-                              <Button
-                                onClick={() => handleReorder(order._id)}
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <RotateCcw className="w-4 h-4 mr-2" />
-                                Reorder
-                              </Button>
-                            </>
-                          )}
-                        </>
+                        <Button
+                          onClick={() => handleReorder(order._id)}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          Reorder
+                        </Button>
                       )}
                     </div>
                   </CardContent>

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationAPI } from '../../services/api';
+import { useSocket } from '../../hooks/useSocket';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -11,6 +12,7 @@ import { showSuccess, showApiError } from '../../utils/toast';
 const AdminNotifications = () => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const { socket, isConnected } = useSocket();
 
   const { data: notificationsData, isLoading } = useQuery({
     queryKey: ['admin-notifications', page],
@@ -21,6 +23,16 @@ const AdminNotifications = () => {
     queryKey: ['admin-unread-count'],
     queryFn: () => notificationAPI.getUnreadCount().then(res => res.data.data),
   });
+
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+    const onNewNotification = () => {
+      queryClient.invalidateQueries(['admin-notifications']);
+      queryClient.invalidateQueries(['admin-unread-count']);
+    };
+    socket.on('notification_new', onNewNotification);
+    return () => socket.off('notification_new', onNewNotification);
+  }, [socket, isConnected, queryClient]);
 
   const markAsReadMutation = useMutation({
     mutationFn: (notificationId) => notificationAPI.markAsRead(notificationId),

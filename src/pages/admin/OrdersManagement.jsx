@@ -107,13 +107,14 @@ const OrdersManagement = () => {
                     {orders && orders.length > 0 ? (
                       orders.map((order) => {
                         const orderId = order._id?.toString() || order.id?.toString() || 'N/A';
+                        const displayId = order.orderNumber || (orderId !== 'N/A' ? orderId.slice(-8) : 'N/A');
                         const userName = order.userId?.name || 
                                        (typeof order.userId === 'object' ? order.userId?.email : null) || 
                                        'N/A';
                         return (
                           <TableRow key={orderId} className="border-gray-700 hover:bg-gray-800">
-                            <TableCell className="text-white font-mono text-sm">
-                              {orderId !== 'N/A' ? orderId.slice(-8) : 'N/A'}
+                          <TableCell className="text-white font-mono text-sm">
+                              {displayId}
                             </TableCell>
                             <TableCell className="text-gray-300">{userName}</TableCell>
                             <TableCell className="text-white font-semibold">

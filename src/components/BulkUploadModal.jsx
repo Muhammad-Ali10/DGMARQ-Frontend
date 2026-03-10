@@ -106,8 +106,13 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
         if (line.startsWith('{')) {
           try {
             const account = JSON.parse(line);
-            if (!account.email || !account.password) {
-              errors.push(`Line ${index + 1}: JSON format requires both email and password`);
+            const hasEmail = !!account.email;
+            const hasAnyPassword =
+              !!account.password ||
+              !!account.emailPassword ||
+              !!account.usernamePassword;
+            if (!hasEmail || !hasAnyPassword) {
+              errors.push(`Line ${index + 1}: JSON must include email and at least one password (emailPassword or usernamePassword or password)`);
             }
           } catch (e) {
             errors.push(`Line ${index + 1}: Invalid JSON format`);
@@ -115,7 +120,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
         } else {
           const parts = line.split(',').map(p => p.trim());
           if (parts.length < 2 || !parts[0] || !parts[1]) {
-            errors.push(`Line ${index + 1}: CSV format requires email,password`);
+            errors.push(`Line ${index + 1}: CSV requires at least email,password. Optional columns: emailPassword,usernameId,usernamePassword`);
           }
         }
       });
@@ -186,34 +191,79 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
       return lines;
     } else if (detectedUploadType === 'ACCOUNT_BASED') {
       // For accounts: parse CSV or JSON format
-      // Expected format: email,password or {"email":"...","password":"..."}
+      // CSV supported:
+      // - email,password
+      // - email,emailPassword,usernameId,usernamePassword
+      // JSON supported:
+      // - {"email":"...","password":"..."}
+      // - {"email":"...","emailPassword":"...","usernameId":"...","usernamePassword":"..."}
       const accounts = [];
       for (const line of lines) {
         if (line.startsWith('{')) {
-          // JSON format
           try {
             const account = JSON.parse(line);
-            if (account.email && account.password) {
-              accounts.push({
-                email: account.email.trim(),
-                password: account.password.trim(),
-                username: account.username?.trim() || account.email.trim(),
-                notes: account.notes?.trim() || ''
-              });
+            const email = account.email?.trim();
+            const emailPassword = account.emailPassword?.trim();
+            const usernameId = (account.usernameId || account.username)?.trim();
+            const usernamePassword = account.usernamePassword?.trim();
+            const legacyPassword = account.password?.trim();
+
+            if (!email) {
+              continue;
             }
+
+            const finalEmailPassword =
+              emailPassword || (!usernameId && legacyPassword) || '';
+            const finalUsernamePassword =
+              usernamePassword || (usernameId && legacyPassword) || '';
+
+            accounts.push({
+              email,
+              emailPassword: finalEmailPassword,
+              usernameId: usernameId || '',
+              usernamePassword: finalUsernamePassword,
+              notes: account.notes?.trim() || '',
+            });
           } catch (e) {
             // Skip invalid JSON
             continue;
           }
         } else {
-          // CSV format: email,password
           const parts = line.split(',').map(p => p.trim());
           if (parts.length >= 2 && parts[0] && parts[1]) {
+            const email = parts[0];
+            const p1 = parts[1] || '';
+            const p2 = parts[2] || '';
+            const p3 = parts[3] || '';
+
+            // Map to email/emailPassword/usernameId/usernamePassword with backward compatibility
+            let emailPassword = '';
+            let usernameId = '';
+            let usernamePassword = '';
+
+            if (parts.length >= 4) {
+              // email, emailPassword, usernameId, usernamePassword
+              emailPassword = p1;
+              usernameId = p2;
+              usernamePassword = p3;
+            } else if (parts.length === 3) {
+              // email, emailPassword, usernameId  (assume same password for username)
+              emailPassword = p1;
+              usernameId = p2;
+              usernamePassword = p1;
+            } else {
+              // Legacy: email,password
+              emailPassword = p1;
+              usernameId = '';
+              usernamePassword = '';
+            }
+
             accounts.push({
-              email: parts[0],
-              password: parts[1],
-              username: parts[0],
-              notes: parts[2] || ''
+              email,
+              emailPassword,
+              usernameId,
+              usernamePassword,
+              notes: '',
             });
           }
         }
@@ -429,7 +479,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                   <p className="text-xs text-gray-400 mt-1">
                     {detectedUploadType === 'LICENSE_KEY' 
                       ? 'Enter your license keys below, one per line'
-                      : 'Enter account credentials in CSV or JSON format'}
+                      : 'Enter account credentials in CSV or JSON format (email/email password/username ID/username password)'}
                   </p>
                 </div>
                 {uploadMethod === 'textarea' ? (
@@ -439,7 +489,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                     placeholder={
                       detectedUploadType === 'LICENSE_KEY'
                         ? 'Enter license keys, one per line:\nKEY1-ABCD-EFGH-IJKL\nKEY2-MNOP-QRST-UVWX\nKEY3-YZAB-CDEF-GHIJ'
-                        : 'Enter accounts, one per line:\nemail1@example.com,password1\nemail2@example.com,password2\n\nOr JSON format:\n{"email":"email@example.com","password":"password"}'
+                        : 'Enter accounts, one per line:\nemail@example.com,emailPassword,usernameId,usernamePassword\n\nLegacy:\nemail@example.com,password\n\nOr JSON format:\n{"email":"email@example.com","emailPassword":"emailPass","usernameId":"gameUser","usernamePassword":"gamePass"}'
                     }
                     rows={14}
                     className="bg-secondary border-gray-700 text-white font-mono text-sm placeholder:text-gray-500 resize-none focus:border-accent focus:ring-2 focus:ring-accent/20"
@@ -580,13 +630,17 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                         </>
                       ) : (
                         <>
-                          <p className="font-medium text-white mb-1">CSV Format:</p>
+                          <p className="font-medium text-white mb-1">Preferred CSV Format:</p>
+                          <code className="block p-2 bg-gray-800 rounded text-green-400 mb-2">
+                            email@example.com,emailPassword123,usernameId,usernamePassword123
+                          </code>
+                          <p className="font-medium text-white mb-1">Legacy CSV (email-only login):</p>
                           <code className="block p-2 bg-gray-800 rounded text-green-400 mb-2">
                             email@example.com,password123
                           </code>
                           <p className="font-medium text-white mb-1">JSON Format:</p>
                           <code className="block p-2 bg-gray-800 rounded text-green-400">
-                            {'{"email":"email@example.com","password":"password123"}'}
+                            {'{"email":"email@example.com","emailPassword":"emailPass","usernameId":"gameUser","usernamePassword":"gamePass"}'}
                           </code>
                           <p className="mt-2">• One account per line</p>
                           <p>• Duplicate accounts will be skipped</p>
