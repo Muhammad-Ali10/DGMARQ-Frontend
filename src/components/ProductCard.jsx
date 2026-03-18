@@ -68,10 +68,10 @@ const ProductCard = ({ product }) => {
           {discountPercentage > 0 && (
             <h3
               className={`text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap ${
-                product.trendingOffer ? "bg-red-600" : "bg-primary"
+                product.trendingOffer ? "bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" : "bg-primary"
               }`}
             >
-              {product.trendingOffer ? "🔥" : ""}-{discountPercentage}% OFF
+              {`-${discountPercentage}%`}
             </h3>
           )}
         </CardContent>

@@ -59,9 +59,9 @@ const SidebarLogo = () => {
       className="flex items-center gap-2 px-6 py-4 hover:opacity-80 transition-opacity border-b border-border"
     >
       <img
-        src="https://res.cloudinary.com/dptwervy7/image/upload/v1754393665/logo_nojqxu.png"
+        src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
         alt="logo"
-        className="w-1/2 h-10"
+        className="w-10/12 h-10"
       />
     </Link>
   );

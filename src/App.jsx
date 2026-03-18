@@ -100,6 +100,7 @@ import RandomKeys from "./pages/public/RandomKeys";
 import SteamGiftCard from "./pages/public/SteamGiftCard";
 import GiftCards from "./pages/public/GiftCards";
 import CategoryListing from "./pages/public/CategoryListing";
+import SubcategoryListing from "./pages/public/SubcategoryListing";
 
 
 function App() {
@@ -140,7 +141,15 @@ function App() {
         <Route path="/steam-gift-card" element={<SteamGiftCard />} />
         <Route path="/steam-gift-cards" element={<SteamGiftCard />} />
         <Route path="/gift-cards" element={<GiftCards />} />
+        {/* Category listing by slug or ID (backwards compatible) */}
         <Route path="/category/:categoryId" element={<CategoryListing />} />
+        {/* Canonical SEO-friendly subcategory URL: /category/:categorySlug/:subcategorySlug */}
+        <Route
+          path="/category/:categorySlug/:subcategorySlug"
+          element={<SubcategoryListing />}
+        />
+        {/* Legacy subcategory route kept for backwards compatibility */}
+        <Route path="/subcategory/:subcategoryId" element={<SubcategoryListing />} />
       </Route>
       <Route
         path="/admin"

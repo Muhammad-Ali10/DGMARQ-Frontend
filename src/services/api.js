@@ -245,6 +245,8 @@ export const returnRefundAPI = {
   getCompletedOrders: () => api.get('/return-refund/completed-orders'),
   getOrderItemLicenseKeys: (orderId, productId) =>
     api.get('/return-refund/order-item-keys', { params: { orderId, productId } }),
+  validateGuestOrder: (queryString) =>
+    api.get(`/return-refund/guest/validate?${queryString}`),
   escalateToAdmin: (refundId) => api.post(`/return-refund/${refundId}/escalate`),
   getRefundMessages: (refundId) => api.get(`/return-refund/${refundId}/messages`),
   addRefundMessage: (refundId, payload) => {

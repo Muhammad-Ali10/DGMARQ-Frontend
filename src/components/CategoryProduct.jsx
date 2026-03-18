@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CircleCheck, Heart } from 'lucide-react';
+import { CircleCheck, Heart, Package } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
@@ -20,6 +20,8 @@ const CategoryProduct = ({ product }) => {
   const deviceName = getDeviceName(product);
   const regionName = getRegionName(product);
   const regionText = regionName === 'Global' ? 'Global' : `For ${regionName} Currency only`;
+  const stock = product.stock ?? product.availableKeysCount ?? 0;
+  const inStock = stock > 0;
   
   // Check if product is in wishlist (only if authenticated)
   const { data: wishlist } = useQuery({
@@ -90,8 +92,6 @@ const CategoryProduct = ({ product }) => {
   const canActivate = true; // Default to true, can be enhanced with actual product data
   const activationText = `Can activate in ${regionName}`;
 
-  // Check if product is sponsored (can be enhanced with actual product data)
-  const isSponsored = product.isFeatured || false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -134,6 +134,16 @@ const CategoryProduct = ({ product }) => {
               <p className="text-white">{deviceName}</p>
             </div>
 
+            <div className="flex items-center">
+              <p className="w-24 text-white">Stock</p>
+              <div className="flex items-center gap-1.5">
+                <Package className={`size-4 ${inStock ? 'text-[#04CF12]' : 'text-red-500'}`} />
+                <p className={`text-sm font-medium ${inStock ? 'text-[#04CF12]' : 'text-red-500'}`}>
+                  {inStock ? `${stock} in stock` : 'Out of stock'}
+                </p>
+              </div>
+            </div>
+
             {canActivate && (
               <div className="flex gap-2.5">
                 <CircleCheck className="text-[#04CF12]" />
@@ -145,10 +155,7 @@ const CategoryProduct = ({ product }) => {
           </div>
 
           <div className="flex justify-between w-full">
-            {/* {isSponsored && (
-              <p className="text-sm font-bold text-white">SPONSORED</p>
-            )} */}
-            {!isSponsored && <div></div>}
+            <div></div>
             <button
               onClick={handleWishlistClick}
               disabled={isWishlistLoading}

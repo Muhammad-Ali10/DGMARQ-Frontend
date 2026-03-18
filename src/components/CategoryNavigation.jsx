@@ -9,7 +9,6 @@ const menuItems = [
   { id: 'Featured-products', label: 'Featured Products' },
   { id: 'trending-categories', label: 'Trending Categories' },
   { id: 'software', label: 'Software' },
-  { id: 'gaming-gift-cards', label: 'Gaming Gift Cards' },
   { id: 'random-keys', label: 'Random Keys' },
   { id: 'game-accounts', label: 'Game Accounts' },
   { id: 'microsoft', label: 'Microsoft' },

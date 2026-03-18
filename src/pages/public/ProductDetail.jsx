@@ -507,8 +507,8 @@ const ProductDetail = () => {
                     ${safeOriginalPrice.toFixed(2)}
                   </span>
                   {displayDiscountPercent > 0 && (
-                    <Badge variant="destructive" className="text-lg px-3 py-1">
-                      -{displayDiscountPercent}% OFF
+                    <Badge className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-lg px-3 py-1">
+                      {`-${displayDiscountPercent}%`}
                     </Badge>
                   )}
                 </div>

@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
+import { AlertTriangle, Info } from 'lucide-react';
 
 /**
  * Reusable confirmation modal component
@@ -29,25 +30,37 @@ export const ConfirmationModal = ({
     onOpenChange(false);
   };
 
+  const isDestructive = variant === 'destructive';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} size="sm" className="bg-primary border-gray-700">
+      <DialogContent showCloseButton={false} size="sm">
         <DialogHeader>
-          <DialogTitle className="text-white">{title}</DialogTitle>
-          <DialogDescription className="text-gray-400">{description}</DialogDescription>
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isDestructive ? 'bg-red-500/15' : 'bg-accent/15'}`}>
+              {isDestructive
+                ? <AlertTriangle className="w-5 h-5 text-red-400" />
+                : <Info className="w-5 h-5 text-accent" />
+              }
+            </div>
+            <div>
+              <DialogTitle>{title}</DialogTitle>
+              <DialogDescription>{description}</DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white order-2 sm:order-1"
+            className="border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white order-2 sm:order-1"
           >
             {cancelText}
           </Button>
           <Button
             onClick={handleConfirm}
-            variant={variant === 'destructive' ? 'destructive' : 'default'}
-            className="order-1 sm:order-2"
+            variant={isDestructive ? 'destructive' : 'default'}
+            className={`order-1 sm:order-2 ${!isDestructive ? 'bg-accent hover:bg-accent/90 shadow-lg shadow-accent/20' : 'shadow-lg shadow-red-500/20'}`}
           >
             {confirmText}
           </Button>

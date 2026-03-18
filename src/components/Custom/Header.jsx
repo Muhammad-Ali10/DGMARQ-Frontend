@@ -320,7 +320,7 @@ const Header = () => {
               }}
             >
               <img
-                src="https://res.cloudinary.com/dptwervy7/image/upload/v1754393665/logo_nojqxu.png"
+                src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
                 alt="logo"
                 className="w-full h-10"
               />
@@ -409,11 +409,26 @@ const Header = () => {
                               <div className="text-white font-medium truncate">
                                 {product.name}
                               </div>
-                              {product.price && (
-                                <div className="text-accent text-sm">
-                                  ${product.price.toFixed(2)}
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {product.price && (
+                                  <div className="text-accent text-sm">
+                                    ${product.price.toFixed(2)}
+                                  </div>
+                                )}
+                                {product.stock !== undefined && (
+                                  <span
+                                    className={`text-[11px] px-2 py-0.5 rounded ${
+                                      product.stock > 0
+                                        ? "bg-green-900/30 text-green-400"
+                                        : "bg-red-900/30 text-red-400"
+                                    }`}
+                                  >
+                                    {product.stock > 0
+                                      ? `${product.stock} in stock`
+                                      : "Out of stock"}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </button>
                         ))}
@@ -601,9 +616,7 @@ const Header = () => {
                             {subcategories.map((subcategory) => (
                               <Link
                                 key={subcategory._id}
-                                to={`/subcategory/${
-                                  subcategory.slug || subcategory._id
-                                }`}
+                                to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${hoveredCategory?._id || ''}`}
                                 onClick={() => setShowCategoriesDropdown(false)}
                                 className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-800/50 transition-colors group border-b border-gray-800/20 last:border-b-0"
                               >
@@ -664,9 +677,9 @@ const Header = () => {
             {/* CTA Button */}
             <Button
               onClick={() => navigate("/dgmarq-plus")}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium shadow-lg"
+              className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white rounded-lg font-medium shadow-lg"
             >
-              Save more with DGMAQ Plus
+              Save more with DGMARQ Plus
             </Button>
             </div>
           </div>
@@ -762,7 +775,7 @@ const Header = () => {
                               {subcategories.map((subcategory) => (
                                 <Link
                                   key={subcategory._id}
-                                  to={`/subcategory/${subcategory.slug || subcategory._id}`}
+                                  to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${category._id}`}
                                   onClick={() => {
                                     setMobileMenuOpen(false);
                                     setMobileCategoriesOpen(false);
@@ -818,9 +831,9 @@ const Header = () => {
                   navigate("/dgmarq-plus");
                   setMobileMenuOpen(false);
                 }}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                className="w-full bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white"
               >
-                Save more with DGMAQ Plus
+                Save more with DGMARQ Plus
               </Button>
             </div>
           </div>

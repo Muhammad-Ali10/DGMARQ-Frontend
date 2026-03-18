@@ -304,33 +304,25 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="bg-primary border-gray-700">
+      <DialogContent size="lg">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15">
+              <Upload className="w-5 h-5 text-accent" />
+            </div>
             <div>
-              <DialogTitle className="text-white text-2xl font-bold flex items-center gap-2">
-                <Upload className="w-6 h-6 text-accent" />
-                Upload Inventory
-              </DialogTitle>
-              <DialogDescription className="text-gray-400 text-sm mt-2">
-                Select a product and upload license keys or account credentials. The upload format will be automatically determined based on the selected product type.
+              <DialogTitle className="text-lg font-semibold">Upload Inventory</DialogTitle>
+              <DialogDescription>
+                Select a product and upload license keys or account credentials.
               </DialogDescription>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="text-gray-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </Button>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-180px)] px-6 py-4 space-y-6">
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-accent/20 rounded-lg">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
                 <Key className="w-5 h-5 text-accent" />
               </div>
               <div>
@@ -394,7 +386,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
               />
             </div>
             {selectedProduct && (
-              <div className="p-4 bg-gradient-to-r from-secondary/80 to-secondary/40 rounded-lg border-2 border-accent/30 shadow-lg">
+              <div className="p-4 rounded-xl border border-accent/20 bg-accent/[0.04]">
                 <div className="flex items-start gap-3">
                   <div className={`p-2.5 rounded-lg ${detectedUploadType === 'LICENSE_KEY' ? 'bg-blue-500/20' : 'bg-green-500/20'}`}>
                     {detectedUploadType === 'LICENSE_KEY' ? (
@@ -436,7 +428,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
             <>
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 bg-accent/20 rounded-lg">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
                     <Upload className="w-5 h-5 text-accent" />
                   </div>
                   <div>
@@ -453,7 +445,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                     type="button"
                     variant={uploadMethod === 'textarea' ? 'default' : 'outline'}
                     onClick={() => setUploadMethod('textarea')}
-                    className={`h-12 ${uploadMethod === 'textarea' ? 'bg-accent hover:bg-accent/90 text-white' : 'border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white'}`}
+                    className={`h-11 ${uploadMethod === 'textarea' ? 'bg-accent hover:bg-accent/90 text-white shadow-md shadow-accent/20' : 'border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white'}`}
                   >
                     <FileText className="w-5 h-5 mr-2" />
                     Paste Data
@@ -462,7 +454,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                     type="button"
                     variant={uploadMethod === 'file' ? 'default' : 'outline'}
                     onClick={() => setUploadMethod('file')}
-                    className={`h-12 ${uploadMethod === 'file' ? 'bg-accent hover:bg-accent/90 text-white' : 'border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white'}`}
+                    className={`h-11 ${uploadMethod === 'file' ? 'bg-accent hover:bg-accent/90 text-white shadow-md shadow-accent/20' : 'border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white'}`}
                   >
                     <Upload className="w-5 h-5 mr-2" />
                     Upload File
@@ -492,17 +484,17 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                         : 'Enter accounts, one per line:\nemail@example.com,emailPassword,usernameId,usernamePassword\n\nLegacy:\nemail@example.com,password\n\nOr JSON format:\n{"email":"email@example.com","emailPassword":"emailPass","usernameId":"gameUser","usernamePassword":"gamePass"}'
                     }
                     rows={14}
-                    className="bg-secondary border-gray-700 text-white font-mono text-sm placeholder:text-gray-500 resize-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    className="bg-white/[0.03] border-white/[0.08] text-white font-mono text-sm placeholder:text-gray-500 resize-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-xl"
                   />
                 ) : (
                   <div
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
                       isDragging
-                        ? 'border-accent bg-accent/10'
-                        : 'border-gray-700 bg-secondary/30'
+                        ? 'border-accent bg-accent/[0.06] scale-[1.01]'
+                        : 'border-white/[0.08] bg-white/[0.01]'
                     }`}
                   >
                     <input
@@ -570,7 +562,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                   </div>
                 )}
                 {itemCount > 0 && (
-                  <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-900/30 to-green-800/20 rounded-lg border-2 border-green-700/50">
+                  <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04]">
                     <div className="p-2 bg-green-500/20 rounded-lg">
                       <CheckCircle2 className="w-5 h-5 text-green-500" />
                     </div>
@@ -586,7 +578,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                   </div>
                 )}
                 {validationErrors.length > 0 && (
-                  <div className="p-4 bg-red-900/20 rounded-lg border-2 border-red-700/50">
+                  <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/[0.04]">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
@@ -611,7 +603,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                 )}
               </div>
 
-              <div className="p-4 bg-gradient-to-r from-blue-900/20 to-blue-800/10 rounded-lg border border-blue-700/30">
+              <div className="p-4 rounded-xl border border-blue-500/15 bg-blue-500/[0.04]">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-blue-500/20 rounded-lg">
                     <Info className="w-5 h-5 text-blue-400" />
@@ -661,12 +653,12 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-4 pt-6 border-t border-gray-700">
+          <div className="flex items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
             <div className="flex items-center gap-2 text-sm text-gray-400">
               {itemCount > 0 && (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs">
                     <span className="font-semibold text-white">{itemCount}</span> items ready
                   </span>
                 </>
@@ -677,7 +669,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white px-6"
+                className="border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white px-5"
                 disabled={uploadMutation.isPending}
               >
                 Cancel
@@ -685,7 +677,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
               <Button
                 type="submit"
                 disabled={uploadMutation.isPending || !selectedProductId || !detectedUploadType || itemCount === 0 || validationErrors.length > 0}
-                className="bg-accent hover:bg-accent/90 min-w-[160px] px-6 font-semibold shadow-lg shadow-accent/20"
+                className="bg-accent hover:bg-accent/90 min-w-[160px] px-6 font-semibold shadow-lg shadow-accent/25 disabled:opacity-40 transition-all"
               >
                 {uploadMutation.isPending ? (
                   <>

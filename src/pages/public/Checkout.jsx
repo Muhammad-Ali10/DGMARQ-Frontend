@@ -22,8 +22,9 @@ const Checkout = () => {
   
   const checkoutId = searchParams.get('checkoutId');
   const paymentStatus = searchParams.get('status');
-  const token = searchParams.get('token');
-  const PayerID = searchParams.get('PayerID');
+  // Preserve token and PayerID for future payment flows (may be used by downstream payment status handlers)
+  const _token = searchParams.get('token');
+  const _PayerID = searchParams.get('PayerID');
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -56,13 +57,21 @@ const Checkout = () => {
   })();
   const guestItemsRaw = guestItemsFromState || guestItemsFromStorage;
   const guestItems = Array.isArray(guestItemsRaw)
-    ? guestItemsRaw.map((item) => ({ productId: item.productId || item.productId?._id, qty: Math.max(1, Number(item.qty) || 1) })).filter((item) => item.productId)
+    ? guestItemsRaw
+        .map((item) => ({
+          productId: item.productId || item.productId?._id,
+          productName: item.productName || item.name || item.productId?.name || 'Product',
+          qty: Math.max(1, Number(item.qty) || 1),
+        }))
+        .filter((item) => item.productId)
     : [];
 
   useEffect(() => {
     if (paymentStatus === 'success' && location.state?.guestOrder) {
-      setGuestOrderSuccess(location.state.guestOrder);
-      setGuestLicenseDetails(location.state.licenseDetails || null);
+      setTimeout(() => {
+        setGuestOrderSuccess(location.state.guestOrder);
+        setGuestLicenseDetails(location.state.licenseDetails || null);
+      }, 0);
     }
   }, [paymentStatus, location.state]);
 
@@ -80,6 +89,7 @@ const Checkout = () => {
     retry: false,
   });
 
+  // eslint-disable-next-line no-unused-vars
   const { data: walletData } = useQuery({
     queryKey: ['wallet-balance'],
     queryFn: () => walletAPI.getBalance().then(res => res.data.data),
@@ -260,6 +270,7 @@ const Checkout = () => {
     });
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handlePayPalPayment = () => {
     if (!currentCheckoutId) {
       handleProceedToPayment();
@@ -274,6 +285,7 @@ const Checkout = () => {
     }).catch(() => {});
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleCardPayment = (cardData) => {
     if (!currentCheckoutId) return;
     
@@ -489,7 +501,6 @@ const Checkout = () => {
         couponCode: appliedCoupon?.code || couponCode || undefined,
       });
     };
-
     return (
       <div className="min-h-[60vh] py-8">
         <div className="max-w-2xl mx-auto px-4">
@@ -525,7 +536,7 @@ const Checkout = () => {
               <ul className="space-y-2">
                 {guestItems.map((item, i) => (
                   <li key={i} className="text-gray-300">
-                    Product ID: {item.productId} × {item.qty}
+                    {item.productName} × {item.qty}
                   </li>
                 ))}
               </ul>
@@ -564,23 +575,25 @@ const Checkout = () => {
           walletAmount={0}
           cardAmount={guestGrandTotal || (checkout?.grandTotal ?? checkout?.cardAmount ?? checkout?.totalAmount ?? 0)}
           paymentMethod="PayPal"
-          onSuccess={(data) => {
-            const order = data?.order || data?.data?.order;
-            const licenseDetails = data?.licenseDetails || data?.data?.licenseDetails;
-            setGuestOrderSuccess(order || null);
-            setGuestLicenseDetails(licenseDetails || null);
-            if (order) {
-              navigate(`/checkout?checkoutId=${currentCheckoutId}&status=success`, {
-                state: { guestOrder: order, licenseDetails: licenseDetails || null },
-              });
-            } else {
-              navigate(`/checkout?checkoutId=${currentCheckoutId}&status=success`);
-            }
-            setPaymentModalOpen(false);
-            try {
-              clearGuestCart();
-            } catch (_) {}
-          }}
+        onSuccess={(data) => {
+          const order = data?.order || data?.data?.order;
+          const licenseDetails = data?.licenseDetails || data?.data?.licenseDetails;
+          setGuestOrderSuccess(order || null);
+          setGuestLicenseDetails(licenseDetails || null);
+          if (order) {
+            navigate(`/checkout?checkoutId=${currentCheckoutId}&status=success`, {
+              state: { guestOrder: order, licenseDetails: licenseDetails || null },
+            });
+          } else {
+            navigate(`/checkout?checkoutId=${currentCheckoutId}&status=success`);
+          }
+          setPaymentModalOpen(false);
+          try {
+            clearGuestCart();
+          } catch {
+            // Non-fatal: failing to clear guest cart should not break checkout flow
+          }
+        }}
         />
       </div>
     );

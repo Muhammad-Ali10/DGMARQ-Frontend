@@ -188,7 +188,7 @@ const FlashDeal = () => {
           />
           <div className="text-base font-normal font-poppins flex flex-col -mt-12 ml-2.5 absolute z-50 text-white rounded-lg bg-blue  w-[99px] h-[70px] px-3.5 py-1">
             Save{" "}
-            <span className="text-2xl font-bold font-poppins text-center">
+            <span className="text-xl font-bold font-poppins text-center">
               $ {(parseFloat(actualPrice) - parseFloat(discountPrice)).toFixed(2)}
             </span>
           </div>
@@ -198,14 +198,14 @@ const FlashDeal = () => {
       {/* Product Title & Info */}
       <div className="flex flex-col w-full mt-6 text-white font-poppins">
         <h3 className="text-[22px] leading-[26px] font-semibold">{title}</h3>
-        <div className="flex justify-between items-center mt-1">
+        {/* <div className="flex justify-between items-center mt-1">
           <div className="text-white text-sm font-normal">
             Left: <span className="font-bold">{left || 0}</span>
           </div>
           <div className="bg-orange text-white px-4 py-2 rounded-21 border-[#D55603] border">
             Sold {sold || 0}
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Pricing */}

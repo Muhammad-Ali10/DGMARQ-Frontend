@@ -34,7 +34,8 @@ const ProductListingLayout = ({
   lockedCategoryId = null, 
   lockedPlatformId = null,
   pageTitle = "Products",
-  defaultCategoryId = null 
+  defaultCategoryId = null,
+  defaultSubCategoryId = null,
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(parseInt(searchParams.get('page')) || 1);
@@ -53,7 +54,7 @@ const ProductListingLayout = ({
       categoryId.push(defaultCategoryId);
     }
 
-    return {
+    const initial = {
       categoryId,
       subCategoryId: searchParams.get('subCategoryId')?.split(',').filter(Boolean) || [],
       region: searchParams.get('region')?.split(',').filter(Boolean) || [],
@@ -66,6 +67,12 @@ const ProductListingLayout = ({
       theme: searchParams.get('theme')?.split(',').filter(Boolean) || [],
       mode: searchParams.get('mode')?.split(',').filter(Boolean) || [],
     };
+
+    if (defaultSubCategoryId && !initial.subCategoryId.includes(defaultSubCategoryId)) {
+      initial.subCategoryId.push(defaultSubCategoryId);
+    }
+
+    return initial;
   });
 
   useEffect(() => {
@@ -76,6 +83,20 @@ const ProductListingLayout = ({
       }));
     }
   }, [lockedCategoryId]);
+
+  useEffect(() => {
+    if (
+      defaultSubCategoryId &&
+      !checkboxFilters.subCategoryId.includes(defaultSubCategoryId)
+    ) {
+      setCheckboxFilters(prev => ({
+        ...prev,
+        subCategoryId: prev.subCategoryId.includes(defaultSubCategoryId)
+          ? prev.subCategoryId
+          : [...prev.subCategoryId, defaultSubCategoryId],
+      }));
+    }
+  }, [defaultSubCategoryId, checkboxFilters.subCategoryId]);
 
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true');

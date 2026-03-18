@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { returnRefundAPI } from '../services/api';
@@ -36,6 +36,18 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [errors, setErrors] = useState({});
 
+  // Refund type: regular vs guest purchase
+  const [refundType, setRefundType] = useState('REGULAR'); // 'REGULAR' | 'GUEST'
+  const [guestPurchaseEmail, setGuestPurchaseEmail] = useState('');
+  const [guestOrderNumber, setGuestOrderNumber] = useState('');
+  const [guestOrder, setGuestOrder] = useState(null);
+  const [guestSelectedProductId, setGuestSelectedProductId] = useState('');
+  const [guestSelectedKeyIds, setGuestSelectedKeyIds] = useState([]);
+  const [validatingGuestOrder, setValidatingGuestOrder] = useState(false);
+
+  // Guard to prevent double submissions when the user clicks multiple times
+  const submitGuardRef = useRef(false);
+
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['completed-orders-for-refund'],
     queryFn: () => returnRefundAPI.getCompletedOrders().then(res => res.data.data),
@@ -62,6 +74,36 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     return urls;
   }, [evidenceFiles]);
 
+  // Determine which refund methods are allowed based on how the order was paid
+  const allowedRefundMethods = useMemo(() => {
+    if (!selectedOrder) return ['WALLET', 'ORIGINAL_PAYMENT'];
+
+    // These fields should reflect how much of the order was paid by each source.
+    // They are coerced to numbers and default to 0 if missing to avoid runtime issues.
+    const walletAmount = Number(selectedOrder.walletAmount ?? 0);
+    const cardAmount = Number(selectedOrder.cardAmount ?? 0);
+    const paypalAmount = Number(selectedOrder.paypalAmount ?? 0);
+    const cardOrPaypalAmount = cardAmount + paypalAmount;
+
+    // TC-PAYMENT-REFUND-001: Wallet only purchase -> refund to wallet only
+    if (walletAmount > 0 && cardOrPaypalAmount === 0) {
+      return ['WALLET'];
+    }
+
+    // TC-PAYMENT-REFUND-002: Wallet + Card/PayPal -> refund to wallet only
+    if (walletAmount > 0 && cardOrPaypalAmount > 0) {
+      return ['WALLET'];
+    }
+
+    // TC-PAYMENT-REFUND-003: Card/PayPal only -> allow wallet OR original method
+    if (walletAmount === 0 && cardOrPaypalAmount > 0) {
+      return ['WALLET', 'ORIGINAL_PAYMENT'];
+    }
+
+    // Sensible fallback if structure is different/unexpected
+    return ['WALLET'];
+  }, [selectedOrder]);
+
   useEffect(() => {
     return () => {
       evidencePreviewUrls.forEach((url) => {
@@ -80,6 +122,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       setSelectedLicenseKeyIds([]);
       setEvidenceFiles([]);
       setErrors({});
+      setRefundType('REGULAR');
+      setGuestPurchaseEmail('');
+      setGuestOrderNumber('');
+      setGuestOrder(null);
+      setGuestSelectedProductId('');
+      setGuestSelectedKeyIds([]);
+      setValidatingGuestOrder(false);
     }
   }, [open]);
 
@@ -87,16 +136,67 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     setSelectedLicenseKeyIds([]);
   }, [selectedOrderId, selectedProductId]);
 
+  const handleValidateGuestOrder = async () => {
+    if (!guestPurchaseEmail.trim() || !guestOrderNumber.trim()) {
+      setErrors((prev) => ({
+        ...prev,
+        guest: 'Purchase email and order number are required',
+      }));
+      return;
+    }
+
+    try {
+      setValidatingGuestOrder(true);
+      setGuestOrder(null);
+      setGuestSelectedProductId('');
+      setGuestSelectedKeyIds([]);
+      setErrors((prev) => ({ ...prev, guest: undefined }));
+
+      const params = new URLSearchParams({
+        purchaseEmail: guestPurchaseEmail.trim(),
+        orderId: guestOrderNumber.trim(),
+      });
+
+      // expects returnRefundAPI.validateGuestOrder(queryString) -> GET /returnrefund/guest/validate
+      const res = await returnRefundAPI.validateGuestOrder(params.toString());
+      const data = res.data?.data || res.data;
+      setGuestOrder(data);
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        'Could not validate guest order. Please check email and order number.';
+      toast.error(message);
+    } finally {
+      setValidatingGuestOrder(false);
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
-    if (!selectedOrderId) newErrors.orderId = 'Please select an order';
-    if (!selectedProductId) newErrors.productId = 'Please select a product';
+    if (refundType === 'REGULAR') {
+      if (!selectedOrderId) newErrors.orderId = 'Please select an order';
+      if (!selectedProductId) newErrors.productId = 'Please select a product';
+      if (hasMultipleKeys && selectedLicenseKeyIds.length === 0) {
+        newErrors.licenseKeys = 'Please select at least one license key to refund';
+      }
+    } else {
+      if (!guestPurchaseEmail.trim()) {
+        newErrors.guest = 'Purchase email is required for guest purchase refunds';
+      } else if (!guestOrderNumber.trim()) {
+        newErrors.guest = 'Order ID is required for guest purchase refunds';
+      } else if (!guestOrder) {
+        newErrors.guest = 'Please validate your guest order before submitting';
+      } else if (!guestSelectedProductId) {
+        newErrors.productId = 'Please select a product from the guest order';
+      } else if (guestSelectedKeyIds.length === 0) {
+        newErrors.licenseKeys = 'Please select at least one key to refund';
+      }
+    }
     if (!refundReason) newErrors.reason = 'Please select a refund reason';
     else if (refundReason === 'Other' && !customReason.trim()) newErrors.customReason = 'Please provide a reason';
     if (evidenceFiles.length === 0) newErrors.evidence = 'Please upload at least one evidence image (screenshot or proof)';
-    if (hasMultipleKeys && selectedLicenseKeyIds.length === 0) {
-      newErrors.licenseKeys = 'Please select at least one license key to refund';
-    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -124,11 +224,21 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent double submission if user clicks multiple times before the request completes
+    if (submitGuardRef.current) return;
+
     if (!validateForm()) return;
 
     const reason = refundReason === 'Other' ? customReason : refundReason;
-    const productIdToSend = String(selectedProductId).trim();
-    const orderIdToSend = String(selectedOrderId).trim();
+    const productIdToSend =
+      refundType === 'REGULAR'
+        ? String(selectedProductId).trim()
+        : String(guestSelectedProductId).trim();
+    const orderIdToSend =
+      refundType === 'REGULAR'
+        ? String(selectedOrderId).trim()
+        : String(guestOrder?.orderId || '').trim();
 
     let evidenceUrls = [];
     if (evidenceFiles.length > 0) {
@@ -153,14 +263,27 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       refundMethod: refundMethod,
       evidenceFiles: evidenceUrls,
     };
-    const keyIdsToSend = selectedLicenseKeyIds.length > 0
-      ? selectedLicenseKeyIds
-      : licenseKeys.map((k) => k.keyId || k.licenseKeyId).filter(Boolean);
-    if (keyIdsToSend.length > 0) {
-      payload.licenseKeyIds = keyIdsToSend;
+
+    if (refundType === 'REGULAR') {
+      const keyIdsToSend = selectedLicenseKeyIds.length > 0
+        ? selectedLicenseKeyIds
+        : licenseKeys.map((k) => k.keyId || k.licenseKeyId).filter(Boolean);
+      if (keyIdsToSend.length > 0) {
+        payload.licenseKeyIds = keyIdsToSend;
+      }
+    } else {
+      payload.licenseKeyIds = guestSelectedKeyIds.slice();
+      payload.isGuestRefund = true;
+      payload.purchaseEmail = guestPurchaseEmail.trim();
+      payload.orderNumber = guestOrderNumber.trim();
     }
 
-    createRefundMutation.mutate(payload);
+    try {
+      submitGuardRef.current = true;
+      await createRefundMutation.mutateAsync(payload);
+    } finally {
+      submitGuardRef.current = false;
+    }
   };
 
   const toggleKeySelection = (keyId) => {
@@ -168,6 +291,25 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       prev.includes(keyId) ? prev.filter((id) => id !== keyId) : [...prev, keyId]
     );
     setErrors((e) => ({ ...e, licenseKeys: undefined }));
+  };
+
+  const getMaskedLicenseKey = (key) => {
+    if (!key) return 'XXXX-****';
+
+    // Prefer a backend-provided masked/display value if available
+    if (key.displayKey && typeof key.displayKey === 'string') {
+      return key.displayKey;
+    }
+    if (key.maskedKey && typeof key.maskedKey === 'string') {
+      return key.maskedKey;
+    }
+
+    const raw = typeof key.keyValue === 'string' ? key.keyValue : '';
+    if (!raw) return 'XXXX-****';
+
+    const trimmed = raw.replace(/\s+/g, '');
+    const lastFour = trimmed.slice(-4) || '****';
+    return `XXXX-${lastFour}`;
   };
 
   const formatIssuedDate = (issuedAt) => {
@@ -186,47 +328,202 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   };
 
   const isFormValid =
-    selectedOrderId &&
-    selectedProductId &&
     refundReason &&
     (refundReason !== 'Other' || customReason.trim()) &&
     evidenceFiles.length >= 1 &&
-    (!hasMultipleKeys || selectedLicenseKeyIds.length > 0);
+    (refundType === 'REGULAR'
+      ? selectedOrderId &&
+        selectedProductId &&
+        (!hasMultipleKeys || selectedLicenseKeyIds.length > 0)
+      : guestPurchaseEmail.trim() &&
+        guestOrderNumber.trim() &&
+        !!guestOrder &&
+        !!guestSelectedProductId &&
+        guestSelectedKeyIds.length > 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="bg-primary border-gray-700">
+      <DialogContent size="lg">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15">
+              <FileText className="w-4 h-4 text-accent" />
+            </div>
             <div>
-              <DialogTitle className="text-white text-2xl font-bold flex items-center gap-2">
-                <FileText className="w-6 h-6 text-accent" />
-                Request Refund
-              </DialogTitle>
-              <DialogDescription className="text-gray-400 text-sm mt-2">
-                Select an order and product to request a refund. Admin will review your request. Only completed orders are eligible.
+              <DialogTitle className="text-lg font-semibold">Request Refund</DialogTitle>
+              <DialogDescription>
+                Select an order and product to request a refund. Admin will review your request.
               </DialogDescription>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="text-gray-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </Button>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Order Selection */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-180px)] px-6 py-4 space-y-6">
+          {/* Refund Type */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-accent/20 rounded-lg">
-                <ShoppingBag className="w-5 h-5 text-accent" />
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                <FileText className="w-4 h-4 text-accent" />
               </div>
               <div>
-                <Label htmlFor="order" className="text-white text-base font-semibold">
+                <Label className="text-white text-sm font-semibold">Refund Type *</Label>
+                <p className="text-xs text-gray-500 mt-0.5">Regular refund or guest purchase refund.</p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${
+                  refundType === 'REGULAR'
+                    ? 'border-accent bg-accent/10'
+                    : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="refundType"
+                  value="REGULAR"
+                  checked={refundType === 'REGULAR'}
+                  onChange={() => {
+                    setRefundType('REGULAR');
+                    setGuestOrder(null);
+                    setGuestSelectedProductId('');
+                    setGuestSelectedKeyIds([]);
+                    setErrors((prev) => ({ ...prev, guest: undefined }));
+                  }}
+                  className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
+                />
+                <div>
+                  <span className="text-sm font-medium text-white">Regular Refund</span>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Refund a purchase made while logged into your account.
+                  </p>
+                </div>
+              </label>
+              <label
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${
+                  refundType === 'GUEST'
+                    ? 'border-accent bg-accent/10'
+                    : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="refundType"
+                  value="GUEST"
+                  checked={refundType === 'GUEST'}
+                  onChange={() => {
+                    setRefundType('GUEST');
+                    setSelectedOrderId('');
+                    setSelectedProductId('');
+                    setSelectedLicenseKeyIds([]);
+                    setErrors((prev) => ({
+                      ...prev,
+                      orderId: undefined,
+                      productId: undefined,
+                      licenseKeys: undefined,
+                    }));
+                  }}
+                  className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
+                />
+                <div>
+                  <span className="text-sm font-medium text-white">Refunding a Guest Purchase</span>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    You bought as a guest and now created an account with the same email.
+                  </p>
+                </div>
+              </label>
+            </div>
+            {errors.guest && (
+              <p className="text-sm text-red-400 flex items-center gap-1">
+                <AlertCircle className="w-4 h-4" />
+                {errors.guest}
+              </p>
+            )}
+          </div>
+
+          {/* Guest purchase verification */}
+          {refundType === 'GUEST' && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                  <ShoppingBag className="w-4 h-4 text-accent" />
+                </div>
+                <div>
+                  <Label className="text-white text-sm font-semibold">
+                    Guest Purchase Details *
+                  </Label>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Enter the email and order number used when you bought as a guest.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-300">Purchase Email</Label>
+                  <input
+                    type="email"
+                    className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-colors"
+                    placeholder="email used during purchase"
+                    value={guestPurchaseEmail}
+                    onChange={(e) => {
+                      setGuestPurchaseEmail(e.target.value);
+                      setErrors((prev) => ({ ...prev, guest: undefined }));
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-gray-300">Order ID (from your email)</Label>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-colors"
+                    placeholder="e.g. #69b93a21a038ec8d704da336"
+                    value={guestOrderNumber}
+                    onChange={(e) => {
+                      setGuestOrderNumber(e.target.value);
+                      setErrors((prev) => ({ ...prev, guest: undefined }));
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-end">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleValidateGuestOrder}
+                  disabled={
+                    !guestPurchaseEmail.trim() ||
+                    !guestOrderNumber.trim() ||
+                    validatingGuestOrder
+                  }
+                  className="bg-accent hover:bg-accent/90 px-4 py-1.5 text-sm font-medium"
+                >
+                  {validatingGuestOrder ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Validating...
+                    </>
+                  ) : (
+                    'Validate Guest Order'
+                  )}
+                </Button>
+              </div>
+              {guestOrder && (
+                <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                  Guest order verified. Select the product and key(s) below to continue.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Order Selection (regular refunds) */}
+          {refundType === 'REGULAR' && (
+            <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                <ShoppingBag className="w-4 h-4 text-accent" />
+              </div>
+              <div>
+                <Label htmlFor="order" className="text-white text-sm font-semibold">
                   Select Order *
                 </Label>
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -240,6 +537,8 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               onValueChange={(value) => {
                 setSelectedOrderId(value);
                 setSelectedProductId(''); // Reset product when order changes
+                // Reset refund method to a safe default; backend still enforces rules.
+                setRefundMethod('WALLET');
                 setErrors(prev => ({ ...prev, orderId: undefined }));
               }}
               placeholder="Select an order..."
@@ -249,8 +548,9 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               className="w-full"
               getOptionLabel={(order) => {
                 const date = new Date(order.orderDate).toLocaleDateString();
-                const displayId = order.orderNumber || order._id.slice(-8);
-                return `Order #${displayId} - ${date} - $${order.orderTotalAmount?.toFixed(2)}`;
+                // Display canonical Order ID (not order number) on the refund page
+                const displayId = order.orderId || order._id?.slice(-8);
+                return `Order ID ${displayId} - ${date} - $${order.orderTotalAmount?.toFixed(2)}`;
               }}
               getOptionValue={(order) => order._id}
               filterFunction={(order, searchQuery) => {
@@ -267,12 +567,12 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 );
               }}
               renderOption={(order, isSelected) => {
-                const displayId = order.orderNumber || order._id.slice(-8);
+                const displayId = order.orderId || order._id?.slice(-8);
                 return (
                   <div className="flex items-center justify-between w-full">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">
-                        Order #{displayId}
+                        Order ID {displayId}
                       </p>
                       <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
                         <span>{new Date(order.orderDate).toLocaleDateString()}</span>
@@ -296,16 +596,17 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               </p>
             )}
           </div>
+          )}
 
-          {/* Product Selection (Dependent on Order) */}
-          {selectedOrder && (
+          {/* Product Selection (Dependent on Order, regular refunds) */}
+          {refundType === 'REGULAR' && selectedOrder && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-accent/20 rounded-lg">
-                  <Package className="w-5 h-5 text-accent" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                  <Package className="w-4 h-4 text-accent" />
                 </div>
                 <div>
-                  <Label htmlFor="product" className="text-white text-base font-semibold">
+                  <Label htmlFor="product" className="text-white text-sm font-semibold">
                     Select Product *
                   </Label>
                   <p className="text-xs text-gray-400 mt-0.5">
@@ -318,7 +619,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 value={selectedProductId}
                 onValueChange={(value) => {
                   setSelectedProductId(value);
-                  setErrors(prev => ({ ...prev, productId: undefined }));
+                  setErrors((prev) => ({ ...prev, productId: undefined }));
                 }}
                 placeholder="Select a product..."
                 searchPlaceholder="Search products..."
@@ -341,7 +642,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                         <img
                           src={product.productImage}
                           alt={product.productName}
-                          className="w-10 h-10 object-cover rounded flex-shrink-0"
+                          className="w-10 h-10 object-cover rounded shrink-0"
                         />
                       )}
                       <div className="flex-1 min-w-0">
@@ -353,7 +654,9 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                           <span>•</span>
                           <span>${product.unitPrice?.toFixed(2)}</span>
                           <span>•</span>
-                          <span className="font-semibold text-white">${product.lineTotal?.toFixed(2)}</span>
+                          <span className="font-semibold text-white">
+                            ${product.lineTotal?.toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -372,15 +675,160 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* License key(s) selection — card-based to avoid confusion */}
-          {selectedOrder && selectedProductId && (
+          {/* Guest: select product and masked keys */}
+          {refundType === 'GUEST' && guestOrder && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-accent/20 rounded-lg">
-                  <Package className="w-5 h-5 text-accent" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                  <Package className="w-4 h-4 text-accent" />
                 </div>
                 <div>
-                  <Label className="text-white text-base font-semibold">
+                  <Label className="text-white text-sm font-semibold">
+                    Select product and key(s) to refund *
+                  </Label>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Only masked keys (last 4 digits) are shown. Select the key(s) that do not work.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                {guestOrder.items.map((item) => {
+                  const isSelectedProduct = guestSelectedProductId === item.productId;
+                  return (
+                    <div
+                      key={item.productId}
+                      className={`rounded-lg border p-3 transition-colors ${
+                        isSelectedProduct
+                          ? 'border-accent bg-accent/10'
+                          : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.1] hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {item.productImage && (
+                            <img
+                              src={item.productImage}
+                              alt={item.productName}
+                              className="w-10 h-10 rounded object-cover shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate">
+                              {item.productName}
+                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                              <span>Qty: {item.qty}</span>
+                              <span>•</span>
+                              <span>${item.unitPrice?.toFixed(2)}</span>
+                              <span>•</span>
+                              <span className="font-semibold text-white">
+                                ${item.lineTotal?.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant={isSelectedProduct ? 'default' : 'outline'}
+                          className={
+                            isSelectedProduct
+                              ? 'bg-accent hover:bg-accent/90'
+                              : 'border-gray-600 text-gray-200'
+                          }
+                          onClick={() => {
+                            setGuestSelectedProductId(item.productId);
+                            setGuestSelectedKeyIds([]);
+                            setErrors((prev) => ({
+                              ...prev,
+                              productId: undefined,
+                              licenseKeys: undefined,
+                            }));
+                          }}
+                        >
+                          {isSelectedProduct ? 'Selected' : 'Refund this product'}
+                        </Button>
+                      </div>
+
+                      {isSelectedProduct && (
+                        <div className="mt-3 space-y-2">
+                          {item.keys.length === 0 ? (
+                            <p className="text-xs text-gray-400">
+                              No eligible keys for refund on this product.
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-xs text-gray-300">
+                                Select the key(s) that do not work. Only the last 4 digits are shown.
+                              </p>
+                              <div className="grid gap-2">
+                                {item.keys.map((k) => {
+                                  const checked = guestSelectedKeyIds.includes(k.licenseKeyId);
+                                  return (
+                                    <label
+                                      key={k.licenseKeyId}
+                                      className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs ${
+                                        checked
+                                          ? 'border-accent bg-accent/10'
+                                          : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.1] hover:bg-white/[0.04]'
+                                      } cursor-pointer`}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={(e) => {
+                                            setGuestSelectedKeyIds((prev) =>
+                                              e.target.checked
+                                                ? [...prev, k.licenseKeyId]
+                                                : prev.filter((id) => id !== k.licenseKeyId)
+                                            );
+                                            setErrors((prev) => ({
+                                              ...prev,
+                                              licenseKeys: undefined,
+                                            }));
+                                          }}
+                                          className="h-4 w-4 rounded border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
+                                        />
+                                        <div className="flex flex-col">
+                                          <span className="font-mono text-xs text-gray-100">
+                                            {k.displayKey}
+                                          </span>
+                                          <span className="text-[11px] text-gray-400">
+                                            Issued: {formatIssuedDate(k.issuedAt)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {errors.licenseKeys && (
+                <p className="text-sm text-red-400 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.licenseKeys}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* License key(s) selection — card-based to avoid confusion (regular refunds) */}
+          {refundType === 'REGULAR' && selectedOrder && selectedProductId && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                  <Package className="w-4 h-4 text-accent" />
+                </div>
+                <div>
+                  <Label className="text-white text-sm font-semibold">
                     Select which license(s) to refund *
                   </Label>
                   <p className="text-xs text-gray-400 mt-0.5">
@@ -409,7 +857,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                           className={`block cursor-pointer rounded-xl border-2 p-4 transition-all ${
                             isSelected
                               ? 'border-accent bg-accent/10 ring-2 ring-accent/30'
-                              : 'border-gray-700 bg-secondary/50 hover:border-gray-600 hover:bg-secondary/70'
+                              : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.1] hover:bg-white/[0.04]'
                           }`}
                         >
                           <div className="flex items-start gap-3">
@@ -417,12 +865,14 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleKeySelection(keyId)}
-                              className="mt-1 rounded border-gray-600 bg-secondary text-accent focus:ring-accent"
+                              className="mt-1 rounded border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                 <span className="font-semibold text-white">License #{licenseNumber}</span>
-                                <span className="font-mono text-sm text-gray-300">{key.keyValue || 'XXXX-****'}</span>
+                                <span className="font-mono text-sm text-gray-300">
+                                  {getMaskedLicenseKey(key)}
+                                </span>
                               </div>
                               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
                                 <span>Price: ${(key.price ?? 0).toFixed(2)}</span>
@@ -444,7 +894,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                     const selectedList = selectedLicenseKeyIds.map((id) => {
                       const k = licenseKeys.find((key) => (key.keyId || key.licenseKeyId) === id);
                       const num = k ? licenseKeys.indexOf(k) + 1 : 0;
-                      const mask = k?.keyValue || 'XXXX-****';
+                      const mask = getMaskedLicenseKey(k);
                       return `License #${num} (${mask})`;
                     }).filter(Boolean);
                     const message = selectedList.length === 1
@@ -471,19 +921,19 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           {selectedProductId && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-accent/20 rounded-lg">
-                  <Package className="w-5 h-5 text-accent" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                  <Package className="w-4 h-4 text-accent" />
                 </div>
                 <div>
-                  <Label className="text-white text-base font-semibold">Refund method *</Label>
+                  <Label className="text-white text-sm font-semibold">Refund method *</Label>
                   <p className="text-xs text-gray-400 mt-0.5">Choose how you want to receive the refund</p>
                 </div>
               </div>
               <div className="grid gap-2">
-                {REFUND_METHODS.map((m) => (
+                {REFUND_METHODS.filter((m) => allowedRefundMethods.includes(m.value)).map((m) => (
                   <label
                     key={m.value}
-                    className="flex items-start gap-3 p-3 rounded-lg border border-gray-700 bg-secondary/50 hover:bg-secondary/70 cursor-pointer has-[:checked]:border-accent has-[:checked]:ring-1 has-[:checked]:ring-accent"
+                    className="flex items-start gap-3 p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] cursor-pointer has-checked:border-accent/50 has-checked:bg-accent/[0.06] transition-all"
                   >
                     <input
                       type="radio"
@@ -491,7 +941,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                       value={m.value}
                       checked={refundMethod === m.value}
                       onChange={() => setRefundMethod(m.value)}
-                      className="mt-1 rounded-full border-gray-600 bg-secondary text-accent focus:ring-accent"
+                      className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
                     />
                     <div>
                       <span className="text-sm font-medium text-white">{m.label}</span>
@@ -504,9 +954,9 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           )}
 
           {/* Evidence upload (mandatory) */}
-          {selectedProductId && (
+          {(selectedProductId || guestSelectedProductId) && (
             <div className="space-y-2">
-              <Label className="text-white text-base font-semibold">Evidence (required) *</Label>
+              <Label className="text-white text-sm font-semibold">Evidence (required) *</Label>
               <p className="text-xs text-gray-400">Upload at least one image: error screenshots or proof the product is not working</p>
               <input
                 type="file"
@@ -517,7 +967,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   setEvidenceFiles(files);
                   setErrors((e) => ({ ...e, evidence: undefined }));
                 }}
-                className="w-full text-sm text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded file:border-0 file:bg-accent/20 file:text-accent file:font-medium"
+                className="w-full text-sm text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-white/[0.08] file:bg-white/[0.04] file:text-accent file:font-medium file:cursor-pointer hover:file:bg-white/[0.08] file:transition-colors"
               />
               {evidenceFiles.length > 0 && (
                 <div className="space-y-2">
@@ -528,7 +978,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                         key={url}
                         type="button"
                         onClick={() => window.open(url, '_blank', 'noopener')}
-                        className="block w-full aspect-square rounded-lg border-2 border-gray-600 bg-secondary/50 overflow-hidden shadow-md hover:border-accent focus:outline-none focus:ring-2 focus:ring-accent/50"
+                        className="block w-full aspect-square rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden shadow-md hover:border-accent/40 hover:shadow-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                       >
                         <img src={url} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
                       </button>
@@ -548,11 +998,11 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           {/* Refund Reason */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-accent/20 rounded-lg">
-                <FileText className="w-5 h-5 text-accent" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+                <FileText className="w-4 h-4 text-accent" />
               </div>
               <div>
-                <Label htmlFor="reason" className="text-white text-base font-semibold">
+                <Label htmlFor="reason" className="text-white text-sm font-semibold">
                   Refund Reason *
                 </Label>
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -570,7 +1020,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 setErrors(prev => ({ ...prev, reason: undefined, customReason: undefined }));
               }}
             >
-              <SelectTrigger className="w-full bg-secondary border-gray-700 text-white">
+              <SelectTrigger className="w-full bg-white/[0.03] border-white/[0.08] text-white">
                 <SelectValue placeholder="Select a reason..." />
               </SelectTrigger>
               <SelectContent>
@@ -599,7 +1049,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   }}
                   placeholder="Please describe your reason for requesting a refund..."
                   rows={4}
-                  className="bg-secondary border-gray-700 text-white placeholder:text-gray-500 resize-none focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-500 resize-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-xl"
                 />
                 {errors.customReason && (
                   <p className="text-sm text-red-400 flex items-center gap-1">
@@ -612,12 +1062,12 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           </div>
 
           {/* Submit Button */}
-          <div className="flex items-center justify-between gap-4 pt-6 border-t border-gray-700">
+          <div className="flex items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
             <div className="text-sm text-gray-400">
               {isFormValid && (
-                <div className="flex items-center gap-2 text-green-400">
+                <div className="flex items-center gap-2 text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Ready to submit</span>
+                  <span className="text-xs font-medium">Ready to submit</span>
                 </div>
               )}
             </div>
@@ -626,7 +1076,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white px-6"
+                className="border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white px-5"
                 disabled={createRefundMutation.isPending}
               >
                 Cancel
@@ -634,7 +1084,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               <Button
                 type="submit"
                 disabled={!isFormValid || createRefundMutation.isPending}
-                className="bg-accent hover:bg-accent/90 min-w-[160px] px-6 font-semibold shadow-lg shadow-accent/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-accent hover:bg-accent/90 min-w-[160px] px-6 font-semibold shadow-lg shadow-accent/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 {createRefundMutation.isPending ? (
                   <>
