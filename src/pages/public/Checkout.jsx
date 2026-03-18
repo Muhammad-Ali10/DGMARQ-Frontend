@@ -89,16 +89,18 @@ const Checkout = () => {
     retry: false,
   });
 
-  // eslint-disable-next-line no-unused-vars
   const { data: walletData } = useQuery({
     queryKey: ['wallet-balance'],
     queryFn: () => walletAPI.getBalance().then(res => res.data.data),
     enabled: isAuthenticated,
     retry: false,
-    onSuccess: (data) => {
-      setWalletBalance(data?.balance || 0);
-    },
   });
+
+  useEffect(() => {
+    if (walletData?.balance !== undefined) {
+      setWalletBalance(walletData.balance);
+    }
+  }, [walletData]);
 
   const createCheckoutMutation = useMutation({
     mutationFn: (data) => checkoutAPI.createCheckoutSession(data),

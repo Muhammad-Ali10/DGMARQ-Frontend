@@ -1,22 +1,20 @@
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import api from '../lib/axios';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { isAuthenticated, roles, token } = useSelector((state) => state.auth);
 
-  useEffect(() => {
-    const verifyToken = async () => {
-      if (token && isAuthenticated) {
-        try {
-          await api.get('/user/profile');
-        } catch (error) {
-        }
-      }
-    };
-    verifyToken();
-  }, [token, isAuthenticated]);
+  // Verify token validity — cached for 5 min instead of firing on every mount
+  useQuery({
+    queryKey: ['verify-token', token],
+    queryFn: () => api.get('/user/profile'),
+    enabled: !!token && isAuthenticated,
+    staleTime: 300000, // 5 minutes
+    retry: false,
+    meta: { skipErrorToast: true },
+  });
 
   if (!isAuthenticated || !token) {
     return <Navigate to="/login" replace />;
@@ -40,7 +38,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
         return <Navigate to="/seller/dashboard" replace />;
       }
     }
-    
+
     const hasAllowedRole = normalizedAllowedRoles.some(role => normalizedRoles.includes(role));
     if (!hasAllowedRole) {
       if (normalizedRoles.includes('admin')) {
@@ -57,4 +55,3 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 };
 
 export default ProtectedRoute;
-

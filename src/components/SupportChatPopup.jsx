@@ -31,6 +31,8 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
     queryKey: ['user-support-chats-popup'],
     queryFn: () => supportAPI.getMySupportChats().then(res => res.data.data),
     enabled: isOpen,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   // Fetch messages for selected chat
@@ -38,6 +40,8 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
     queryKey: ['support-messages-popup', selectedChat],
     queryFn: () => supportAPI.getSupportMessages(selectedChat).then(res => res.data.data),
     enabled: !!selectedChat && isOpen,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const messages = messagesData?.messages || [];
@@ -66,11 +70,24 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
       joinChat();
     }
 
-    // Listen for new messages
-    const handleNewMessage = (message) => {
-      if (message.supportChatId?.toString() === selectedChat) {
-        queryClient.invalidateQueries(['support-messages-popup', selectedChat]);
-        queryClient.invalidateQueries(['user-support-chats-popup']);
+    // Listen for new messages — append directly instead of refetching
+    const handleNewMessage = (incomingMsg) => {
+      if (incomingMsg.supportChatId?.toString() === selectedChat) {
+        queryClient.setQueryData(['support-messages-popup', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          // Deduplicate
+          if (incomingMsg._id && old.messages.some((m) => m._id === incomingMsg._id)) return old;
+          return { ...old, messages: [...old.messages, incomingMsg] };
+        });
+        // Update chat list lastMessage in-place
+        queryClient.setQueryData(['user-support-chats-popup'], (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((chat) =>
+            chat._id === selectedChat
+              ? { ...chat, lastMessageAt: incomingMsg.sentAt || new Date().toISOString() }
+              : chat
+          );
+        });
       }
     };
 
@@ -130,20 +147,32 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ chatId, data }) => supportAPI.sendSupportMessage(chatId, data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       setMessage('');
-      queryClient.invalidateQueries(['support-messages-popup', selectedChat]);
-      queryClient.invalidateQueries(['user-support-chats-popup']);
+      const sent = response?.data?.data;
+      if (sent && selectedChat) {
+        queryClient.setQueryData(['support-messages-popup', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          if (sent._id && old.messages.some((m) => m._id === sent._id)) return old;
+          return { ...old, messages: [...old.messages, sent] };
+        });
+      }
     },
   });
 
   const sendImageMutation = useMutation({
     mutationFn: ({ chatId, formData }) => supportAPI.sendSupportImageMessage(chatId, formData),
-    onSuccess: (_data, { preview }) => {
+    onSuccess: (response, { preview }) => {
       if (preview) URL.revokeObjectURL(preview);
       setUploadingImage(null);
-      queryClient.invalidateQueries(['support-messages-popup', selectedChat]);
-      queryClient.invalidateQueries(['user-support-chats-popup']);
+      const sent = response?.data?.data;
+      if (sent && selectedChat) {
+        queryClient.setQueryData(['support-messages-popup', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          if (sent._id && old.messages.some((m) => m._id === sent._id)) return old;
+          return { ...old, messages: [...old.messages, sent] };
+        });
+      }
     },
     onError: (_err, { preview }) => {
       if (preview) URL.revokeObjectURL(preview);
@@ -161,10 +190,21 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (message.trim() && selectedChat) {
+    if (!message.trim() || !selectedChat) return;
+
+    const messageText = message.trim();
+
+    // Use socket when available (instant delivery), fallback to HTTP
+    if (socket && isConnected) {
+      socket.emit('send_support_message', {
+        chatId: selectedChat,
+        messageText,
+      });
+      setMessage('');
+    } else {
       sendMessageMutation.mutate({
         chatId: selectedChat,
-        data: { messageText: message.trim() },
+        data: { messageText },
       });
     }
   };

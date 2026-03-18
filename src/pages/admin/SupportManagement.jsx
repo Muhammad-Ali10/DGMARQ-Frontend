@@ -93,11 +93,14 @@ const SupportManagement = () => {
     // Join admin support room for notifications
     socket.emit('join_admin_support');
 
-    // Listen for new messages
-    const handleNewMessage = (message) => {
-      if (message.supportChatId?.toString() === selectedChat) {
-        queryClient.invalidateQueries(['admin-support-messages', selectedChat]);
-        queryClient.invalidateQueries(['admin-support-chats']);
+    // Listen for new messages — append directly instead of refetching
+    const handleNewMessage = (incomingMsg) => {
+      if (incomingMsg.supportChatId?.toString() === selectedChat) {
+        queryClient.setQueryData(['admin-support-messages', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          if (incomingMsg._id && old.messages.some((m) => m._id === incomingMsg._id)) return old;
+          return { ...old, messages: [...old.messages, incomingMsg] };
+        });
       }
     };
 
@@ -126,20 +129,32 @@ const SupportManagement = () => {
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ chatId, data }) => supportAPI.sendSupportMessage(chatId, data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       setMessage('');
-      queryClient.invalidateQueries(['admin-support-messages', selectedChat]);
-      queryClient.invalidateQueries(['admin-support-chats']);
+      const sent = response?.data?.data;
+      if (sent && selectedChat) {
+        queryClient.setQueryData(['admin-support-messages', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          if (sent._id && old.messages.some((m) => m._id === sent._id)) return old;
+          return { ...old, messages: [...old.messages, sent] };
+        });
+      }
     },
   });
 
   const sendImageMutation = useMutation({
     mutationFn: ({ chatId, formData }) => supportAPI.sendSupportImageMessage(chatId, formData),
-    onSuccess: (_data, { preview }) => {
+    onSuccess: (response, { preview }) => {
       if (preview) URL.revokeObjectURL(preview);
       setUploadingImage(null);
-      queryClient.invalidateQueries(['admin-support-messages', selectedChat]);
-      queryClient.invalidateQueries(['admin-support-chats']);
+      const sent = response?.data?.data;
+      if (sent && selectedChat) {
+        queryClient.setQueryData(['admin-support-messages', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          if (sent._id && old.messages.some((m) => m._id === sent._id)) return old;
+          return { ...old, messages: [...old.messages, sent] };
+        });
+      }
     },
     onError: (error, { preview }) => {
       if (preview) URL.revokeObjectURL(preview);
@@ -155,10 +170,21 @@ const SupportManagement = () => {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (message.trim() && selectedChat) {
+    if (!message.trim() || !selectedChat) return;
+
+    const messageText = message.trim();
+
+    // Use socket when available (instant delivery), fallback to HTTP
+    if (socket && isConnected) {
+      socket.emit('send_support_message', {
+        chatId: selectedChat,
+        messageText,
+      });
+      setMessage('');
+    } else {
       sendMessageMutation.mutate({
         chatId: selectedChat,
-        data: { messageText: message.trim() },
+        data: { messageText },
       });
     }
   };

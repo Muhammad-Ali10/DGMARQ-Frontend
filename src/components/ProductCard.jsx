@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Card,
@@ -12,18 +13,19 @@ import {
   getProductImage,
   getProductName,
   getPlatformName,
-  getRegionName,
   getTypeName,
-  getKeyTypeName,
 } from "../utils/productUtils";
 
-const ProductCard = ({ product }) => {
-  const { discountPrice, discountPercentage, originalPrice } =
-    calculateProductPrice(product);
-  const image = getProductImage(product);
-  const title = getProductName(product);
-  const platformName = getPlatformName(product);
-  const typeName = getTypeName(product);
+const ProductCard = memo(({ product }) => {
+  const { discountPrice, discountPercentage, originalPrice } = useMemo(
+    () => calculateProductPrice(product),
+    [product._id, product.price, product.discount, product.trendingOffer?.discountPercent]
+  );
+  const image = useMemo(() => getProductImage(product), [product._id, product.images]);
+  const title = useMemo(() => getProductName(product), [product._id, product.name]);
+  const platformName = useMemo(() => getPlatformName(product), [product._id, product.platform]);
+  const typeName = useMemo(() => getTypeName(product), [product._id, product.type]);
+
   return (
     <Link to={`/product/${product.slug || product._id}`}>
       <Card className="w-full max-w-[196px] mx-auto flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2.5 box-border hover:scale-105 transition-transform duration-200">
@@ -33,6 +35,7 @@ const ProductCard = ({ product }) => {
             <img
               src={image}
               alt={title}
+              loading="lazy"
               className="w-full aspect-square object-cover rounded-2xl"
             />
           ) : (
@@ -42,7 +45,7 @@ const ProductCard = ({ product }) => {
           )}
           {product.isFeatured && (
             <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-yellow-500 text-[10px] md:text-xs font-semibold text-black shadow-sm">
-              ⭐ Featured
+              Featured
             </span>
           )}
         </div>
@@ -85,6 +88,6 @@ const ProductCard = ({ product }) => {
       </Card>
     </Link>
   );
-};
+}, (prev, next) => prev.product._id === next.product._id && prev.product.price === next.product.price && prev.product.discount === next.product.discount);
 
 export default ProductCard;

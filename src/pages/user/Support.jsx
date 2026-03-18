@@ -42,10 +42,13 @@ const UserSupport = () => {
   useEffect(() => {
     if (!socket || !isConnected || !selectedChat) return;
     socket.emit('join_support_chat', selectedChat);
-    const handleNewMessage = (message) => {
-      if (message.supportChatId?.toString() === selectedChat) {
-        queryClient.invalidateQueries(['support-messages', selectedChat]);
-        queryClient.invalidateQueries(['user-support-chats']);
+    const handleNewMessage = (incomingMsg) => {
+      if (incomingMsg.supportChatId?.toString() === selectedChat) {
+        queryClient.setQueryData(['support-messages', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          if (incomingMsg._id && old.messages.some((m) => m._id === incomingMsg._id)) return old;
+          return { ...old, messages: [...old.messages, incomingMsg] };
+        });
       }
     };
     const handleError = (error) => {
@@ -81,10 +84,16 @@ const UserSupport = () => {
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ chatId, messageText }) => supportAPI.sendSupportMessage(chatId, { messageText }),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['support-messages', selectedChat]);
-      queryClient.invalidateQueries(['user-support-chats']);
+    onSuccess: (response) => {
       setMessage('');
+      const sent = response?.data?.data;
+      if (sent && selectedChat) {
+        queryClient.setQueryData(['support-messages', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          if (sent._id && old.messages.some((m) => m._id === sent._id)) return old;
+          return { ...old, messages: [...old.messages, sent] };
+        });
+      }
     },
     onError: (error) => {
       showApiError(error, 'Failed to send message');
@@ -93,11 +102,17 @@ const UserSupport = () => {
 
   const sendImageMutation = useMutation({
     mutationFn: ({ chatId, formData }) => supportAPI.sendSupportImageMessage(chatId, formData),
-    onSuccess: (_data, { preview }) => {
+    onSuccess: (response, { preview }) => {
       if (preview) URL.revokeObjectURL(preview);
       setUploadingImage(null);
-      queryClient.invalidateQueries(['support-messages', selectedChat]);
-      queryClient.invalidateQueries(['user-support-chats']);
+      const sent = response?.data?.data;
+      if (sent && selectedChat) {
+        queryClient.setQueryData(['support-messages', selectedChat], (old) => {
+          if (!old?.messages) return old;
+          if (sent._id && old.messages.some((m) => m._id === sent._id)) return old;
+          return { ...old, messages: [...old.messages, sent] };
+        });
+      }
     },
     onError: (error, { preview }) => {
       if (preview) URL.revokeObjectURL(preview);
@@ -133,10 +148,21 @@ const UserSupport = () => {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (message.trim() && selectedChat) {
+    if (!message.trim() || !selectedChat) return;
+
+    const messageText = message.trim();
+
+    // Use socket when available (instant delivery), fallback to HTTP
+    if (socket && isConnected) {
+      socket.emit('send_support_message', {
+        chatId: selectedChat,
+        messageText,
+      });
+      setMessage('');
+    } else {
       sendMessageMutation.mutate({
         chatId: selectedChat,
-        messageText: message.trim(),
+        messageText,
       });
     }
   };

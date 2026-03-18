@@ -16,6 +16,38 @@ import ChatMessageSkeleton from '../../components/chat/ChatMessageSkeleton';
 import { useSelector } from 'react-redux';
 import { showApiError } from '../../utils/toast';
 
+// ─── Helper: append message to infinite query cache with dedup ───
+function appendMessageToCache(queryClient, queryKey, newMsg) {
+  queryClient.setQueryData(queryKey, (old) => {
+    if (!old?.pages?.length) return old;
+    const lastPage = old.pages[old.pages.length - 1];
+    const existing = lastPage.messages || [];
+    const msgId = newMsg._id?.toString();
+
+    // Dedup by _id
+    if (msgId && existing.some(m => m._id?.toString() === msgId)) return old;
+
+    // Remove optimistic message that this real message replaces
+    const filtered = existing.filter(m => {
+      if (!m.isOptimistic) return true;
+      const mText = m.messageText || '';
+      const nText = newMsg.messageText || '';
+      const mSender = m.senderId?._id?.toString() || m.senderId?.toString();
+      const nSender = newMsg.senderId?._id?.toString() || newMsg.senderId?.toString();
+      return !(mText === nText && mSender === nSender);
+    });
+
+    return {
+      ...old,
+      pages: old.pages.map((page, i) =>
+        i === old.pages.length - 1
+          ? { ...page, messages: [...filtered, newMsg] }
+          : page
+      ),
+    };
+  });
+}
+
 const UserChat = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const conversationFromUrl = searchParams.get('conversation');
@@ -25,30 +57,28 @@ const UserChat = () => {
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const fetchNextPageTimeoutRef = useRef(null);
+  const selectedConversationRef = useRef(selectedConversation);
+  selectedConversationRef.current = selectedConversation;
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
   const { markNotificationAsRead } = useChatNotifications();
   const { user } = useSelector((state) => state.auth);
+  const myId = user?._id?.toString();
 
-  const { data: conversations, isLoading: conversationsLoading, error: conversationsError } = useQuery({
+  // ─── Conversations query ───
+  const { data: conversations, isLoading: conversationsLoading } = useQuery({
     queryKey: ['user-conversations'],
     queryFn: () => chatAPI.getConversations({ role: 'buyer' }).then(res => res.data.data),
-    enabled: !!user, // Only fetch when user is authenticated
-    retry: 2,
-    retryDelay: 1000,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    gcTime: 300000, // Keep in cache for 5 minutes
-    refetchOnWindowFocus: false, // Don't refetch on window focus
+    enabled: !!user,
+    staleTime: 30000,
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
     if (conversationFromUrl && conversations && !selectedConversation) {
       const convExists = conversations.find(c => c._id === conversationFromUrl);
-      if (convExists) {
-        setTimeout(() => {
-          setSelectedConversation(conversationFromUrl);
-        }, 0);
-      }
+      if (convExists) setSelectedConversation(conversationFromUrl);
     }
   }, [conversationFromUrl, conversations, selectedConversation]);
 
@@ -59,223 +89,208 @@ const UserChat = () => {
     }
   }, [selectedConversation, setSearchParams, markNotificationAsRead]);
 
+  // ─── Clear stale cache when switching conversations ───
+  const prevConvRef = useRef(null);
+  useEffect(() => {
+    if (selectedConversation && prevConvRef.current && prevConvRef.current !== selectedConversation) {
+      queryClient.removeQueries({ queryKey: ['conversation-messages', prevConvRef.current] });
+    }
+    prevConvRef.current = selectedConversation;
+  }, [selectedConversation, queryClient]);
+
+  // ─── Messages infinite query ───
   const { data: messagesData, isLoading: messagesLoading, fetchNextPage, hasNextPage, isFetchingNextPage, error: messagesError } = useInfiniteQuery({
     queryKey: ['conversation-messages', selectedConversation],
     queryFn: ({ pageParam }) => {
-      const params = pageParam
-        ? { cursor: pageParam, limit: 20 }
-        : { limit: 20 };
+      const params = pageParam ? { cursor: pageParam, limit: 20 } : { limit: 20 };
       return chatAPI.getMessages(selectedConversation, params).then(res => res.data.data);
     },
-    enabled: !!selectedConversation && !!user, // Only fetch when conversation is selected and user is authenticated
-    initialPageParam: null, // Start with null (no cursor for initial load)
+    enabled: !!selectedConversation && !!user,
+    initialPageParam: null,
     retry: (failureCount, error) => {
-      if (error?.response?.status >= 400 && error?.response?.status < 500) {
-        return false;
-      }
-      if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
-        return false;
-      }
+      if (error?.response?.status >= 400 && error?.response?.status < 500) return false;
       return failureCount < 1;
     },
-    retryDelay: 1000, // Fixed 1 second delay
-    staleTime: 60000, // Consider data fresh for 60 seconds
-    gcTime: 600000, // Keep in cache for 10 minutes
-    refetchOnWindowFocus: false, // Don't refetch on window focus
+    retryDelay: 1000,
+    staleTime: 30000,
+    gcTime: 300000,
+    refetchOnWindowFocus: false,
     getNextPageParam: (lastPage) => {
       const hasMore = lastPage?.hasMore ?? lastPage?.pagination?.hasMore;
       const nextCursor = lastPage?.nextCursor ?? lastPage?.pagination?.nextCursor;
       return hasMore && nextCursor ? nextCursor : undefined;
     },
-    meta: {
-      skipErrorToast: true, // Skip showing toast for query errors
-    },
+    meta: { skipErrorToast: true },
   });
 
+  // ─── Deduplicate + sort messages ───
   const messages = useMemo(() => {
     if (!messagesData?.pages) return [];
-    return messagesData.pages.flatMap(page => page.messages || []);
+    const all = messagesData.pages.flatMap(page => page.messages || []);
+    const seen = new Set();
+    const unique = [];
+    for (const msg of all) {
+      const id = msg._id?.toString();
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
+      unique.push(msg);
+    }
+    unique.sort((a, b) => new Date(a.sentAt || a.createdAt) - new Date(b.sentAt || b.createdAt));
+    return unique;
   }, [messagesData?.pages]);
 
+  // ─── Socket: join conversation room (re-join on reconnect) ───
   useEffect(() => {
     if (!socket || !selectedConversation) return;
-    const handleSocketError = (error) => {
-    };
-    const handleJoinedConversation = (data) => {
-    };
-    socket.emit('join_conversation', selectedConversation);
-    socket.on('joined_conversation', handleJoinedConversation);
-    socket.on('error', handleSocketError);
-    
+    const joinRoom = () => socket.emit('join_conversation', selectedConversation);
+    joinRoom();
+    socket.on('connect', joinRoom);
     return () => {
-      socket.off('joined_conversation', handleJoinedConversation);
-      socket.off('error', handleSocketError);
-      if (socket.connected) {
-        socket.emit('leave_conversation', selectedConversation);
-      }
+      socket.off('connect', joinRoom);
+      if (socket.connected) socket.emit('leave_conversation', selectedConversation);
     };
   }, [socket, selectedConversation]);
 
-  const socketHandlersRef = useRef({});
-  
+  // ─── Socket: new_message from conversation room ───
   useEffect(() => {
     if (!socket || !selectedConversation) return;
-    if (socketHandlersRef.current.handleNewMessage) {
-      socket.off('new_message', socketHandlersRef.current.handleNewMessage);
-    }
-    if (socketHandlersRef.current.handleMessageReceived) {
-      socket.off('message_received', socketHandlersRef.current.handleMessageReceived);
-    }
-    if (socketHandlersRef.current.handleMessageUpdated) {
-      socket.off('message_updated', socketHandlersRef.current.handleMessageUpdated);
-    }
-    if (socketHandlersRef.current.handleSocketError) {
-      socket.off('error', socketHandlersRef.current.handleSocketError);
-    }
 
-    const handleSocketError = (error) => {
+    const handleNewMessage = (msg) => {
+      if (!msg?._id) return;
+      const convId = msg.conversationId?.toString();
+      // CRITICAL: Only process messages for the SELECTED conversation
+      if (convId !== selectedConversation) return;
+
+      appendMessageToCache(queryClient, ['conversation-messages', selectedConversation], msg);
+
+      queryClient.setQueryData(['user-conversations'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((conv) =>
+          conv._id?.toString() === convId
+            ? { ...conv, lastMessage: msg.messageText || conv.lastMessage }
+            : conv
+        );
+      });
     };
 
-    const handleNewMessage = (newMessage) => {
-      if (newMessage.conversationId?.toString() === selectedConversation?.toString()) {
-        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
-          if (!old || !old.pages || old.pages.length === 0) return old;
-          
-          const lastPage = old.pages[old.pages.length - 1];
-          const existingMessages = lastPage.messages || [];
-          const existingMessageIds = new Set(existingMessages.map(msg => msg._id?.toString()));
-          const newMessageId = newMessage._id?.toString();
-          
-          if (newMessageId && existingMessageIds.has(newMessageId)) {
-            return old;
-          }
-          const messageText = newMessage.messageText || newMessage.message || '';
-          const senderId = newMessage.senderId?._id?.toString() || newMessage.senderId?.toString();
-          const sentAt = newMessage.sentAt || newMessage.createdAt;
-          const filteredMessages = existingMessages.filter(msg => {
-            if (msg.isOptimistic) {
-              const msgText = msg.messageText || msg.message || '';
-              const msgSenderId = msg.senderId?._id?.toString() || msg.senderId?.toString();
-              const msgSentAt = msg.sentAt || msg.createdAt;
-              if (msgText === messageText && 
-                  msgSenderId === senderId && 
-                  sentAt && msgSentAt) {
-                const timeDiff = Math.abs(new Date(sentAt) - new Date(msgSentAt));
-                if (timeDiff < 5000) {
-                  return false;
-                }
-              }
-            }
-            return true;
-          });
-          const isDuplicate = filteredMessages.some(msg => {
-            const msgText = msg.messageText || msg.message || '';
-            const msgSenderId = msg.senderId?._id?.toString() || msg.senderId?.toString();
-            const msgSentAt = msg.sentAt || msg.createdAt;
-            
-            if (msgText === messageText && 
-                msgSenderId === senderId && 
-                sentAt && msgSentAt) {
-              const timeDiff = Math.abs(new Date(sentAt) - new Date(msgSentAt));
-              if (timeDiff < 2000) {
-                return true;
-              }
-            }
-            return false;
-          });
-          
-          if (isDuplicate) {
-            return old;
-          }
-          return {
-            ...old,
-            pages: old.pages.map((page, index) => 
-              index === old.pages.length - 1
-                ? { ...page, messages: [...filteredMessages, newMessage] }
-                : page
-            ),
-          };
-        });
-      }
-      queryClient.invalidateQueries(['user-conversations']);
-    };
-
-    const handleMessageReceived = (data) => {};
-
-    const handleMessageUpdated = (updatedMessage) => {
-      if (updatedMessage.conversationId?.toString() !== selectedConversation?.toString()) return;
+    const handleMessageUpdated = (msg) => {
+      if (msg.conversationId?.toString() !== selectedConversation) return;
       queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
         if (!old?.pages) return old;
         return {
           ...old,
           pages: old.pages.map((page) => ({
             ...page,
-            messages: (page.messages || []).map((msg) =>
-              msg._id?.toString() === updatedMessage._id?.toString()
-                ? { ...msg, ...updatedMessage }
-                : msg
+            messages: (page.messages || []).map((m) =>
+              m._id?.toString() === msg._id?.toString() ? { ...m, ...msg } : m
             ),
           })),
         };
       });
     };
 
-    socketHandlersRef.current = {
-      handleNewMessage,
-      handleMessageReceived,
-      handleMessageUpdated,
-      handleSocketError,
-    };
-
     socket.on('new_message', handleNewMessage);
-    socket.on('message_received', handleMessageReceived);
     socket.on('message_updated', handleMessageUpdated);
-    socket.on('error', handleSocketError);
-    
     return () => {
-      if (socketHandlersRef.current.handleNewMessage) {
-        socket.off('new_message', socketHandlersRef.current.handleNewMessage);
-      }
-      if (socketHandlersRef.current.handleMessageReceived) {
-        socket.off('message_received', socketHandlersRef.current.handleMessageReceived);
-      }
-      if (socketHandlersRef.current.handleMessageUpdated) {
-        socket.off('message_updated', socketHandlersRef.current.handleMessageUpdated);
-      }
-      if (socketHandlersRef.current.handleSocketError) {
-        socket.off('error', socketHandlersRef.current.handleSocketError);
-      }
-      socketHandlersRef.current = {};
+      socket.off('new_message', handleNewMessage);
+      socket.off('message_updated', handleMessageUpdated);
     };
   }, [socket, selectedConversation, queryClient]);
+
+  // ─── Socket: message_received from personal room (backup delivery) ───
+  useEffect(() => {
+    if (!socket) return;
+    const handler = (data) => {
+      const { conversationId: convId, message: msg } = data || {};
+      if (!msg?._id) return;
+      const senderId = msg.senderId?._id?.toString() || msg.senderId?.toString();
+      if (senderId === myId) return; // skip own echo
+
+      const currentConv = selectedConversationRef.current;
+      if (currentConv && convId?.toString() === currentConv) {
+        appendMessageToCache(queryClient, ['conversation-messages', currentConv], msg);
+      }
+      queryClient.setQueryData(['user-conversations'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((conv) =>
+          conv._id?.toString() === convId?.toString()
+            ? { ...conv, lastMessage: msg.messageText || conv.lastMessage }
+            : conv
+        );
+      });
+    };
+    socket.on('message_received', handler);
+    return () => { socket.off('message_received', handler); };
+  }, [socket, myId, queryClient]);
+
+  // ─── Mutations ───
+  const sendMessageMutation = useMutation({
+    mutationFn: (data) => chatAPI.sendMessage(data),
+    onSuccess: (response) => {
+      const sent = response?.data?.data;
+      if (sent && selectedConversation) {
+        appendMessageToCache(queryClient, ['conversation-messages', selectedConversation], sent);
+        queryClient.setQueryData(['user-conversations'], (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((conv) =>
+            conv._id?.toString() === selectedConversation
+              ? { ...conv, lastMessage: sent.messageText || conv.lastMessage }
+              : conv
+          );
+        });
+      }
+    },
+    onError: (error) => {
+      // Remove optimistic messages on error
+      if (selectedConversation) {
+        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: (page.messages || []).filter((m) => !m.isOptimistic),
+            })),
+          };
+        });
+      }
+      if (error?.response?.status === 429) {
+        showApiError({ message: 'Sending too fast. Please wait a moment.' }, 'Rate limited');
+      } else {
+        showApiError(error, 'Failed to send message');
+      }
+    },
+  });
 
   const sendImageMessageMutation = useMutation({
     mutationFn: ({ formData }) => chatAPI.sendImageMessage(formData),
     onSuccess: (response, variables) => {
       const sentMessage = response?.data?.data;
-      const tempId = variables.tempId;
       if (variables.localPreviewUrl) URL.revokeObjectURL(variables.localPreviewUrl);
       if (sentMessage && selectedConversation) {
         queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
           if (!old?.pages?.length) return old;
           const lastPage = old.pages[old.pages.length - 1];
           const filtered = (lastPage.messages || []).filter(
-            (m) => m._id?.toString() !== sentMessage._id?.toString() && m._id !== tempId
+            (m) => m._id?.toString() !== sentMessage._id?.toString() && m._id !== variables.tempId
           );
-          const merged = { ...sentMessage, localPreviewUrl: variables.localPreviewUrl };
           return {
             ...old,
             pages: old.pages.map((page, i) =>
-              i === old.pages.length - 1
-                ? { ...page, messages: [...filtered, merged] }
-                : page
+              i === old.pages.length - 1 ? { ...page, messages: [...filtered, sentMessage] } : page
             ),
           };
         });
+        queryClient.setQueryData(['user-conversations'], (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((conv) =>
+            conv._id?.toString() === selectedConversation ? { ...conv, lastMessage: 'Image' } : conv
+          );
+        });
       }
-      queryClient.invalidateQueries(['user-conversations']);
     },
     onError: (error, variables) => {
+      if (variables.localPreviewUrl) URL.revokeObjectURL(variables.localPreviewUrl);
       if (selectedConversation && variables.tempId) {
         queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
           if (!old?.pages) return old;
@@ -288,83 +303,33 @@ const UserChat = () => {
           };
         });
       }
-      showApiError(error, 'Failed to send image');
-    },
-  });
-
-  const sendMessageMutation = useMutation({
-    mutationFn: (data) => chatAPI.sendMessage(data),
-    onSuccess: (response) => {
-      if (response?.data?.data && selectedConversation) {
-        const sentMessage = response.data.data;
-        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
-          if (!old || !old.pages || old.pages.length === 0) return old;
-          
-          const lastPage = old.pages[old.pages.length - 1];
-          const existingMessages = lastPage.messages || [];
-          
-          const filteredMessages = existingMessages.filter(msg => !msg.isOptimistic || msg._id?.toString() !== sentMessage._id?.toString());
-          
-          return {
-            ...old,
-            pages: old.pages.map((page, index) => 
-              index === old.pages.length - 1
-                ? { ...page, messages: filteredMessages }
-                : page
-            ),
-          };
-        });
+      if (error?.response?.status === 429) {
+        showApiError({ message: 'Sending too fast. Please wait a moment.' }, 'Rate limited');
+      } else {
+        showApiError(error, 'Failed to send image');
       }
-      queryClient.invalidateQueries(['user-conversations']);
-    },
-    onError: (error) => {
-      if (selectedConversation) {
-        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
-          if (!old || !old.pages || old.pages.length === 0) return old;
-          
-          const lastPage = old.pages[old.pages.length - 1];
-          const filteredMessages = (lastPage.messages || []).filter(msg => !msg.isOptimistic);
-          
-          return {
-            ...old,
-            pages: old.pages.map((page, index) => 
-              index === old.pages.length - 1
-                ? { ...page, messages: filteredMessages }
-                : page
-            ),
-          };
-        });
-      }
-      showApiError(error, 'Failed to send message');
     },
   });
 
   const markAsReadMutation = useMutation({
     mutationFn: (conversationId) => chatAPI.markAsRead(conversationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['user-conversations']);
-    },
-    onError: (error) => {
-    },
-    retry: false, // Don't retry - if it fails, socket will handle it
+    onSuccess: () => { queryClient.invalidateQueries(['user-conversations']); },
+    retry: false,
   });
 
+  // ─── Auto-scroll on new messages ───
   const prevMessagesLengthRef = useRef(0);
   useEffect(() => {
-    const currentLength = messages.length;
-    const prevLength = prevMessagesLengthRef.current;
-    if (currentLength > prevLength && scrollContainerRef.current && messages.length < 40) {
+    const len = messages.length;
+    if (len > prevMessagesLengthRef.current && scrollContainerRef.current && len < 40) {
       const el = scrollContainerRef.current;
-      const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-      if (isNearBottom) {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
         requestAnimationFrame(() => {
-          if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
       }
     }
-    prevMessagesLengthRef.current = currentLength;
+    prevMessagesLengthRef.current = len;
   }, [messages.length]);
 
   const handleScrollToTop = useCallback(() => {
@@ -375,26 +340,19 @@ const UserChat = () => {
     }, 200);
   }, [fetchNextPage]);
 
+  // ─── Mark as read ───
   const markAsReadRef = useRef(null);
   useEffect(() => {
-    if (!selectedConversation) return;
-    
-    if (markAsReadRef.current === selectedConversation) return;
+    if (!selectedConversation || markAsReadRef.current === selectedConversation) return;
     markAsReadRef.current = selectedConversation;
-    
-    const timeoutId = setTimeout(() => {
-      if (socket && isConnected) {
-        socket.emit('mark_read', selectedConversation);
-      } else if (!socket || !isConnected) {
-        markAsReadMutation.mutate(selectedConversation);
-      }
+    const t = setTimeout(() => {
+      if (socket && isConnected) socket.emit('mark_read', selectedConversation);
+      else markAsReadMutation.mutate(selectedConversation);
     }, 100);
-    
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    return () => clearTimeout(t);
   }, [selectedConversation, socket, isConnected, markAsReadMutation]);
 
+  // ─── Send handlers ───
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedConversation) return;
@@ -410,27 +368,16 @@ const UserChat = () => {
     const tempId = `temp-img-${Date.now()}`;
     const localPreviewUrl = URL.createObjectURL(file);
     const optimisticMessage = {
-      _id: tempId,
-      conversationId: selectedConversation,
-      senderId: user,
-      receiverId: conversation?.sellerId,
-      messageText: 'Image',
-      messageType: 'image',
-      uploadStatus: 'pending',
-      localPreviewUrl,
-      isRead: false,
-      sentAt: new Date(),
-      isOptimistic: true,
+      _id: tempId, conversationId: selectedConversation, senderId: user,
+      messageText: 'Image', messageType: 'image', uploadStatus: 'pending',
+      localPreviewUrl, isRead: false, sentAt: new Date(), isOptimistic: true,
     };
     queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
       if (!old?.pages?.length) return old;
-      const lastPage = old.pages[old.pages.length - 1];
       return {
         ...old,
         pages: old.pages.map((page, i) =>
-          i === old.pages.length - 1
-            ? { ...page, messages: [...(page.messages || []), optimisticMessage] }
-            : page
+          i === old.pages.length - 1 ? { ...page, messages: [...(page.messages || []), optimisticMessage] } : page
         ),
       };
     });
@@ -445,40 +392,36 @@ const UserChat = () => {
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!message.trim() || !selectedConversation) return;
-    
     const messageText = message.trim();
-    
+
+    // Optimistic UI
     const optimisticMessage = {
-      _id: `temp-${Date.now()}`,
-      conversationId: selectedConversation,
-      senderId: user,
-      receiverId: conversation?.sellerId,
-      messageText,
-      messageType: 'text',
-      isRead: false,
-      sentAt: new Date(),
-      isOptimistic: true, // Flag to identify optimistic messages
+      _id: `temp-${Date.now()}`, conversationId: selectedConversation,
+      senderId: user, messageText, messageType: 'text',
+      isRead: false, sentAt: new Date(), isOptimistic: true,
     };
-    
     queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
-      if (!old || !old.pages || old.pages.length === 0) return old;
-      const lastPage = old.pages[old.pages.length - 1];
+      if (!old?.pages?.length) return old;
       return {
         ...old,
-        pages: old.pages.map((page, index) => 
-          index === old.pages.length - 1
-            ? { ...page, messages: [...(page.messages || []), optimisticMessage] }
-            : page
+        pages: old.pages.map((page, i) =>
+          i === old.pages.length - 1 ? { ...page, messages: [...(page.messages || []), optimisticMessage] } : page
         ),
       };
     });
-    
     setMessage('');
-    
-    sendMessageMutation.mutate({
-      conversationId: selectedConversation,
-      messageText,
-    });
+
+    // Socket-first with HTTP fallback
+    if (socket && isConnected) {
+      socket.emit('send_message', { conversationId: selectedConversation, messageText }, (ack) => {
+        // If socket ACK returns error, fall back to HTTP
+        if (ack && ack.error) {
+          sendMessageMutation.mutate({ conversationId: selectedConversation, messageText });
+        }
+      });
+    } else {
+      sendMessageMutation.mutate({ conversationId: selectedConversation, messageText });
+    }
   };
 
   if (conversationsLoading) return <Loading message="Loading conversations..." />;

@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from '../../components/ui/label';
 import { Headphones, Send, Plus, ImagePlus, Loader2 } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
+import { useSocket } from '../../hooks/useSocket';
+import { useSelector } from 'react-redux';
 
 const SellerSupport = () => {
   const [selectedChat, setSelectedChat] = useState(null);
@@ -21,19 +23,67 @@ const SellerSupport = () => {
   const [uploadingImage, setUploadingImage] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const selectedChatRef = useRef(selectedChat);
+  selectedChatRef.current = selectedChat;
   const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
+  const { user } = useSelector((state) => state.auth);
 
   const { data: chats, isLoading: chatsLoading } = useQuery({
     queryKey: ['seller-support-chats'],
     queryFn: () => supportAPI.getMySupportChats().then(res => res.data.data),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ['support-messages', selectedChat],
     queryFn: () => supportAPI.getSupportMessages(selectedChat).then(res => res.data.data),
     enabled: !!selectedChat,
-    refetchInterval: 3000,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
+
+  // Socket: join/leave support chat room
+  useEffect(() => {
+    if (!socket || !selectedChat) return;
+    const joinRoom = () => socket.emit('join_support_chat', selectedChat);
+    joinRoom();
+    socket.on('connect', joinRoom);
+    return () => {
+      socket.off('connect', joinRoom);
+      if (socket.connected) socket.emit('leave_support_chat', selectedChat);
+    };
+  }, [socket, selectedChat]);
+
+  // Socket: listen for incoming support messages (always-on)
+  useEffect(() => {
+    if (!socket) return;
+    const handleSupportMessage = (msg) => {
+      if (!msg) return;
+      const currentChat = selectedChatRef.current;
+      const chatId = msg.chatId?.toString() || msg.supportChatId?.toString();
+      // Update messages if this chat is currently open
+      if (currentChat && chatId === currentChat.toString()) {
+        queryClient.setQueryData(['support-messages', currentChat], (old) => {
+          if (!Array.isArray(old)) return old;
+          if (old.some(m => m._id?.toString() === msg._id?.toString())) return old;
+          return [...old, msg];
+        });
+      }
+      // Update chat list sidebar
+      queryClient.setQueryData(['seller-support-chats'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((c) =>
+          c._id?.toString() === chatId
+            ? { ...c, lastMessage: msg.messageText || c.lastMessage, updatedAt: msg.sentAt || msg.createdAt || new Date().toISOString() }
+            : c
+        );
+      });
+    };
+    socket.on('support_message', handleSupportMessage);
+    return () => { socket.off('support_message', handleSupportMessage); };
+  }, [socket, queryClient]);
 
   const createChatMutation = useMutation({
     mutationFn: (data) => supportAPI.createSupportChat(data),
@@ -51,8 +101,15 @@ const SellerSupport = () => {
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ chatId, data }) => supportAPI.sendSupportMessage(chatId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['support-messages', selectedChat]);
+    onSuccess: (response) => {
+      const sentMessage = response?.data?.data;
+      if (sentMessage && selectedChat) {
+        queryClient.setQueryData(['support-messages', selectedChat], (old) => {
+          if (!Array.isArray(old)) return old;
+          if (old.some(m => m._id?.toString() === sentMessage._id?.toString())) return old;
+          return [...old, sentMessage];
+        });
+      }
       setMessage('');
     },
     onError: (error) => {
@@ -62,10 +119,17 @@ const SellerSupport = () => {
 
   const sendImageMutation = useMutation({
     mutationFn: ({ chatId, formData }) => supportAPI.sendSupportImageMessage(chatId, formData),
-    onSuccess: (_data, { preview }) => {
+    onSuccess: (response, { preview }) => {
       if (preview) URL.revokeObjectURL(preview);
       setUploadingImage(null);
-      queryClient.invalidateQueries(['support-messages', selectedChat]);
+      const sentMessage = response?.data?.data;
+      if (sentMessage && selectedChat) {
+        queryClient.setQueryData(['support-messages', selectedChat], (old) => {
+          if (!Array.isArray(old)) return old;
+          if (old.some(m => m._id?.toString() === sentMessage._id?.toString())) return old;
+          return [...old, sentMessage];
+        });
+      }
     },
     onError: (error, { preview }) => {
       if (preview) URL.revokeObjectURL(preview);
@@ -102,10 +166,17 @@ const SellerSupport = () => {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (message.trim() && selectedChat) {
+    if (!message.trim() || !selectedChat) return;
+    const messageText = message.trim();
+
+    // Socket-first, HTTP fallback
+    if (socket && isConnected) {
+      socket.emit('send_support_message', { chatId: selectedChat, messageText });
+      setMessage('');
+    } else {
       sendMessageMutation.mutate({
         chatId: selectedChat,
-        data: { messageText: message.trim() },
+        data: { messageText },
       });
     }
   };
