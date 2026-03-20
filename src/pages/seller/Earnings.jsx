@@ -337,7 +337,12 @@ const SellerEarnings = () => {
                                     {payoutDetails.orderId && (
                                       <div>
                                         <p className="text-sm text-gray-400 mb-1">Related Order</p>
-                                        <p className="text-white">Order: {payoutDetails.orderId._id || payoutDetails.orderId}</p>
+                                        <p className="text-white">
+                                          Order: {
+                                            payoutDetails.orderId?.orderNumber ||
+                                            (payoutDetails.orderId?._id || payoutDetails.orderId || '').toString().slice(-8).toUpperCase()
+                                          }
+                                        </p>
                                       </div>
                                     )}
                                   </div>
@@ -432,7 +437,7 @@ const SellerEarnings = () => {
                                 {payout.orderId && (
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="text-gray-400 text-xs">Order ID:</span>
-                                    <span className="text-white text-xs font-mono">{payout.orderId?.toString().slice(-8)}</span>
+                                    <span className="text-white text-xs font-mono">{payout.orderNumber || payout.orderId?.toString().slice(-8)}</span>
                                   </div>
                                 )}
                               </div>

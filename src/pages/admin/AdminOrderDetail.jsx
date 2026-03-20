@@ -216,6 +216,18 @@ const AdminOrderDetail = () => {
                           <span>Seller net earnings:</span>
                           <span>${breakdown.sellerEarning.toFixed(2)}</span>
                         </div>
+                        {(item.refundedAmount > 0 || item.refunded) && (
+                          <>
+                            <div className="flex justify-between text-amber-400">
+                              <span>Refunded amount:</span>
+                              <span>-${(item.refundedAmount || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-amber-400">
+                              <span>Refunded seller amount:</span>
+                              <span>-${(item.refundedSellerAmount || 0).toFixed(2)}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                       {sellerId && (
                         <div className="border-t border-gray-700 pt-4">
@@ -344,6 +356,18 @@ const AdminOrderDetail = () => {
                     <span>${order.buyerHandlingFee.toFixed(2)}</span>
                   </div>
                 )}
+                {(() => {
+                  const totalRefunded = (order.items || []).reduce(
+                    (sum, item) => sum + (Number(item.refundedAmount) || 0),
+                    0
+                  );
+                  return totalRefunded > 0 ? (
+                    <div className="flex justify-between text-amber-400">
+                      <span>Refunded:</span>
+                      <span>-${totalRefunded.toFixed(2)}</span>
+                    </div>
+                  ) : null;
+                })()}
                 <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-gray-700">
                   <span>{order.grandTotal != null ? 'Grand Total:' : 'Total:'}</span>
                   <span>${(order.grandTotal ?? order.totalAmount)?.toFixed(2)}</span>

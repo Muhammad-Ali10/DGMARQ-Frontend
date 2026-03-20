@@ -289,7 +289,7 @@ export default function RefundChat({ refundId, canSend }) {
       {/* Messages area */}
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-1 min-h-[200px] max-h-[400px]"
+        className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 min-h-[180px] max-h-[52vh] sm:max-h-[400px]"
         style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(14, 81, 226, 0.03) 0%, transparent 50%)' }}
       >
         {isLoading ? (
@@ -336,7 +336,7 @@ export default function RefundChat({ refundId, canSend }) {
                 className={`flex ${own ? 'justify-end' : 'justify-start'} mb-1`}
               >
                 <div
-                  className={`max-w-[75%] rounded-2xl px-3.5 py-2 ${
+                  className={`max-w-[88%] sm:max-w-[75%] rounded-2xl px-3 py-2 ${
                     own
                       ? 'bg-accent/90 rounded-br-md'
                       : 'bg-white/[0.06] rounded-bl-md'
@@ -349,7 +349,7 @@ export default function RefundChat({ refundId, canSend }) {
                   )}
 
                   {m.message && (
-                    <p className={`text-sm leading-relaxed break-words ${own ? 'text-white' : 'text-gray-200'}`}>
+                    <p className={`text-[13px] sm:text-sm leading-relaxed break-words ${own ? 'text-white' : 'text-gray-200'}`}>
                       {m.message}
                     </p>
                   )}
@@ -367,7 +367,7 @@ export default function RefundChat({ refundId, canSend }) {
                           <img
                             src={attachment.url}
                             alt={`Attachment ${aIdx + 1}`}
-                            className="w-full h-32 object-cover"
+                            className="w-full h-24 sm:h-32 object-cover"
                             loading="lazy"
                           />
                         </a>
@@ -427,7 +427,7 @@ export default function RefundChat({ refundId, canSend }) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={addMessageMutation.isPending || selectedImages.length >= MAX_FILES}
-              className="shrink-0 p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+              className="shrink-0 p-2.5 rounded-full text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-40"
             >
               <ImagePlus className="w-5 h-5" />
             </button>
@@ -440,7 +440,7 @@ export default function RefundChat({ refundId, canSend }) {
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
                 rows={1}
-                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-2xl px-4 py-2.5 text-sm text-white placeholder:text-gray-500 resize-none focus:outline-none focus:border-accent/50 transition-colors max-h-24 overflow-y-auto"
+                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-2xl px-3.5 py-2.5 text-[13px] sm:text-sm text-white placeholder:text-gray-500 resize-none focus:outline-none focus:border-accent/50 transition-colors max-h-24 overflow-y-auto"
                 style={{ minHeight: '40px' }}
               />
             </div>

@@ -55,6 +55,7 @@ const SellerOrders = () => {
 
   const orders = ordersData?.orders || [];
   const pagination = ordersData?.pagination || {};
+  const totalPages = pagination.pages ?? pagination.totalPages ?? 1;
 
   return (
     <div className="space-y-6">
@@ -82,6 +83,8 @@ const SellerOrders = () => {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="processing">Processing</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="PARTIALLY_REFUNDED">Partially Refunded</SelectItem>
+                <SelectItem value="REFUNDED">Refunded</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
@@ -181,17 +184,17 @@ const SellerOrders = () => {
                   </TableBody>
                 </Table>
               </div>
-              {(pagination.total ?? 0) > 0 && (
+              {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
                   <p className="text-sm text-gray-400">
-                    Page {page} of {pagination.totalPages}
+                    Page {page} of {totalPages} ({pagination.total ?? orders.length} total orders)
                   </p>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
+                      disabled={page <= 1}
                       className="border-gray-700 text-gray-300"
                     >
                       <ChevronLeft className="w-4 h-4" />
@@ -201,9 +204,9 @@ const SellerOrders = () => {
                       size="sm"
                       variant="outline"
                       onClick={() =>
-                        setPage((p) => Math.min(pagination.totalPages, p + 1))
+                        setPage((p) => Math.min(totalPages, p + 1))
                       }
-                      disabled={page >= pagination.totalPages}
+                      disabled={page >= totalPages}
                       className="border-gray-700 text-gray-300"
                     >
                       Next

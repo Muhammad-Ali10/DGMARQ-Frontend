@@ -16,6 +16,7 @@ import {
   updateGuestCartQuantity,
   clearGuestCart,
 } from '../../utils/guestCart';
+import { getPlatformName, getTypeName } from '../../utils/productUtils';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -196,6 +197,8 @@ const Cart = () => {
                     const qty = item.qty || 1;
                     const price = item.price || 0;
                     const totalPrice = qty * price;
+                    const platformName = item.platformName || getPlatformName(item.productId);
+                    const typeName = item.typeName || getTypeName(item.productId);
                     return (
                       <div
                         key={productId}
@@ -217,6 +220,8 @@ const Cart = () => {
                           <Link to={`/product/${item.slug || productId}`} className="block mb-2">
                             <h3 className="font-semibold text-white hover:text-accent line-clamp-2">{item.name || 'Product'}</h3>
                           </Link>
+                          <p className="text-xs text-gray-400">Platform: {platformName}</p>
+                          <p className="text-xs text-gray-400 mb-1">Type: {typeName}</p>
                           <p className="text-lg font-bold text-accent">${price.toFixed(2)}</p>
                         </div>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -405,6 +410,8 @@ const Cart = () => {
                   const discountPercentage = item.discountPercentage || 0;
                   const hasDiscount = item.hasDiscount !== undefined ? item.hasDiscount : (discountAmount > 0 || discountPercentage > 0);
                   const totalPrice = item.totalPrice || (discountedPrice * qty);
+                  const platformName = getPlatformName(product || item);
+                  const typeName = getTypeName(product || item);
 
                   return (
                     <div
@@ -439,6 +446,8 @@ const Cart = () => {
                             {product?.name || 'Product'}
                           </h3>
                         </Link>
+                        <p className="text-xs text-gray-400">Platform: {platformName}</p>
+                        <p className="text-xs text-gray-400 mb-1">Type: {typeName}</p>
                         {product?.category?.name && (
                           <p className="text-sm text-gray-400 mb-2">{product.category.name}</p>
                         )}

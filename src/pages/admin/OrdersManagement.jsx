@@ -45,8 +45,8 @@ const OrdersManagement = () => {
   const currentPage = pagination.page ?? page;
   const totalItems = pagination.total ?? orders.length;
   const totalPages = pagination.pages ?? pagination.totalPages ?? 1;
-  const limit = pagination.limit ?? 20;
-  const showPagination = totalItems > 0;
+  const limitVal = pagination.limit ?? 10;
+  const showPagination = totalPages > 1;
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -97,6 +97,7 @@ const OrdersManagement = () => {
                       <TableHead className="text-gray-300">Order ID</TableHead>
                       <TableHead className="text-gray-300">User</TableHead>
                       <TableHead className="text-gray-300">Total</TableHead>
+                      <TableHead className="text-gray-300">Refunded</TableHead>
                       <TableHead className="text-gray-300">Status</TableHead>
                       <TableHead className="text-gray-300">Payment</TableHead>
                       <TableHead className="text-gray-300">Date</TableHead>
@@ -111,6 +112,10 @@ const OrdersManagement = () => {
                         const userName = order.userId?.name || 
                                        (typeof order.userId === 'object' ? order.userId?.email : null) || 
                                        'N/A';
+                        const refundedAmount = (order.items || []).reduce(
+                          (sum, item) => sum + (Number(item.refundedAmount) || 0),
+                          0
+                        );
                         return (
                           <TableRow key={orderId} className="border-gray-700 hover:bg-gray-800">
                           <TableCell className="text-white font-mono text-sm">
@@ -119,6 +124,9 @@ const OrdersManagement = () => {
                             <TableCell className="text-gray-300">{userName}</TableCell>
                             <TableCell className="text-white font-semibold">
                               ${order.totalAmount?.toFixed(2) || '0.00'}
+                            </TableCell>
+                            <TableCell className={refundedAmount > 0 ? "text-amber-400/90" : "text-gray-500"}>
+                              {refundedAmount > 0 ? `-$${refundedAmount.toFixed(2)}` : "—"}
                             </TableCell>
                             <TableCell>{getStatusBadge(order.orderStatus)}</TableCell>
                             <TableCell>
@@ -142,7 +150,7 @@ const OrdersManagement = () => {
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan="7" className="text-center py-12 text-gray-400">
+                        <TableCell colSpan="8" className="text-center py-12 text-gray-400">
                           No orders found
                         </TableCell>
                       </TableRow>

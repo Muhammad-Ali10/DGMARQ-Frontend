@@ -69,13 +69,55 @@ export const getProductName = (product) => {
   return product?.name || 'Unnamed Product';
 };
 
+const normalizeEntityName = (value) => {
+  if (typeof value === 'string' && value.trim()) {
+    const trimmed = value.trim();
+    const isMongoId = /^[a-f0-9]{24}$/i.test(trimmed);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmed);
+    if (isMongoId || isUuid) return '';
+    return trimmed;
+  }
+  if (value && typeof value === 'object') {
+    if (typeof value.name === 'string' && value.name.trim()) return value.name.trim();
+    if (typeof value.title === 'string' && value.title.trim()) return value.title.trim();
+    if (typeof value.label === 'string' && value.label.trim()) return value.label.trim();
+  }
+  return '';
+};
+
+const mapProductTypeValue = (value) => {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return '';
+
+  if (normalized === 'ACCOUNT_BASED' || normalized === 'ACCOUNT') return 'Account';
+  if (normalized === 'LICENSE_KEY' || normalized === 'LICENSE' || normalized === 'KEY') return 'Key';
+
+  // Keep readable labels from backend/type tables
+  if (normalized.includes('_')) {
+    return normalized
+      .toLowerCase()
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  return value.trim();
+};
+
 /**
  * Get platform name
  * @param {Object} product - Product object
  * @returns {string} - Platform name or fallback
  */
 export const getPlatformName = (product) => {
-  return product?.platform?.name || 'Unknown Platform';
+  return (
+    normalizeEntityName(product?.platform) ||
+    normalizeEntityName(product?.platformId) ||
+    normalizeEntityName(product?.platformName) ||
+    'Unknown Platform'
+  );
 };
 
 /**
@@ -93,7 +135,8 @@ export const getRegionName = (product) => {
  * @returns {string} - Type name or fallback
  */
 export const getTypeName = (product) => {
-  return product?.type?.name || 'KEY';
+  const productType = mapProductTypeValue(normalizeEntityName(product?.productType));
+  return productType || 'Unknown Type';
 };
 
 /**
@@ -106,9 +149,9 @@ export const getDeviceName = (product) => {
 };
 
 export const getKeyTypeName = (product) => {
-  return product?.keyType?.name || 'KEY';
+  return getTypeName(product);
 };
 
 export const getKeyType = (product) => {
-  return product?.keyType?.name || 'KEY';
+  return getTypeName(product);
 };

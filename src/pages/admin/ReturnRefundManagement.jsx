@@ -11,9 +11,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Eye, CheckCircle2, XCircle, AlertCircle, Package, User, Store, FileText } from 'lucide-react';
+import { Eye, CheckCircle2, XCircle, AlertCircle, Package, User, Store, FileText, Key, EyeOff } from 'lucide-react';
 import RefundChat from '../../components/RefundChat';
 import { toast } from 'sonner';
+
+const getDisplayOrderId = (orderLike) => {
+  if (!orderLike) return 'N/A';
+  const orderNumber = typeof orderLike.orderNumber === 'string' ? orderLike.orderNumber.trim() : '';
+  if (orderNumber) return orderNumber;
+  const rawId = orderLike._id?.toString?.() || '';
+  return rawId ? rawId.slice(-8).toUpperCase() : 'N/A';
+};
 
 const ReturnRefundManagement = () => {
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -27,6 +35,9 @@ const ReturnRefundManagement = () => {
   const [sellerInputNote, setSellerInputNote] = useState('');
   const [showRequestSellerInput, setShowRequestSellerInput] = useState(false);
   const [manualRefundReference, setManualRefundReference] = useState('');
+  const [showKeyDetails, setShowKeyDetails] = useState(false);
+  const [keyDetails, setKeyDetails] = useState(null);
+  const [keyDetailsLoading, setKeyDetailsLoading] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: refundsData, isLoading, isError, error } = useQuery({
@@ -172,6 +183,12 @@ const ReturnRefundManagement = () => {
     return <Badge variant="secondary" className="bg-blue-600/20 text-blue-400 border-blue-600/50">Key Based</Badge>;
   };
 
+  const { data: refundDetails, isLoading: detailsLoading } = useQuery({
+    queryKey: ['admin-refund-details', selectedRefund?._id],
+    queryFn: () => returnRefundAPI.getRefundById(selectedRefund?._id).then((res) => res.data.data),
+    enabled: !!selectedRefund?._id && isViewOpen,
+  });
+
   if (isLoading) return <Loading message="Loading refunds..." />;
   if (isError) {
     const errorMessage = error?.response?.data?.message || error?.message || "Error loading refunds";
@@ -180,6 +197,7 @@ const ReturnRefundManagement = () => {
 
   const refunds = refundsData?.refunds || [];
   const pagination = refundsData?.pagination || { page: 1, limit: 10, total: 0, pages: 1 };
+  const refundView = refundDetails || selectedRefund;
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -208,7 +226,100 @@ const ReturnRefundManagement = () => {
           </Select>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Mobile card view */}
+          <div className="lg:hidden space-y-3">
+            {refunds.length > 0 ? (
+              refunds.map((refund) => (
+                <div
+                  key={refund._id}
+                  className="bg-secondary border border-gray-700 rounded-lg p-4 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-white font-mono text-sm">#{refund._id.slice(-8)}</span>
+                    {getStatusBadge(refund.status)}
+                  </div>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Order</span>
+                      <span className="text-gray-300 font-mono">
+                        {refund.orderId ? `#${getDisplayOrderId(refund.orderId)}` : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Customer</span>
+                      <span className="text-white truncate max-w-[150px]">{refund.userId?.name || refund.userId?.email || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Product</span>
+                      <span className="text-gray-300 truncate max-w-[150px]">{refund.productId?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Seller</span>
+                      <span className="text-gray-300 truncate max-w-[150px]">{refund.sellerId?.shopName || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Amount</span>
+                      <span className="text-white font-semibold">${refund.refundAmount?.toFixed(2) || refund.productId?.price?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Date</span>
+                      <span className="text-gray-300">{new Date(refund.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-700">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedRefund(refund);
+                        setIsViewOpen(true);
+                      }}
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      View
+                    </Button>
+                    {canShowMarkManualRefund(refund) && (
+                      <Button
+                        size="sm"
+                        onClick={() => markManualRefundMutation.mutate({ refundId: refund._id })}
+                        disabled={markManualRefundMutation.isPending}
+                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-1" />
+                        Manual Refund
+                      </Button>
+                    )}
+                    {canAdminApprove(refund) && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(refund)}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-1" />
+                        Approve
+                      </Button>
+                    )}
+                    {canAdminReject(refund) && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleReject(refund)}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <XCircle className="w-4 h-4 mr-1" />
+                        Reject
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center text-gray-400 py-8">No refund requests found</div>
+            )}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden lg:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-700">
@@ -232,7 +343,7 @@ const ReturnRefundManagement = () => {
                       </TableCell>
                       <TableCell className="text-gray-300 font-mono text-sm">
                         {refund.orderId
-                          ? `#${refund.orderId.orderNumber || String(refund.orderId._id).slice(-8)}`
+                          ? `#${getDisplayOrderId(refund.orderId)}`
                           : 'N/A'}
                       </TableCell>
                       <TableCell className="text-gray-300">
@@ -258,7 +369,7 @@ const ReturnRefundManagement = () => {
                         {new Date(refund.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Button
                             size="sm"
                             variant="outline"
@@ -346,10 +457,10 @@ const ReturnRefundManagement = () => {
 
       {/* View Details Dialog */}
       <Dialog open={isViewOpen} onOpenChange={(open) => {
-        if (!open) { setShowRequestSellerInput(false); setSellerInputNote(''); }
+        if (!open) { setShowRequestSellerInput(false); setSellerInputNote(''); setShowKeyDetails(false); setKeyDetails(null); }
         setIsViewOpen(open);
       }}>
-        <DialogContent size="lg" className="bg-primary border-gray-700">
+        <DialogContent size="lg" className="bg-primary border-gray-700 max-h-[90vh] h-[90vh] sm:h-auto overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-white">Refund Request Details</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -357,39 +468,40 @@ const ReturnRefundManagement = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedRefund && (
-            <div className="space-y-6 mt-4">
+            <div className="space-y-6 mt-4 overflow-y-auto pr-1">
+              {detailsLoading ? (
+                <Loading message="Loading refund details..." />
+              ) : (
+                <>
               {/* Order Information */}
               <div className="p-4 bg-secondary rounded-lg border border-gray-700">
                 <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
                   <Package className="w-5 h-5 text-accent" />
                   Order Information
                 </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-400">Order ID:</span>
                     <p className="text-white font-mono">
-                      {selectedRefund.orderId
-                        ? selectedRefund.orderId.orderNumber ||
-                          String(selectedRefund.orderId._id).slice(-8)
-                        : 'N/A'}
+                      {refundView?.orderId ? getDisplayOrderId(refundView.orderId) : 'N/A'}
                     </p>
                   </div>
                   <div>
                     <span className="text-gray-400">Order Date:</span>
                     <p className="text-white">
-                      {selectedRefund.orderId?.createdAt 
-                        ? new Date(selectedRefund.orderId.createdAt).toLocaleDateString() 
+                      {refundView?.orderId?.createdAt 
+                        ? new Date(refundView.orderId.createdAt).toLocaleDateString() 
                         : 'N/A'}
                     </p>
                   </div>
                   <div>
                     <span className="text-gray-400">Order Status:</span>
-                    <p className="text-white">{selectedRefund.orderId?.orderStatus || 'N/A'}</p>
+                    <p className="text-white">{refundView?.orderId?.orderStatus || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-gray-400">Order Total:</span>
                     <p className="text-white font-semibold">
-                      ${selectedRefund.orderId?.totalAmount?.toFixed(2) || '0.00'}
+                      ${refundView?.orderId?.totalAmount?.toFixed(2) || '0.00'}
                     </p>
                   </div>
                 </div>
@@ -402,33 +514,33 @@ const ReturnRefundManagement = () => {
                   Product Information
                 </h3>
                 <div className="space-y-3">
-                  {selectedRefund.productId?.images?.[0] && (
+                  {refundView?.productId?.images?.[0] && (
                     <img
-                      src={selectedRefund.productId.images[0]}
-                      alt={selectedRefund.productId.name}
+                      src={refundView.productId.images[0]}
+                      alt={refundView.productId.name}
                       className="w-24 h-24 object-cover rounded"
                     />
                   )}
                   <div>
                     <span className="text-gray-400">Product Name:</span>
-                    <p className="text-white font-medium">{selectedRefund.productId?.name || 'N/A'}</p>
+                    <p className="text-white font-medium">{refundView?.productId?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-gray-400">Product Type:</span>
                     <div className="mt-1">
-                      {selectedRefund.productId?.productType && getProductTypeBadge(selectedRefund.productId.productType)}
+                      {refundView?.productId?.productType && getProductTypeBadge(refundView.productId.productType)}
                     </div>
                   </div>
                   <div>
                     <span className="text-gray-400">Product Price:</span>
                     <p className="text-white font-semibold">
-                      ${selectedRefund.productId?.price?.toFixed(2) || '0.00'}
+                      ${refundView?.productId?.price?.toFixed(2) || '0.00'}
                     </p>
                   </div>
                   <div>
                     <span className="text-gray-400">Refund Amount:</span>
                     <p className="text-white font-bold text-lg">
-                      ${selectedRefund.refundAmount?.toFixed(2) || selectedRefund.productId?.price?.toFixed(2) || '0.00'}
+                      ${refundView?.refundAmount?.toFixed(2) || refundView?.productId?.price?.toFixed(2) || '0.00'}
                     </p>
                   </div>
                 </div>
@@ -440,14 +552,14 @@ const ReturnRefundManagement = () => {
                   <User className="w-5 h-5 text-accent" />
                   Customer Information
                 </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-400">Name:</span>
-                    <p className="text-white">{selectedRefund.userId?.name || 'N/A'}</p>
+                    <p className="text-white">{refundView?.userId?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-gray-400">Email:</span>
-                    <p className="text-white">{selectedRefund.userId?.email || 'N/A'}</p>
+                    <p className="text-white">{refundView?.userId?.email || 'N/A'}</p>
                   </div>
                 </div>
               </div>
@@ -460,7 +572,7 @@ const ReturnRefundManagement = () => {
                 </h3>
                 <div className="text-sm">
                   <span className="text-gray-400">Shop Name:</span>
-                  <p className="text-white">{selectedRefund.sellerId?.shopName || 'N/A'}</p>
+                  <p className="text-white">{refundView?.sellerId?.shopName || 'N/A'}</p>
                 </div>
               </div>
 
@@ -473,23 +585,23 @@ const ReturnRefundManagement = () => {
                 <div className="space-y-3 text-sm">
                   <div>
                     <span className="text-gray-400">Refund Reason:</span>
-                    <p className="text-white mt-1">{selectedRefund.reason || 'No reason provided'}</p>
+                    <p className="text-white mt-1">{refundView?.reason || 'No reason provided'}</p>
                   </div>
-                  {selectedRefund.refundMethod && (
+                  {refundView?.refundMethod && (
                     <div>
                       <span className="text-gray-400">Refund method:</span>
-                      <p className="text-white mt-1 capitalize">{selectedRefund.refundMethod.replace('_', ' ')}</p>
+                      <p className="text-white mt-1 capitalize">{refundView.refundMethod.replace('_', ' ')}</p>
                     </div>
                   )}
-                  {selectedRefund.refundMethod === 'ORIGINAL_PAYMENT' && selectedRefund.customerPayPalEmail && (
+                  {refundView?.refundMethod === 'ORIGINAL_PAYMENT' && refundView?.customerPayPalEmail && (
                     <div>
                       <span className="text-gray-400">Customer PayPal email:</span>
-                      <p className="text-white mt-1">{selectedRefund.customerPayPalEmail}</p>
+                      <p className="text-white mt-1">{refundView.customerPayPalEmail}</p>
                     </div>
                   )}
                   <div>
                     <span className="text-gray-400">Status:</span>
-                    <div className="mt-1">{getStatusBadge(selectedRefund.status)}</div>
+                    <div className="mt-1">{getStatusBadge(refundView?.status)}</div>
                   </div>
                   {canShowMarkManualRefund(selectedRefund) && (
                     <div className="pt-2 space-y-2">
@@ -539,7 +651,7 @@ const ReturnRefundManagement = () => {
                       </div>
                     </div>
                   )}
-                  {getRefundStatus(selectedRefund) === 'ADMIN_REVIEW' && selectedRefund.refundMethod !== 'ORIGINAL_PAYMENT' && (
+                  {getRefundStatus(selectedRefund) === 'ADMIN_REVIEW' && (
                     <div className="pt-2">
                       {!showRequestSellerInput ? (
                         <Button
@@ -577,29 +689,111 @@ const ReturnRefundManagement = () => {
                       )}
                     </div>
                   )}
-                  {selectedRefund.currentStage && (
+                  {refundView?.currentStage && (
                     <div>
                       <span className="text-gray-400">Stage:</span>
-                      <p className="text-white mt-1">{selectedRefund.currentStage}</p>
+                      <p className="text-white mt-1">{refundView.currentStage}</p>
                     </div>
                   )}
-                  {selectedRefund.licenseKeyIds?.length > 0 && (
-                    <div>
-                      <span className="text-gray-400">License keys in request:</span>
-                      <p className="text-white mt-1">{selectedRefund.licenseKeyIds.length} key(s)</p>
+                  {refundView?.licenseKeyIds?.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">License keys in request:</span>
+                        <span className="text-white">{refundView.licenseKeyIds.length} key(s)</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          if (showKeyDetails) {
+                            setShowKeyDetails(false);
+                            setKeyDetails(null);
+                          } else {
+                            setKeyDetailsLoading(true);
+                            try {
+                              const res = await returnRefundAPI.getRefundKeyDetails(selectedRefund._id);
+                              setKeyDetails(res.data.data);
+                              setShowKeyDetails(true);
+                            } catch (err) {
+                              toast.error(err.response?.data?.message || 'Failed to load key details');
+                            } finally {
+                              setKeyDetailsLoading(false);
+                            }
+                          }
+                        }}
+                        disabled={keyDetailsLoading}
+                        className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                      >
+                        {keyDetailsLoading ? (
+                          'Loading...'
+                        ) : showKeyDetails ? (
+                          <>
+                            <EyeOff className="w-4 h-4 mr-1" />
+                            Hide Keys/Details
+                          </>
+                        ) : (
+                          <>
+                            <Key className="w-4 h-4 mr-1" />
+                            Show Keys/Details
+                          </>
+                        )}
+                      </Button>
+                      {showKeyDetails && keyDetails && (
+                        <div className="mt-3 p-3 bg-gray-800/50 rounded-lg border border-gray-700 space-y-2">
+                          <p className="text-xs text-amber-400 mb-2">⚠️ Sensitive information - handle with care</p>
+                          {keyDetails.keys?.length > 0 ? (
+                            keyDetails.keys.map((key, idx) => (
+                              <div key={key.keyId || idx} className="p-2 bg-gray-900/50 rounded border border-gray-600">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-gray-400 mb-1">
+                                      {keyDetails.productType === 'ACCOUNT_BASED' ? 'Account Credentials' : 'License Key'}
+                                      {key.keyType && key.keyType !== 'other' && (
+                                        <span className="ml-2 text-gray-500">({key.keyType})</span>
+                                      )}
+                                    </p>
+                                    <p className="text-white font-mono text-sm break-all select-all">{key.keyData}</p>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    {key.isRefunded ? (
+                                      <Badge variant="secondary" className="text-xs">Refunded</Badge>
+                                    ) : key.isUsed ? (
+                                      <Badge variant="warning" className="text-xs">Used</Badge>
+                                    ) : (
+                                      <Badge variant="success" className="text-xs">Available</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                {key.assignedAt && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Assigned: {new Date(key.assignedAt).toLocaleString()}
+                                  </p>
+                                )}
+                                {key.refundedAt && (
+                                  <p className="text-xs text-gray-500">
+                                    Refunded: {new Date(key.refundedAt).toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-gray-400 text-sm">No key details available</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
-                  {selectedRefund.sellerDecisionReason && (
+                  {refundView?.sellerDecisionReason && (
                     <div>
                       <span className="text-gray-400">Seller rejection reason (escalated):</span>
-                      <p className="text-amber-300 mt-1">{selectedRefund.sellerDecisionReason}</p>
+                      <p className="text-amber-300 mt-1">{refundView.sellerDecisionReason}</p>
                     </div>
                   )}
-                  {selectedRefund.evidenceFiles?.length > 0 && (
+                  {refundView?.evidenceFiles?.length > 0 && (
                     <div>
                       <span className="text-gray-400">Evidence:</span>
                       <div className="mt-2 flex flex-wrap gap-3">
-                        {selectedRefund.evidenceFiles.map((url, i) => (
+                        {refundView.evidenceFiles.map((url, i) => (
                           <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block rounded border border-gray-600 overflow-hidden hover:border-accent">
                             <img src={url} alt={`Evidence ${i + 1}`} className="h-24 w-auto max-w-[200px] object-cover" />
                             <span className="block text-xs text-accent p-1 text-center">View full</span>
@@ -608,45 +802,47 @@ const ReturnRefundManagement = () => {
                       </div>
                     </div>
                   )}
-                  {selectedRefund.sellerFeedback && (
+                  {refundView?.sellerFeedback && (
                     <div>
                       <span className="text-gray-400">Seller feedback (advisory):</span>
-                      <p className="text-white mt-1 text-sm">{selectedRefund.sellerFeedback}</p>
-                      {selectedRefund.sellerFeedbackAt && (
-                        <p className="text-gray-500 text-xs mt-0.5">{new Date(selectedRefund.sellerFeedbackAt).toLocaleString()}</p>
+                      <p className="text-white mt-1 text-sm">{refundView.sellerFeedback}</p>
+                      {refundView.sellerFeedbackAt && (
+                        <p className="text-gray-500 text-xs mt-0.5">{new Date(refundView.sellerFeedbackAt).toLocaleString()}</p>
                       )}
                     </div>
                   )}
-                  {selectedRefund.refundHistory?.length > 0 && (
+                  {refundView?.refundHistory?.length > 0 && (
                     <div>
                       <span className="text-gray-400">History:</span>
                       <ul className="mt-1 text-xs text-gray-300 space-y-1">
-                        {selectedRefund.refundHistory.map((h, i) => (
+                        {refundView.refundHistory.map((h, i) => (
                           <li key={i}>{h.actor}: {h.action} — {h.newStatus || h.previousStatus} {h.timestamp && new Date(h.timestamp).toLocaleString()}</li>
                         ))}
                       </ul>
                     </div>
                   )}
-                  {selectedRefund.adminNotes && (
+                  {refundView?.adminNotes && (
                     <div>
                       <span className="text-gray-400">Admin Notes:</span>
-                      <p className="text-white mt-1">{selectedRefund.adminNotes}</p>
+                      <p className="text-white mt-1">{refundView.adminNotes}</p>
                     </div>
                   )}
-                  {selectedRefund.rejectionReason && (
+                  {refundView?.rejectionReason && (
                     <div>
                       <span className="text-gray-400">Rejection Reason:</span>
-                      <p className="text-red-400 mt-1">{selectedRefund.rejectionReason}</p>
+                      <p className="text-red-400 mt-1">{refundView.rejectionReason}</p>
                     </div>
                   )}
-                  {selectedRefund.refundedAt && (
+                  {refundView?.refundedAt && (
                     <div>
                       <span className="text-gray-400">Refunded At:</span>
-                      <p className="text-white mt-1">{new Date(selectedRefund.refundedAt).toLocaleString()}</p>
+                      <p className="text-white mt-1">{new Date(refundView.refundedAt).toLocaleString()}</p>
                     </div>
                   )}
                 </div>
               </div>
+              </>
+              )}
 
               <RefundChat refundId={selectedRefund._id} canSend={true} />
             </div>
@@ -656,7 +852,7 @@ const ReturnRefundManagement = () => {
 
       {/* Approve/Reject Dialog */}
       <Dialog open={isActionOpen} onOpenChange={setIsActionOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="bg-primary border-gray-700 max-h-[90vh] h-[90vh] sm:h-auto overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-white">
               {actionType === 'approve' ? 'Approve Refund' : 'Reject Refund'}
@@ -667,7 +863,7 @@ const ReturnRefundManagement = () => {
                 : 'Please provide a reason for rejecting this refund request.'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmitAction} className="space-y-4 mt-4">
+          <form onSubmit={handleSubmitAction} className="space-y-4 mt-4 overflow-y-auto pr-1">
             {actionType === 'reject' && (
               <div className="space-y-2">
                 <Label htmlFor="rejectionReason" className="text-white">
@@ -701,7 +897,7 @@ const ReturnRefundManagement = () => {
             {actionType === 'approve' && selectedRefund && (
               <div className="p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
                   <div className="text-sm text-yellow-200">
                     <p className="font-semibold mb-1">Important:</p>
                     <ul className="list-disc list-inside space-y-1 text-yellow-300/80">
@@ -713,7 +909,7 @@ const ReturnRefundManagement = () => {
                 </div>
               </div>
             )}
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 sticky bottom-0 bg-primary pb-1">
               <Button
                 type="button"
                 variant="outline"

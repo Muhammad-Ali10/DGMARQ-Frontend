@@ -116,13 +116,13 @@ const CategoryProduct = ({ product }) => {
 
           <div className="flex flex-col gap-4">
             <div className="flex">
-              <p className="w-24 text-white">Platform</p>
+              <p className="w-24 text-white">Platform:</p>
               <p className="text-white">{platformName}</p>
             </div>
 
             <div className="flex">
-              <p className="w-24 text-white">Type</p>
-              <p className="text-white uppercase">{typeName}</p>
+              <p className="w-24 text-white">Type:</p>
+              <p className="text-white">{typeName}</p>
             </div>
 
             <div className="flex">

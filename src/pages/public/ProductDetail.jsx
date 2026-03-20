@@ -33,6 +33,7 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { addToGuestCart } from '../../utils/guestCart';
+import { getPlatformName, getTypeName } from '../../utils/productUtils';
 
 const ProductDetail = () => {
   const { identifier } = useParams();
@@ -179,6 +180,8 @@ const ProductDetail = () => {
         name: product.name,
         slug: product.slug,
         image: product.images?.[0],
+        platformName: getPlatformName(product),
+        typeName: getTypeName(product),
       });
       toast.success('Added to cart');
       return;
@@ -350,9 +353,11 @@ const ProductDetail = () => {
   const attributes = [];
   if (product.categoryId) attributes.push({ label: 'Category', value: product.categoryId.name, icon: Tag });
   if (product.subCategoryId) attributes.push({ label: 'Subcategory', value: product.subCategoryId.name, icon: Tag });
-  if (product.platform?.name) attributes.push({ label: 'Platform', value: product.platform.name, icon: Package });
+  const platformDisplay = getPlatformName(product);
+  const typeDisplay = getTypeName(product);
+  if (platformDisplay) attributes.push({ label: 'Platform', value: platformDisplay, icon: Package });
   if (product.region?.name) attributes.push({ label: 'Region', value: product.region.name, icon: MapPin });
-  if (product.type?.name) attributes.push({ label: 'Type', value: product.type.name, icon: Tag });
+  if (typeDisplay) attributes.push({ label: 'Type', value: typeDisplay, icon: Tag });
   if (product.genre?.name) attributes.push({ label: 'Genre', value: product.genre.name, icon: Tag });
   if (product.mode?.name) attributes.push({ label: 'Mode', value: product.mode.name, icon: Gamepad2 });
   if (product.device?.name) attributes.push({ label: 'Device', value: product.device.name, icon: Monitor });
@@ -447,9 +452,9 @@ const ProductDetail = () => {
                   Featured
                 </Badge>
               )}
-              {product.productType && (
+              {typeDisplay && (
                 <Badge variant="outline" className="text-sm">
-                  {product.productType === 'ACCOUNT_BASED' ? 'Account Based' : 'License Key'}
+                  {typeDisplay}
                 </Badge>
               )}
             </div>
@@ -582,7 +587,18 @@ const ProductDetail = () => {
               <Button
                 onClick={() =>
                   navigate('/checkout', {
-                    state: { guestItems: [{ productId: product._id, qty: quantity }] },
+                    state: {
+                      guestItems: [
+                        {
+                          productId: product._id,
+                          productName: product.name,
+                          name: product.name,
+                          slug: product.slug,
+                          image: product.images?.[0],
+                          qty: quantity,
+                        },
+                      ],
+                    },
                   })
                 }
                 variant="outline"

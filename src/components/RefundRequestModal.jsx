@@ -75,14 +75,17 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   }, [evidenceFiles]);
 
   // Determine which refund methods are allowed based on how the order was paid
+  // This applies to both regular orders and guest orders
   const allowedRefundMethods = useMemo(() => {
-    if (!selectedOrder) return ['WALLET', 'ORIGINAL_PAYMENT'];
+    // Use the appropriate order based on refund type
+    const order = refundType === 'GUEST' ? guestOrder : selectedOrder;
+    if (!order) return ['WALLET', 'ORIGINAL_PAYMENT'];
 
     // These fields should reflect how much of the order was paid by each source.
     // They are coerced to numbers and default to 0 if missing to avoid runtime issues.
-    const walletAmount = Number(selectedOrder.walletAmount ?? 0);
-    const cardAmount = Number(selectedOrder.cardAmount ?? 0);
-    const paypalAmount = Number(selectedOrder.paypalAmount ?? 0);
+    const walletAmount = Number(order.walletAmount ?? 0);
+    const cardAmount = Number(order.cardAmount ?? 0);
+    const paypalAmount = Number(order.paypalAmount ?? 0);
     const cardOrPaypalAmount = cardAmount + paypalAmount;
 
     // TC-PAYMENT-REFUND-001: Wallet only purchase -> refund to wallet only
@@ -102,7 +105,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
 
     // Sensible fallback if structure is different/unexpected
     return ['WALLET'];
-  }, [selectedOrder]);
+  }, [selectedOrder, guestOrder, refundType]);
 
   useEffect(() => {
     return () => {
@@ -135,6 +138,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   useEffect(() => {
     setSelectedLicenseKeyIds([]);
   }, [selectedOrderId, selectedProductId]);
+
+  // Reset refund method to WALLET if current selection is no longer allowed
+  useEffect(() => {
+    if (!allowedRefundMethods.includes(refundMethod)) {
+      setRefundMethod('WALLET');
+    }
+  }, [allowedRefundMethods, refundMethod]);
 
   const handleValidateGuestOrder = async () => {
     if (!guestPurchaseEmail.trim() || !guestOrderNumber.trim()) {
@@ -307,6 +317,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     const raw = typeof key.keyValue === 'string' ? key.keyValue : '';
     if (!raw) return 'XXXX-****';
 
+    // Backend may already return a safe, pre-masked value:
+    // - license format: XXXX-1234
+    // - account format: usernameId | ****1234
+    if (/^XXXX-/i.test(raw) || raw.includes('|')) {
+      return raw;
+    }
+
     const trimmed = raw.replace(/\s+/g, '');
     const lastFour = trimmed.slice(-4) || '****';
     return `XXXX-${lastFour}`;
@@ -476,7 +493,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   <input
                     type="text"
                     className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-colors"
-                    placeholder="e.g. #69b93a21a038ec8d704da336"
+                    placeholder="e.g. #9VEQ1LFP"
                     value={guestOrderNumber}
                     onChange={(e) => {
                       setGuestOrderNumber(e.target.value);
@@ -548,8 +565,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               className="w-full"
               getOptionLabel={(order) => {
                 const date = new Date(order.orderDate).toLocaleDateString();
-                // Display canonical Order ID (not order number) on the refund page
-                const displayId = order.orderId || order._id?.slice(-8);
+                const displayId = order.orderNumber || (order._id || order.orderId || '').slice(-8).toUpperCase();
                 return `Order ID ${displayId} - ${date} - $${order.orderTotalAmount?.toFixed(2)}`;
               }}
               getOptionValue={(order) => order._id}
@@ -567,7 +583,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 );
               }}
               renderOption={(order, isSelected) => {
-                const displayId = order.orderId || order._id?.slice(-8);
+                const displayId = order.orderNumber || (order._id || order.orderId || '').slice(-8).toUpperCase();
                 return (
                   <div className="flex items-center justify-between w-full">
                     <div className="flex-1 min-w-0">
@@ -917,8 +933,8 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* Refund method */}
-          {selectedProductId && (
+          {/* Refund method - shown for both regular and guest orders */}
+          {(selectedProductId || guestSelectedProductId) && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
@@ -926,7 +942,11 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 </div>
                 <div>
                   <Label className="text-white text-sm font-semibold">Refund method *</Label>
-                  <p className="text-xs text-gray-400 mt-0.5">Choose how you want to receive the refund</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {allowedRefundMethods.length === 1 && allowedRefundMethods[0] === 'WALLET'
+                      ? 'Orders paid with wallet can only be refunded to wallet'
+                      : 'Choose how you want to receive the refund'}
+                  </p>
                 </div>
               </div>
               <div className="grid gap-2">

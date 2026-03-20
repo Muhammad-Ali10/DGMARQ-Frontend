@@ -27,7 +27,17 @@ export function setGuestCart(cart) {
   localStorage.setItem(GUEST_CART_KEY, JSON.stringify(payload));
 }
 
-export function addToGuestCart({ productId, qty = 1, price, sellerId, name, slug, image }) {
+export function addToGuestCart({
+  productId,
+  qty = 1,
+  price,
+  sellerId,
+  name,
+  slug,
+  image,
+  platformName,
+  typeName,
+}) {
   const cart = getGuestCart();
   const id = (productId && (productId._id || productId)).toString();
   if (!id) return cart;
@@ -46,6 +56,8 @@ export function addToGuestCart({ productId, qty = 1, price, sellerId, name, slug
       name: name || undefined,
       slug: slug || undefined,
       image: image || undefined,
+      platformName: platformName || undefined,
+      typeName: typeName || undefined,
     });
   }
   setGuestCart(cart);

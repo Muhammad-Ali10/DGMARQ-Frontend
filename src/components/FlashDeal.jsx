@@ -7,6 +7,7 @@ import { Loading } from './ui/loading';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { addToGuestCart } from '../utils/guestCart';
+import { getPlatformName, getTypeName } from '../utils/productUtils';
 
 const FlashDeal = () => {
   const navigate = useNavigate();
@@ -121,6 +122,8 @@ const FlashDeal = () => {
         sellerId: activeDeal.sellerId,
         name: title,
         image: image,
+        platformName: getPlatformName(activeDeal),
+        typeName: getTypeName(activeDeal),
       });
       toast.success('Product added to cart');
       return;

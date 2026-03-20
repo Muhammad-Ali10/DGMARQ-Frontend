@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Trash2, ShoppingCart, Plus, Minus, Tag } from 'lucide-react';
+import { getPlatformName, getTypeName } from '../../utils/productUtils';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -124,6 +125,8 @@ const Cart = () => {
                       const hasDiscount = item.hasDiscount !== undefined ? item.hasDiscount : (discountAmount > 0 || discountPercentage > 0);
                       const qty = item.qty || item.quantity || 1;
                       const lineTotal = item.totalPrice || (discountedPrice * qty);
+                      const platformName = getPlatformName(product || item);
+                      const typeName = getTypeName(product || item);
 
                       return (
                         <TableRow key={productId} className="border-gray-700">
@@ -138,6 +141,8 @@ const Cart = () => {
                               )}
                               <div>
                                 <p className="font-medium text-white">{productName}</p>
+                                <p className="text-xs text-gray-400">Platform: {platformName}</p>
+                                <p className="text-xs text-gray-400">Type: {typeName}</p>
                                 {hasDiscount && (
                                   <div className="flex items-center gap-1 mt-1">
                                     <Tag className="w-3 h-3 text-green-400" />

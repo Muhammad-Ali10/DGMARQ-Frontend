@@ -265,6 +265,7 @@ export const returnRefundAPI = {
   updateRefundStatus: (refundId, data) => api.patch(`/return-refund/admin/${refundId}`, data),
   markManualRefund: (refundId, data) => api.patch(`/return-refund/admin/${refundId}/mark-manual-refund`, data || {}),
   requestSellerInput: (refundId, note) => api.patch(`/return-refund/admin/${refundId}/request-seller-input`, { note }),
+  getRefundKeyDetails: (refundId) => api.get(`/return-refund/${refundId}/key-details`),
 };
 
 export const walletAPI = {

@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
+import { getPlatformName, getTypeName } from "../utils/productUtils";
 
 const MicrosoftCard = ({ product, width }) => {
-  // Get platform name, region name, and key type
-  const platformName = product.platform?.name || "Microsoft";
+  // Get platform name, region name, and product type
+  const platformName = getPlatformName(product);
   const regionName = product.region?.name || "Global";
-  const keyType = product.productType === "ACCOUNT_BASED" ? "Account" : "Key";
+  const typeName = getTypeName(product);
 
   // Extract main title and subtitle from product name
   // Example: "Microsoft Office 2024 | LTSC Standard (PC)" -> "Microsoft Office 2024" and "| LTSC Standard (PC)"
@@ -54,11 +55,13 @@ const MicrosoftCard = ({ product, width }) => {
             )}
           </div>
 
-          {/* Bottom Info - Brand · Region · Key */}
+          {/* Bottom Info */}
           <div className="pt-2">
-            <p className="text-xs sm:text-sm text-white/85 font-normal">
-              {platformName} · {regionName} · {keyType}
-            </p>
+            <div className="space-y-1 text-xs sm:text-sm text-white/85 font-normal">
+              <p>Platform: <span className="font-semibold">{platformName}</span></p>
+              <p>Type: <span className="font-semibold">{typeName}</span></p>
+              <p>Region: <span className="font-semibold">{regionName}</span></p>
+            </div>
           </div>
         </div>
 

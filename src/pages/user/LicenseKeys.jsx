@@ -50,6 +50,14 @@ const LicenseKeys = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const getDisplayOrderId = (key) => {
+    const orderNumber = typeof key?.orderNumber === 'string' ? key.orderNumber.trim() : '';
+    if (orderNumber) return `#${orderNumber}`;
+
+    const rawOrderId = key?.orderId?.toString?.() || '';
+    return rawOrderId ? `#${rawOrderId.slice(-8).toUpperCase()}` : '-';
+  };
+
   if (isLoading) return <Loading message="Loading license keys..." />;
   if (isError) {
     const errorMessage = error?.response?.data?.message || error?.message || "Error loading license keys";
@@ -99,7 +107,7 @@ const LicenseKeys = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-gray-400">
-                        {key.orderId ? `#${key.orderId.toString().slice(-8)}` : '-'}
+                        {getDisplayOrderId(key)}
                       </TableCell>
                       <TableCell>
                         <Badge className="bg-blue-600 text-white capitalize">

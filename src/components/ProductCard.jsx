@@ -54,9 +54,9 @@ const ProductCard = memo(({ product }) => {
           <CardTitle className="text-xs md:text-sm font-semibold -tracking-normal truncate">
             {title}
           </CardTitle>
-          <span className="text-xs md:text-sm font-normal -tracking-normal">
-            {platformName}
-          </span>
+          <p className="text-xs md:text-sm font-normal -tracking-normal">
+            Platform: <span className="font-bold">{platformName}</span>
+          </p>
           {typeName && (
             <p className="text-xs md:text-sm font-normal -tracking-normal">
               Type: <span className="font-bold">{typeName}</span>
