@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import api from '../../lib/axios';
+import { setCredentials } from '../../store/slices/authSlice';
 import { sellerAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
@@ -12,6 +16,8 @@ import { Store, Upload, FileText, CheckCircle2, XCircle, AlertCircle, Image as I
 import { showSuccess, showError, showApiError } from '../../utils/toast';
 
 const BecomeSeller = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     shopName: '',
     description: '',
@@ -32,7 +38,7 @@ const BecomeSeller = () => {
       try {
         const response = await sellerAPI.checkSellerApplicationStatus();
         return response.data.data;
-      } catch (err) {
+      } catch {
         // User doesn't have a seller application yet
         return { hasApplication: false };
       }
@@ -41,6 +47,34 @@ const BecomeSeller = () => {
   });
 
   const queryClient = useQueryClient();
+
+  const refreshSessionThenGoToSeller = async () => {
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!accessToken) {
+      showError('You are not signed in.');
+      return;
+    }
+    try {
+      const { data: body } = await api.get('/user/profile');
+      const user = body?.data;
+      if (!user) {
+        throw new Error('Invalid profile response');
+      }
+      dispatch(
+        setCredentials({
+          user,
+          accessToken,
+          refreshToken: refreshToken || undefined,
+        })
+      );
+      sessionStorage.removeItem('allowCustomerAccess');
+      queryClient.invalidateQueries({ queryKey: ['verify-token'] });
+      navigate('/seller/dashboard', { replace: true });
+    } catch (err) {
+      showApiError(err, 'Could not update your session. Please try again or sign in again.');
+    }
+  };
 
   const applyMutation = useMutation({
     mutationFn: (formDataToSend) => sellerAPI.applySeller(formDataToSend),
@@ -196,7 +230,7 @@ const BecomeSeller = () => {
                     </p>
                     <Button 
                       className="mt-3 bg-accent hover:bg-accent/90"
-                      onClick={() => window.location.href = '/seller/dashboard'}
+                      onClick={() => refreshSessionThenGoToSeller()}
                     >
                       Go to Seller Dashboard
                     </Button>

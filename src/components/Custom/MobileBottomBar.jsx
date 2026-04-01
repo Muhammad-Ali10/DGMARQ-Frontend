@@ -1,14 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Heart, ShoppingCart, User, UserPlus, X, LogIn, LogOut, LayoutDashboard, ShoppingBag, Key, Info } from 'lucide-react';
-import { cartAPI, userAPI, productAPI, authAPI } from '../../services/api';
-import { logout } from '../../store/slices/authSlice';
-import { cn } from '../../lib/utils';
-import { getGuestCartCount } from '../../utils/guestCart';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Search,
+  Heart,
+  ShoppingCart,
+  User,
+  UserPlus,
+  X,
+  LogIn,
+  LogOut,
+  LayoutDashboard,
+  ShoppingBag,
+  Key,
+  Info,
+} from "lucide-react";
+import { calculateProductPrice } from "../../utils/productUtils";
+import { cartAPI, userAPI, productAPI, authAPI } from "../../services/api";
+import { logout } from "../../store/slices/authSlice";
+import { cn } from "../../lib/utils";
+import { getGuestCartCount } from "../../utils/guestCart";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 
 const MobileBottomBar = () => {
   const navigate = useNavigate();
@@ -18,8 +32,8 @@ const MobileBottomBar = () => {
   const { isAuthenticated, user, roles } = useSelector((state) => state.auth);
   const [searchOpen, setSearchOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const searchContainerRef = useRef(null);
   const accountMenuRef = useRef(null);
@@ -33,14 +47,14 @@ const MobileBottomBar = () => {
   }, [searchQuery]);
 
   const { data: searchSuggestions, isLoading: searchLoading } = useQuery({
-    queryKey: ['search-suggestions', debouncedSearchQuery, 'all'],
+    queryKey: ["search-suggestions", debouncedSearchQuery, "all"],
     queryFn: async () => {
       if (!debouncedSearchQuery.trim()) return [];
       try {
         const params = {
           search: debouncedSearchQuery,
           limit: 10,
-          status: 'active',
+          status: "active",
         };
         const response = await productAPI.getProducts(params);
         return response.data.data?.docs || [];
@@ -61,11 +75,11 @@ const MobileBottomBar = () => {
         setShowSearchSuggestions(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, []);
 
@@ -81,17 +95,17 @@ const MobileBottomBar = () => {
       }
     };
     if (accountMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
     }
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [accountMenuOpen]);
 
   const { data: cartData } = useQuery({
-    queryKey: ['cart-count'],
+    queryKey: ["cart-count"],
     queryFn: async () => {
       if (!isAuthenticated) return { count: 0 };
       try {
@@ -105,20 +119,23 @@ const MobileBottomBar = () => {
     refetchInterval: 30000,
   });
 
-  const [guestCartCount, setGuestCartCount] = useState(() => (typeof getGuestCartCount === 'function' ? getGuestCartCount() : 0));
+  const [guestCartCount, setGuestCartCount] = useState(() =>
+    typeof getGuestCartCount === "function" ? getGuestCartCount() : 0,
+  );
   useEffect(() => {
-    if (!isAuthenticated && typeof getGuestCartCount === 'function') {
+    if (!isAuthenticated && typeof getGuestCartCount === "function") {
       setGuestCartCount(getGuestCartCount());
       const onGuestCartChange = () => setGuestCartCount(getGuestCartCount());
-      window.addEventListener('guestCartChange', onGuestCartChange);
-      return () => window.removeEventListener('guestCartChange', onGuestCartChange);
+      window.addEventListener("guestCartChange", onGuestCartChange);
+      return () =>
+        window.removeEventListener("guestCartChange", onGuestCartChange);
     }
   }, [isAuthenticated]);
 
-  const cartCount = isAuthenticated ? (cartData?.count || 0) : guestCartCount;
+  const cartCount = isAuthenticated ? cartData?.count || 0 : guestCartCount;
 
   const { data: wishlistData } = useQuery({
-    queryKey: ['wishlist-count'],
+    queryKey: ["wishlist-count"],
     queryFn: async () => {
       if (!isAuthenticated) return { count: 0 };
       try {
@@ -139,16 +156,17 @@ const MobileBottomBar = () => {
   const wishlistCount = wishlistData?.count || 0;
 
   const getDashboardRoute = () => {
-    const normalizedRoles = Array.isArray(roles) && roles.length > 0
-      ? roles.map(r => String(r).toLowerCase())
-      : [];
-    
-    if (normalizedRoles.includes('admin')) {
-      return '/admin/dashboard';
-    } else if (normalizedRoles.includes('seller')) {
-      return '/seller/dashboard';
+    const normalizedRoles =
+      Array.isArray(roles) && roles.length > 0
+        ? roles.map((r) => String(r).toLowerCase())
+        : [];
+
+    if (normalizedRoles.includes("admin")) {
+      return "/admin/dashboard";
+    } else if (normalizedRoles.includes("seller")) {
+      return "/seller/dashboard";
     } else {
-      return '/user/dashboard';
+      return "/user/dashboard";
     }
   };
 
@@ -158,13 +176,13 @@ const MobileBottomBar = () => {
       dispatch(logout());
       queryClient.clear();
       setAccountMenuOpen(false);
-      navigate('/');
+      navigate("/");
     },
     onError: () => {
       dispatch(logout());
       queryClient.clear();
       setAccountMenuOpen(false);
-      navigate('/');
+      navigate("/");
     },
   });
 
@@ -173,8 +191,9 @@ const MobileBottomBar = () => {
   };
 
   const handleGoogleLogin = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-    const baseUrl = apiBaseUrl.replace('/api/v1', '');
+    const apiBaseUrl =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+    const baseUrl = apiBaseUrl.replace("/api/v1", "");
     window.location.href = `${baseUrl}/api/v1/user/auth/google`;
   };
 
@@ -183,20 +202,20 @@ const MobileBottomBar = () => {
       return (
         <img
           src={user.profileImage}
-          alt={user.name || 'User'}
+          alt={user.name || "User"}
           className="w-8 h-8 rounded-full object-cover border-2 border-accent/50"
         />
       );
     }
-    
+
     const initials = user?.name
       ? user.name
-          .split(' ')
-          .map(n => n[0])
-          .join('')
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
           .toUpperCase()
           .slice(0, 2)
-      : 'U';
+      : "U";
 
     return (
       <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-sm font-semibold border-2 border-accent/50">
@@ -206,19 +225,23 @@ const MobileBottomBar = () => {
   };
 
   const isActive = (path) => {
-    if (path === '/search') {
-      return location.pathname === '/search';
+    if (path === "/search") {
+      return location.pathname === "/search";
     }
-    if (path === '/wishlist') {
-      return location.pathname === '/wishlist';
+    if (path === "/wishlist") {
+      return location.pathname === "/wishlist";
     }
-    if (path === '/cart') {
-      return location.pathname === '/cart' || location.pathname === '/user/cart';
+    if (path === "/cart") {
+      return (
+        location.pathname === "/cart" || location.pathname === "/user/cart"
+      );
     }
-    if (path === '/account') {
-      return location.pathname.startsWith('/admin/') || 
-             location.pathname.startsWith('/seller/') || 
-             location.pathname.startsWith('/user/');
+    if (path === "/account") {
+      return (
+        location.pathname.startsWith("/admin/") ||
+        location.pathname.startsWith("/seller/") ||
+        location.pathname.startsWith("/user/")
+      );
     }
     return false;
   };
@@ -228,7 +251,7 @@ const MobileBottomBar = () => {
     setAccountMenuOpen(false);
     if (!searchOpen) {
       setTimeout(() => {
-        const input = searchContainerRef.current?.querySelector('input');
+        const input = searchContainerRef.current?.querySelector("input");
         if (input) input.focus();
       }, 100);
     }
@@ -251,17 +274,17 @@ const MobileBottomBar = () => {
 
   const handleSuggestionClick = (product) => {
     setShowSearchSuggestions(false);
-    setSearchQuery('');
+    setSearchQuery("");
     setSearchOpen(false);
     navigate(`/product/${product._id}`);
   };
 
   const handleWishlist = () => {
-    navigate('/wishlist');
+    navigate("/wishlist");
   };
 
   const handleCart = () => {
-    navigate('/cart');
+    navigate("/cart");
   };
 
   const handleAccountClick = () => {
@@ -281,13 +304,15 @@ const MobileBottomBar = () => {
         <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm md:hidden flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-[#041536] border-2 border-gray-600 rounded-lg shadow-2xl p-4 min-h-[400px] max-h-[85vh] flex flex-col">
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-white font-semibold flex-1">Search Products</h3>
+              <h3 className="text-white font-semibold flex-1">
+                Search Products
+              </h3>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => {
                   setSearchOpen(false);
-                  setSearchQuery('');
+                  setSearchQuery("");
                   setShowSearchSuggestions(false);
                 }}
                 className="text-white hover:bg-gray-800"
@@ -295,7 +320,11 @@ const MobileBottomBar = () => {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <form onSubmit={handleSearchSubmit} ref={searchContainerRef} className="flex-1 flex flex-col min-h-0">
+            <form
+              onSubmit={handleSearchSubmit}
+              ref={searchContainerRef}
+              className="flex-1 flex flex-col min-h-0"
+            >
               <div className="relative flex-1 flex flex-col min-h-0">
                 <div className="flex items-center bg-gray-900/50 border border-accent rounded-lg overflow-hidden mb-3">
                   <Input
@@ -322,32 +351,49 @@ const MobileBottomBar = () => {
                       </div>
                     ) : searchSuggestions && searchSuggestions.length > 0 ? (
                       <div className="py-2">
-                        {searchSuggestions.map((product) => (
-                          <button
-                            key={product._id}
-                            type="button"
-                            onClick={() => handleSuggestionClick(product)}
-                            className="w-full px-4 py-3 hover:bg-gray-800/50 flex items-center gap-3 text-left"
-                          >
-                            {product.images?.[0] && (
-                              <img
-                                src={product.images[0]}
-                                alt={product.name}
-                                className="w-12 h-12 object-cover rounded"
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="text-white font-medium truncate">
-                                {product.name}
-                              </div>
-                              {product.price && (
-                                <div className="text-accent text-sm">
-                                  ${product.price.toFixed(2)}
-                                </div>
+                        {searchSuggestions.map((product) => {
+                          const {
+                            discountPrice,
+                            discountPercentage,
+                            originalPrice,
+                          } = calculateProductPrice(product);
+                          return (
+                            <button
+                              key={product._id}
+                              type="button"
+                              onClick={() => handleSuggestionClick(product)}
+                              className="w-full px-4 py-3 hover:bg-gray-800/50 flex items-center gap-3 text-left"
+                            >
+                              {product.images?.[0] && (
+                                <img
+                                  src={product.images[0]}
+                                  alt={product.name}
+                                  className="w-12 h-12 object-cover rounded"
+                                />
                               )}
-                            </div>
-                          </button>
-                        ))}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-white font-medium truncate">
+                                  {product.name}
+                                </div>
+                                {discountPrice && (
+                                  <div className="text-accent text-sm">
+                                    ${discountPrice.toFixed(2)}
+                                  </div>
+                                )}
+                                {discountPercentage > 0 && (
+                                  <h3 className="text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]">
+                                    {`-${discountPercentage}%`}
+                                  </h3>
+                                )}
+                                {originalPrice > 0 && (
+                                  <del className="text-xs md:text-sm font-normal uppercase">
+                                    ${originalPrice.toFixed(2)}
+                                  </del>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     ) : debouncedSearchQuery.trim() ? (
                       <div className="p-4 text-center text-gray-400">
@@ -365,13 +411,13 @@ const MobileBottomBar = () => {
       {/* Account Menu Popup */}
       {accountMenuOpen && (
         <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm md:hidden flex items-center justify-center p-4">
-          <div 
+          <div
             ref={accountMenuRef}
             className="w-full max-w-sm bg-[#041536] border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between p-3 border-b border-gray-700">
               <h3 className="text-white font-semibold">
-                {isAuthenticated ? 'Account' : 'Register'}
+                {isAuthenticated ? "Account" : "Register"}
               </h3>
               <Button
                 variant="ghost"
@@ -419,7 +465,7 @@ const MobileBottomBar = () => {
                   <button
                     onClick={() => {
                       setAccountMenuOpen(false);
-                      navigate('/login');
+                      navigate("/login");
                     }}
                     className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
                   >
@@ -431,7 +477,7 @@ const MobileBottomBar = () => {
                   <button
                     onClick={() => {
                       setAccountMenuOpen(false);
-                      navigate('/register');
+                      navigate("/register");
                     }}
                     className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
                   >
@@ -443,7 +489,7 @@ const MobileBottomBar = () => {
                   <button
                     onClick={() => {
                       setAccountMenuOpen(false);
-                      navigate('/about');
+                      navigate("/about");
                     }}
                     className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-gray-400 hover:text-white"
                   >
@@ -458,8 +504,12 @@ const MobileBottomBar = () => {
                     <div className="flex items-center gap-3">
                       {getUserDisplay()}
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">{user?.name || 'User'}</p>
-                        <p className="text-gray-400 text-sm truncate">{user?.email || ''}</p>
+                        <p className="text-white font-medium truncate">
+                          {user?.name || "User"}
+                        </p>
+                        <p className="text-gray-400 text-sm truncate">
+                          {user?.email || ""}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -477,12 +527,14 @@ const MobileBottomBar = () => {
                   </button>
 
                   {/* Orders Link - Only show for customers */}
-                  {!roles?.some(r => String(r).toLowerCase() === 'seller') && (
+                  {!roles?.some(
+                    (r) => String(r).toLowerCase() === "seller",
+                  ) && (
                     <>
                       <button
                         onClick={() => {
                           setAccountMenuOpen(false);
-                          navigate('/user/orders');
+                          navigate("/user/orders");
                         }}
                         className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
                       >
@@ -494,7 +546,7 @@ const MobileBottomBar = () => {
                       <button
                         onClick={() => {
                           setAccountMenuOpen(false);
-                          navigate('/user/license-keys');
+                          navigate("/user/license-keys");
                         }}
                         className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
                       >
@@ -513,7 +565,9 @@ const MobileBottomBar = () => {
                     className="w-full px-4 py-3 text-left hover:bg-red-500/10 transition-colors flex items-center gap-3 text-red-400 hover:text-red-300 disabled:opacity-50"
                   >
                     <LogOut className="w-5 h-5" />
-                    <span>{logoutMutation.isPending ? 'Logging out...' : 'Logout'}</span>
+                    <span>
+                      {logoutMutation.isPending ? "Logging out..." : "Logout"}
+                    </span>
                   </button>
                 </>
               )}
@@ -523,13 +577,13 @@ const MobileBottomBar = () => {
       )}
 
       {/* Bottom Navigation Bar */}
-      <nav 
+      <nav
         className="fixed bottom-0 left-0 right-0 z-[100] bg-[#041536] border-t-2 border-gray-600 shadow-2xl md:hidden"
-        style={{ 
-          paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0px)',
-          minHeight: '4rem',
-          width: '100%',
-          boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.5)',
+        style={{
+          paddingBottom: "max(env(safe-area-inset-bottom, 0px), 0px)",
+          minHeight: "4rem",
+          width: "100%",
+          boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.5)",
         }}
       >
         <div className="flex items-center justify-around w-full h-16 px-2">
@@ -538,9 +592,9 @@ const MobileBottomBar = () => {
             onClick={handleSearchClick}
             className={cn(
               "flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
-              searchOpen || isActive('/search')
+              searchOpen || isActive("/search")
                 ? "text-accent"
-                : "text-gray-300 hover:text-white"
+                : "text-gray-300 hover:text-white",
             )}
             aria-label="Search"
           >
@@ -548,74 +602,74 @@ const MobileBottomBar = () => {
             <span className="text-xs font-medium">Search</span>
           </button>
 
-        {/* Wishlist Button */}
-        <button
-          onClick={handleWishlist}
-          className={cn(
-            "relative flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
-            isActive('/wishlist')
-              ? "text-accent"
-              : "text-gray-300 hover:text-white"
-          )}
-          aria-label="Wishlist"
-        >
-          <Heart className="h-5 w-5" strokeWidth={2} />
-          {wishlistCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-              {wishlistCount > 9 ? "9+" : wishlistCount}
-            </span>
-          )}
-          <span className="text-xs font-medium">Wishlist</span>
-        </button>
-
-        {/* Cart Button */}
-        <button
-          onClick={handleCart}
-          className={cn(
-            "relative flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
-            isActive('/cart')
-              ? "text-accent"
-              : "text-gray-300 hover:text-white"
-          )}
-          aria-label="Cart"
-        >
-          <ShoppingCart className="h-5 w-5" strokeWidth={2} />
-          {cartCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-              {cartCount > 9 ? "9+" : cartCount}
-            </span>
-          )}
-          <span className="text-xs font-medium">Cart</span>
-        </button>
-
-        {/* Register/Account Button */}
-        <div className="relative">
+          {/* Wishlist Button */}
           <button
-            ref={accountButtonRef}
-            onClick={handleAccountClick}
+            onClick={handleWishlist}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
-              accountMenuOpen || isActive('/account')
+              "relative flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
+              isActive("/wishlist")
                 ? "text-accent"
-                : "text-gray-300 hover:text-white"
+                : "text-gray-300 hover:text-white",
             )}
-            aria-label={isAuthenticated ? "Account" : "Register"}
+            aria-label="Wishlist"
           >
-            {isAuthenticated ? (
-              <>
-                <User className="h-5 w-5" strokeWidth={2} />
-                <span className="text-xs font-medium">Account</span>
-              </>
-            ) : (
-              <>
-                <UserPlus className="h-5 w-5" strokeWidth={2} />
-                <span className="text-xs font-medium">Register</span>
-              </>
+            <Heart className="h-5 w-5" strokeWidth={2} />
+            {wishlistCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+                {wishlistCount > 9 ? "9+" : wishlistCount}
+              </span>
             )}
+            <span className="text-xs font-medium">Wishlist</span>
           </button>
+
+          {/* Cart Button */}
+          <button
+            onClick={handleCart}
+            className={cn(
+              "relative flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
+              isActive("/cart")
+                ? "text-accent"
+                : "text-gray-300 hover:text-white",
+            )}
+            aria-label="Cart"
+          >
+            <ShoppingCart className="h-5 w-5" strokeWidth={2} />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+                {cartCount > 9 ? "9+" : cartCount}
+              </span>
+            )}
+            <span className="text-xs font-medium">Cart</span>
+          </button>
+
+          {/* Register/Account Button */}
+          <div className="relative">
+            <button
+              ref={accountButtonRef}
+              onClick={handleAccountClick}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
+                accountMenuOpen || isActive("/account")
+                  ? "text-accent"
+                  : "text-gray-300 hover:text-white",
+              )}
+              aria-label={isAuthenticated ? "Account" : "Register"}
+            >
+              {isAuthenticated ? (
+                <>
+                  <User className="h-5 w-5" strokeWidth={2} />
+                  <span className="text-xs font-medium">Account</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-5 w-5" strokeWidth={2} />
+                  <span className="text-xs font-medium">Register</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
     </>
   );
 };

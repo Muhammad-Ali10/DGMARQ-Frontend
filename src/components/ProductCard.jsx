@@ -15,7 +15,7 @@ import {
   getPlatformName,
   getTypeName,
 } from "../utils/productUtils";
-
+ 
 const ProductCard = memo(({ product }) => {
   const { discountPrice, discountPercentage, originalPrice } = useMemo(
     () => calculateProductPrice(product),
@@ -70,9 +70,7 @@ const ProductCard = memo(({ product }) => {
           </p>
           {discountPercentage > 0 && (
             <h3
-              className={`text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap ${
-                product.trendingOffer ? "bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" : "bg-primary"
-              }`}
+              className="text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]"
             >
               {`-${discountPercentage}%`}
             </h3>

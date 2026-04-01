@@ -92,7 +92,21 @@ const authSlice = createSlice({
       if (onLogoutCallback) onLogoutCallback();
     },
     updateUser: (state, action) => {
-      state.user = { ...state.user, ...action.payload };
+      const merged = { ...state.user, ...action.payload };
+      state.user = merged;
+      if (
+        action.payload?.roles !== undefined ||
+        action.payload?.role !== undefined
+      ) {
+        state.roles = Array.isArray(merged.roles)
+          ? merged.roles.map((r) => String(r).toLowerCase())
+          : merged.role
+            ? [String(merged.role).toLowerCase()]
+            : ['customer'];
+      }
+      if (state.isAuthenticated && state.token) {
+        localStorage.setItem('user', JSON.stringify(merged));
+      }
     },
   },
 });

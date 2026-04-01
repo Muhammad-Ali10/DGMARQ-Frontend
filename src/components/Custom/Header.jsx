@@ -3,6 +3,7 @@ import { getGuestCartCount } from "../../utils/guestCart";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
+import { calculateProductPrice } from "../../utils/productUtils";
 import {
   Search,
   Heart,
@@ -98,7 +99,7 @@ const Header = () => {
         {
           isActive: true,
           limit: 50,
-        }
+        },
       );
       return response.data.data?.docs || [];
     },
@@ -120,7 +121,7 @@ const Header = () => {
         {
           isActive: true,
           limit: 1,
-        }
+        },
       );
       const hasSubs = (response.data.data?.docs || []).length > 0;
       setCategoriesWithSubcategories((prev) => ({
@@ -152,17 +153,20 @@ const Header = () => {
     refetchInterval: 30000,
   });
 
-  const [guestCartCount, setGuestCartCount] = useState(() => (typeof getGuestCartCount === "function" ? getGuestCartCount() : 0));
+  const [guestCartCount, setGuestCartCount] = useState(() =>
+    typeof getGuestCartCount === "function" ? getGuestCartCount() : 0,
+  );
   useEffect(() => {
     if (!isAuthenticated && typeof getGuestCartCount === "function") {
       setGuestCartCount(getGuestCartCount());
       const onGuestCartChange = () => setGuestCartCount(getGuestCartCount());
       window.addEventListener("guestCartChange", onGuestCartChange);
-      return () => window.removeEventListener("guestCartChange", onGuestCartChange);
+      return () =>
+        window.removeEventListener("guestCartChange", onGuestCartChange);
     }
   }, [isAuthenticated]);
 
-  const cartCount = isAuthenticated ? (cartData?.count || 0) : guestCartCount;
+  const cartCount = isAuthenticated ? cartData?.count || 0 : guestCartCount;
 
   const { data: wishlistData } = useQuery({
     queryKey: ["wishlist-count"],
@@ -304,10 +308,14 @@ const Header = () => {
   return (
     <>
       {/* Main Header */}
-      <div className={cn(
-        "sticky top-0 z-50 transition-all duration-300",
-        isScrolled ? "bg-[#060318] backdrop-blur-md shadow-lg" : "bg-transparent"
-      )}>
+      <div
+        className={cn(
+          "sticky top-0 z-50 transition-all duration-300",
+          isScrolled
+            ? "bg-[#060318] backdrop-blur-md shadow-lg"
+            : "bg-transparent",
+        )}
+      >
         <div className="container mx-auto px-4">
           {/* Main Header Row */}
           <div className="flex items-center justify-between gap-4 py-4">
@@ -365,9 +373,15 @@ const Header = () => {
                       onChange={(e) => setSelectedCategory(e.target.value)}
                       className="bg-transparent text-white text-sm px-3 py-2 border-0 outline-none cursor-pointer appearance-none pr-8"
                     >
-                      <option className="text-white bg-primary" value="all">All Categories</option>
+                      <option className="text-white bg-primary" value="all">
+                        All Categories
+                      </option>
                       {categories.map((category) => (
-                        <option className="text-white bg-primary" key={category._id} value={category._id}>
+                        <option
+                          className="text-white bg-primary"
+                          key={category._id}
+                          value={category._id}
+                        >
                           {category.name}
                         </option>
                       ))}
@@ -391,47 +405,58 @@ const Header = () => {
                       </div>
                     ) : searchSuggestions && searchSuggestions.length > 0 ? (
                       <div className="py-2">
-                        {searchSuggestions.map((product) => (
-                          <button
-                            key={product._id}
-                            type="button"
-                            onClick={() => handleSuggestionClick(product)}
-                            className="w-full px-4 py-3 hover:bg-gray-800/50 flex items-center gap-3 text-left transition-colors"
-                          >
-                            {product.images?.[0] && (
-                              <img
-                                src={product.images[0]}
-                                alt={product.name}
-                                className="w-12 h-12 object-cover rounded"
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="text-white font-medium truncate">
-                                {product.name}
+                        {searchSuggestions.map((product) => {
+                          const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
+                          return (
+                            <button
+                              key={product._id}
+                              type="button"
+                              onClick={() => handleSuggestionClick(product)}
+                              className="w-full px-4 py-3 hover:bg-gray-800/50 flex items-center gap-3 text-left transition-colors"
+                            >
+                              {product.images?.[0] && (
+                                <img
+                                  src={product.images[0]}
+                                  alt={product.name}
+                                  className="w-12 h-12 object-cover rounded"
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-white font-medium truncate">
+                                  {product.name}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {discountPrice && (
+                                    <div className="text-accent text-sm">
+                                      ${discountPrice.toFixed(2)}
+                                    </div>
+                                  )}
+                                  {discountPercentage > 0 && (
+                                    <h3 className="text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]">
+                                      {`-${discountPercentage}%`}
+                                    </h3>
+                                  )}
+                                  {originalPrice > 0 && (
+                                    <del className="text-xs md:text-sm font-normal uppercase">${originalPrice.toFixed(2)}</del>
+                                  )}
+                                  {product.stock !== undefined && (
+                                    <span
+                                      className={`text-[11px] px-2 py-0.5 rounded ${
+                                        product.stock > 0
+                                          ? "bg-green-900/30 text-green-400"
+                                          : "bg-red-900/30 text-red-400"
+                                      }`}
+                                    >
+                                      {product.stock > 0
+                                        ? `${product.stock} in stock`
+                                        : "Out of stock"}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {product.price && (
-                                  <div className="text-accent text-sm">
-                                    ${product.price.toFixed(2)}
-                                  </div>
-                                )}
-                                {product.stock !== undefined && (
-                                  <span
-                                    className={`text-[11px] px-2 py-0.5 rounded ${
-                                      product.stock > 0
-                                        ? "bg-green-900/30 text-green-400"
-                                        : "bg-red-900/30 text-red-400"
-                                    }`}
-                                  >
-                                    {product.stock > 0
-                                      ? `${product.stock} in stock`
-                                      : "Out of stock"}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
+                            </button>
+                          );
+                        })}
                       </div>
                     ) : debouncedSearchQuery.trim() ? (
                       <div className="p-4 text-center text-gray-400">
@@ -442,7 +467,6 @@ const Header = () => {
                 )}
               </div>
             </form>
-
 
             {/* Right Side Actions - Desktop */}
             <div className="hidden md:flex items-center gap-3 shrink-0">
@@ -491,10 +515,12 @@ const Header = () => {
             </div>
           </div>
         </div>
-        <div className={cn(
-          "transition-all duration-300",
-          isScrolled ? "bg-[#060318]/80 backdrop-blur-sm" : "bg-[#060318]/20"
-        )}>
+        <div
+          className={cn(
+            "transition-all duration-300",
+            isScrolled ? "bg-[#060318]/80 backdrop-blur-sm" : "bg-[#060318]/20",
+          )}
+        >
           {/* Secondary Navigation Row - Desktop */}
           <div className="hidden md:flex items-center justify-center gap-2 px-4 py-3 container mx-auto">
             <div className="flex items-center gap-2 flex-wrap w-full justify-between">
@@ -559,7 +585,7 @@ const Header = () => {
                           "border-r border-gray-700 max-h-[500px] overflow-y-auto",
                           hoveredCategory && subcategories.length > 0
                             ? "w-2/5"
-                            : "w-full"
+                            : "w-full",
                         )}
                       >
                         {categories.map((category) => {
@@ -572,14 +598,14 @@ const Header = () => {
                               onMouseEnter={() => handleCategoryHover(category)}
                               onClick={() => {
                                 navigate(
-                                  `/category/${category.slug || category._id}`
+                                  `/category/${category.slug || category._id}`,
                                 );
                                 setShowCategoriesDropdown(false);
                               }}
                               className={cn(
                                 "w-full px-4 py-3 text-left text-white hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-gray-800/30 last:border-b-0 ",
                                 hoveredCategory?._id === category._id &&
-                                  "bg-gray-800/50"
+                                  "bg-gray-800/50",
                               )}
                             >
                               {/* Category Image/Icon */}
@@ -616,7 +642,7 @@ const Header = () => {
                             {subcategories.map((subcategory) => (
                               <Link
                                 key={subcategory._id}
-                                to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${hoveredCategory?._id || ''}`}
+                                to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${hoveredCategory?._id || ""}`}
                                 onClick={() => setShowCategoriesDropdown(false)}
                                 className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-800/50 transition-colors group border-b border-gray-800/20 last:border-b-0"
                               >
@@ -673,19 +699,16 @@ const Header = () => {
                 Software
               </Link>
 
-              
-            {/* CTA Button */}
-            <Button
-              onClick={() => navigate("/dgmarq-plus")}
-              className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white rounded-lg font-medium shadow-lg"
-            >
-              Save more with DGMARQ Plus
-            </Button>
+              {/* CTA Button */}
+              <Button
+                onClick={() => navigate("/dgmarq-plus")}
+                className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white rounded-lg font-medium shadow-lg"
+              >
+                Save more with DGMARQ Plus
+              </Button>
             </div>
           </div>
         </div>
-
-
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
@@ -704,7 +727,7 @@ const Header = () => {
                   <ChevronDown
                     className={cn(
                       "h-4 w-4 transition-transform",
-                      mobileCategoriesOpen && "rotate-180"
+                      mobileCategoriesOpen && "rotate-180",
                     )}
                   />
                 </button>
@@ -714,8 +737,9 @@ const Header = () => {
                   <div className="pl-6 space-y-2">
                     {categories.map((category) => {
                       const isExpanded = expandedCategoryId === category._id;
-                      const subcategories = mobileSubcategories[category._id] || [];
-                      
+                      const subcategories =
+                        mobileSubcategories[category._id] || [];
+
                       return (
                         <div key={category._id} className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -733,22 +757,27 @@ const Header = () => {
                             <button
                               onClick={async () => {
                                 if (!isExpanded) {
-                                  const hasSubs = await checkCategoryHasSubcategories(category._id);
+                                  const hasSubs =
+                                    await checkCategoryHasSubcategories(
+                                      category._id,
+                                    );
                                   if (hasSubs) {
                                     if (!mobileSubcategories[category._id]) {
                                       try {
-                                        const response = await subcategoryAPI.getSubcategoriesByCategoryId(
-                                          category._id,
-                                          { isActive: true, limit: 50 }
-                                        );
-                                        setMobileSubcategories(prev => ({
+                                        const response =
+                                          await subcategoryAPI.getSubcategoriesByCategoryId(
+                                            category._id,
+                                            { isActive: true, limit: 50 },
+                                          );
+                                        setMobileSubcategories((prev) => ({
                                           ...prev,
-                                          [category._id]: response.data.data?.docs || []
+                                          [category._id]:
+                                            response.data.data?.docs || [],
                                         }));
                                       } catch {
-                                        setMobileSubcategories(prev => ({
+                                        setMobileSubcategories((prev) => ({
                                           ...prev,
-                                          [category._id]: []
+                                          [category._id]: [],
                                         }));
                                       }
                                     }
@@ -764,7 +793,7 @@ const Header = () => {
                               <ChevronRight
                                 className={cn(
                                   "h-4 w-4 transition-transform",
-                                  isExpanded && "rotate-90"
+                                  isExpanded && "rotate-90",
                                 )}
                               />
                             </button>

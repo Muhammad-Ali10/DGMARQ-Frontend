@@ -11,7 +11,7 @@ import { Link } from 'react-router-dom';
 import ProductCard from '../../components/ProductCard';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { showSuccess, showApiError } from '../../utils/toast';
-
+import { calculateProductPrice } from '../../utils/productUtils';
 const Wishlist = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -221,10 +221,11 @@ const Wishlist = () => {
           {wishlistItems.map((product) => {
             if (!product || !product._id) return null;
 
-            const discountPrice = product.discount 
-              ? product.price * (1 - product.discount / 100)
-              : product.price;
-
+            // const discountPrice = product.discount 
+            //   ? product.price * (1 - product.discount / 100)
+            //   : product.price;
+            console.log(product);
+            const { discountPrice } = calculateProductPrice(product);
             return (
               <Card
                 key={product._id}
@@ -283,20 +284,13 @@ const Wishlist = () => {
 
                   {/* Price */}
                   <div className="flex items-center gap-2 mb-4">
-                    {product.discount > 0 ? (
-                      <>
+                  
                         <span className="text-accent font-bold text-lg">
                           ${discountPrice.toFixed(2)}
                         </span>
                         <span className="text-gray-500 line-through text-sm">
                           ${product.price.toFixed(2)}
                         </span>
-                      </>
-                    ) : (
-                      <span className="text-accent font-bold text-lg">
-                        ${product.price.toFixed(2)}
-                      </span>
-                    )}
                   </div>
 
                   {/* Stock Status */}
