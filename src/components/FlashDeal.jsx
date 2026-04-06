@@ -119,6 +119,7 @@ const FlashDeal = () => {
         productId: id,
         qty: 1,
         price: discountPrice ?? actualPrice,
+        originalPrice: actualPrice,
         sellerId: activeDeal.sellerId,
         name: title,
         image: image,

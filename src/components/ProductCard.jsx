@@ -73,7 +73,7 @@ const ProductCard = memo(({ product }) => {
               className="text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]"
             >
               {`-${discountPercentage}%`}
-            </h3>
+            </h3> 
           )}
         </CardContent>
         {discountPercentage > 0 && (
@@ -86,6 +86,12 @@ const ProductCard = memo(({ product }) => {
       </Card>
     </Link>
   );
-}, (prev, next) => prev.product._id === next.product._id && prev.product.price === next.product.price && prev.product.discount === next.product.discount);
+}, (prev, next) => 
+  prev.product._id === next.product._id && 
+  prev.product.price === next.product.price && 
+  prev.product.discount === next.product.discount &&
+  prev.product.trendingOffer?.discountPercent === next.product.trendingOffer?.discountPercent &&
+  prev.product.trendingOffer?.offerId === next.product.trendingOffer?.offerId
+);
 
 export default ProductCard;

@@ -12,7 +12,7 @@ const CategoryProduct = ({ product }) => {
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
 
   // Get product data using utilities
-  const { originalPrice } = calculateProductPrice(product);
+  const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
   const image = getProductImage(product);
   const title = getProductName(product);
   const platformName = getPlatformName(product);
@@ -104,14 +104,28 @@ const CategoryProduct = ({ product }) => {
           />
         </div>
         <div className="flex flex-col flex-1">
-          <h2 className="text-xl md:text-3xl font-semibold text-white flex justify-between w-full mb-4">
+          <h2 className="text-xl md:text-3xl font-semibold text-white flex flex-wrap items-center justify-between w-full mb-4 gap-2">
             <Link 
               to={`/product/${product.slug || product._id}`}
-              className="hover:underline flex-1"
+              className="hover:underline flex-1 min-w-[200px]"
             >
               {title}
             </Link>
-            <span className="ml-4">{originalPrice.toFixed(2)} USD</span>
+            <div className="flex items-center gap-3">
+              <div className="flex flex-col items-end">
+                <span>{discountPrice.toFixed(2)} USD</span>
+                {discountPercentage > 0 && (
+                  <del className="text-sm md:text-base font-normal text-gray-400 uppercase">
+                    {originalPrice.toFixed(2)} USD
+                  </del>
+                )}
+              </div>
+              {discountPercentage > 0 && (
+                <span className="text-xs md:text-sm font-semibold px-2 py-1 rounded-md bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]">
+                  -{discountPercentage.toFixed(0)}%
+                </span>
+              )}
+            </div>
           </h2>
 
           <div className="flex flex-col gap-4">

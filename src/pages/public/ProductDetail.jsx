@@ -175,7 +175,11 @@ const ProductDetail = () => {
       addToGuestCart({
         productId: product._id,
         qty: quantity,
-        price: product.price,
+        // For guest users, store the discounted unit price so Cart can show it.
+        // (Guest Cart UI does not re-fetch product pricing.)
+        price: safeDiscountedPrice,
+        originalPrice: safeOriginalPrice,
+        discountPercentage: displayDiscountPercent,
         sellerId: product.sellerId,
         name: product.name,
         slug: product.slug,

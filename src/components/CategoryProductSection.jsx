@@ -133,7 +133,7 @@ const CategoryProductSection = ({
               <div className="flex justify-center mt-6">
                 <Button
                   asChild
-                  className="bg-[#F05F00] hover:bg-[#E05500] text-white font-poppins px-6 py-2 rounded-lg"
+                  className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white font-poppins px-6 py-2 rounded-lg"
                 >
                   <Link to={seeMoreUrl}>See More</Link>
                 </Button>

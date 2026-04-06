@@ -413,7 +413,7 @@ export const SecurityPageData = {
       "Business validation (where applicable)",
       "Payment account verification",
       "Performance review monitoring",
-    ],
+    ], 
     subtext: "Verified sellers receive trust badges for transparency.",
   },
   paymentInfrastructure: {
@@ -883,7 +883,7 @@ export const TermsConditionsPageData = {
   hero: {
     headline: "DGMarq Terms & Conditions",
     subtext: "These Terms govern your access to and use of the DGMarq marketplace platform.",
-    effectiveDate: "Effective Date: [Insert Date]",
+    effectiveDate: "Effective Date: [2026-04-06]",
   },
   sections: [
     {
@@ -984,7 +984,7 @@ export const PrivacyPolicyPageData = {
   hero: {
     headline: "Privacy & Cookie Policy",
     subtext: "Your data security and privacy are central to DGMarq's operations.",
-    effectiveDate: "Effective Date: [Insert Date]",
+    effectiveDate: "Effective Date: [2026-04-06]",
   },
   sections: [
     {

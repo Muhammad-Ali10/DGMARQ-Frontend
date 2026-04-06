@@ -224,8 +224,7 @@ const Wishlist = () => {
             // const discountPrice = product.discount 
             //   ? product.price * (1 - product.discount / 100)
             //   : product.price;
-            console.log(product);
-            const { discountPrice } = calculateProductPrice(product);
+            const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
             return (
               <Card
                 key={product._id}
@@ -258,12 +257,12 @@ const Wishlist = () => {
                         <ShoppingCart className="w-12 h-12 text-gray-500" />
                       </div>
                     )}
-                    {product.discount > 0 && (
+                    {discountPercentage > 0 && (
                       <Badge 
                         variant="destructive" 
                         className="absolute top-2 left-2"
                       >
-                        -{product.discount}%
+                        -{discountPercentage.toFixed(0)}%
                       </Badge>
                     )}
                   </div>
@@ -284,13 +283,14 @@ const Wishlist = () => {
 
                   {/* Price */}
                   <div className="flex items-center gap-2 mb-4">
-                  
                         <span className="text-accent font-bold text-lg">
                           ${discountPrice.toFixed(2)}
                         </span>
-                        <span className="text-gray-500 line-through text-sm">
-                          ${product.price.toFixed(2)}
-                        </span>
+                        {discountPercentage > 0 && (
+                          <span className="text-gray-500 line-through text-sm">
+                            ${originalPrice.toFixed(2)}
+                          </span>
+                        )}
                   </div>
 
                   {/* Stock Status */}

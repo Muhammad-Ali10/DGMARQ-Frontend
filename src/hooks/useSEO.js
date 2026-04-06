@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
  * Default SEO values for the application
  */
 const DEFAULT_SEO = {
-  title: 'DG Marq - Digital Marketplace for Games & Software',
+  title: 'DGMARQ Digital Marketplace For Gaming Products Keys/Accounts',
   description: 'DG Marq is a digital marketplace for games, software, and digital accounts with instant delivery, secure payments, and 24/7 support.',
 };
 
@@ -82,7 +82,7 @@ export const generateProductSEO = (product) => {
     description = product.metaDescription.trim();
   } else if (product.description && typeof product.description === 'string') {
     const trimmed = product.description.trim();
-    description = trimmed.length > 160 
+    description = trimmed.length > 160
       ? trimmed.substring(0, 157).trim() + '...'
       : trimmed;
   }

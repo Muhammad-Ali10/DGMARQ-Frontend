@@ -9,22 +9,27 @@
  */
 export const calculateProductPrice = (product) => {
   if (!product || typeof product.price !== 'number') {
-    return {
-      discountPrice: 0,
-      discountPercentage: 0,
-      originalPrice: 0,
-    };
+    const parsedPrice = Number(product?.price);
+    if (!Number.isFinite(parsedPrice)) {
+      return {
+        discountPrice: 0,
+        discountPercentage: 0,
+        originalPrice: 0,
+      };
+    }
+    // Continue with parsed numeric string/values.
+    product = { ...product, price: parsedPrice };
   }
 
-  const originalPrice = product.price;
+  const originalPrice = Number(product.price) || 0;
   let discountPrice = originalPrice;
   let discountPercentage = 0;
   if (product.trendingOffer?.discountPercent) {
-    discountPercentage = product.trendingOffer.discountPercent;
+    discountPercentage = Number(product.trendingOffer.discountPercent) || 0;
     discountPrice = originalPrice * (1 - discountPercentage / 100);
   } else if (product.discount) {
-    discountPercentage = product.discount;
-    discountPrice = originalPrice * (1 - product.discount / 100);
+    discountPercentage = Number(product.discount) || 0;
+    discountPrice = originalPrice * (1 - discountPercentage / 100);
   }
 
   return {

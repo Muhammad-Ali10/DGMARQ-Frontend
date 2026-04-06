@@ -382,15 +382,28 @@ const MobileBottomBar = () => {
                                 )}
                                 {discountPercentage > 0 && (
                                   <h3 className="text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]">
-                                    {`-${discountPercentage}%`}
+                                    {`-${discountPercentage.toFixed(0)}%`}
                                   </h3>
                                 )}
-                                {originalPrice > 0 && (
+                                {discountPercentage > 0 && (
                                   <del className="text-xs md:text-sm font-normal uppercase">
                                     ${originalPrice.toFixed(2)}
                                   </del>
                                 )}
                               </div>
+                              {product.stock !== undefined && (
+                                    <span
+                                      className={`text-[11px] px-2 py-0.5 rounded ${
+                                        product.stock > 0
+                                          ? "bg-green-900/30 text-green-400"
+                                          : "bg-red-900/30 text-red-400"
+                                      }`}
+                                    >
+                                      {product.stock > 0
+                                        ? `${product.stock} in stock`
+                                        : "Out of stock"}
+                                    </span>
+                                  )}
                             </button>
                           );
                         })}

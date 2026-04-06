@@ -433,10 +433,10 @@ const Header = () => {
                                   )}
                                   {discountPercentage > 0 && (
                                     <h3 className="text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]">
-                                      {`-${discountPercentage}%`}
+                                      {`-${discountPercentage.toFixed(0)}%`}
                                     </h3>
-                                  )}
-                                  {originalPrice > 0 && (
+                                  )} 
+                                  {discountPercentage > 0 && (
                                     <del className="text-xs md:text-sm font-normal uppercase">${originalPrice.toFixed(2)}</del>
                                   )}
                                   {product.stock !== undefined && (
