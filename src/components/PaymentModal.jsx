@@ -573,7 +573,7 @@ const PaymentModal = ({
 
           {/* Card Payment Form */}
           {selectedMethod === 'card' && (
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto">
               {!isCardFieldsEligible ? (
                 <Card className="bg-gray-800/50 border-gray-700">
                   <CardContent className="pt-6">
@@ -608,7 +608,7 @@ const PaymentModal = ({
                         </label>
                         <div
                           id="card-expiry"
-                          className="h-12 bg-white/10 border border-gray-600 rounded-md px-4 paypal-card-field-container"
+                          className="paypal-card-field-container"
                           style={{ position: 'relative', zIndex: 1 }}
                         ></div>
                       </div>
@@ -619,7 +619,7 @@ const PaymentModal = ({
                         </label>
                         <div
                           id="card-cvv"
-                          className="h-12 bg-white/10 border border-gray-600 rounded-md px-4 paypal-card-field-container"
+                          className="paypal-card-field-container"
                           style={{ position: 'relative', zIndex: 1 }}
                         ></div>
                       </div>
