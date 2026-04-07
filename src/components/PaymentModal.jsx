@@ -412,7 +412,7 @@ const PaymentModal = ({
           <DialogTitle className="text-white text-xl font-semibold">Payment Methods</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5 mt-4">
+        <div className="space-y-5 mt-4 overflow-y-auto">
           {/* Payment Method Selection */}
           <div className={`grid gap-3 ${walletBalance >= totalAmount ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {walletBalance >= totalAmount && (
@@ -573,7 +573,7 @@ const PaymentModal = ({
 
           {/* Card Payment Form */}
           {selectedMethod === 'card' && (
-            <div className="space-y-4 overflow-y-auto">
+            <div className="space-y-4">
               {!isCardFieldsEligible ? (
                 <Card className="bg-gray-800/50 border-gray-700">
                   <CardContent className="pt-6">
