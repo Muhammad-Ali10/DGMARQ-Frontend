@@ -43,6 +43,8 @@ const CategoryListing = lazy(() => import("./pages/public/CategoryListing"));
 const SubcategoryListing = lazy(() => import("./pages/public/SubcategoryListing"));
 const ForgotPassword = lazy(() => import("./pages/public/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/public/ResetPassword"));
+const SubscriptionSuccess = lazy(() => import("./pages/public/SubscriptionSuccess"));
+const SubscriptionCancel = lazy(() => import("./pages/public/SubscriptionCancel"));
 
 // Lazy-loaded admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -164,6 +166,8 @@ function App() {
           <Route path="/category/:categoryId" element={<CategoryListing />} />
           <Route path="/category/:categorySlug/:subcategorySlug" element={<SubcategoryListing />} />
           <Route path="/subcategory/:subcategoryId" element={<SubcategoryListing />} />
+          <Route path="/subscription/success" element={<SubscriptionSuccess />} />
+          <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
         </Route>
 
         <Route

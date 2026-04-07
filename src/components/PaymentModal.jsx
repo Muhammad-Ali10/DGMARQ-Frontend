@@ -107,9 +107,17 @@ const PaymentModal = ({
                                       `Payment capture failed. Status: ${captureStatus || 'unknown'}`;
                     throw new Error(errorMessage);
                   }
+                  
+                  // Success!
+                  setIsLoading(false);
                   toast.success('Payment successful!');
-                  onSuccess?.(responseData);
-                  onOpenChange(false);
+                  
+                  if (onSuccess) {
+                    onSuccess(responseData);
+                  }
+                  
+                  // Crucial: close modal only after onSuccess has been called to maintain context
+                  setTimeout(() => onOpenChange(false), 100);
                 } catch (error) {
                   let errorMessage = 'Payment capture failed';
                   if (error.response?.data?.message) {
@@ -182,10 +190,16 @@ const PaymentModal = ({
         const cardExpiryEl = document.getElementById('card-expiry');
         const cardCvvEl = document.getElementById('card-cvv');
         const cardNameEl = document.getElementById('card-name');
-        if (cardNumberEl) cardNumberEl.innerHTML = '';
-        if (cardExpiryEl) cardExpiryEl.innerHTML = '';
-        if (cardCvvEl) cardCvvEl.innerHTML = '';
-        if (cardNameEl) cardNameEl.innerHTML = '';
+        
+        if (!cardNumberEl || !cardExpiryEl || !cardCvvEl || !cardNameEl) return;
+
+        // Ensure containers are empty before rendering
+        cardNumberEl.innerHTML = '';
+        cardExpiryEl.innerHTML = '';
+        cardCvvEl.innerHTML = '';
+        cardNameEl.innerHTML = '';
+        
+        // Render fields with responsive styles
         cardFields.NumberField({
           placeholder: 'Card Number',
         }).render('#card-number');
@@ -203,7 +217,9 @@ const PaymentModal = ({
         }).render('#card-name');
 
       } catch (renderError) {
-        toast.error('Failed to render card payment form. Please try again.');
+        logger.error('Failed to render card fields', renderError);
+        // Don't show toast here as it might be noisy during re-renders,
+        // instead just allow the user to retry or switch methods.
       }
     };
     checkContainersAndRender(false);
@@ -285,9 +301,15 @@ const PaymentModal = ({
                                     `Payment capture failed. Status: ${captureStatus || 'unknown'}`;
                 throw new Error(errorMessage);
               }
+
+              setIsLoading(false);
               toast.success('Payment successful!');
-              onSuccess?.(responseData);
-              onOpenChange(false);
+              
+              if (onSuccess) {
+                onSuccess(responseData);
+              }
+              
+              setTimeout(() => onOpenChange(false), 100);
             } catch (error) {
               let errorMessage = 'Payment capture failed';
               if (error.response?.data?.message) {
@@ -362,6 +384,9 @@ const PaymentModal = ({
             position: relative;
             pointer-events: auto !important;
             overflow: visible !important;
+            min-height: 48px !important;
+            display: flex !important;
+            align-items: center !important;
           }
           .paypal-card-field-container iframe {
             pointer-events: auto !important;
@@ -371,7 +396,7 @@ const PaymentModal = ({
             border: none !important;
             background: transparent !important;
             position: relative !important;
-            z-index: 10 !important;
+            z-index: 5 !important;
           }
           #card-number,
           #card-expiry,
@@ -379,16 +404,8 @@ const PaymentModal = ({
           #card-name {
             pointer-events: auto !important;
             overflow: visible !important;
-          }
-          #card-number iframe,
-          #card-expiry iframe,
-          #card-cvv iframe,
-          #card-name iframe {
-            pointer-events: auto !important;
-            border: none !important;
-            background: transparent !important;
-            position: relative !important;
-            z-index: 10 !important;
+            display: flex !important;
+            align-items: center !important;
           }
         `}</style>
         <DialogHeader>
@@ -579,8 +596,8 @@ const PaymentModal = ({
                       </label>
                       <div
                         id="card-number"
-                        className="h-12 bg-gray-800/50 border border-gray-600 rounded-md px-4 paypal-card-field-container"
-                        style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'contents', alignItems: 'center' }}
+                        className="h-12 bg-white/10 border border-gray-600 rounded-md px-4 paypal-card-field-container"
+                        style={{ position: 'relative', zIndex: 1 }}
                       ></div>
                     </div>
 
@@ -591,8 +608,8 @@ const PaymentModal = ({
                         </label>
                         <div
                           id="card-expiry"
-                          className="h-12 bg-gray-800/50 border border-gray-600 rounded-md px-4 paypal-card-field-container"
-                          style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'contents', alignItems: 'center' }}
+                          className="h-12 bg-white/10 border border-gray-600 rounded-md px-4 paypal-card-field-container"
+                          style={{ position: 'relative', zIndex: 1 }}
                         ></div>
                       </div>
 
@@ -602,8 +619,8 @@ const PaymentModal = ({
                         </label>
                         <div
                           id="card-cvv"
-                          className="h-12 bg-gray-800/50 border border-gray-600 rounded-md px-4 paypal-card-field-container"
-                          style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'contents', alignItems: 'center', backgroundColor: 'transparent' }}
+                          className="h-12 bg-white/10 border border-gray-600 rounded-md px-4 paypal-card-field-container"
+                          style={{ position: 'relative', zIndex: 1 }}
                         ></div>
                       </div>
                     </div>
@@ -614,8 +631,8 @@ const PaymentModal = ({
                       </label>
                       <div
                         id="card-name"
-                        className="h-12 bg-gray-800/50 border border-gray-600 rounded-md px-4 paypal-card-field-container"
-                        style={{ minHeight: '48px', position: 'relative', zIndex: 1, display: 'contents', alignItems: 'center' }}
+                        className="h-12 bg-white/10 border border-gray-600 rounded-md px-4 paypal-card-field-container"
+                        style={{ position: 'relative', zIndex: 1 }}
                       ></div>
                     </div>
                   </div>

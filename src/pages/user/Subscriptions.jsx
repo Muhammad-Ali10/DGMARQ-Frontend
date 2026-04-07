@@ -68,7 +68,7 @@ const UserSubscriptions = () => {
                 </div>
                 <div>
                   <p className="text-gray-400">Plan</p>
-                  <p className="text-white font-semibold mt-1">{subscription.plan || 'Standard'}</p>
+                  <p className="text-white font-semibold mt-1">{subscription.planName || 'DGMARQ+'}</p>
                 </div>
               </div>
 
@@ -82,18 +82,20 @@ const UserSubscriptions = () => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400">End Date</p>
+                  <p className="text-gray-400">Next Billing Date</p>
                   <p className="text-white mt-1">
-                    {subscription.endDate ? new Date(subscription.endDate).toLocaleDateString() : '-'}
+                    {subscription.nextBillingDate ? new Date(subscription.nextBillingDate).toLocaleDateString() : 
+                     subscription.endDate ? new Date(subscription.endDate).toLocaleDateString() : '-'}
                   </p>
                 </div>
               </div>
 
               <div>
-                <p className="text-gray-400">Amount</p>
-                <p className="text-white font-semibold text-lg mt-1">
-                  ${subscription.amount?.toFixed(2) || '0.00'}
-                </p>
+                <p className="text-gray-400">Benefits</p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-white text-sm">• 2% Instant Discount on all products</p>
+                  <p className="text-white text-sm">• Priority Support</p>
+                </div>
               </div>
 
               {subscription.status === 'active' && (
