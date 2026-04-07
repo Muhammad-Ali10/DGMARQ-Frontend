@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { subscriptionAPI } from '../../services/api';
+import { showApiError } from '../../utils/toast';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -50,6 +51,7 @@ const DGMarketPlus = () => {
       }
     },
     onError: (error) => {
+      showApiError(error, 'Failed to initiate subscription. Please try again.');
     },
   });
 
