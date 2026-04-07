@@ -161,7 +161,7 @@ const UserReturnRefunds = () => {
                       <Eye className="w-4 h-4 mr-2" />
                       View
                     </Button>
-                    {canCancel(refund) && (
+                    {/* {canCancel(refund) && (
                       <Button
                         size="sm"
                         variant="destructive"
@@ -171,7 +171,7 @@ const UserReturnRefunds = () => {
                         <X className="w-4 h-4 mr-2" />
                         Cancel
                       </Button>
-                    )}
+                    )} */}
                   </div>
                 </div>
               ))
@@ -190,7 +190,7 @@ const UserReturnRefunds = () => {
                   <TableHead className="text-gray-300">Amount</TableHead>
                   <TableHead className="text-gray-300">Status</TableHead>
                   <TableHead className="text-gray-300">Created</TableHead>
-                  <TableHead className="text-gray-300">Actions</TableHead>
+                  {/* <TableHead className="text-gray-300">Actions</TableHead> */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -217,11 +217,11 @@ const UserReturnRefunds = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          {canCancel(refund) && (
+                          {/* {canCancel(refund) && (
                             <Button size="sm" variant="destructive" onClick={() => cancelMutation.mutate(refund._id)}>
                               <X className="w-4 h-4" />
                             </Button>
-                          )}
+                          )} */}
                         </div>
                       </TableCell>
                     </TableRow>

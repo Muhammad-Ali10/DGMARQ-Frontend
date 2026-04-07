@@ -106,9 +106,9 @@ const SessionMenu = ({ onItemClick } = {}) => {
           .toUpperCase()
           .slice(0, 2)
       : 'U';
-
+ 
     return (
-      <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-sm font-semibold border-2 border-accent/50">
+      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold border-0 border-accent/50">
         {initials}
       </div>
     );
