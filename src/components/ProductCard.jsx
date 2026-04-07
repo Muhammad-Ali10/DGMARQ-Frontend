@@ -17,6 +17,7 @@ import {
 } from "../utils/productUtils";
  
 const ProductCard = memo(({ product }) => {
+  
   const { discountPrice, discountPercentage, originalPrice } = useMemo(
     () => calculateProductPrice(product),
     [product._id, product.price, product.discount, product.trendingOffer?.discountPercent]
@@ -24,9 +25,8 @@ const ProductCard = memo(({ product }) => {
   const image = useMemo(() => getProductImage(product), [product._id, product.images]);
   const title = useMemo(() => getProductName(product), [product._id, product.name]);
   const platformName = useMemo(() => getPlatformName(product), [product._id, product.platform]);
-  const typeName = useMemo(() => getTypeName(product), [product._id, product.type]);
-
-  return (
+  const typeName = useMemo(() => getTypeName(product), [product._id, product.type, product.productType]);
+  return ( 
     <Link to={`/product/${product.slug || product._id}`}>
       <Card className="w-full max-w-[196px] mx-auto flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2.5 box-border hover:scale-105 transition-transform duration-200">
         <div className="relative">

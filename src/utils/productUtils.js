@@ -140,7 +140,10 @@ export const getRegionName = (product) => {
  * @returns {string} - Type name or fallback
  */
 export const getTypeName = (product) => {
-  const productType = mapProductTypeValue(normalizeEntityName(product?.productType));
+  const productType = mapProductTypeValue(
+    normalizeEntityName(product?.productType) ||
+    normalizeEntityName(product?.type)
+  );
   return productType || 'Unknown Type';
 };
 

@@ -631,7 +631,7 @@ const PaymentModal = ({
                       </label>
                       <div
                         id="card-name"
-                        className="h-12 bg-white/10 border border-gray-600 rounded-md px-4 paypal-card-field-container"
+                        className="paypal-card-field-container"
                         style={{ position: 'relative', zIndex: 1 }}
                       ></div>
                     </div>
