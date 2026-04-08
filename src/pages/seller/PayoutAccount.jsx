@@ -150,7 +150,7 @@ const PayoutAccount = () => {
               {payoutEligible && (
                 <div className="flex items-center gap-2 p-3 bg-green-900/20 border border-green-700 rounded-lg text-green-400">
                   <CheckCircle2 className="h-5 w-5" />
-                  <p className="text-sm">✅ Payouts active - funds release automatically every 15 days. Check Earnings to see the next payout date.</p>
+                  <p className="text-sm">Payouts active - funds release automatically every 15 days. Check Earnings to see the next payout date.</p>
                 </div>
               )}
 

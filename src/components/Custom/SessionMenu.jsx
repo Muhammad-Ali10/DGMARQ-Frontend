@@ -123,7 +123,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "border-accent text-white hover:bg-accent/10 rounded-lg transition-colors",
+          "border-accent text-white hover:bg-accent/10 rounded-lg h-10 mt-1 transition-colors",
           isAuthenticated && "p-1.5"
         )}
       >
