@@ -17,6 +17,7 @@ const SellerDashboard = () => {
     queryKey: ['seller-balance'],
     queryFn: () => sellerAPI.getPayoutBalance().then(res => res.data.data),
     refetchOnWindowFocus: true,
+    refetchInterval: 30000,
   });
 
   const { data: performanceMetrics, isLoading: metricsLoading, isError: metricsError } = useQuery({
@@ -89,6 +90,13 @@ const SellerDashboard = () => {
       icon: TrendingUp,
       color: 'text-orange-500',
       description: `${performanceMetrics?.reviews?.totalReviews || 0} reviews`,
+    },
+    {
+      title: 'Paid Out',
+      value: `$${(balance?.released?.amount || 0).toFixed(2)}`,
+      icon: RefreshCw,
+      color: 'text-green-400',
+      description: 'Sent to PayPal',
     },
   ];
 

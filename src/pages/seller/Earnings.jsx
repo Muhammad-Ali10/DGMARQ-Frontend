@@ -16,6 +16,7 @@ const SellerEarnings = () => {
   const { data: balance } = useQuery({
     queryKey: ['seller-balance'],
     queryFn: () => sellerAPI.getPayoutBalance().then(res => res.data.data),
+    refetchInterval: 30000,
   });
 
   const { data: payouts, isLoading } = useQuery({
@@ -72,54 +73,65 @@ const SellerEarnings = () => {
         <p className="text-gray-400 mt-1">View your earnings and payout history</p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="bg-primary border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">
-              {balance?.holdReason ? 'Available (On Hold)' : 'Available Balance'}
-            </CardTitle>
-            <DollarSign className={`h-4 w-4 ${balance?.holdReason ? 'text-amber-500' : 'text-green-500'}`} />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              ${balance?.available?.toFixed(2) || '0.00'}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              {balance?.holdReason ? balance.holdReason : 'Released automatically when eligible'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Pending Balance</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-300">Pending (Held)</CardTitle>
             <DollarSign className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
               ${balance?.pending?.amount?.toFixed(2) || '0.00'}
             </div>
+            <p className="text-xs text-gray-400 mt-1">Sales in last 15 days</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-primary border-gray-700">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-300">
+              Available Balance
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">
+              ${balance?.available?.toFixed(2) || '0.00'}
+            </div>
             <p className="text-xs text-gray-400 mt-1">
-              {balance?.pending?.daysUntilAvailable > 0 
-                ? `Available in ${balance.pending.daysUntilAvailable} day${balance.pending.daysUntilAvailable > 1 ? 's' : ''}`
-                : 'On hold (15 days)'}
+              Ready to pay if PayPal is eligible
             </p>
           </CardContent>
         </Card>
         <Card className="bg-primary border-gray-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Total Earnings</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-300">Paid Out</CardTitle>
             <DollarSign className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              ${balance?.totalEarnings?.toFixed(2) || ((balance?.pending?.amount || 0) + (balance?.available || 0) + (balance?.released?.amount || 0)).toFixed(2)}
+              ${balance?.released?.amount?.toFixed(2) || '0.00'}
             </div>
-            <p className="text-xs text-gray-400 mt-1">All time</p>
+            <p className="text-xs text-gray-400 mt-1">Already sent to PayPal</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-primary border-gray-700">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-300">Next Payout</CardTitle>
+            <DollarSign className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">
+              ${balance?.pending?.amount?.toFixed(2) || '0.00'}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              {balance?.pending?.earliestReleaseDate
+                ? `Releasing on ${new Date(balance.pending.earliestReleaseDate).toLocaleDateString()}`
+                : 'No scheduled payout yet'}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Payout blocked – show why */}
       {balance?.holdReason && (balance?.available > 0 || balance?.pending?.amount > 0) && (
         <Card className="bg-primary border-gray-700 border-l-4 border-l-amber-500">
           <CardContent className="pt-6">
@@ -130,9 +142,9 @@ const SellerEarnings = () => {
                 </div>
               </div>
               <div className="flex-1">
-                <h3 className="text-white font-semibold mb-1">Payouts on hold</h3>
+                <h3 className="text-white font-semibold mb-1">PayPal action needed</h3>
                 <p className="text-gray-300 text-sm">
-                  {balance.holdReason} Payouts are released by the system or admin once your payout account is eligible.
+                  ⚠️ You have ${Number(balance?.available || 0).toFixed(2)} available but payouts cannot be sent yet. {balance.holdReason}
                 </p>
                 <p className="text-gray-400 text-xs mt-2">
                   Go to <a href="/seller/payout-account" className="text-accent hover:underline">Payout Account</a> to connect or verify PayPal.
@@ -211,7 +223,7 @@ const SellerEarnings = () => {
                             <Badge
                               variant={
                                 request.status === 'approved' || request.status === 'released' ? 'success' :
-                                request.status === 'pending' || request.status === 'requested' ? 'warning' :
+                                request.status === 'pending' || request.status === 'requested' || request.status === 'available' ? 'warning' :
                                 'destructive'
                               }
                             >
@@ -261,7 +273,7 @@ const SellerEarnings = () => {
                             <Badge
                               variant={
                                 payout.status === 'released' ? 'success' :
-                                payout.status === 'pending' ? 'warning' :
+                                payout.status === 'pending' || payout.status === 'available' || payout.status === 'processing' ? 'warning' :
                                 payout.status === 'failed' ? 'destructive' :
                                 'default'
                               }
@@ -307,7 +319,7 @@ const SellerEarnings = () => {
                                       </div>
                                       <div>
                                         <p className="text-sm text-gray-400">Status</p>
-                                        <Badge variant={payoutDetails.status === 'released' ? 'success' : 'warning'}>
+                                        <Badge variant={payoutDetails.status === 'released' ? 'success' : payoutDetails.status === 'failed' ? 'destructive' : 'warning'}>
                                           {payoutDetails.status}
                                         </Badge>
                                       </div>
@@ -412,7 +424,7 @@ const SellerEarnings = () => {
                             <h5 className="text-gray-300 text-sm mb-2">By Status</h5>
                             <div className="flex flex-wrap gap-2">
                               {Object.entries(payoutReports.summary.byStatus).map(([status, count]) => (
-                                <Badge key={status} variant={status === 'released' ? 'success' : status === 'pending' ? 'warning' : 'default'}>
+                                <Badge key={status} variant={status === 'released' ? 'success' : (status === 'pending' || status === 'available' || status === 'processing') ? 'warning' : 'default'}>
                                   {status}: {count}
                                 </Badge>
                               ))}
@@ -443,7 +455,7 @@ const SellerEarnings = () => {
                               </div>
                               <div className="text-right">
                                 <div className="text-white font-semibold">${payout.amount?.toFixed(2) || '0.00'}</div>
-                                <Badge variant={payout.status === 'released' ? 'success' : payout.status === 'pending' ? 'warning' : 'default'} className="text-xs">
+                                <Badge variant={payout.status === 'released' ? 'success' : (payout.status === 'pending' || payout.status === 'available' || payout.status === 'processing') ? 'warning' : 'default'} className="text-xs">
                                   {payout.status}
                                 </Badge>
                               </div>

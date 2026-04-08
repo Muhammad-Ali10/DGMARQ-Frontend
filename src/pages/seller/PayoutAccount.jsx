@@ -7,14 +7,29 @@ import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { CreditCard, CheckCircle2, XCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { showSuccess, showError } from '../../utils/toast';
+import { useSocket } from '../../hooks/useSocket';
 
 const PayoutAccount = () => {
   const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
 
   const { data: payoutAccountData, isLoading, isError } = useQuery({
     queryKey: ['payout-account'],
     queryFn: () => sellerAPI.getMyPayoutAccount().then(res => res.data.data),
+    refetchInterval: 30000,
   });
+
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+    const handleRealtimeUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ['payout-account'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-balance'] });
+    };
+    socket.on('payout_account_updated', handleRealtimeUpdate);
+    return () => {
+      socket.off('payout_account_updated', handleRealtimeUpdate);
+    };
+  }, [socket, isConnected, queryClient]);
 
   const paypalSuccess = new URLSearchParams(window.location.search).get('paypal') === 'success';
   const paypalError = new URLSearchParams(window.location.search).get('paypal') === 'error';
@@ -99,7 +114,7 @@ const PayoutAccount = () => {
                         <CheckCircle2 className="h-3 w-3" /> Verified
                       </Badge>
                     ) : (
-                      <Badge variant="warning">Not verified</Badge>
+                      <Badge variant="warning">Not Verified</Badge>
                     )}
                     {accountBlocked && (
                       <Badge variant="destructive">Blocked</Badge>
@@ -123,7 +138,7 @@ const PayoutAccount = () => {
                   <div className="text-sm">
                     {accountBlocked && <p>Payouts are on hold. Contact support if you believe this is an error.</p>}
                     {!accountBlocked && !paypalVerified && (
-                      <p>Your PayPal account is not verified or not eligible to receive payments. Payouts will stay on hold until your account is verified.</p>
+                      <p>Available balance may be on hold while PayPal is pending admin approval. You will be notified once approved.</p>
                     )}
                     {!accountBlocked && paypalVerified && (
                       <p>Payouts are temporarily unavailable. Please try again later.</p>
@@ -135,7 +150,7 @@ const PayoutAccount = () => {
               {payoutEligible && (
                 <div className="flex items-center gap-2 p-3 bg-green-900/20 border border-green-700 rounded-lg text-green-400">
                   <CheckCircle2 className="h-5 w-5" />
-                  <p className="text-sm">Your PayPal account is connected and verified. Payouts are released automatically by the system. View your earnings in the Earnings page.</p>
+                  <p className="text-sm">✅ Payouts active - funds release automatically every 15 days. Check Earnings to see the next payout date.</p>
                 </div>
               )}
 
