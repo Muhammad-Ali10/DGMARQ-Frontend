@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { CreditCard, X, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 const UserSubscriptions = () => {
   const queryClient = useQueryClient();
@@ -32,8 +33,30 @@ const UserSubscriptions = () => {
 
   const renewMutation = useMutation({
     mutationFn: (data) => subscriptionAPI.renewSubscription(data),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      const result = response?.data?.data;
+      const action = result?.action;
+      const message = result?.message;
+      if (action === 'payment_required' && result?.approvalUrl) {
+        toast.info(message || 'Redirecting to payment...');
+        window.location.href = result.approvalUrl;
+        return;
+      }
+      if (action === 'no_action') {
+        toast.info(message || 'Your subscription is already active.');
+      } else if (action === 'reactivated') {
+        toast.success(message || 'Subscription re-activated.');
+      } else if (action === 'restored') {
+        toast.success(message || 'Payment successful! Subscription restored.');
+      } else if (action === 'payment_retry_required') {
+        toast.error(message || 'Payment retry failed. Please update your card.');
+      } else {
+        toast.success(message || 'Subscription updated.');
+      }
       queryClient.invalidateQueries(['my-subscription']);
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || 'Unable to process subscription renewal request.');
     },
   });
 
@@ -42,8 +65,12 @@ const UserSubscriptions = () => {
   const subscription = subscriptionData?.subscription;
   const now = new Date();
   const endDate = subscription?.endDate ? new Date(subscription.endDate) : null;
-  const hasBenefits = !!subscription && (!endDate || endDate >= now) && ['active', 'cancelled'].includes(subscription.status);
+  const isFuture = !!endDate && endDate > now;
+  const hasBenefits = !!subscription && (!endDate || endDate >= now) && ['active', 'cancelled', 'past_due'].includes(subscription.status);
   const isCancelledButActive = hasBenefits && subscription?.status === 'cancelled';
+  const isActiveFuture = subscription?.status === 'active' && isFuture;
+  const isExpiredOrPast = !subscription || subscription?.status === 'expired' || (endDate && endDate <= now);
+  const isPastDue = subscription?.status === 'past_due';
 
   const handleCancelSubscription = () => {
     if (!subscription) return;
@@ -117,7 +144,7 @@ const UserSubscriptions = () => {
                 </div>
               </div>
 
-              {subscription.status === 'active' && (
+              {isActiveFuture && (
                 <div className="flex gap-2 pt-4 border-t border-gray-700">
                   <Button
                     onClick={handleCancelSubscription}
@@ -126,14 +153,6 @@ const UserSubscriptions = () => {
                   >
                     <X className="w-4 h-4 mr-2" />
                     {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Subscription'}
-                  </Button>
-                  <Button
-                    onClick={() => renewMutation.mutate({ durationMonths: 1 })}
-                    disabled={renewMutation.isPending}
-                    className="bg-accent hover:bg-blue-700"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    {renewMutation.isPending ? 'Renewing...' : 'Renew Subscription'}
                   </Button>
                 </div>
               )}
@@ -146,6 +165,30 @@ const UserSubscriptions = () => {
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     {renewMutation.isPending ? 'Re-activating...' : 'Re-activate Subscription'}
+                  </Button>
+                </div>
+              )}
+              {isPastDue && (
+                <div className="flex gap-2 pt-4 border-t border-gray-700">
+                  <Button
+                    onClick={() => renewMutation.mutate({})}
+                    disabled={renewMutation.isPending}
+                    className="bg-accent hover:bg-blue-700"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    {renewMutation.isPending ? 'Retrying...' : 'Retry Payment'}
+                  </Button>
+                </div>
+              )}
+              {isExpiredOrPast && (
+                <div className="flex gap-2 pt-4 border-t border-gray-700">
+                  <Button
+                    onClick={() => renewMutation.mutate({})}
+                    disabled={renewMutation.isPending}
+                    className="bg-accent hover:bg-blue-700"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    {renewMutation.isPending ? 'Processing...' : 'Renew Subscription'}
                   </Button>
                 </div>
               )}
