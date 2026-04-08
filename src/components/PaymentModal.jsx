@@ -32,6 +32,50 @@ const PaymentModal = ({
   const cardFieldsRef = useRef(null);
   const paypalButtonsContainerRef = useRef(null);
   const [isCardFieldsEligible, setIsCardFieldsEligible] = useState(false);
+  const paymentAttemptRef = useRef({ id: 0, isHandled: false });
+  const pendingCardErrorTimerRef = useRef(null);
+
+  const clearPaymentToasts = () => {
+    toast.dismiss();
+  };
+
+  const beginPaymentAttempt = () => {
+    if (pendingCardErrorTimerRef.current) {
+      clearTimeout(pendingCardErrorTimerRef.current);
+      pendingCardErrorTimerRef.current = null;
+    }
+    const attemptId = Date.now();
+    paymentAttemptRef.current = { id: attemptId, isHandled: false };
+    return attemptId;
+  };
+
+  const resolvePaymentAttempt = ({
+    attemptId,
+    success,
+    errorMessage = 'Payment processing error. Please try again.',
+    payload,
+  }) => {
+    const activeAttempt = paymentAttemptRef.current;
+    if (!activeAttempt.id || activeAttempt.id !== attemptId || activeAttempt.isHandled) {
+      return false;
+    }
+
+    paymentAttemptRef.current = { ...activeAttempt, isHandled: true };
+    clearPaymentToasts();
+
+    if (success) {
+      toast.success('Payment successful!');
+      if (onSuccess) {
+        onSuccess(payload);
+      }
+      setTimeout(() => onOpenChange(false), 100);
+    } else {
+      toast.error(errorMessage);
+    }
+
+    setIsLoading(false);
+    return true;
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -74,7 +118,6 @@ const PaymentModal = ({
                 try {
                   if (!checkoutId) {
                     const errorMsg = 'Checkout ID is missing. Please try again.';
-                    toast.error(errorMsg);
                     throw new Error(errorMsg);
                   }
                   const response = await paypalAPI.createOrder({ checkoutId });
@@ -87,11 +130,11 @@ const PaymentModal = ({
                   }
                   return orderId;
                 } catch (error) {
-                  toast.error(error.response?.data?.message || error.message || 'Failed to create payment order');
                   throw error;
                 }
               },
               onApprove: async (data) => {
+                const attemptId = paymentAttemptRef.current.id || beginPaymentAttempt();
                 try {
                   setIsLoading(true);
                   await new Promise(resolve => setTimeout(resolve, 500));
@@ -105,19 +148,10 @@ const PaymentModal = ({
                     const errorMessage = responseData?.message || 
                                       responseData?.data?.message || 
                                       `Payment capture failed. Status: ${captureStatus || 'unknown'}`;
-                    throw new Error(errorMessage);
+                    resolvePaymentAttempt({ attemptId, success: false, errorMessage });
+                    return;
                   }
-                  
-                  // Success!
-                  setIsLoading(false);
-                  toast.success('Payment successful!');
-                  
-                  if (onSuccess) {
-                    onSuccess(responseData);
-                  }
-                  
-                  // Crucial: close modal only after onSuccess has been called to maintain context
-                  setTimeout(() => onOpenChange(false), 100);
+                  resolvePaymentAttempt({ attemptId, success: true, payload: responseData });
                 } catch (error) {
                   let errorMessage = 'Payment capture failed';
                   if (error.response?.data?.message) {
@@ -125,13 +159,13 @@ const PaymentModal = ({
                   } else if (error.message) {
                     errorMessage = error.message;
                   }
-                  
-                  toast.error(errorMessage);
+                  resolvePaymentAttempt({ attemptId, success: false, errorMessage });
                 } finally {
                   setIsLoading(false);
                 }
               },
               onError: (err) => {
+                const attemptId = paymentAttemptRef.current.id || beginPaymentAttempt();
                 let errorMessage = 'Payment processing error. Please try again.';
                 if (err?.message) {
                   errorMessage = err.message;
@@ -139,8 +173,7 @@ const PaymentModal = ({
                   errorMessage = `Payment error: ${err.details}`;
                 }
                 
-                toast.error(errorMessage);
-                setIsLoading(false);
+                resolvePaymentAttempt({ attemptId, success: false, errorMessage });
               },
             });
 
@@ -163,6 +196,19 @@ const PaymentModal = ({
 
     loadPayPalSDK();
   }, [open, checkoutId, onSuccess, onOpenChange]);
+
+  useEffect(() => {
+    if (open) {
+      beginPaymentAttempt();
+      return;
+    }
+
+    if (pendingCardErrorTimerRef.current) {
+      clearTimeout(pendingCardErrorTimerRef.current);
+      pendingCardErrorTimerRef.current = null;
+    }
+    paymentAttemptRef.current = { id: 0, isHandled: false };
+  }, [open]);
 
   useEffect(() => {
     if (!open || selectedMethod !== 'card' || !cardFields || !isCardFieldsEligible) {
@@ -268,7 +314,6 @@ const PaymentModal = ({
               setIsLoading(true);
               if (!checkoutId) {
                 const errorMsg = 'Checkout ID is missing. Please try again.';
-                toast.error(errorMsg);
                 throw new Error(errorMsg);
               }
               const response = await paypalAPI.createOrder({ checkoutId });
@@ -281,13 +326,13 @@ const PaymentModal = ({
               }
               return orderId;
             } catch (error) {
-              toast.error(error.response?.data?.message || error.message || 'Failed to create payment order');
               throw error;
             } finally {
               setIsLoading(false);
             }
           },
           onApprove: async (data) => {
+            const attemptId = paymentAttemptRef.current.id || beginPaymentAttempt();
             try {
               setIsLoading(true);
               await new Promise(resolve => setTimeout(resolve, 500));
@@ -299,17 +344,10 @@ const PaymentModal = ({
                 const errorMessage = responseData?.message || 
                                     responseData?.data?.message || 
                                     `Payment capture failed. Status: ${captureStatus || 'unknown'}`;
-                throw new Error(errorMessage);
+                resolvePaymentAttempt({ attemptId, success: false, errorMessage });
+                return;
               }
-
-              setIsLoading(false);
-              toast.success('Payment successful!');
-              
-              if (onSuccess) {
-                onSuccess(responseData);
-              }
-              
-              setTimeout(() => onOpenChange(false), 100);
+              resolvePaymentAttempt({ attemptId, success: true, payload: responseData });
             } catch (error) {
               let errorMessage = 'Payment capture failed';
               if (error.response?.data?.message) {
@@ -317,13 +355,13 @@ const PaymentModal = ({
               } else if (error.message) {
                 errorMessage = error.message;
               }
-              
-              toast.error(errorMessage);
+              resolvePaymentAttempt({ attemptId, success: false, errorMessage });
             } finally {
               setIsLoading(false);
             }
           },
           onError: (err) => {
+            const attemptId = paymentAttemptRef.current.id || beginPaymentAttempt();
             let errorMessage = 'Payment processing error. Please try again.';
             if (err?.message) {
               errorMessage = err.message;
@@ -331,8 +369,7 @@ const PaymentModal = ({
               errorMessage = `Payment error: ${err.details}`;
             }
             
-            toast.error(errorMessage);
-            setIsLoading(false);
+            resolvePaymentAttempt({ attemptId, success: false, errorMessage });
           },
           disableFunding: 'paylater',
           style: {
@@ -366,12 +403,21 @@ const PaymentModal = ({
       return;
     }
 
+    const attemptId = beginPaymentAttempt();
     try {
       setIsLoading(true);
       await fields.submit();
     } catch (error) {
-      toast.error('Failed to process card payment.');
-      setIsLoading(false);
+      // Card submit can throw intermediate/non-fatal SDK errors before onApprove resolves.
+      // Delay showing an error to avoid conflicting success + error toasts.
+      pendingCardErrorTimerRef.current = setTimeout(() => {
+        resolvePaymentAttempt({
+          attemptId,
+          success: false,
+          errorMessage: error?.message || 'Failed to process card payment.',
+        });
+        pendingCardErrorTimerRef.current = null;
+      }, 1200);
     }
   };
 
@@ -496,20 +542,29 @@ const PaymentModal = ({
                     </div>
                     <Button
                       onClick={async () => {
+                        const attemptId = beginPaymentAttempt();
                         if (!checkoutId) {
-                          toast.error('Checkout session not found');
+                          resolvePaymentAttempt({
+                            attemptId,
+                            success: false,
+                            errorMessage: 'Checkout session not found',
+                          });
                           return;
                         }
                         setIsLoading(true);
                         try {
                           const response = await checkoutAPI.payWithWallet(checkoutId);
-                          toast.success('Payment successful!');
-                          if (onSuccess) {
-                            onSuccess(response.data.data);
-                          }
-                          onOpenChange(false);
+                          resolvePaymentAttempt({
+                            attemptId,
+                            success: true,
+                            payload: response.data.data,
+                          });
                         } catch (error) {
-                          toast.error(error.response?.data?.message || 'Wallet payment failed');
+                          resolvePaymentAttempt({
+                            attemptId,
+                            success: false,
+                            errorMessage: error.response?.data?.message || 'Wallet payment failed',
+                          });
                         } finally {
                           setIsLoading(false);
                         }

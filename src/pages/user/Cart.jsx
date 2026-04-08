@@ -73,6 +73,8 @@ const Cart = () => {
   // Calculate totals using discounted prices from backend
   const subtotal = cart?.subtotal || 0;
   const bundleDiscount = cart?.bundleDiscount || 0;
+  const subscriptionDiscount = cart?.subscriptionDiscount || 0;
+  const hasSubscriptionDiscount = cart?.hasSubscriptionDiscount || false;
   const total = cart?.total || subtotal;
 
   return (
@@ -221,6 +223,9 @@ const Cart = () => {
               <CardTitle className="text-white">Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {hasSubscriptionDiscount && (
+                <Badge className="bg-green-600 text-white">✅ 2% Subscription Discount Applied</Badge>
+              )}
               <div className="flex justify-between text-gray-300">
                 <span>Subtotal</span>
                 <span className="text-white">${subtotal.toFixed(2)}</span>
@@ -229,6 +234,12 @@ const Cart = () => {
                 <div className="flex justify-between text-green-400">
                   <span>Bundle Discount</span>
                   <span className="font-semibold">-${bundleDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {subscriptionDiscount > 0 && (
+                <div className="flex justify-between text-green-400">
+                  <span>Sub Discount (2%)</span>
+                  <span className="font-semibold">-${subscriptionDiscount.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-300">

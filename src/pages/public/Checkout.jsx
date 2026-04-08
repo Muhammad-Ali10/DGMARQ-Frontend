@@ -181,12 +181,17 @@ const Checkout = () => {
     return sum + (price * qty);
   }, 0) ?? 0;
   const bundleDiscount = cart?.bundleDiscount ?? 0;
-  const subscriptionDiscount = checkout?.subscriptionDiscount ?? 0;
-  const couponDiscount = appliedCoupon?.discountAmount ?? checkout?.couponDiscount ?? 0;
+  const couponBase = Math.max(0, subtotal - bundleDiscount);
+  const couponDiscount = appliedCoupon
+    ? (appliedCoupon.discountType === 'percentage'
+      ? (couponBase * (appliedCoupon.discountValue || 0)) / 100
+      : Math.min(appliedCoupon.discountAmount || appliedCoupon.discountValue || 0, couponBase))
+    : (checkout?.couponDiscount ?? 0);
+  const previewAfterCoupon = Math.max(0, couponBase - couponDiscount);
+  const subscriptionDiscount = checkout?.subscriptionDiscount
+    ?? (userSubscription?.hasSubscription ? (previewAfterCoupon * 0.02) : 0);
   const totalDiscount = bundleDiscount + subscriptionDiscount + couponDiscount;
-  const totalBeforeFee = (cart?.total !== undefined)
-    ? cart.total - couponDiscount + (appliedCoupon ? (subtotal - bundleDiscount - subscriptionDiscount) * ((appliedCoupon.discountPercent ?? 0) / 100) : 0)
-    : subtotal - totalDiscount;
+  const totalBeforeFee = Math.max(0, subtotal - totalDiscount);
 
   const { data: handlingFeeEstimate } = useQuery({
     queryKey: ['handling-fee-estimate', totalBeforeFee],
@@ -952,6 +957,9 @@ const Checkout = () => {
                 <CardTitle className="text-white">Order Total</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {(subscriptionDiscount > 0) && (
+                  <Badge className="bg-green-600 text-white">✅ 2% Subscription Discount Applied</Badge>
+                )}
                 <div className="space-y-3">
                   <div className="flex justify-between text-gray-300">
                     <span>Subtotal</span>
@@ -967,7 +975,7 @@ const Checkout = () => {
 
                   {subscriptionDiscount > 0 && (
                     <div className="flex justify-between text-green-400">
-                      <span>Subscription Discount</span>
+                      <span>Sub Discount (2%)</span>
                       <span className="font-semibold">-${subscriptionDiscount.toFixed(2)}</span>
                     </div>
                   )}
