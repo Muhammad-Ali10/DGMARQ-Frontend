@@ -127,7 +127,7 @@ const SubscriptionsManagement = () => {
                       <TableCell className="text-white">
                         {subscription.userId?.name || subscription.userId?.email || 'N/A'}
                       </TableCell>
-                      <TableCell className="text-gray-400">{subscription.plan || 'Standard'}</TableCell>
+                      <TableCell className="text-gray-400">{subscription.planName || 'Standard'}</TableCell>
                       <TableCell>{getStatusBadge(subscription.status)}</TableCell>
                       <TableCell className="text-gray-400">
                         {subscription.startDate ? new Date(subscription.startDate).toLocaleDateString() : '-'}
@@ -136,7 +136,7 @@ const SubscriptionsManagement = () => {
                         {subscription.endDate ? new Date(subscription.endDate).toLocaleDateString() : '-'}
                       </TableCell>
                       <TableCell className="text-white font-semibold">
-                        ${subscription.amount?.toFixed(2) || '0.00'}
+                        {subscription.currency || '$'}{subscription.amount?.toFixed(2) || '0.00'}
                       </TableCell>
                     </TableRow>
                   ))
