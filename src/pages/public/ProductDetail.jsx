@@ -33,7 +33,7 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { addToGuestCart } from '../../utils/guestCart';
-import { getPlatformName, getTypeName } from '../../utils/productUtils';
+import { calculateProductPrice, getPlatformName, getTypeName } from '../../utils/productUtils';
 
 const ProductDetail = () => {
   const { identifier } = useParams();
@@ -272,43 +272,12 @@ const ProductDetail = () => {
     return <ErrorMessage message="Product not found" />;
   }
 
-  const originalPrice = Number(product.price ?? 0);
-  const discountPercentRaw =
-    product.discount ??
-    product.discountPercentage ??
-    product.discountPercent ??
-    product?.trendingOffer?.discountPercent ??
-    product?.trendingOffer?.discountPercentage ??
-    0;
-  const discountPercent = Number(discountPercentRaw) || 0;
-
-  const apiDiscountedPriceRaw =
-    product.discountedPrice ?? product.salePrice ?? product?.pricing?.discountedPrice;
-  const apiDiscountedPriceNum = Number(apiDiscountedPriceRaw);
-  const apiDiscountedPrice =
-    apiDiscountedPriceRaw !== undefined &&
-    apiDiscountedPriceRaw !== null &&
-    !Number.isNaN(apiDiscountedPriceNum)
-      ? apiDiscountedPriceNum
-      : null;
-
-  const computedDiscountedPrice =
-    originalPrice - (originalPrice * discountPercent) / 100;
-
-  const discountedPrice = apiDiscountedPrice !== null ? apiDiscountedPrice : computedDiscountedPrice;
-
-  const hasDiscount =
-    (discountPercent > 0 && discountPercent <= 100) ||
-    (apiDiscountedPrice !== null && apiDiscountedPrice < originalPrice);
-
-  const safeOriginalPrice = Math.max(0, originalPrice);
-  const safeDiscountedPrice = Math.max(0, Math.min(safeOriginalPrice, discountedPrice));
-  const displayDiscountPercent =
-    discountPercent > 0
-      ? discountPercent
-      : hasDiscount && safeOriginalPrice > 0
-        ? Math.round((1 - safeDiscountedPrice / safeOriginalPrice) * 100)
-        : 0;
+  const {
+    originalPrice: safeOriginalPrice,
+    discountPrice: safeDiscountedPrice,
+    discountPercentage: displayDiscountPercent,
+  } = calculateProductPrice(product);
+  const hasDiscount = safeDiscountedPrice < safeOriginalPrice;
 
   const images = product.images || [];
   const reviews = reviewsData?.docs || [];

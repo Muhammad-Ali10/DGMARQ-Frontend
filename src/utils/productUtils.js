@@ -21,20 +21,45 @@ export const calculateProductPrice = (product) => {
     product = { ...product, price: parsedPrice };
   }
 
-  const originalPrice = Number(product.price) || 0;
+  const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+  const originalPrice = round2(Number(product.price) || 0);
+  const discountPercentRaw =
+    product.trendingOffer?.discountPercent ??
+    product.trendingOffer?.discountPercentage ??
+    product.discountPercentage ??
+    product.discountPercent ??
+    product.discount ??
+    0;
+  const discountPercentage = Math.max(0, Number(discountPercentRaw) || 0);
+
+  const discountedPriceRaw =
+    product.discountedPrice ??
+    product.salePrice ??
+    product?.pricing?.discountedPrice ??
+    null;
+  const discountedPriceNum = Number(discountedPriceRaw);
+  const hasApiDiscountedPrice =
+    discountedPriceRaw !== null &&
+    discountedPriceRaw !== undefined &&
+    Number.isFinite(discountedPriceNum) &&
+    discountedPriceNum > 0 &&
+    discountedPriceNum < originalPrice;
+
   let discountPrice = originalPrice;
-  let discountPercentage = 0;
-  if (product.trendingOffer?.discountPercent) {
-    discountPercentage = Number(product.trendingOffer.discountPercent) || 0;
-    discountPrice = originalPrice * (1 - discountPercentage / 100);
-  } else if (product.discount) {
-    discountPercentage = Number(product.discount) || 0;
-    discountPrice = originalPrice * (1 - discountPercentage / 100);
+  if (hasApiDiscountedPrice) {
+    discountPrice = round2(discountedPriceNum);
+  } else if (discountPercentage > 0 && discountPercentage <= 100) {
+    discountPrice = round2(originalPrice * (1 - discountPercentage / 100));
   }
 
   return {
-    discountPrice,
-    discountPercentage,
+    discountPrice: Math.max(0, Math.min(originalPrice, discountPrice)),
+    discountPercentage:
+      discountPercentage > 0 && discountPercentage <= 100
+        ? discountPercentage
+        : originalPrice > 0 && discountPrice < originalPrice
+          ? round2(((originalPrice - discountPrice) / originalPrice) * 100)
+          : 0,
     originalPrice,
   };
 };

@@ -174,6 +174,8 @@ const Checkout = () => {
     },
   });
 
+  const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
   const subtotal = cart?.subtotal ?? cart?.items?.reduce((sum, item) => {
     const product = item.product || item.productId;
     const price = product?.price || item.unitPrice || 0;
@@ -181,17 +183,17 @@ const Checkout = () => {
     return sum + (price * qty);
   }, 0) ?? 0;
   const bundleDiscount = cart?.bundleDiscount ?? 0;
-  const couponBase = Math.max(0, subtotal - bundleDiscount);
+  const couponBase = round2(Math.max(0, subtotal - bundleDiscount));
   const couponDiscount = appliedCoupon
     ? (appliedCoupon.discountType === 'percentage'
-      ? (couponBase * (appliedCoupon.discountValue || 0)) / 100
+      ? round2((couponBase * (appliedCoupon.discountValue || 0)) / 100)
       : Math.min(appliedCoupon.discountAmount || appliedCoupon.discountValue || 0, couponBase))
     : (checkout?.couponDiscount ?? 0);
-  const previewAfterCoupon = Math.max(0, couponBase - couponDiscount);
+  const previewAfterCoupon = round2(Math.max(0, couponBase - couponDiscount));
   const subscriptionDiscount = checkout?.subscriptionDiscount
-    ?? (userSubscription?.hasSubscription ? (previewAfterCoupon * 0.02) : 0);
+    ?? (userSubscription?.hasSubscription ? round2(previewAfterCoupon * 0.02) : 0);
   const totalDiscount = bundleDiscount + subscriptionDiscount + couponDiscount;
-  const totalBeforeFee = Math.max(0, subtotal - totalDiscount);
+  const totalBeforeFee = round2(Math.max(0, subtotal - totalDiscount));
 
   const { data: handlingFeeEstimate } = useQuery({
     queryKey: ['handling-fee-estimate', totalBeforeFee],
@@ -239,7 +241,8 @@ const Checkout = () => {
       return;
     }
     
-    const subtotalAfterDiscounts = subtotal - bundleDiscount - subscriptionDiscount;
+    // Coupon must be validated before subscription discount is applied.
+    const subtotalAfterDiscounts = Math.max(0, subtotal - bundleDiscount);
     
     validateCouponMutation.mutate({ 
       code: trimmedCode, 
@@ -973,13 +976,6 @@ const Checkout = () => {
                     </div>
                   )}
 
-                  {subscriptionDiscount > 0 && (
-                    <div className="flex justify-between text-green-400">
-                      <span>Sub Discount (2%)</span>
-                      <span className="font-semibold">-${subscriptionDiscount.toFixed(2)}</span>
-                    </div>
-                  )}
-
                   {/* Save with DGMARQ Plus CTA */}
                   {!userSubscription?.hasSubscription && (
                     <div className="p-4 bg-gradient-to-r from-accent/10 to-accent/5 border border-accent/30 rounded-lg">
@@ -1009,6 +1005,13 @@ const Checkout = () => {
                     <div className="flex justify-between text-green-400">
                       <span>Coupon Discount</span>
                       <span className="font-semibold">-${couponDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  {subscriptionDiscount > 0 && (
+                    <div className="flex justify-between text-green-400">
+                      <span>Sub Discount (2%)</span>
+                      <span className="font-semibold">-${subscriptionDiscount.toFixed(2)}</span>
                     </div>
                   )}
 
