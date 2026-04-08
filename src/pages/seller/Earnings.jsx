@@ -132,28 +132,7 @@ const SellerEarnings = () => {
         </Card>
       </div>
 
-      {balance?.holdReason && (balance?.available > 0 || balance?.pending?.amount > 0) && (
-        <Card className="bg-primary border-gray-700 border-l-4 border-l-amber-500">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="shrink-0">
-                <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
-                  <DollarSign className="h-4 w-4 text-amber-500" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-1">PayPal action needed</h3>
-                <p className="text-gray-300 text-sm">
-                  ⚠️ You have ${Number(balance?.available || 0).toFixed(2)} available but payouts cannot be sent yet. {balance.holdReason}
-                </p>
-                <p className="text-gray-400 text-xs mt-2">
-                  Go to <a href="/seller/payout-account" className="text-accent hover:underline">Payout Account</a> to connect or verify PayPal.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+  
 
       {/* Hold Period Information */}
       {balance?.pending?.amount > 0 && balance?.pending?.daysUntilAvailable > 0 && (
