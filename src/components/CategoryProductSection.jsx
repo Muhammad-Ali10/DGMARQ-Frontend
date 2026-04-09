@@ -61,7 +61,7 @@ const CategoryProductSection = ({
         page: 1,
         sort: sortBy === "rating" ? "rating" : "newest",
       };
-      if (categoryName) {
+      if (categoryName) { 
         params.categoryName = categoryName;
       }
       if (productTypeName) {

@@ -564,7 +564,7 @@ const Home = () => {
       <CategoryProductSection
         title="Random Keys"
         description="Discover random game keys and digital products"
-        productTypeName="Key"
+        categoryName="Random Keys"
         sortBy="rating"
         limit={6}
       />

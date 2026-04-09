@@ -58,7 +58,7 @@ const Hero = () => {
                     alt={slider.title}
                     className="w-full h-full object-cover"
                   />
-                  {isCenter && hasProduct && (
+                  {/* {isCenter && hasProduct && (
                     <div className="absolute bottom-0 left-0 w-full bg-blue-800/95 p-4">
                       <div className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded inline-block mb-2">
                         New Release
@@ -70,7 +70,7 @@ const Hero = () => {
                         {product.platform?.name || 'Steam'} · {product.region?.name || 'Global'} · {product.type?.name || 'Key/Account'}
                       </p>
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
             );
