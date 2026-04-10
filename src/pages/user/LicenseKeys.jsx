@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { licenseKeyAPI } from '../../services/api';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -15,8 +15,6 @@ const LicenseKeys = () => {
   const [isRevealOpen, setIsRevealOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [page, setPage] = useState(1);
-  const queryClient = useQueryClient();
-
   const { data: licenseKeysData, isLoading, isError, error } = useQuery({
     queryKey: ['license-keys', page],
     queryFn: () => licenseKeyAPI.getMyLicenseKeys({ page, limit: 10 }).then(res => res.data.data),
@@ -91,8 +89,8 @@ const LicenseKeys = () => {
               </TableHeader>
               <TableBody>
                 {licenseKeys && Array.isArray(licenseKeys) && licenseKeys.length > 0 ? (
-                  licenseKeys.map((key) => (
-                    <TableRow key={key._id} className="border-gray-700">
+                  licenseKeys.map((key, index) => (
+                    <TableRow key={key.keyId || key._id || `license-key-${index}`} className="border-gray-700">
                       <TableCell>
                         <div className="flex items-center gap-3">
                           {key.productImage && (
@@ -123,7 +121,7 @@ const LicenseKeys = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleReveal(key.keyId || key._id)}
+                          onClick={() => handleReveal(key?.keyId || key?._id)}
                           disabled={revealMutation.isPending}
                           className="border-gray-700 text-gray-300"
                         >
