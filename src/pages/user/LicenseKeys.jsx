@@ -23,7 +23,9 @@ const LicenseKeys = () => {
     retry: 2,
   });
 
-  const licenseKeys = licenseKeysData?.keys || [];
+  const licenseKeys = Array.isArray(licenseKeysData?.keys)
+    ? licenseKeysData.keys.filter((key) => key && typeof key === 'object')
+    : [];
   const pagination = licenseKeysData?.pagination || {};
 
   const revealMutation = useMutation({

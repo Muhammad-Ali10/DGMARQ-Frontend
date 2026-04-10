@@ -10,6 +10,7 @@ import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { MessageSquare, Send, ImagePlus } from 'lucide-react';
 import { useSocket } from '../../hooks/useSocket';
 import { useChatNotifications } from '../../hooks/useChatNotifications';
+import ErrorBoundary from '../../components/ErrorBoundary';
 import MessageBubble from '../../components/chat/MessageBubble';
 import VirtualizedMessageList from '../../components/chat/VirtualizedMessageList';
 import ChatMessageSkeleton from '../../components/chat/ChatMessageSkeleton';
@@ -48,6 +49,9 @@ function appendMessageToCache(queryClient, queryKey, newMsg) {
   });
 }
 
+const CONVERSATIONS_DEBOUNCE_MS = 2000;
+let sellerConversationsCache = { ts: 0, data: [], pending: null };
+
 const SellerChat = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const conversationFromUrl = searchParams.get('conversation');
@@ -66,13 +70,34 @@ const SellerChat = () => {
   const myId = user?._id?.toString();
 
   // ─── Conversations query ───
-  const { data: conversations, isLoading: conversationsLoading, error: conversationsError } = useQuery({
+  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ['seller-conversations'],
-    queryFn: () => chatAPI.getConversations({ role: 'seller' }).then(res => res.data.data),
+    queryFn: async () => {
+      const now = Date.now();
+      if (sellerConversationsCache.pending) return sellerConversationsCache.pending;
+      if (now - sellerConversationsCache.ts < CONVERSATIONS_DEBOUNCE_MS) {
+        return sellerConversationsCache.data;
+      }
+      sellerConversationsCache.pending = chatAPI
+        .getConversations({ role: 'seller' })
+        .then((res) => {
+          const payload = res?.data?.data;
+          const normalized = Array.isArray(payload) ? payload : [];
+          sellerConversationsCache = { ts: Date.now(), data: normalized, pending: null };
+          return normalized;
+        })
+        .catch((error) => {
+          sellerConversationsCache.pending = null;
+          throw error;
+        });
+      return sellerConversationsCache.pending;
+    },
     enabled: !!user,
-    staleTime: 30000,
+    staleTime: CONVERSATIONS_DEBOUNCE_MS,
     gcTime: 300000,
     refetchOnWindowFocus: false,
+    retryDelay: CONVERSATIONS_DEBOUNCE_MS,
+    useErrorBoundary: false,
   });
 
   useEffect(() => {
@@ -423,11 +448,15 @@ const SellerChat = () => {
   };
 
   if (conversationsLoading) return <Loading message="Loading conversations..." />;
+  if (conversationsError) {
+    return <ErrorMessage message={conversationsError?.response?.data?.message || conversationsError?.message || 'Failed to load conversations'} />;
+  }
 
-  const conversation = conversations?.find((c) => c._id === selectedConversation);
+  const conversation = (conversations ?? []).find((c) => c?._id === selectedConversation);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 max-h-[calc(100vh-4rem)] -m-4 md:-m-6 lg:-m-8">
+    <ErrorBoundary>
+      <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 max-h-[calc(100vh-4rem)] -m-4 md:-m-6 lg:-m-8">
       <div className="shrink-0 mb-4 px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Chat</h1>
         <p className="text-gray-400 mt-1">Communicate with buyers</p>
@@ -444,16 +473,16 @@ const SellerChat = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto min-h-0 p-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
-            {conversations?.length === 0 ? (
+            {conversations.length === 0 ? (
               <div className="text-center py-8 text-gray-400">No conversations yet</div>
             ) : (
               <div className="space-y-2">
-                {conversations.map((conv) => (
+                {(conversations ?? []).map((conv) => (
                   <div
-                    key={conv._id}
-                    onClick={() => setSelectedConversation(conv._id)}
+                    key={conv?._id}
+                    onClick={() => setSelectedConversation(conv?._id)}
                     className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                      selectedConversation === conv._id
+                      selectedConversation === conv?._id
                         ? 'bg-accent'
                         : 'bg-gray-800 hover:bg-gray-700'
                     }`}
@@ -462,12 +491,12 @@ const SellerChat = () => {
                       <span className="text-white font-medium truncate">
                         {conv.buyerId?.name || 'Buyer'}
                       </span>
-                      {conv.unreadCountSeller > 0 && (
-                        <Badge variant="destructive">{conv.unreadCountSeller}</Badge>
+                      {(conv?.unreadCountSeller ?? 0) > 0 && (
+                        <Badge variant="destructive">{conv?.unreadCountSeller}</Badge>
                       )}
                     </div>
                     <p className="text-gray-400 text-sm truncate">
-                      {conv.lastMessage || `Order: $${conv.orderId?.totalAmount?.toFixed(2) || '0.00'}`}
+                      {conv?.lastMessage || `Order: $${conv?.orderId?.totalAmount?.toFixed(2) || '0.00'}`}
                     </p>
                   </div>
                 ))}
@@ -478,7 +507,7 @@ const SellerChat = () => {
 
         {/* Chat Messages - Fixed Width Container */}
         <Card className="lg:col-span-2 bg-primary border-gray-700 flex flex-col max-w-full py-2 h-full min-h-0 overflow-hidden">
-          <CardHeader className="shrink-0 border-b border-gray-700 px-4 !py-0">
+          <CardHeader className="shrink-0 border-b border-gray-700 px-4 py-0!">
             <CardTitle className="text-white text-lg">
               {conversation ? `Chat with ${conversation.buyerId?.name || 'Buyer'}` : 'Select a conversation'}
             </CardTitle>
@@ -487,17 +516,14 @@ const SellerChat = () => {
             {selectedConversation ? (
               <>
                 {/* Messages Area - Fixed width, scrollable with infinite scroll */}
-                <div 
+                <div
+                  ref={scrollContainerRef}
                   className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0" 
                   style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}
                   onScroll={(e) => {
                     const { scrollTop } = e.target;
                     if (scrollTop < 200 && hasNextPage && !isFetchingNextPage) {
-                      setTimeout(() => {
-                        if (hasNextPage && !isFetchingNextPage) {
-                          fetchNextPage();
-                        }
-                      }, 300); // 300ms delay for smooth UX
+                      handleScrollToTop();
                     }
                   }}
                 >
@@ -616,7 +642,8 @@ const SellerChat = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

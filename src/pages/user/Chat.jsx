@@ -10,6 +10,7 @@ import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { MessageSquare, Send, ImagePlus } from 'lucide-react';
 import { useSocket } from '../../hooks/useSocket';
 import { useChatNotifications } from '../../hooks/useChatNotifications';
+import ErrorBoundary from '../../components/ErrorBoundary';
 import MessageBubble from '../../components/chat/MessageBubble';
 import VirtualizedMessageList from '../../components/chat/VirtualizedMessageList';
 import ChatMessageSkeleton from '../../components/chat/ChatMessageSkeleton';
@@ -48,6 +49,9 @@ function appendMessageToCache(queryClient, queryKey, newMsg) {
   });
 }
 
+const CONVERSATIONS_DEBOUNCE_MS = 2000;
+let userConversationsCache = { ts: 0, data: [], pending: null };
+
 const UserChat = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const conversationFromUrl = searchParams.get('conversation');
@@ -66,13 +70,34 @@ const UserChat = () => {
   const myId = user?._id?.toString();
 
   // ─── Conversations query ───
-  const { data: conversations, isLoading: conversationsLoading } = useQuery({
+  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ['user-conversations'],
-    queryFn: () => chatAPI.getConversations({ role: 'buyer' }).then(res => res.data.data),
+    queryFn: async () => {
+      const now = Date.now();
+      if (userConversationsCache.pending) return userConversationsCache.pending;
+      if (now - userConversationsCache.ts < CONVERSATIONS_DEBOUNCE_MS) {
+        return userConversationsCache.data;
+      }
+      userConversationsCache.pending = chatAPI
+        .getConversations({ role: 'buyer' })
+        .then((res) => {
+          const payload = res?.data?.data;
+          const normalized = Array.isArray(payload) ? payload : [];
+          userConversationsCache = { ts: Date.now(), data: normalized, pending: null };
+          return normalized;
+        })
+        .catch((error) => {
+          userConversationsCache.pending = null;
+          throw error;
+        });
+      return userConversationsCache.pending;
+    },
     enabled: !!user,
-    staleTime: 30000,
+    staleTime: CONVERSATIONS_DEBOUNCE_MS,
     gcTime: 300000,
     refetchOnWindowFocus: false,
+    retryDelay: CONVERSATIONS_DEBOUNCE_MS,
+    useErrorBoundary: false,
   });
 
   useEffect(() => {
@@ -425,11 +450,15 @@ const UserChat = () => {
   };
 
   if (conversationsLoading) return <Loading message="Loading conversations..." />;
+  if (conversationsError) {
+    return <ErrorMessage message={conversationsError?.response?.data?.message || conversationsError?.message || 'Failed to load conversations'} />;
+  }
 
-  const conversation = conversations?.find((c) => c._id === selectedConversation);
+  const conversation = (conversations ?? []).find((c) => c?._id === selectedConversation);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 max-h-[calc(100vh-4rem)] -m-4 md:-m-6 lg:-m-8">
+    <ErrorBoundary>
+      <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 max-h-[calc(100vh-4rem)] -m-4 md:-m-6 lg:-m-8">
       <div className="shrink-0 mb-4 px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Chat</h1>
         <p className="text-gray-400 mt-1">Chat with sellers about your orders</p>
@@ -446,16 +475,16 @@ const UserChat = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto min-h-0 p-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
-            {conversations?.length === 0 ? (
+            {conversations.length === 0 ? (
               <div className="text-center py-8 text-gray-400">No conversations yet</div>
             ) : (
               <div className="space-y-2">
-                {conversations.map((conv) => (
+                {(conversations ?? []).map((conv) => (
                   <div
-                    key={conv._id}
-                    onClick={() => setSelectedConversation(conv._id)}
+                    key={conv?._id}
+                    onClick={() => setSelectedConversation(conv?._id)}
                     className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                      selectedConversation === conv._id
+                      selectedConversation === conv?._id
                         ? 'bg-accent'
                         : 'bg-gray-800 hover:bg-gray-700'
                     }`}
@@ -464,13 +493,13 @@ const UserChat = () => {
                       <span className="text-white font-medium truncate">
                         {conv.sellerId?.shopName || 'Seller'}
                       </span>
-                      {conv.unreadCountBuyer > 0 && (
-                        <Badge variant="destructive">{conv.unreadCountBuyer}</Badge>
+                      {(conv?.unreadCountBuyer ?? 0) > 0 && (
+                        <Badge variant="destructive">{conv?.unreadCountBuyer}</Badge>
                       )}
                     </div>
                     <p className="text-gray-400 text-sm truncate">
-                      {conv.lastMessage || (conv.orderId 
-                        ? `Order: $${conv.orderId?.totalAmount?.toFixed(2) || '0.00'}`
+                      {conv?.lastMessage || (conv?.orderId
+                        ? `Order: $${conv?.orderId?.totalAmount?.toFixed(2) || '0.00'}`
                         : 'No messages yet')}
                     </p>
                   </div>
@@ -617,7 +646,8 @@ const UserChat = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

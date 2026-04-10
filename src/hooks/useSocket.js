@@ -5,6 +5,9 @@ import { useSelector } from 'react-redux';
 let globalSocket = null;
 let globalSocketToken = null;
 let globalSocketRefCount = 0;
+let globalDestroyTimer = null;
+let globalConnectionPending = false;
+const SOCKET_DESTROY_GRACE_MS = 1500;
 
 const getSocketUrl = () =>
   import.meta.env.VITE_SOCKET_URL ||
@@ -13,12 +16,17 @@ const getSocketUrl = () =>
     : 'http://localhost:8000');
 
 const destroyGlobalSocket = () => {
+  if (globalDestroyTimer) {
+    clearTimeout(globalDestroyTimer);
+    globalDestroyTimer = null;
+  }
   if (globalSocket) {
     globalSocket.removeAllListeners();
     globalSocket.disconnect();
     globalSocket = null;
     globalSocketToken = null;
   }
+  globalConnectionPending = false;
 };
 
 export const useSocket = () => {
@@ -28,12 +36,22 @@ export const useSocket = () => {
   const accessToken = token || localStorage.getItem('accessToken');
 
   useEffect(() => {
+    let isUnmounted = false;
+    const safeSetConnected = (value) => {
+      if (!isUnmounted) setIsConnected(value);
+    };
+
+    if (globalDestroyTimer) {
+      clearTimeout(globalDestroyTimer);
+      globalDestroyTimer = null;
+    }
+
     // Cleanup if logged out
     if (!isAuthenticated || !accessToken) {
       destroyGlobalSocket();
       globalSocketRefCount = 0;
       socketRef.current = null;
-      setIsConnected(false);
+      safeSetConnected(false);
       return;
     }
 
@@ -46,27 +64,51 @@ export const useSocket = () => {
     if (globalSocket && globalSocket.connected) {
       socketRef.current = globalSocket;
       globalSocketRefCount++;
-      setIsConnected(true);
+      safeSetConnected(true);
       return () => {
+        isUnmounted = true;
         globalSocketRefCount--;
         socketRef.current = null;
       };
     }
 
-    // Reconnect disconnected socket
+    // If a connection is already in progress, do not create another one.
+    if (globalSocket && globalConnectionPending) {
+      socketRef.current = globalSocket;
+      globalSocketRefCount++;
+      safeSetConnected(false);
+      return () => {
+        isUnmounted = true;
+        globalSocketRefCount--;
+        socketRef.current = null;
+      };
+    }
+
+    // Reuse a disconnected socket and let reconnection strategy handle retries.
     if (globalSocket && !globalSocket.connected) {
-      destroyGlobalSocket();
+      socketRef.current = globalSocket;
+      globalSocketRefCount++;
+      globalSocket.connect();
+      return () => {
+        isUnmounted = true;
+        globalSocketRefCount--;
+        socketRef.current = null;
+      };
     }
 
     // Create new socket
     const socketUrl = getSocketUrl();
+    globalConnectionPending = true;
     globalSocket = io(socketUrl, {
       auth: { token: accessToken },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      rememberUpgrade: true,
       reconnection: true,
+      randomizationFactor: 0,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-      reconnectionAttempts: 10,
+      reconnectionDelayMax: 4000,
+      reconnectionAttempts: 3,
       timeout: 20000,
       forceNew: false,
       withCredentials: true,
@@ -74,30 +116,50 @@ export const useSocket = () => {
     globalSocketToken = accessToken;
     globalSocketRefCount++;
 
-    globalSocket.on('connect', () => setIsConnected(true));
+    globalSocket.on('connect', () => {
+      globalConnectionPending = false;
+      safeSetConnected(true);
+    });
     globalSocket.on('disconnect', (reason) => {
-      setIsConnected(false);
+      globalConnectionPending = false;
+      safeSetConnected(false);
       if (reason === 'io server disconnect') {
         globalSocket?.connect();
       }
     });
-    globalSocket.on('connect_error', () => setIsConnected(false));
-    globalSocket.on('reconnect', () => setIsConnected(true));
-    globalSocket.on('reconnect_failed', () => setIsConnected(false));
+    globalSocket.on('connect_error', () => {
+      safeSetConnected(false);
+    });
+    globalSocket.on('reconnect', () => {
+      globalConnectionPending = false;
+      safeSetConnected(true);
+    });
+    globalSocket.on('reconnect_attempt', () => {
+      globalConnectionPending = true;
+      safeSetConnected(false);
+    });
+    globalSocket.on('reconnect_failed', () => {
+      globalConnectionPending = false;
+      safeSetConnected(false);
+    });
 
     socketRef.current = globalSocket;
 
     return () => {
+      isUnmounted = true;
       globalSocketRefCount--;
       socketRef.current = null;
-      // Only destroy socket when no components reference it
+      // Defer disconnect slightly to avoid strict-mode mount/unmount thrash.
       if (globalSocketRefCount <= 0) {
-        destroyGlobalSocket();
         globalSocketRefCount = 0;
-        setIsConnected(false);
+        globalDestroyTimer = setTimeout(() => {
+          if (globalSocketRefCount <= 0) {
+            destroyGlobalSocket();
+            safeSetConnected(false);
+          }
+        }, SOCKET_DESTROY_GRACE_MS);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, accessToken]);
 
   return { socket: socketRef.current, isConnected };
