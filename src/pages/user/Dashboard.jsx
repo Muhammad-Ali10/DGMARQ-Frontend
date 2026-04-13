@@ -64,8 +64,6 @@ const UserDashboard = () => {
   const completedOrders = ordersData?.orders?.filter(order => order.orderStatus === 'completed').length || 0;
   const pendingOrders = ordersData?.orders?.filter(order => order.orderStatus === 'pending' || order.orderStatus === 'processing').length || 0;
 
-  if (isLoading) return <Loading message="Loading dashboard..." />;
-
   const getStatusBadge = (status) => {
     const variants = {
       completed: 'success',
@@ -152,6 +150,8 @@ const UserDashboard = () => {
       link: '/user/notifications',
     },
   ]), [walletBalanceFormatted, ordersData, totalSpent, completedOrders, pendingOrders, wishlist, unreadCount, refetchWallet]);
+
+  if (isLoading) return <Loading message="Loading dashboard..." />;
 
   return (
     <div className="space-y-6">
