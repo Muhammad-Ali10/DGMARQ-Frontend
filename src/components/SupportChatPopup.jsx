@@ -14,6 +14,12 @@ import { Textarea } from './ui/textarea';
 import SafeImage from './ui/safe-image';
 
 const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
+  const ensureArray = (value, key) => {
+    if (Array.isArray(value)) return value;
+    if (key && Array.isArray(value?.[key])) return value[key];
+    return [];
+  };
+
   const [selectedChat, setSelectedChat] = useState(null);
   const [message, setMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -45,15 +51,16 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
     refetchOnWindowFocus: false,
   });
 
-  const messages = messagesData?.messages || [];
+  const chatsList = ensureArray(chats, 'chats');
+  const messages = ensureArray(messagesData, 'messages');
 
   // Auto-select first chat if available
   useEffect(() => {
-    if (chats && chats.length > 0 && !selectedChat) {
-      const openChat = chats.find(c => c.status === 'open') || chats[0];
+    if (chatsList.length > 0 && !selectedChat) {
+      const openChat = chatsList.find(c => c.status === 'open') || chatsList[0];
       setSelectedChat(openChat._id);
     }
-  }, [chats, selectedChat]);
+  }, [chatsList, selectedChat]);
 
   // Socket event handlers
   useEffect(() => {
@@ -124,13 +131,13 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
 
   // Calculate unread count
   useEffect(() => {
-    if (chats && onUnreadCountChange) {
-      const unread = chats.reduce((total, chat) => {
+    if (chatsList.length && onUnreadCountChange) {
+      const unread = chatsList.reduce((total, chat) => {
         return total + (chat.unreadCountUser || 0);
       }, 0);
       onUnreadCountChange(unread);
     }
-  }, [chats, onUnreadCountChange]);
+  }, [chatsList, onUnreadCountChange]);
 
   const createChatMutation = useMutation({
     mutationFn: (data) => supportAPI.createSupportChat(data),
@@ -222,7 +229,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
     e.target.value = '';
   };
 
-  const selectedChatData = chats?.find((c) => c._id === selectedChat);
+  const selectedChatData = chatsList.find((c) => c._id === selectedChat);
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -268,11 +275,11 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
           </div>
           {chatsLoading ? (
             <div className="p-4 text-center text-gray-400 text-sm">Loading...</div>
-          ) : chats?.length === 0 ? (
+          ) : chatsList.length === 0 ? (
             <div className="p-4 text-center text-gray-400 text-sm">No chats</div>
           ) : (
             <div className="space-y-1 p-2">
-              {chats?.map((chat) => (
+              {chatsList.map((chat) => (
                 <div
                   key={chat._id}
                   onClick={() => setSelectedChat(chat._id)}

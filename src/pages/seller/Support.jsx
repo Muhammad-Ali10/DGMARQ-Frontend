@@ -16,6 +16,12 @@ import { useSelector } from 'react-redux';
 import SafeImage from '../../components/ui/safe-image';
 
 const SellerSupport = () => {
+  const ensureArray = (value, key) => {
+    if (Array.isArray(value)) return value;
+    if (key && Array.isArray(value?.[key])) return value[key];
+    return [];
+  };
+
   const [selectedChat, setSelectedChat] = useState(null);
   const [message, setMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -37,7 +43,7 @@ const SellerSupport = () => {
     refetchOnWindowFocus: false,
   });
 
-  const { data: messages, isLoading: messagesLoading } = useQuery({
+  const { data: messagesData, isLoading: messagesLoading } = useQuery({
     queryKey: ['support-messages', selectedChat],
     queryFn: () => supportAPI.getSupportMessages(selectedChat).then(res => res.data.data),
     enabled: !!selectedChat,
@@ -196,7 +202,9 @@ const SellerSupport = () => {
 
   if (chatsLoading) return <Loading message="Loading support chats..." />;
 
-  const selectedChatData = chats?.find((c) => c._id === selectedChat);
+  const chatsList = ensureArray(chats, 'chats');
+  const messages = ensureArray(messagesData, 'messages');
+  const selectedChatData = chatsList.find((c) => c._id === selectedChat);
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -230,11 +238,11 @@ const SellerSupport = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-y-auto max-h-full">
-            {chats?.length === 0 ? (
+            {chatsList.length === 0 ? (
               <div className="text-center py-8 text-gray-400">No support tickets</div>
             ) : (
               <div className="space-y-2">
-                {chats?.map((chat) => (
+                {chatsList.map((chat) => (
                   <div
                     key={chat._id}
                     onClick={() => setSelectedChat(chat._id)}

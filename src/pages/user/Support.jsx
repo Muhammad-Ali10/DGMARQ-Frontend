@@ -15,6 +15,12 @@ import { showSuccess, showApiError } from '../../utils/toast';
 import SafeImage from '../../components/ui/safe-image';
 
 const UserSupport = () => {
+  const ensureArray = (value, key) => {
+    if (Array.isArray(value)) return value;
+    if (key && Array.isArray(value?.[key])) return value[key];
+    return [];
+  };
+
   const [selectedChat, setSelectedChat] = useState(null);
   const [message, setMessage] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -38,7 +44,8 @@ const UserSupport = () => {
     enabled: !!selectedChat,
   });
 
-  const messages = messagesData?.messages || [];
+  const chatsList = ensureArray(chats, 'chats');
+  const messages = ensureArray(messagesData, 'messages');
 
   useEffect(() => {
     if (!socket || !isConnected || !selectedChat) return;
@@ -182,7 +189,7 @@ const UserSupport = () => {
 
   if (chatsLoading) return <Loading message="Loading support chats..." />;
 
-  const selectedChatData = chats?.find((c) => c._id === selectedChat);
+  const selectedChatData = chatsList.find((c) => c._id === selectedChat);
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -216,11 +223,11 @@ const UserSupport = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-y-auto max-h-full">
-            {chats?.length === 0 ? (
+            {chatsList.length === 0 ? (
               <div className="text-center py-8 text-gray-400">No support tickets</div>
             ) : (
               <div className="space-y-2">
-                {chats?.map((chat) => (
+                {chatsList.map((chat) => (
                   <div
                     key={chat._id}
                     onClick={() => setSelectedChat(chat._id)}
@@ -272,10 +279,10 @@ const UserSupport = () => {
                     ref={messagesContainerRef}
                     className="flex-1 overflow-y-auto mb-4 space-y-4"
                   >
-                    {messages?.length === 0 ? (
+                    {messages.length === 0 ? (
                       <div className="text-center py-8 text-gray-400">No messages yet</div>
                     ) : (
-                      messages?.map((msg) => {
+                      messages.map((msg) => {
                         const isUser = msg.senderType === 'user';
                         const isImage = msg.messageType === 'image' || msg.attachment;
                         return (

@@ -34,6 +34,11 @@ const Wishlist = () => {
     retry: false,
   });
 
+  const wishlistItems = useMemo(
+    () => (wishlist?.products || []).map(item => item.productId || item).filter(Boolean),
+    [wishlist]
+  );
+
   const removeItemMutation = useMutation({
     mutationFn: (productId) => userAPI.removeFromWishlist({ productId }),
     onSuccess: () => {
@@ -157,13 +162,6 @@ const Wishlist = () => {
       </div>
     );
   }
-
-  // Extract products from wishlist data
-  const products = wishlist?.products || [];
-  const wishlistItems = useMemo(
-    () => products.map(item => item.productId || item).filter(Boolean),
-    [products]
-  );
 
   // Empty wishlist state
   if (!wishlistItems || wishlistItems.length === 0) {
