@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productAPI, cartAPI, reviewAPI, userAPI } from '../../services/api';
 import { useSEO, generateProductSEO } from '../../hooks/useSEO';
 import { Button } from '../../components/ui/button';
@@ -33,7 +33,9 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { addToGuestCart } from '../../utils/guestCart';
-import { calculateProductPrice, getPlatformName, getTypeName } from '../../utils/productUtils';
+import { calculateProductPrice, getPlatformName, getTypeName, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productUtils';
+import SafeImage from '../../components/ui/safe-image';
+import { Helmet } from 'react-helmet-async';
 
 const ProductDetail = () => {
   const { identifier } = useParams();
@@ -82,7 +84,7 @@ const ProductDetail = () => {
     enabled: isAuthenticated && !!product?._id,
   });
 
-  const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
+  const { data: reviewsData, isLoading: reviewsLoading, isFetching: reviewsFetching } = useQuery({
     queryKey: ['product-reviews', product?._id, reviewsPage],
     queryFn: async () => {
       if (!product?._id) return { docs: [], totalDocs: 0 };
@@ -99,6 +101,7 @@ const ProductDetail = () => {
       }
     },
     enabled: !!product?._id,
+    placeholderData: keepPreviousData,
   });
 
   const { data: relatedProducts } = useQuery({
@@ -279,7 +282,9 @@ const ProductDetail = () => {
   } = calculateProductPrice(product);
   const hasDiscount = safeDiscountedPrice < safeOriginalPrice;
 
-  const images = product.images || [];
+  const images = Array.isArray(product.images)
+    ? product.images.filter((image) => typeof image === 'string' && image.trim())
+    : [];
   const reviews = reviewsData?.docs || [];
   
   const seller = product?.sellerId || product?.seller || null;
@@ -338,6 +343,15 @@ const ProductDetail = () => {
 
   return (
     <div className="space-y-6 pb-8 container mx-auto">
+      <Helmet>
+        <title>{product.name} | DGMARQ</title>
+        <meta name="description" content={product.description?.slice(0, 155)} />
+        <meta property="og:title" content={product.name} />
+        <meta property="og:description" content={product.description?.slice(0, 155)} />
+        <meta property="og:image" content={product.images?.[0]} />
+        <meta property="og:url" content={`https://www.dgmarq.com/product/${product.slug || product._id}`} />
+        <link rel="canonical" href={`https://www.dgmarq.com/product/${product.slug || product._id}`} />
+      </Helmet>
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-400">
         <div className="flex items-center gap-2">
@@ -369,10 +383,11 @@ const ProductDetail = () => {
             <CardContent className="p-0">
               <div className="relative aspect-video bg-gray-900">
                 {images.length > 0 ? (
-                  <img
+                  <SafeImage
                     src={images[selectedImageIndex]}
                     alt={product.name}
                     className="w-full h-full object-contain"
+                    fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-500">
@@ -387,7 +402,7 @@ const ProductDetail = () => {
             <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
               {images.map((image, index) => (
                 <button
-                  key={index}
+                  key={`${image}-${index}`}
                   onClick={() => setSelectedImageIndex(index)}
                   className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-all ${
                     selectedImageIndex === index
@@ -395,10 +410,11 @@ const ProductDetail = () => {
                       : 'border-gray-700 hover:border-gray-600'
                   }`}
                 >
-                  <img
+                  <SafeImage
                     src={image}
                     alt={`${product.name} - ${index + 1}`}
                     className="w-full h-full object-cover"
+                    fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
                   />
                 </button>
               ))}
@@ -594,7 +610,7 @@ const ProductDetail = () => {
                   {attributes.map((attr, index) => {
                     const Icon = attr.icon;
                     return (
-                      <div key={index} className="flex items-center gap-2 text-sm">
+                      <div key={`${attr.label}-${attr.value}-${index}`} className="flex items-center gap-2 text-sm">
                         <Icon className="h-4 w-4 text-gray-400 shrink-0" />
                         <span className="text-gray-400">{attr.label}:</span>
                         <span className="text-white font-medium">{attr.value}</span>
@@ -624,10 +640,11 @@ const ProductDetail = () => {
                   className={`shrink-0 ${canNavigateToSeller ? 'cursor-pointer transition-transform hover:scale-105' : ''}`}
                   onClick={canNavigateToSeller ? () => navigate(`/seller/${sellerId}`) : undefined}
                 >
-                  <img
+                  <SafeImage
                     src={seller.shopLogo}
                     alt={seller.shopName || 'Seller'}
                     className="w-20 h-20 rounded-lg object-cover border border-gray-700"
+                    hideOnError={true}
                   />
                 </div>
               )}
@@ -827,6 +844,9 @@ const ProductDetail = () => {
             </div>
           ) : reviews.length > 0 ? (
             <div className="space-y-6">
+              {reviewsFetching && (
+                <p className="text-sm text-gray-400">Updating reviews...</p>
+              )}
               {reviews.map((review) => (
                 <div
                   key={review._id}
@@ -835,10 +855,11 @@ const ProductDetail = () => {
                   <div className="flex items-start gap-4">
                     <div className="shrink-0">
                       {review.user?.profileImage ? (
-                        <img
+                        <SafeImage
                           src={review.user.profileImage}
                           alt={review.user.name}
                           className="w-12 h-12 rounded-full object-cover"
+                          hideOnError={true}
                         />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">

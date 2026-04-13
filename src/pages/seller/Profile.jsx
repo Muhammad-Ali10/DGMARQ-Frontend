@@ -10,6 +10,7 @@ import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Badge } from '../../components/ui/badge';
 import { User, Image, Shield, CheckCircle, XCircle, Camera, Upload } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const SellerProfile = () => {
   const queryClient = useQueryClient();
@@ -259,7 +260,7 @@ const SellerProfile = () => {
                 <form onSubmit={handleLogoUpdate} className="space-y-4">
                   <div className="flex flex-col items-center space-y-4">
                     <div className="relative">
-                      <img
+                      <SafeImage
                         src={previewLogo || '/placeholder-logo.png'}
                         alt="Shop Logo"
                         className="w-32 h-32 rounded-lg object-cover border-4 border-accent"
@@ -301,7 +302,7 @@ const SellerProfile = () => {
                 <form onSubmit={handleBannerUpdate} className="space-y-4">
                   <div className="space-y-4">
                     <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-700">
-                      <img
+                      <SafeImage
                         src={previewBanner || '/placeholder-banner.png'}
                         alt="Shop Banner"
                         className="w-full h-full object-cover"

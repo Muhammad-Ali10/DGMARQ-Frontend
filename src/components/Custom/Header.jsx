@@ -56,6 +56,7 @@ import {
 } from "../../services/api";
 import { cn } from "../../lib/utils";
 import SessionMenu from "./SessionMenu";
+import SafeImage from "../ui/safe-image";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -327,7 +328,7 @@ const Header = () => {
                 setMobileMenuOpen(false);
               }}
             >
-              <img
+              <SafeImage
                 src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
                 alt="logo"
                 className="w-full h-10"
@@ -415,7 +416,7 @@ const Header = () => {
                               className="w-full px-4 py-3 hover:bg-gray-800/50 flex items-center gap-3 text-left transition-colors"
                             >
                               {product.images?.[0] && (
-                                <img
+                                <SafeImage
                                   src={product.images[0]}
                                   alt={product.name}
                                   className="w-12 h-12 object-cover rounded"
@@ -610,7 +611,7 @@ const Header = () => {
                             >
                               {/* Category Image/Icon */}
                               {category.image ? (
-                                <img
+                                <SafeImage
                                   src={category.image}
                                   alt={category.name}
                                   className="w-8 h-8 object-cover rounded shrink-0"
@@ -648,7 +649,7 @@ const Header = () => {
                               >
                                 {/* Subcategory Icon */}
                                 {subcategory.image ? (
-                                  <img
+                                  <SafeImage
                                     src={subcategory.image}
                                     alt={subcategory.name}
                                     className="w-8 h-8 object-cover rounded shrink-0"

@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Trash2, ShoppingCart, Plus, Minus, Tag } from 'lucide-react';
 import { getPlatformName, getTypeName } from '../../utils/productUtils';
+import SafeImage from '../../components/ui/safe-image';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -135,7 +136,7 @@ const Cart = () => {
                           <TableCell>
                             <div className="flex items-center gap-3">
                               {productImage && (
-                                <img
+                                <SafeImage
                                   src={productImage}
                                   alt={productName}
                                   className="w-16 h-16 object-cover rounded"

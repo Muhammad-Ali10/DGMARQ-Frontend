@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,7 @@ import { Heart, ShoppingCart, Trash2, LogIn, ArrowRight, X } from 'lucide-react'
 import { Link } from 'react-router-dom';
 import ProductCard from '../../components/ProductCard';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import SafeImage from '../../components/ui/safe-image';
 import { showSuccess, showApiError } from '../../utils/toast';
 import { calculateProductPrice } from '../../utils/productUtils';
 const Wishlist = () => {
@@ -159,7 +160,10 @@ const Wishlist = () => {
 
   // Extract products from wishlist data
   const products = wishlist?.products || [];
-  const wishlistItems = products.map(item => item.productId || item);
+  const wishlistItems = useMemo(
+    () => products.map(item => item.productId || item).filter(Boolean),
+    [products]
+  );
 
   // Empty wishlist state
   if (!wishlistItems || wishlistItems.length === 0) {
@@ -247,7 +251,7 @@ const Wishlist = () => {
                 <Link to={`/product/${product.slug || product._id}`} className="block">
                   <div className="relative aspect-video overflow-hidden bg-gray-800">
                     {product.images && product.images.length > 0 ? (
-                      <img
+                      <SafeImage
                         src={product.images[0]}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

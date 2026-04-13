@@ -14,6 +14,7 @@ import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Store, Upload, FileText, CheckCircle2, XCircle, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const BecomeSeller = () => {
   const dispatch = useDispatch();
@@ -421,7 +422,7 @@ const BecomeSeller = () => {
                       />
                     </div>
                     {previewLogo && (
-                      <img
+                      <SafeImage
                         src={previewLogo}
                         alt="Logo preview"
                         className="w-20 h-20 rounded-lg object-cover border border-gray-700"
@@ -447,7 +448,7 @@ const BecomeSeller = () => {
                       />
                     </div>
                     {previewBanner && (
-                      <img
+                      <SafeImage
                         src={previewBanner}
                         alt="Banner preview"
                         className="w-32 h-20 rounded-lg object-cover border border-gray-700"

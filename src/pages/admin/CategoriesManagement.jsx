@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Plus, Edit, Trash2, Image as ImageIcon, Power, ChevronLeft, ChevronRight, Search, X, FolderTree, Filter, RefreshCw } from 'lucide-react';
+import SafeImage from '../../components/ui/safe-image';
 
 const CategoriesManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -429,7 +430,7 @@ const CategoriesManagement = () => {
                         <div className="flex items-center">
                           {category.image ? (
                             <div className="relative group">
-                              <img 
+                              <SafeImage 
                                 src={category.image} 
                                 alt={category.name} 
                                 className="w-14 h-14 object-cover rounded-lg border-2 border-gray-700 group-hover:border-accent/50 transition-colors"
@@ -661,7 +662,7 @@ const CategoriesManagement = () => {
           {selectedCategory?.image && (
             <div className="mt-4 p-4 bg-secondary/50 rounded-lg border border-gray-700">
               <p className="text-sm text-gray-400 mb-2">Current Image:</p>
-              <img src={selectedCategory.image} alt={selectedCategory.name} className="w-32 h-32 object-cover rounded-lg" />
+              <SafeImage src={selectedCategory.image} alt={selectedCategory.name} className="w-32 h-32 object-cover rounded-lg" />
             </div>
           )}
           <form onSubmit={handleImageUpdate} className="space-y-4 mt-4">

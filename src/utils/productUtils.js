@@ -2,6 +2,9 @@
  * Utility functions for product-related calculations
  */
 
+export const PRODUCT_IMAGE_PLACEHOLDER =
+  'https://via.placeholder.com/300x300?text=No+Image';
+
 /**
  * Calculate product price with discounts
  * @param {Object} product - Product object
@@ -85,9 +88,12 @@ export const formatPrice = (price, currency = 'USD') => {
  */
 export const getProductImage = (product, index = 0) => {
   if (product?.images && Array.isArray(product.images) && product.images.length > index) {
-    return product.images[index];
+    const image = product.images[index];
+    if (typeof image === 'string' && image.trim()) {
+      return image.trim();
+    }
   }
-  return 'https://via.placeholder.com/300x300?text=No+Image';
+  return PRODUCT_IMAGE_PLACEHOLDER;
 };
 
 /**

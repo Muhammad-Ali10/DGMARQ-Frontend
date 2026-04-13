@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { userAPI } from '../services/api';
-import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getRegionName, getTypeName, getDeviceName } from '../utils/productUtils';
+import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getRegionName, getTypeName, getDeviceName, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productUtils';
+import SafeImage from './ui/safe-image';
 
 const CategoryProduct = ({ product }) => {
   const queryClient = useQueryClient();
@@ -97,10 +98,11 @@ const CategoryProduct = ({ product }) => {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row items-center justify-center gap-2.5 p-4 bg-blue-4 rounded-21 max-w-[875px] w-full">
         <div className="w-full md:w-[174px] md:h-[240px]">
-          <img 
+          <SafeImage 
             src={image} 
             alt={title} 
             className="w-full h-full object-cover rounded-21" 
+            fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
           />
         </div>
         <div className="flex flex-col flex-1">

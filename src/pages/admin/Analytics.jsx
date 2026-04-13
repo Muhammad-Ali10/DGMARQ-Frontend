@@ -3,6 +3,7 @@ import { analyticsAPI } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Users, ShoppingCart, DollarSign, TrendingUp, Package, Eye, Heart } from 'lucide-react';
+import SafeImage from '../../components/ui/safe-image';
 
 const Analytics = () => {
   const { data: dashboard, isLoading: isLoadingDashboard, isError: isErrorDashboard, error: dashboardError } = useQuery({
@@ -194,7 +195,7 @@ const Analytics = () => {
                 <div key={product._id || product.productId?._id || index} className="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
                   <div className="flex items-center gap-3">
                     {product.productId?.images?.[0] && (
-                      <img 
+                      <SafeImage 
                         src={product.productId.images[0]} 
                         alt={product.productId.name}
                         className="w-10 h-10 object-cover rounded"

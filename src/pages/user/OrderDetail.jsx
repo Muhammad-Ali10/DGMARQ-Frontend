@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import LicenseKeysModal from '../../components/LicenseKeysModal';
+import SafeImage from '../../components/ui/safe-image';
 import { ArrowLeft, Package, CreditCard, MapPin, Calendar, MessageSquare, ExternalLink } from 'lucide-react';
 import { showApiError } from '../../utils/toast';
 import { toast } from 'sonner';
@@ -151,7 +152,7 @@ const OrderDetail = () => {
                       <div className="flex items-start gap-4">
                         {productImage && (
                           <div className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-800">
-                            <img
+                            <SafeImage
                               src={productImage}
                               alt={item.productId?.name || 'Product'}
                               className="w-full h-full object-cover"
@@ -201,7 +202,7 @@ const OrderDetail = () => {
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg bg-[#0E092C]/60 border border-gray-700">
                             <div className="flex items-center gap-3">
                               {sellerLogo && (
-                                <img
+                                <SafeImage
                                   src={sellerLogo}
                                   alt={displaySellerName}
                                   className="w-10 h-10 rounded-full object-cover"

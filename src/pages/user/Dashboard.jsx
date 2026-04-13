@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { userAPI, notificationAPI, walletAPI } from '../../services/api';
 import { Link } from 'react-router-dom';
@@ -82,8 +83,9 @@ const UserDashboard = () => {
   const walletBalanceFormatted = walletData?.balanceFormatted 
     || (typeof walletBalance === 'number' ? `$${walletBalance.toFixed(2)}` : '$0.00');
 
-  const statsCards = [
+  const statsCards = useMemo(() => ([
     {
+      id: 'wallet-balance',
       title: 'Wallet Balance',
       value: walletBalanceFormatted,
       icon: Wallet,
@@ -96,6 +98,7 @@ const UserDashboard = () => {
       },
     },
     {
+      id: 'total-orders',
       title: 'Total Orders',
       value: ordersData?.pagination?.total || 0,
       icon: ShoppingCart,
@@ -104,6 +107,7 @@ const UserDashboard = () => {
       link: '/user/orders',
     },
     {
+      id: 'total-spent',
       title: 'Total Spent',
       value: `$${totalSpent.toFixed(2)}`,
       icon: DollarSign,
@@ -112,6 +116,7 @@ const UserDashboard = () => {
       link: '/user/orders',
     },
     {
+      id: 'completed-orders',
       title: 'Completed Orders',
       value: completedOrders,
       icon: Package,
@@ -120,6 +125,7 @@ const UserDashboard = () => {
       link: '/user/orders?status=completed',
     },
     {
+      id: 'pending-orders',
       title: 'Pending Orders',
       value: pendingOrders,
       icon: TrendingUp,
@@ -128,6 +134,7 @@ const UserDashboard = () => {
       link: '/user/orders?status=pending',
     },
     {
+      id: 'wishlist-items',
       title: 'Wishlist Items',
       value: wishlist?.products?.length || 0,
       icon: Heart,
@@ -136,6 +143,7 @@ const UserDashboard = () => {
       link: '/user/wishlist',
     },
     {
+      id: 'unread-notifications',
       title: 'Unread Notifications',
       value: unreadCount?.unreadCount || 0,
       icon: Bell,
@@ -143,7 +151,7 @@ const UserDashboard = () => {
       bgColor: 'bg-yellow-500/10',
       link: '/user/notifications',
     },
-  ];
+  ]), [walletBalanceFormatted, ordersData, totalSpent, completedOrders, pendingOrders, wishlist, unreadCount, refetchWallet]);
 
   return (
     <div className="space-y-6">
@@ -171,26 +179,35 @@ const UserDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {statsCards.map((stat, index) => {
+        {statsCards.map((stat) => {
           const Icon = stat.icon;
-          const CardWrapper = stat.link === '#' && stat.onClick 
-            ? ({ children }) => <div onClick={stat.onClick} className="cursor-pointer">{children}</div>
-            : ({ children }) => <Link to={stat.link}>{children}</Link>;
           
+          const cardNode = (
+            <Card className="bg-primary border-gray-700 hover:border-accent transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-accent/10">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
+                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+                  <Icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{stat.value}</div>
+              </CardContent>
+            </Card>
+          );
+
+          if (stat.link === '#' && stat.onClick) {
+            return (
+              <div key={stat.id} onClick={stat.onClick} className="cursor-pointer">
+                {cardNode}
+              </div>
+            );
+          }
+
           return (
-            <CardWrapper key={index}>
-              <Card className="bg-primary border-gray-700 hover:border-accent transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-accent/10">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
-                  <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                    <Icon className={`h-5 w-5 ${stat.color}`} />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-white">{stat.value}</div>
-                </CardContent>
-              </Card>
-            </CardWrapper>
+            <Link key={stat.id} to={stat.link}>
+              {cardNode}
+            </Link>
           );
         })}
       </div>

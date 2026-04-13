@@ -13,6 +13,7 @@ import { SearchableSelect } from '../../components/ui/searchable-select';
 import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { showSuccess, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const SLIDE_POSITIONS = [
   { value: 0, label: 'Position 1 - Left Small' },
@@ -236,7 +237,7 @@ const HomepageSlidersManagement = () => {
                           >
                             <div className="flex items-center gap-3">
                               {product.images?.[0] && (
-                                <img
+                                <SafeImage
                                   src={product.images[0]}
                                   alt={product.name}
                                   className="w-10 h-10 object-cover rounded"
@@ -333,7 +334,7 @@ const HomepageSlidersManagement = () => {
                         <TableRow key={slider._id} className="border-gray-700">
                           <TableCell>
                             {slider.image ? (
-                              <img src={slider.image} alt={slider.title} className="w-24 h-16 object-cover rounded" />
+                              <SafeImage src={slider.image} alt={slider.title} className="w-24 h-16 object-cover rounded" />
                             ) : (
                               <div className="w-24 h-16 bg-gray-700 rounded flex items-center justify-center">
                                 <ImageIcon className="w-6 h-6 text-gray-400" />
@@ -350,7 +351,7 @@ const HomepageSlidersManagement = () => {
                             {slider.productId ? (
                               <div className="flex items-center gap-2">
                                 {slider.productId.images?.[0] && (
-                                  <img
+                                  <SafeImage
                                     src={slider.productId.images[0]}
                                     alt={slider.productId.name}
                                     className="w-8 h-8 object-cover rounded"
@@ -469,7 +470,7 @@ const HomepageSlidersManagement = () => {
                         >
                           <div className="flex items-center gap-3">
                             {product.images?.[0] && (
-                              <img
+                              <SafeImage
                                 src={product.images[0]}
                                 alt={product.name}
                                 className="w-10 h-10 object-cover rounded"

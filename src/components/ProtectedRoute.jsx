@@ -2,12 +2,13 @@ import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/axios';
+import { Loading } from './ui/loading';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { isAuthenticated, roles, token } = useSelector((state) => state.auth);
 
   // Verify token validity — cached for 5 min instead of firing on every mount
-  useQuery({
+  const { isPending: isVerifyingToken } = useQuery({
     queryKey: ['verify-token', token],
     queryFn: () => api.get('/user/profile'),
     enabled: !!token && isAuthenticated,
@@ -18,6 +19,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   if (!isAuthenticated || !token) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Prevent UI flicker while auth state is being validated for protected routes.
+  if (isVerifyingToken) {
+    return <Loading message="Checking session..." />;
   }
 
   if (allowedRoles.length > 0) {

@@ -14,6 +14,7 @@ import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Eye, CheckCircle2, XCircle, AlertCircle, Package, User, Store, FileText, Key, EyeOff } from 'lucide-react';
 import RefundChat from '../../components/RefundChat';
 import { toast } from 'sonner';
+import SafeImage from '../../components/ui/safe-image';
 
 const getDisplayOrderId = (orderLike) => {
   if (!orderLike) return 'N/A';
@@ -515,7 +516,7 @@ const ReturnRefundManagement = () => {
                 </h3>
                 <div className="space-y-3">
                   {refundView?.productId?.images?.[0] && (
-                    <img
+                    <SafeImage
                       src={refundView.productId.images[0]}
                       alt={refundView.productId.name}
                       className="w-24 h-24 object-cover rounded"
@@ -795,7 +796,7 @@ const ReturnRefundManagement = () => {
                       <div className="mt-2 flex flex-wrap gap-3">
                         {refundView.evidenceFiles.map((url, i) => (
                           <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block rounded border border-gray-600 overflow-hidden hover:border-accent">
-                            <img src={url} alt={`Evidence ${i + 1}`} className="h-24 w-auto max-w-[200px] object-cover" />
+                            <SafeImage src={url} alt={`Evidence ${i + 1}`} className="h-24 w-auto max-w-[200px] object-cover" />
                             <span className="block text-xs text-accent p-1 text-center">View full</span>
                           </a>
                         ))}

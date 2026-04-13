@@ -5,6 +5,7 @@ import { returnRefundAPI } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
 import { Send, Loader2, ImagePlus, X, CheckCheck, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import SafeImage from './ui/safe-image';
 
 /**
  * WhatsApp-style refund chat with optimistic updates.
@@ -364,7 +365,7 @@ export default function RefundChat({ refundId, canSend }) {
                           rel="noopener noreferrer"
                           className="block rounded-lg overflow-hidden hover:opacity-90 transition-opacity"
                         >
-                          <img
+                          <SafeImage
                             src={attachment.url}
                             alt={`Attachment ${aIdx + 1}`}
                             className="w-full h-24 sm:h-32 object-cover"
@@ -400,7 +401,7 @@ export default function RefundChat({ refundId, canSend }) {
             <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
               {selectedImages.map((item) => (
                 <div key={item.id} className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-white/[0.1]">
-                  <img src={item.preview} alt={item.file.name} className="w-full h-full object-cover" />
+                  <SafeImage src={item.preview} alt={item.file.name} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/70 text-white hover:bg-black/90 transition-colors"

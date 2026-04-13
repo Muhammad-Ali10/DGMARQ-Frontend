@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation } from '@tanstack/react-query';
 import { sellerAPI, chatAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -24,11 +24,13 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import SafeImage from '../../components/ui/safe-image';
+import { Helmet } from 'react-helmet-async';
 
 const PublicSellerProfile = () => {
   const { sellerId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { isAuthenticated } = useSelector((state) => state.auth);
   const [productsPage, setProductsPage] = useState(1);
 
   const { data: sellerProfile, isLoading: profileLoading, isError: profileError } = useQuery({
@@ -36,10 +38,11 @@ const PublicSellerProfile = () => {
     queryFn: () => sellerAPI.getPublicSellerProfile(sellerId).then(res => res.data.data),
   });
 
-  const { data: productsData, isLoading: productsLoading } = useQuery({
+  const { data: productsData, isLoading: productsLoading, isFetching: productsFetching } = useQuery({
     queryKey: ['seller-products', sellerId, productsPage],
     queryFn: () => sellerAPI.getSellerProducts(sellerId, { page: productsPage, limit: 10 }).then(res => res.data.data),
     enabled: !!sellerId,
+    placeholderData: keepPreviousData,
   });
 
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
@@ -97,12 +100,20 @@ const PublicSellerProfile = () => {
 
   return (
     <div className="min-h-screen container mx-auto  text-white">
+      <Helmet>
+        <title>{sellerProfile.shopName} | Seller on DGMARQ</title>
+        <meta
+          name="description"
+          content={`View listings by ${sellerProfile.shopName} on DGMARQ marketplace.`}
+        />
+        <link rel="canonical" href={`https://www.dgmarq.com/seller/${sellerId}`} />
+      </Helmet>
       {/* Seller Header */}
       <div className="relative">
         {/* Banner */}
         {sellerProfile.shopBanner && (
           <div className="h-64 w-full overflow-hidden">
-            <img 
+            <SafeImage 
               src={sellerProfile.shopBanner} 
               alt={sellerProfile.shopName}
               className="w-full h-full object-cover"
@@ -118,7 +129,7 @@ const PublicSellerProfile = () => {
                 <div className="flex-shrink-0">
                   <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary">
                     {sellerProfile.shopLogo ? (
-                      <img 
+                      <SafeImage 
                         src={sellerProfile.shopLogo} 
                         alt={sellerProfile.shopName}
                         className="w-full h-full object-cover"
@@ -245,6 +256,9 @@ const PublicSellerProfile = () => {
                   </div>
                 ) : (
                   <>
+                    {productsFetching && (
+                      <p className="mb-4 text-sm text-gray-400">Updating products...</p>
+                    )}
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
                       {products.map((product) => (
                         <ProductCard key={product._id} product={product} />
@@ -330,7 +344,7 @@ const PublicSellerProfile = () => {
                             <div className="flex items-start gap-3">
                               <div className="flex-shrink-0">
                                 {review.user?.profileImage ? (
-                                  <img
+                                  <SafeImage
                                     src={review.user.profileImage}
                                     alt={review.user.name}
                                     className="w-10 h-10 rounded-full"

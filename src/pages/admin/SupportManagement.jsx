@@ -11,6 +11,7 @@ import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Headphones, MessageSquare, Clock, CheckCircle2, UserPlus, Send, X, ImagePlus, Loader2 } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const SupportManagement = () => {
   const queryClient = useQueryClient();
@@ -400,7 +401,7 @@ const SupportManagement = () => {
                             rel="noopener noreferrer"
                             className="block rounded overflow-hidden max-w-full"
                           >
-                            <img
+                            <SafeImage
                               src={msg.attachment}
                               alt={msg.messageText || 'Attachment'}
                               className="max-h-64 w-auto object-contain rounded"
@@ -422,7 +423,7 @@ const SupportManagement = () => {
                 <div className="flex justify-end">
                   <div className="max-w-[70%] rounded-lg p-3 bg-accent text-white relative">
                     <div className="relative inline-block">
-                      <img
+                      <SafeImage
                         src={uploadingImage.preview}
                         alt="Uploading"
                         className="max-h-48 w-auto object-contain rounded opacity-80"

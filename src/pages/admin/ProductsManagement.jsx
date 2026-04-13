@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminAPI } from '../../services/api';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { CheckCircle2, XCircle, ChevronLeft, ChevronRight, RefreshCw, Package, Store, Tag, Clock, Eye, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import SafeImage from '../../components/ui/safe-image';
 
 const ProductsManagement = () => {
   const [activeTab, setActiveTab] = useState('pending');
@@ -36,7 +37,7 @@ const ProductsManagement = () => {
         throw err;
       }
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   // Fetch approved products - always fetch to show count in tab
@@ -50,7 +51,7 @@ const ProductsManagement = () => {
         throw err;
       }
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   // Fetch rejected products - always fetch to show count in tab
@@ -64,7 +65,7 @@ const ProductsManagement = () => {
         throw err;
       }
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const approveMutation = useMutation({
@@ -275,7 +276,7 @@ const ProductsManagement = () => {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       {product.images && product.images.length > 0 ? (
-                        <img
+                        <SafeImage
                           src={product.images[0]}
                           alt={product.name}
                           className="w-12 h-12 object-cover rounded-lg border border-gray-700"

@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/input';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { ArrowLeft, Package, Store, Tag, DollarSign, Layers, Image as ImageIcon, Calendar, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import SafeImage from '../../components/ui/safe-image';
 
 const ProductDetailView = () => {
   const { productId } = useParams();
@@ -227,7 +228,7 @@ const ProductDetailView = () => {
               <CardContent className="pt-6">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {product.images.map((image, index) => (
-                    <img
+                    <SafeImage
                       key={index}
                       src={image}
                       alt={`${product.name} - Image ${index + 1}`}
@@ -269,7 +270,7 @@ const ProductDetailView = () => {
               </div>
               {product?.sellerId?.shopLogo && (
                 <div>
-                  <img
+                  <SafeImage
                     src={product.sellerId.shopLogo}
                     alt={product.sellerId.shopName}
                     className="w-24 h-24 object-cover rounded-lg border border-gray-700"

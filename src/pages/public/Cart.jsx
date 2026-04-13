@@ -33,6 +33,7 @@ import {
   getPlatformName,
   getTypeName,
 } from "../../utils/productUtils";
+import SafeImage from "../../components/ui/safe-image";
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -263,7 +264,7 @@ const Cart = () => {
                           className="shrink-0 w-full sm:w-24 h-24 rounded-lg overflow-hidden bg-gray-700"
                         >
                           {item.image ? (
-                            <img
+                            <SafeImage
                               src={item.image}
                               alt={item.name || "Product"}
                               className="w-full h-full object-cover"
@@ -585,7 +586,7 @@ const Cart = () => {
                         className="shrink-0 w-full sm:w-24 h-24 rounded-lg overflow-hidden bg-gray-700"
                       >
                         {product?.images?.[0] ? (
-                          <img
+                          <SafeImage
                             src={product.images[0]}
                             alt={product.name}
                             className="w-full h-full object-cover"

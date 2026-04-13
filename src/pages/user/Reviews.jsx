@@ -11,6 +11,7 @@ import { Label } from '../../components/ui/label';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Star, Edit, Trash2, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const UserReviews = () => {
   const { user } = useSelector((state) => state.auth);
@@ -175,7 +176,7 @@ const UserReviews = () => {
                     {review.photos && review.photos.length > 0 && (
                       <div className="flex gap-2 mb-3">
                         {review.photos.map((photo, idx) => (
-                          <img
+                          <SafeImage
                             key={idx}
                             src={photo}
                             alt={`Review photo ${idx + 1}`}

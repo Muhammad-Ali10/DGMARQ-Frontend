@@ -1,6 +1,9 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/card';
-import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getTypeName } from '../utils/productUtils';
+import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getTypeName, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productUtils';
+import { ShoppingCart } from "lucide-react";
+import SafeImage from "./ui/safe-image";
 
 const ProductVerticalCard = ({ product }) => {
   const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
@@ -11,7 +14,22 @@ const ProductVerticalCard = ({ product }) => {
   return (
     <Link to={`/product/${product.slug || product._id}`}>
       <Card className="w-full max-w-[382px] flex flex-row items-start md:items-center bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2 md:gap-2.5 box-border">
-        <img src={image} className="w-[120px] h-[120px] sm:w-[150px] sm:h-[150px] rounded-2xl shrink-0 object-cover" alt={title} />
+        {image &&
+        image !== PRODUCT_IMAGE_PLACEHOLDER ? (
+          <SafeImage
+            src={image}
+            className="w-[120px] h-[120px] sm:w-[150px] sm:h-[150px] rounded-2xl shrink-0 object-cover"
+            alt={title}
+            loading="lazy"
+            width={150}
+            height={150}
+            fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
+          />
+        ) : (
+          <div className="w-[120px] h-[120px] sm:w-[150px] sm:h-[150px] rounded-2xl shrink-0 bg-gray-700 flex items-center justify-center">
+            <ShoppingCart className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <CardHeader className="p-0 text-start">
             <CardTitle className="text-sm font-semibold -tracking-normal truncate">{title}</CardTitle>
@@ -36,7 +54,13 @@ const ProductVerticalCard = ({ product }) => {
   );
 };
 
-export default ProductVerticalCard;
+export default memo(ProductVerticalCard, (prev, next) =>
+  prev.product._id === next.product._id &&
+  prev.product.price === next.product.price &&
+  prev.product.discount === next.product.discount &&
+  prev.product.trendingOffer?.discountPercent === next.product.trendingOffer?.discountPercent &&
+  prev.product.trendingOffer?.offerId === next.product.trendingOffer?.offerId
+);
 // Export alias for flexibility
 export { ProductVerticalCard as ProductArticleCard };
 

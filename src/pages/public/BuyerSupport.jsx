@@ -4,12 +4,21 @@ import AnimatedHeading from "@/components/marketplace/AnimatedHeading";
 import GlowCard from "@/components/marketplace/GlowCard";
 import FAQAccordion from "@/components/marketplace/FAQAccordion";
 import { BuyerSupportPageData } from "@/lib/data";
+import { Helmet } from "react-helmet-async";
 
 const BuyerSupport = () => {
   const { hero, sections, faq, finalCta } = BuyerSupportPageData;
 
   return (
     <main className="flex min-h-screen flex-col text-white">
+      <Helmet>
+        <title>Buyer Support | DGMARQ</title>
+        <meta
+          name="description"
+          content="Get help with your purchases on DGMARQ. Our buyer support team is here to help."
+        />
+        <link rel="canonical" href="https://www.dgmarq.com/buyer-support" />
+      </Helmet>
       {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />

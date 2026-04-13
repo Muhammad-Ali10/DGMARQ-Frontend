@@ -23,6 +23,7 @@ import { cn } from "../../lib/utils";
 import { getGuestCartCount } from "../../utils/guestCart";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import SafeImage from "../ui/safe-image";
 
 const MobileBottomBar = () => {
   const navigate = useNavigate();
@@ -200,7 +201,7 @@ const MobileBottomBar = () => {
   const getUserDisplay = () => {
     if (user?.profileImage) {
       return (
-        <img
+        <SafeImage
           src={user.profileImage}
           alt={user.name || "User"}
           className="w-8 h-8 rounded-full object-cover border-2 border-accent/50"
@@ -365,7 +366,7 @@ const MobileBottomBar = () => {
                               className="w-full px-4 py-3 hover:bg-gray-800/50 flex items-center gap-3 text-left"
                             >
                               {product.images?.[0] && (
-                                <img
+                                <SafeImage
                                   src={product.images[0]}
                                   alt={product.name}
                                   className="w-12 h-12 object-cover rounded"

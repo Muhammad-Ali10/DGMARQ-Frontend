@@ -6,6 +6,7 @@ import { Card, CardContent } from './ui/card';
 import { getPayPalSDK } from '../utils/paypalSDK';
 import { paypalAPI, checkoutAPI } from '../services/api';
 import { toast } from 'sonner';
+import SafeImage from './ui/safe-image';
 
 /**
  * Payment modal using PayPal CardFields and Buttons. No card data in React state.
@@ -492,7 +493,7 @@ const PaymentModal = ({
               disabled={isLoading}
             >
               <div className="flex flex-col items-center gap-2">
-                <img
+                <SafeImage
                   src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg"
                   alt="PayPal"
                   className="h-8 w-auto"

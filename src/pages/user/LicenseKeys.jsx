@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Key, Eye, Copy, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import SafeImage from '../../components/ui/safe-image';
 
 const LicenseKeys = () => {
   const [revealedKey, setRevealedKey] = useState(null);
@@ -94,7 +95,7 @@ const LicenseKeys = () => {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           {key.productImage && (
-                            <img
+                            <SafeImage
                               src={key.productImage}
                               alt={key.productName || 'Product'}
                               className="w-12 h-12 object-cover rounded"

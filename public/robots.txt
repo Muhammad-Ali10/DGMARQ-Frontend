@@ -1,4 +1,59 @@
-User-agent: *
-Allow: /
+# DGMARQ - robots.txt
+# https://www.dgmarq.com
 
-Sitemap: https://www.dgmarq.com/sitemap-index.xml
+User-agent: *
+
+# Allow public pages
+Allow: /
+Allow: /products
+Allow: /product/
+Allow: /category/
+Allow: /seller/
+Allow: /about/
+Allow: /contact
+Allow: /buyer-support
+Allow: /how-to-buy
+Allow: /dgmarq-plus
+Allow: /seller-support
+Allow: /how-to-sell
+Allow: /terms-and-conditions
+Allow: /privacy-policy
+Allow: /stay-safe
+
+# Block private pages
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /settings
+Disallow: /messages
+Disallow: /checkout
+Disallow: /payment
+Disallow: /login
+Disallow: /register
+Disallow: /api/
+Disallow: /*?sort=
+Disallow: /*?filter=
+Disallow: /*?page=
+Disallow: /*?ref=
+Disallow: /*?token=
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+# Sitemap
+Sitemap: https://www.dgmarq.com/sitemap.xml

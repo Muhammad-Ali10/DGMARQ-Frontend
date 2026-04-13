@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import SafeImage from "../ui/safe-image"
 
 
 const Footer = () => { 
@@ -7,7 +8,7 @@ const Footer = () => {
             <div className=" w-full py-10 bg-[#07173D] ">
             <div className="container flex flex-col md:flex-row justify-between items-center gap-4 w-full m-auto px-4">
                 <h3 className="text-sm sm:text-base">Payment methods:</h3>
-                <img src="https://res.cloudinary.com/dptwervy7/image/upload/v1754393674/payments_qpgfwb.png" alt="payments" className="w-full max-w-[300px] sm:max-w-[460px]" />
+                <SafeImage src="https://res.cloudinary.com/dptwervy7/image/upload/v1754393674/payments_qpgfwb.png" alt="payments" className="w-full max-w-[300px] sm:max-w-[460px]" />
             </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 max-w-1260 p-4 sm:p-5 md:py-6 xl:py-13 m-auto gap-6 sm:gap-4">

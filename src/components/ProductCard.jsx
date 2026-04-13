@@ -1,5 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { Link } from "react-router-dom";
+import SafeImage from "./ui/safe-image";
 import {
   Card,
   CardHeader,
@@ -13,30 +14,32 @@ import {
   getProductImage,
   getProductName,
   getPlatformName,
+  PRODUCT_IMAGE_PLACEHOLDER,
   getTypeName,
 } from "../utils/productUtils";
- 
-const ProductCard = memo(({ product }) => {
   
-  const { discountPrice, discountPercentage, originalPrice } = useMemo(
-    () => calculateProductPrice(product),
-    [product._id, product.price, product.discount, product.trendingOffer?.discountPercent]
-  );
-  const image = useMemo(() => getProductImage(product), [product._id, product.images]);
-  const title = useMemo(() => getProductName(product), [product._id, product.name]);
-  const platformName = useMemo(() => getPlatformName(product), [product._id, product.platform]);
-  const typeName = useMemo(() => getTypeName(product), [product._id, product.type, product.productType]);
+const ProductCard = memo(({ product }) => {
+  const { discountPrice, discountPercentage, originalPrice } =
+    calculateProductPrice(product);
+  const image = getProductImage(product);
+  const title = getProductName(product);
+  const platformName = getPlatformName(product);
+  const typeName = getTypeName(product);
+
   return ( 
     <Link to={`/product/${product.slug || product._id}`}>
       <Card className="w-full max-w-[196px] mx-auto flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2.5 box-border hover:scale-105 transition-transform duration-200">
         <div className="relative">
           {image &&
-          image !== "https://via.placeholder.com/300x300?text=No+Image" ? (
-            <img
+          image !== PRODUCT_IMAGE_PLACEHOLDER ? (
+            <SafeImage
               src={image}
               alt={title}
               loading="lazy"
+              width={300}
+              height={300}
               className="w-full aspect-square object-cover rounded-2xl"
+              fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
             />
           ) : (
             <div className="w-full aspect-square rounded-2xl bg-gray-700 flex items-center justify-center">

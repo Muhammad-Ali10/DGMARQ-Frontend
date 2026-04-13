@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Package, Users, Calendar } from 'lucide-react';
+import SafeImage from '../../components/ui/safe-image';
 
 const SellerAnalytics = () => {
   const [startDate, setStartDate] = useState('');
@@ -319,7 +320,7 @@ const SellerAnalytics = () => {
                       <td className="py-3 px-4 text-white">
                         <div className="flex items-center gap-2">
                           {product.productImage && (
-                            <img 
+                            <SafeImage 
                               src={product.productImage} 
                               alt={product.productName}
                               className="w-10 h-10 object-cover rounded"

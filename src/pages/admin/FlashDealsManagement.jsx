@@ -11,6 +11,7 @@ import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Plus, Edit, Trash2, Image as ImageIcon, Search, X } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const FlashDealsManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -209,7 +210,7 @@ const FlashDealsManagement = () => {
                             className="flex items-center gap-3 p-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
                           >
                             {product.images?.[0] && (
-                              <img
+                              <SafeImage
                                 src={product.images[0]}
                                 alt={product.name}
                                 className="w-12 h-12 object-cover rounded"
@@ -316,7 +317,7 @@ const FlashDealsManagement = () => {
                       <TableRow key={deal._id} className="border-gray-700">
                         <TableCell>
                           {deal.banner || productImage ? (
-                            <img 
+                            <SafeImage 
                               src={deal.banner || productImage} 
                               alt={productName} 
                               className="w-16 h-16 object-cover rounded" 
@@ -447,7 +448,7 @@ const FlashDealsManagement = () => {
                           className="flex items-center gap-3 p-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
                         >
                           {product.images?.[0] && (
-                            <img
+                            <SafeImage
                               src={product.images[0]}
                               alt={product.name}
                               className="w-12 h-12 object-cover rounded"

@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { Label } from '../../components/ui/label';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { ArrowLeft, Store, Mail, MapPin, Calendar, DollarSign, Package, ShoppingCart, FileText, Image as ImageIcon } from 'lucide-react';
+import SafeImage from '../../components/ui/safe-image';
 
 const SellerProfileView = () => {
   const { sellerId } = useParams();
@@ -66,7 +67,7 @@ const SellerProfileView = () => {
           <div className="flex flex-col md:flex-row gap-6">
             {seller?.shopLogo && (
               <div className="flex-shrink-0">
-                <img
+                <SafeImage
                   src={seller.shopLogo}
                   alt="Shop Logo"
                   className="w-32 h-32 rounded-lg object-cover border-2 border-gray-700"
@@ -240,7 +241,7 @@ const SellerProfileView = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <img
+            <SafeImage
               src={seller.shopBanner}
               alt="Shop Banner"
               className="w-full h-64 object-cover rounded-lg"

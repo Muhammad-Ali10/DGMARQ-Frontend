@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { bestsellerAPI } from "../../services/api";
 import ProductCard from "../../components/ProductCard";
@@ -41,12 +41,13 @@ const BestSellers = () => {
   const [page, setPage] = useState(1);
   const limit = 12;
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isFetching, isError, error } = useQuery({
     queryKey: ["bestsellers", "page", page],
     queryFn: async () => {
       const response = await bestsellerAPI.getBestsellers({ page, limit });
       return response.data.data;
     },
+    placeholderData: keepPreviousData,
   });
 
   const bestsellers = data?.bestsellers || [];
@@ -78,7 +79,7 @@ const BestSellers = () => {
 
   if (isError) {
     return (
-      <div className="min-h-screen container mx-auto = py-12">
+      <div className="min-h-screen container mx-auto py-12">
         <div className="max-w-7xl mx-auto px-4">
           <ErrorMessage
             message={error?.message || "Failed to load best sellers"}
@@ -102,8 +103,13 @@ const BestSellers = () => {
         {/* Products Grid */}
         {bestsellers.length > 0 ? (
           <>
+            {isFetching && (
+              <p className="text-sm text-gray-400 mb-4">Updating best sellers...</p>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-              {bestsellers.map((bestseller) => (
+              {bestsellers
+                .filter((bestseller) => bestseller?.productId?._id)
+                .map((bestseller) => (
                 <ProductCard
                   key={bestseller.productId._id}
                   product={bestseller.productId}

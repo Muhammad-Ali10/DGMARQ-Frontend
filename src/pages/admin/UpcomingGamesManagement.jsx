@@ -9,6 +9,7 @@ import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Badge } from '../../components/ui/badge';
 import { toast } from 'sonner';
 import { Search, Check, X, Plus, Trash2, ArrowUp, ArrowDown, Save } from 'lucide-react';
+import SafeImage from '../../components/ui/safe-image';
 
 const UpcomingGamesManagement = () => {
   const queryClient = useQueryClient();
@@ -228,7 +229,7 @@ const UpcomingGamesManagement = () => {
                         >
                           <div className="flex items-center gap-3">
                             {product.images?.[0] && (
-                              <img
+                              <SafeImage
                                 src={product.images[0]}
                                 alt={product.name}
                                 className="w-10 h-10 object-cover rounded-md"
@@ -313,7 +314,7 @@ const UpcomingGamesManagement = () => {
                     <div className="flex items-center gap-3 flex-1">
                       <span className="text-gray-400 text-sm font-medium w-8">#{index + 1}</span>
                       {product.images?.[0] && (
-                        <img
+                        <SafeImage
                           src={product.images[0]}
                           alt={product.name}
                           className="w-16 h-16 object-cover rounded"

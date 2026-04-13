@@ -11,6 +11,7 @@ import { Send, X, Headphones, Plus, ImagePlus, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import SafeImage from './ui/safe-image';
 
 const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
   const [selectedChat, setSelectedChat] = useState(null);
@@ -360,7 +361,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                               rel="noopener noreferrer"
                               className="block rounded overflow-hidden max-w-full"
                             >
-                              <img
+                              <SafeImage
                                 src={msg.attachment}
                                 alt={msg.messageText || 'Attachment'}
                                 className="max-h-40 w-auto object-contain rounded"
@@ -385,7 +386,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                   <div className="flex justify-end">
                     <div className="max-w-[80%] rounded-lg p-2 bg-accent text-white relative">
                       <div className="relative inline-block">
-                        <img
+                        <SafeImage
                           src={uploadingImage.preview}
                           alt="Uploading"
                           className="max-h-32 w-auto object-contain rounded opacity-80"

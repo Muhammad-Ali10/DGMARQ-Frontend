@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { categoryAPI } from '../../services/api';
 import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
+import { Helmet } from 'react-helmet-async';
 
 const Software = () => {
   const { data: categoriesData } = useQuery({
@@ -22,10 +23,20 @@ const Software = () => {
   }, [categoriesData]);
 
   return (
-    <ProductListingLayout
-      lockedCategoryId={softwareCategory?._id}
-      pageTitle="Software"
-    />
+    <>
+      <Helmet>
+        <title>All Products | DGMARQ</title>
+        <meta
+          name="description"
+          content="Browse all products on DGMARQ marketplace. Find great deals on products and services."
+        />
+        <link rel="canonical" href="https://www.dgmarq.com/products" />
+      </Helmet>
+      <ProductListingLayout
+        lockedCategoryId={softwareCategory?._id}
+        pageTitle="Software"
+      />
+    </>
   );
 };
 

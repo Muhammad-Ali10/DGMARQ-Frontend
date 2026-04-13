@@ -12,6 +12,7 @@ import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Plus, Edit, Trash2, X, Search, Check } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { showSuccess, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const TrendingOffersManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -254,7 +255,7 @@ const TrendingOffersManagement = () => {
                               >
                                 <div className="flex items-center gap-3">
                                   {product.images?.[0] && (
-                                    <img
+                                    <SafeImage
                                       src={product.images[0]}
                                       alt={product.name}
                                       className="w-10 h-10 object-cover rounded"
@@ -470,7 +471,7 @@ const TrendingOffersManagement = () => {
                             >
                               <div className="flex items-center gap-3">
                                 {product.images?.[0] && (
-                                  <img
+                                  <SafeImage
                                     src={product.images[0]}
                                     alt={product.name}
                                     className="w-10 h-10 object-cover rounded"

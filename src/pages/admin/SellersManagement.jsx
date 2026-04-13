@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { CheckCircle2, XCircle, Eye, Ban, UserCheck, ChevronLeft, ChevronRight, Search, Store, Users } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const SellersManagement = () => {
   const navigate = useNavigate();
@@ -305,7 +306,7 @@ const SellersManagement = () => {
                             <TableCell className="text-white font-medium">
                               <div className="flex items-center gap-3">
                                 {seller.shopLogo && (
-                                  <img 
+                                  <SafeImage 
                                     src={seller.shopLogo} 
                                     alt={seller.shopName}
                                     className="w-10 h-10 rounded-full object-cover border border-gray-700"

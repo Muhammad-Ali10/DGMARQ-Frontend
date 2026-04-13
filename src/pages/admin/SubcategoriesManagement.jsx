@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Plus, Edit, Trash2, Image as ImageIcon, Power, ChevronLeft, ChevronRight, Search, X, Layers, Filter, RefreshCw } from 'lucide-react';
+import SafeImage from '../../components/ui/safe-image';
 
 const SubcategoriesManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -478,7 +479,7 @@ const SubcategoriesManagement = () => {
                         <div className="flex items-center">
                           {subcategory.image ? (
                             <div className="relative group">
-                              <img 
+                              <SafeImage 
                                 src={subcategory.image} 
                                 alt={subcategory.name} 
                                 className="w-14 h-14 object-cover rounded-lg border-2 border-gray-700 group-hover:border-accent/50 transition-colors"
@@ -739,7 +740,7 @@ const SubcategoriesManagement = () => {
           {selectedSubcategory?.image && (
             <div className="mt-4 p-4 bg-secondary/50 rounded-lg border border-gray-700">
               <p className="text-sm text-gray-400 mb-2">Current Image:</p>
-              <img src={selectedSubcategory.image} alt={selectedSubcategory.name} className="w-32 h-32 object-cover rounded-lg" />
+              <SafeImage src={selectedSubcategory.image} alt={selectedSubcategory.name} className="w-32 h-32 object-cover rounded-lg" />
             </div>
           )}
           <form onSubmit={handleImageUpdate} className="space-y-4 mt-4">

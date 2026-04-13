@@ -8,6 +8,7 @@ import { Heart, Trash2, ShoppingCart, Eye } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import { showSuccess, showApiError } from '../../utils/toast';
 import { Loading } from '../../components/ui/loading';
+import SafeImage from '../../components/ui/safe-image';
 
 const UserWishlist = () => {
   const queryClient = useQueryClient();
@@ -98,7 +99,7 @@ const UserWishlist = () => {
                 {item.productId?.images?.[0] ? (
                   <Link to={`/product/${item.productId.slug || item.productId._id}`}>
                     <div className="relative overflow-hidden">
-                      <img
+                      <SafeImage
                         src={item.productId.images[0]}
                         alt={item.productId.name}
                         className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
@@ -165,7 +166,7 @@ const UserWishlist = () => {
             <Heart className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">Your wishlist is empty</h3>
             <p className="text-gray-400 mb-6">Start adding products you love to your wishlist</p>
-            <Link to="/products">
+            <Link to="/search">
               <Button className="bg-accent hover:bg-blue-700">
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 Browse Products

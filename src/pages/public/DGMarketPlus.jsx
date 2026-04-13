@@ -21,6 +21,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import FAQAccordion from '@/components/marketplace/FAQAccordion';
+import { Helmet } from 'react-helmet-async';
 
 const DGMarketPlus = () => {
   const navigate = useNavigate();
@@ -97,6 +98,14 @@ const DGMarketPlus = () => {
 
   return (
     <div className="min-h-screen py-12 text-white">
+      <Helmet>
+        <title>DGMARQ Plus | Premium Marketplace Experience</title>
+        <meta
+          name="description"
+          content="Get more with DGMARQ Plus. Enjoy premium features for buyers and sellers."
+        />
+        <link rel="canonical" href="https://www.dgmarq.com/dgmarq-plus" />
+      </Helmet>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Hero Section */}
         <section className="text-center mb-16 relative overflow-hidden rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent py-16 px-6">

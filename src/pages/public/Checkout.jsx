@@ -12,6 +12,7 @@ import { ShoppingCart, CheckCircle2, XCircle, AlertCircle, Loader2, Tag, X, Spar
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getGuestCart, clearGuestCart } from '../../utils/guestCart';
+import SafeImage from '../../components/ui/safe-image';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -856,7 +857,7 @@ const Checkout = () => {
                         className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-700"
                       >
                         {product?.images?.[0] ? (
-                          <img
+                          <SafeImage
                             src={product.images[0]}
                             alt={product.name}
                             className="w-full h-full object-cover"
@@ -1096,7 +1097,7 @@ const Checkout = () => {
                         disabled={createCheckoutMutation.isPending}
                       >
                         <div className="flex flex-col items-center gap-1">
-                          <img
+                          <SafeImage
                             src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg"
                             alt="PayPal"
                             className="h-6 w-auto"

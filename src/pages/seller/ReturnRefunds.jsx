@@ -12,6 +12,7 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { toast } from 'sonner';
 import RefundChat from '../../components/RefundChat';
+import SafeImage from '../../components/ui/safe-image';
 
 const STATUS_BADGES = {
   PENDING: { variant: 'warning', label: 'Pending' },
@@ -370,7 +371,7 @@ const SellerReturnRefunds = () => {
                   <div className="mt-2 flex flex-wrap gap-2">
                     {refundView.evidenceFiles.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
-                        <img src={url} alt={`Evidence ${i + 1}`} className="h-20 w-20 object-cover rounded border border-gray-600 hover:border-accent" />
+                        <SafeImage src={url} alt={`Evidence ${i + 1}`} className="h-20 w-20 object-cover rounded border border-gray-600 hover:border-accent" />
                       </a>
                     ))}
                   </div>

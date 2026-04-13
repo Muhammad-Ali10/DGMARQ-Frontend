@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Save } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
+import SafeImage from '../../components/ui/safe-image';
 
 const TrendingCategoriesManagement = () => {
   const queryClient = useQueryClient();
@@ -100,7 +101,7 @@ const TrendingCategoriesManagement = () => {
                 >
                   <div className="flex items-center gap-3">
                     {category.image && (
-                      <img src={category.image} alt={category.name} className="w-12 h-12 object-cover rounded" />
+                      <SafeImage src={category.image} alt={category.name} className="w-12 h-12 object-cover rounded" />
                     )}
                     <div className="flex-1">
                       <p className="font-medium text-white">{category.name}</p>

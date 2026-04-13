@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import SafeImage from './ui/safe-image';
 
 /**
  * Lazy-loaded image component using IntersectionObserver.
@@ -30,7 +31,7 @@ const LazyImage = ({ src, alt, className = '', ...props }) => {
   return (
     <div ref={imgRef} className={`relative ${className}`}>
       {isInView ? (
-        <img
+        <SafeImage
           src={src}
           alt={alt}
           className={`transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}

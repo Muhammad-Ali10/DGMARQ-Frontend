@@ -8,6 +8,7 @@ import { Label } from '../../components/ui/label';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { toast } from 'sonner';
 import { Search, Check, Upload, Image as ImageIcon, Save } from 'lucide-react';
+import SafeImage from '../../components/ui/safe-image';
 
 const UpcomingReleasesManagement = () => {
   const queryClient = useQueryClient();
@@ -210,7 +211,7 @@ const UpcomingReleasesManagement = () => {
                             >
                               <div className="flex items-center gap-3">
                                 {product.images?.[0] && (
-                                  <img
+                                  <SafeImage
                                     src={product.images[0]}
                                     alt={product.name}
                                     className="w-10 h-10 object-cover rounded"
@@ -234,7 +235,7 @@ const UpcomingReleasesManagement = () => {
                     <div className="mt-2 p-3 bg-secondary rounded border border-gray-700">
                       <div className="flex items-center gap-3">
                         {selectedProduct.images?.[0] && (
-                          <img
+                          <SafeImage
                             src={selectedProduct.images[0]}
                             alt={selectedProduct.name}
                             className="w-12 h-12 object-cover rounded"
@@ -262,7 +263,7 @@ const UpcomingReleasesManagement = () => {
                   <Label className="text-gray-300">Background Image *</Label>
                   {slotData?.backgroundImageUrl && (
                     <div className="mb-2">
-                      <img
+                      <SafeImage
                         src={slotData.backgroundImageUrl}
                         alt={`Slot ${slotNumber} background`}
                         className="w-full h-48 object-cover rounded border border-gray-700"

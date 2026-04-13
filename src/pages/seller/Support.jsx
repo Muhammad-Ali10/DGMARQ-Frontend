@@ -13,6 +13,7 @@ import { Headphones, Send, Plus, ImagePlus, Loader2 } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
 import { useSocket } from '../../hooks/useSocket';
 import { useSelector } from 'react-redux';
+import SafeImage from '../../components/ui/safe-image';
 
 const SellerSupport = () => {
   const [selectedChat, setSelectedChat] = useState(null);
@@ -307,7 +308,7 @@ const SellerSupport = () => {
                                   rel="noopener noreferrer"
                                   className="block rounded overflow-hidden max-w-full"
                                 >
-                                  <img
+                                  <SafeImage
                                     src={msg.attachment}
                                     alt={msg.messageText || 'Attachment'}
                                     className="max-h-64 w-auto object-contain rounded"
@@ -329,7 +330,7 @@ const SellerSupport = () => {
                       <div className="flex justify-end">
                         <div className="max-w-[70%] rounded-lg p-3 bg-accent text-white relative">
                           <div className="relative inline-block">
-                            <img
+                            <SafeImage
                               src={uploadingImage.preview}
                               alt="Uploading"
                               className="max-h-48 w-auto object-contain rounded opacity-80"

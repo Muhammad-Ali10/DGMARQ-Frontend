@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { addToGuestCart } from '../utils/guestCart';
 import { getPlatformName, getTypeName } from '../utils/productUtils';
+import SafeImage from './ui/safe-image';
 
 const FlashDeal = () => {
   const navigate = useNavigate();
@@ -140,13 +141,11 @@ const FlashDeal = () => {
       {/* Banner Image */}
       {activeDeal?.banner && (
         <div className="w-full mb-2">
-          <img
+          <SafeImage
             src={activeDeal.banner}
             alt="Flash Deal Banner"
             className="w-full h-auto object-contain rounded-lg"
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
+            hideOnError={true}
           />
         </div>
       )}
@@ -182,13 +181,11 @@ const FlashDeal = () => {
       {/* Product Image + Discount */}
       <div className="flex flex-col justify-center items-center w-full relative">
         <div className="max-w-[308px]">
-          <img
+          <SafeImage
             src={image || '/placeholder-image.png'}
             alt="Flash Deal"
             className="w-full h-[169px] rounded-3xl z-0"
-            onError={(e) => {
-              e.target.src = '/placeholder-image.png';
-            }}
+            fallbackSrc="/placeholder-image.png"
           />
           <div className="text-base font-normal font-poppins flex flex-col -mt-12 ml-2.5 absolute z-50 text-white rounded-lg bg-blue  w-[99px] h-[70px] px-3.5 py-1">
             Save{" "}

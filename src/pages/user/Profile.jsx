@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '../../components/ui/badge';
 import { User, Lock, Mail, Camera, Shield, Link2, Unlink, Trash2, LogOut, CheckCircle, XCircle, Smartphone } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import SafeImage from '../../components/ui/safe-image';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
 import { toast } from 'sonner';
 
@@ -169,7 +170,7 @@ const UserProfile = () => {
               <form onSubmit={handleProfileUpdate} className="space-y-6">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="relative">
-                    <img
+                    <SafeImage
                       src={previewImage || '/placeholder-avatar.png'}
                       alt="Profile"
                       className="w-32 h-32 rounded-full object-cover border-4 border-accent"

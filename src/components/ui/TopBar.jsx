@@ -8,6 +8,7 @@ import { authAPI } from '../../services/api';
 import { User, LogOut, Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import ChatNotifications from '../chat/ChatNotifications';
+import SafeImage from './safe-image';
 
 const AvatarDropdown = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -108,7 +109,7 @@ const AvatarDropdown = ({ user }) => {
         aria-label="User menu"
       >
         {userAvatar ? (
-          <img
+          <SafeImage
             src={userAvatar}
             alt={userName}
             className="w-10 h-10 rounded-full object-cover border-2 border-accent/30"

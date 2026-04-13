@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+/* eslint-disable react-hooks/static-components */
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { productAPI, platformAPI, categoryAPI, subcategoryAPI, regionAPI, deviceAPI, typeAPI, genreAPI, themeAPI, modeAPI } from '../../services/api';
 import ProductCard from '../ProductCard';
 import ProductVerticalCard from '../ProductVerticalCard';
@@ -37,6 +38,10 @@ const ProductListingLayout = ({
   defaultCategoryId = null,
   defaultSubCategoryId = null,
 }) => {
+  const STATIC_FILTER_QUERY_OPTIONS = {
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  };
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(parseInt(searchParams.get('page')) || 1);
   const [search, setSearch] = useState(searchParams.get('search') || searchParams.get('q') || '');
@@ -75,28 +80,18 @@ const ProductListingLayout = ({
     return initial;
   });
 
-  useEffect(() => {
-    if (lockedCategoryId && !checkboxFilters.categoryId.includes(lockedCategoryId)) {
-      setCheckboxFilters(prev => ({
-        ...prev,
-        categoryId: [lockedCategoryId],
-      }));
-    }
-  }, [lockedCategoryId]);
+  const effectiveCategoryIds = useMemo(() => {
+    if (lockedCategoryId) return [lockedCategoryId];
+    if (checkboxFilters.categoryId.length > 0) return checkboxFilters.categoryId;
+    if (defaultCategoryId) return [defaultCategoryId];
+    return [];
+  }, [lockedCategoryId, checkboxFilters.categoryId, defaultCategoryId]);
 
-  useEffect(() => {
-    if (
-      defaultSubCategoryId &&
-      !checkboxFilters.subCategoryId.includes(defaultSubCategoryId)
-    ) {
-      setCheckboxFilters(prev => ({
-        ...prev,
-        subCategoryId: prev.subCategoryId.includes(defaultSubCategoryId)
-          ? prev.subCategoryId
-          : [...prev.subCategoryId, defaultSubCategoryId],
-      }));
-    }
-  }, [defaultSubCategoryId, checkboxFilters.subCategoryId]);
+  const effectiveSubCategoryIds = useMemo(() => {
+    if (!defaultSubCategoryId) return checkboxFilters.subCategoryId;
+    if (checkboxFilters.subCategoryId.includes(defaultSubCategoryId)) return checkboxFilters.subCategoryId;
+    return [...checkboxFilters.subCategoryId, defaultSubCategoryId];
+  }, [checkboxFilters.subCategoryId, defaultSubCategoryId]);
 
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
   const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true');
@@ -143,6 +138,7 @@ const ProductListingLayout = ({
       const response = await platformAPI.getAllPlatforms({ isActive: true, limit: 100 });
       return response.data.data;
     },
+    ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
   const { data: categoriesData } = useQuery({
@@ -151,14 +147,15 @@ const ProductListingLayout = ({
       const response = await categoryAPI.getCategories({ isActive: true, limit: 100 });
       return response.data.data;
     },
+    ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
   const { data: subcategoriesData } = useQuery({
-    queryKey: ['subcategories', lockedCategoryId || checkboxFilters.categoryId],
+    queryKey: ['subcategories', lockedCategoryId || effectiveCategoryIds],
     queryFn: async () => {
-      const categoryIds = lockedCategoryId 
-        ? [lockedCategoryId] 
-        : checkboxFilters.categoryId;
+      const categoryIds = lockedCategoryId
+        ? [lockedCategoryId]
+        : effectiveCategoryIds;
       
       if (!categoryIds.length) return { docs: [] };
       
@@ -177,7 +174,7 @@ const ProductListingLayout = ({
       
       return { docs: uniqueSubcategories };
     },
-    enabled: !!(lockedCategoryId || checkboxFilters.categoryId.length > 0),
+    enabled: !!(lockedCategoryId || effectiveCategoryIds.length > 0),
   });
 
   const { data: regionsData } = useQuery({
@@ -186,6 +183,7 @@ const ProductListingLayout = ({
       const response = await regionAPI.getRegions({ limit: 100 });
       return response.data.data;
     },
+    ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
   const { data: devicesData } = useQuery({
@@ -194,6 +192,7 @@ const ProductListingLayout = ({
       const response = await deviceAPI.getDevices({ limit: 100, isActive: true });
       return response.data.data;
     },
+    ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
   const { data: typesData } = useQuery({
@@ -202,6 +201,7 @@ const ProductListingLayout = ({
       const response = await typeAPI.getAllTypes({ limit: 100 });
       return response.data.data;
     },
+    ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
   const { data: genresData } = useQuery({
@@ -210,6 +210,7 @@ const ProductListingLayout = ({
       const response = await genreAPI.getGenres({ limit: 100 });
       return response.data.data;
     },
+    ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
   const { data: themesData } = useQuery({
@@ -218,6 +219,7 @@ const ProductListingLayout = ({
       const response = await themeAPI.getThemes({ limit: 100 });
       return response.data.data;
     },
+    ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
   const { data: modesData } = useQuery({
@@ -226,6 +228,7 @@ const ProductListingLayout = ({
       const response = await modeAPI.getModes({ limit: 100 });
       return response.data.data;
     },
+    ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
   const categories = useMemo(() => {
@@ -318,10 +321,8 @@ const ProductListingLayout = ({
       status: 'active',
     };
 
-    if (checkboxFilters.categoryId.length > 0) {
-      params.categoryId = checkboxFilters.categoryId.join(',');
-    } else if (lockedCategoryId) {
-      params.categoryId = lockedCategoryId;
+    if (effectiveCategoryIds.length > 0) {
+      params.categoryId = effectiveCategoryIds.join(',');
     }
 
     if (lockedPlatformId) {
@@ -342,8 +343,8 @@ const ProductListingLayout = ({
       params.maxPrice = parseFloat(maxPrice);
     }
 
-    if (checkboxFilters.subCategoryId.length > 0) {
-      params.subCategoryId = checkboxFilters.subCategoryId.join(',');
+    if (effectiveSubCategoryIds.length > 0) {
+      params.subCategoryId = effectiveSubCategoryIds.join(',');
     }
 
     if (checkboxFilters.region.length > 0) {
@@ -381,9 +382,16 @@ const ProductListingLayout = ({
     return params;
   }, [
     page,
-    lockedCategoryId,
     lockedPlatformId,
-    checkboxFilters,
+    effectiveCategoryIds,
+    effectiveSubCategoryIds,
+    checkboxFilters.platform,
+    checkboxFilters.region,
+    checkboxFilters.device,
+    checkboxFilters.type,
+    checkboxFilters.genre,
+    checkboxFilters.theme,
+    checkboxFilters.mode,
     debouncedSearch,
     minPrice,
     maxPrice,
@@ -391,13 +399,14 @@ const ProductListingLayout = ({
     sortBy,
   ]);
 
-  const { data: productsData, isLoading, isError, error } = useQuery({
+  const { data: productsData, isLoading, isFetching, isError, error } = useQuery({
     queryKey: ['products-listing', productQueryParams],
     queryFn: async () => {
       const response = await productAPI.getProducts(productQueryParams);
       return response.data.data;
     },
     enabled: true,
+    placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
@@ -408,15 +417,13 @@ const ProductListingLayout = ({
     if (minPrice) params.set('minPrice', minPrice);
     if (maxPrice) params.set('maxPrice', maxPrice);
     
-    const categoryIds = lockedCategoryId 
-      ? [lockedCategoryId, ...checkboxFilters.categoryId.filter(id => id !== lockedCategoryId)]
-      : checkboxFilters.categoryId;
+    const categoryIds = effectiveCategoryIds;
     
     if (categoryIds.length > 0) {
       params.set('categoryId', categoryIds.join(','));
     }
     
-    if (checkboxFilters.subCategoryId.length > 0) params.set('subCategoryId', checkboxFilters.subCategoryId.join(','));
+    if (effectiveSubCategoryIds.length > 0) params.set('subCategoryId', effectiveSubCategoryIds.join(','));
     if (!lockedPlatformId && checkboxFilters.platform.length > 0) params.set('platform', checkboxFilters.platform.join(','));
     if (checkboxFilters.region.length > 0) params.set('region', checkboxFilters.region.join(','));
     if (checkboxFilters.device.length > 0) params.set('device', checkboxFilters.device.join(','));
@@ -434,7 +441,15 @@ const ProductListingLayout = ({
     debouncedSearch,
     minPrice,
     maxPrice,
-    checkboxFilters,
+    effectiveCategoryIds,
+    effectiveSubCategoryIds,
+    checkboxFilters.platform,
+    checkboxFilters.region,
+    checkboxFilters.device,
+    checkboxFilters.type,
+    checkboxFilters.genre,
+    checkboxFilters.theme,
+    checkboxFilters.mode,
     sortBy,
     inStock,
     layout,
@@ -443,15 +458,11 @@ const ProductListingLayout = ({
     setSearchParams,
   ]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, minPrice, maxPrice, checkboxFilters, inStock, sortBy]);
-
   const products = productsData?.docs || [];
   const totalPages = productsData?.totalPages || 0;
   const totalDocs = productsData?.totalDocs || 0;
 
-  const handleCheckboxChange = (type, id) => {
+  const handleCheckboxChange = useCallback((type, id) => {
     if (lockedPlatformId && type === 'platform') return;
     
     if (lockedCategoryId && type === 'categoryId' && id === lockedCategoryId) return;
@@ -471,14 +482,16 @@ const ProductListingLayout = ({
           : [...current, id],
       };
     });
-  };
+    setPage(1);
+  }, [lockedPlatformId, lockedCategoryId]);
 
-  const handleInputChange = (key, value) => {
+  const handleInputChange = useCallback((key, value) => {
     if (key === 'minPrice') setMinPrice(value);
     if (key === 'maxPrice') setMaxPrice(value);
-  };
+    setPage(1);
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearch('');
     setMinPrice('');
     setMaxPrice('');
@@ -497,28 +510,28 @@ const ProductListingLayout = ({
     setSortBy('newest');
     setInStock(false);
     setPage(1);
-  };
+  }, [lockedCategoryId, lockedPlatformId]);
 
-  const toggleSection = (section) => {
+  const toggleSection = useCallback((section) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section],
     }));
-  };
+  }, []);
 
-  const handleSearch = (section, value) => {
+  const handleSearch = useCallback((section, value) => {
     setSearchTerms(prev => ({
       ...prev,
       [section]: value,
     }));
-  };
+  }, []);
 
-  const filterItems = (items, searchTerm) => {
+  const filterItems = useCallback((items, searchTerm) => {
     if (!searchTerm) return items;
     return items.filter(item =>
       item.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  };
+  }, []);
 
   const FilterSection = ({ title, children, section, hasSearch = false, itemCount, totalItems = 0 }) => {
     const hasMoreItems = totalItems > 5;
@@ -575,7 +588,11 @@ const ProductListingLayout = ({
   };
 
   const CheckboxItem = ({ id, title, type, count, isLocked = false }) => {
-    const isChecked = checkboxFilters[type]?.includes(id);
+    const isChecked = type === 'categoryId'
+      ? effectiveCategoryIds.includes(id)
+      : type === 'subCategoryId'
+        ? effectiveSubCategoryIds.includes(id)
+        : checkboxFilters[type]?.includes(id);
     return (
       <div
         className={`flex items-center justify-between py-3 px-2 cursor-pointer bg-[#052157] transition-all duration-200 group ${
@@ -623,58 +640,60 @@ const ProductListingLayout = ({
     );
   };
 
-  const filteredCategories = filterItems(categories, searchTerms.categories);
-  const filteredSubcategories = filterItems(subcategories, searchTerms.subcategories);
-  const filteredRegions = filterItems(regions, searchTerms.regions);
-  const filteredPlatforms = filterItems(platforms, searchTerms.platforms);
-  const filteredDevices = filterItems(devices, searchTerms.devices);
-  const filteredTypes = filterItems(types, searchTerms.types);
-  const filteredGenres = filterItems(genres, searchTerms.genres);
-  const filteredThemes = filterItems(themes, searchTerms.themes);
-  const filteredModes = filterItems(modes, searchTerms.modes);
+  const filteredCategories = useMemo(() => filterItems(categories, searchTerms.categories), [categories, searchTerms.categories, filterItems]);
+  const filteredSubcategories = useMemo(() => filterItems(subcategories, searchTerms.subcategories), [subcategories, searchTerms.subcategories, filterItems]);
+  const filteredRegions = useMemo(() => filterItems(regions, searchTerms.regions), [regions, searchTerms.regions, filterItems]);
+  const filteredPlatforms = useMemo(() => filterItems(platforms, searchTerms.platforms), [platforms, searchTerms.platforms, filterItems]);
+  const filteredDevices = useMemo(() => filterItems(devices, searchTerms.devices), [devices, searchTerms.devices, filterItems]);
+  const filteredTypes = useMemo(() => filterItems(types, searchTerms.types), [types, searchTerms.types, filterItems]);
+  const filteredGenres = useMemo(() => filterItems(genres, searchTerms.genres), [genres, searchTerms.genres, filterItems]);
+  const filteredThemes = useMemo(() => filterItems(themes, searchTerms.themes), [themes, searchTerms.themes, filterItems]);
+  const filteredModes = useMemo(() => filterItems(modes, searchTerms.modes), [modes, searchTerms.modes, filterItems]);
 
-  const displayedCategories = expandedSections.categories
-    ? filteredCategories
-    : filteredCategories.slice(0, 5);
+  const displayedCategories = useMemo(() => (
+    expandedSections.categories ? filteredCategories : filteredCategories.slice(0, 5)
+  ), [expandedSections.categories, filteredCategories]);
 
-  const displayedSubcategories = expandedSections.subcategories
-    ? filteredSubcategories
-    : filteredSubcategories.slice(0, 5);
+  const displayedSubcategories = useMemo(() => (
+    expandedSections.subcategories ? filteredSubcategories : filteredSubcategories.slice(0, 5)
+  ), [expandedSections.subcategories, filteredSubcategories]);
 
-  const displayedRegions = expandedSections.regions
-    ? filteredRegions
-    : filteredRegions.slice(0, 5);
+  const displayedRegions = useMemo(() => (
+    expandedSections.regions ? filteredRegions : filteredRegions.slice(0, 5)
+  ), [expandedSections.regions, filteredRegions]);
 
-  const displayedPlatforms = expandedSections.platforms
-    ? filteredPlatforms
-    : filteredPlatforms.slice(0, 5);
+  const displayedPlatforms = useMemo(() => (
+    expandedSections.platforms ? filteredPlatforms : filteredPlatforms.slice(0, 5)
+  ), [expandedSections.platforms, filteredPlatforms]);
 
-  const displayedDevices = expandedSections.devices
-    ? filteredDevices
-    : filteredDevices.slice(0, 5);
+  const displayedDevices = useMemo(() => (
+    expandedSections.devices ? filteredDevices : filteredDevices.slice(0, 5)
+  ), [expandedSections.devices, filteredDevices]);
 
-  const displayedTypes = expandedSections.types
-    ? filteredTypes
-    : filteredTypes.slice(0, 5);
+  const displayedTypes = useMemo(() => (
+    expandedSections.types ? filteredTypes : filteredTypes.slice(0, 5)
+  ), [expandedSections.types, filteredTypes]);
 
-  const displayedGenres = expandedSections.genres
-    ? filteredGenres
-    : filteredGenres.slice(0, 5);
+  const displayedGenres = useMemo(() => (
+    expandedSections.genres ? filteredGenres : filteredGenres.slice(0, 5)
+  ), [expandedSections.genres, filteredGenres]);
 
-  const displayedThemes = expandedSections.themes
-    ? filteredThemes
-    : filteredThemes.slice(0, 5);
+  const displayedThemes = useMemo(() => (
+    expandedSections.themes ? filteredThemes : filteredThemes.slice(0, 5)
+  ), [expandedSections.themes, filteredThemes]);
 
-  const displayedModes = expandedSections.modes
-    ? filteredModes
-    : filteredModes.slice(0, 5);
+  const displayedModes = useMemo(() => (
+    expandedSections.modes ? filteredModes : filteredModes.slice(0, 5)
+  ), [expandedSections.modes, filteredModes]);
+  const initialLoading = isLoading && !productsData;
+  const skeletonKeys = [1, 2, 3, 4, 5, 6];
 
   const hasActiveFilters =
     search ||
     minPrice ||
     maxPrice ||
-    (checkboxFilters.categoryId.length > 0 && !lockedCategoryId) ||
-    checkboxFilters.subCategoryId.length > 0 ||
+    (effectiveCategoryIds.length > 0 && !lockedCategoryId) ||
+    effectiveSubCategoryIds.length > 0 ||
     (checkboxFilters.platform.length > 0 && !lockedPlatformId) ||
     checkboxFilters.region.length > 0 ||
     checkboxFilters.device.length > 0 ||
@@ -726,7 +745,7 @@ const ProductListingLayout = ({
               title="Categories"
               section="categories"
               hasSearch={categories.length > 10}
-              itemCount={checkboxFilters.categoryId?.length || 0}
+              itemCount={effectiveCategoryIds.length || 0}
             >
               {displayedCategories.map(cat => {
                 const isLocked = lockedCategoryId === cat._id;
@@ -749,7 +768,7 @@ const ProductListingLayout = ({
                 title="Subcategories"
                 section="subcategories"
                 hasSearch={subcategories.length > 10}
-                itemCount={checkboxFilters.subCategoryId?.length || 0}
+                itemCount={effectiveSubCategoryIds.length || 0}
                 totalItems={filteredSubcategories.length}
               >
                 {displayedSubcategories.map(subcat => (
@@ -807,7 +826,10 @@ const ProductListingLayout = ({
                 <label className="flex items-center gap-2 cursor-pointer">
                   <Checkbox
                     checked={inStock}
-                    onCheckedChange={(checked) => setInStock(checked)}
+                    onCheckedChange={(checked) => {
+                      setInStock(checked);
+                      setPage(1);
+                    }}
                   />
                   <Label className="text-sm text-slate-200 cursor-pointer">
                     Items In Stock ({totalDocs})
@@ -997,7 +1019,7 @@ const ProductListingLayout = ({
                 title="Categories"
                 section="categories"
                 hasSearch={categories.length > 10}
-                itemCount={checkboxFilters.categoryId?.length || 0}
+                itemCount={effectiveCategoryIds.length || 0}
                 totalItems={filteredCategories.length}
               >
                 {displayedCategories.map(cat => {
@@ -1058,7 +1080,10 @@ const ProductListingLayout = ({
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Checkbox
                       checked={inStock}
-                      onCheckedChange={(checked) => setInStock(checked)}
+                      onCheckedChange={(checked) => {
+                        setInStock(checked);
+                        setPage(1);
+                      }}
                     />
                     <Label className="text-sm text-slate-200 cursor-pointer">
                       Items In Stock ({totalDocs})
@@ -1119,13 +1144,19 @@ const ProductListingLayout = ({
                 type="text"
                 placeholder="Search for products..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
                 className="bg-gray-800 border-gray-700 text-white flex-1 max-w-md"
               />
               <div className="flex gap-2">
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => {
+                    setSortBy(e.target.value);
+                    setPage(1);
+                  }}
                   className="bg-gray-800 border border-gray-700 text-white px-4 py-2 rounded-lg"
                 >
                   <option value="newest">Newest First</option>
@@ -1157,10 +1188,10 @@ const ProductListingLayout = ({
             </div>
 
             {/* Products List */}
-            {isLoading ? (
+            {initialLoading ? (
               <div className={layout === 'listing' ? 'space-y-4' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'}>
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <Card key={index} className="p-4 space-y-3 bg-[#041536]">
+                {skeletonKeys.map((skeletonKey) => (
+                  <Card key={skeletonKey} className="p-4 space-y-3 bg-[#041536]">
                     <Skeleton className="h-40 w-full rounded-md" />
                     <Skeleton className="h-5 w-2/3" />
                     <Skeleton className="h-4 w-1/3" />
@@ -1173,6 +1204,9 @@ const ProductListingLayout = ({
               />
             ) : products.length > 0 ? (
               <>
+                {isFetching && (
+                  <p className="mb-4 text-sm text-gray-400">Updating products...</p>
+                )}
                 {layout === 'listing' ? (
                   <div className="space-y-4">
                     {products.map((product) => (

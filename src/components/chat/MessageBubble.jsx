@@ -1,6 +1,7 @@
 import { useState, useEffect, memo } from 'react';
 import { cn } from '../../lib/utils';
 import { Loader2, ImageOff } from 'lucide-react';
+import SafeImage from '../ui/safe-image';
 
 const getThumbnailUrl = (url) => {
   if (!url || !url.includes('cloudinary.com')) return url;
@@ -44,7 +45,7 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
       {!isOwn && (
         <div className="shrink-0">
           {senderAvatar ? (
-            <img
+            <SafeImage
               src={senderAvatar}
               alt={senderName}
               className="w-10 h-10 rounded-full object-cover border-2 border-accent/30"
@@ -84,7 +85,7 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
             <div className="space-y-2">
               {message.localPreviewUrl && !message.attachment ? (
                 <div className="relative">
-                  <img
+                  <SafeImage
                     src={message.localPreviewUrl}
                     alt=""
                     className="max-w-[280px] max-h-[240px] rounded object-cover opacity-90"
@@ -105,7 +106,7 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
                 </div>
               ) : (message.attachment || message.localPreviewUrl) && !imgError ? (
                 <div className="relative">
-                  <img
+                  <SafeImage
                     src={message.localPreviewUrl || getThumbnailUrl(message.attachment)}
                     alt={message.messageText || 'Image'}
                     loading="lazy"
@@ -142,7 +143,7 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
             onClick={() => setLightboxOpen(false)}
           >
-            <img
+            <SafeImage
               src={message.attachment}
               alt=""
               className="max-w-full max-h-full object-contain"

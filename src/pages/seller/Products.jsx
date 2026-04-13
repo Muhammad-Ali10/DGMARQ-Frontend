@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { productAPI } from '../../services/api';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -13,6 +13,7 @@ import { Label } from '../../components/ui/label';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import BulkUploadModal from '../../components/BulkUploadModal';
 import { Plus, Edit, Trash2, Copy, Image as ImageIcon, RefreshCw, ChevronLeft, ChevronRight, Package, Filter, Upload } from 'lucide-react';
+import SafeImage from '../../components/ui/safe-image';
 
 const SellerProducts = () => {
   const [page, setPage] = useState(1);
@@ -22,23 +23,20 @@ const SellerProducts = () => {
   const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const queryParams = {
-    page,
-    limit: 10,
-  };
+  const queryParams = useMemo(() => {
+    const params = { page, limit: 10 };
+    if (statusFilter !== 'all') params.status = statusFilter;
+    return params;
+  }, [page, statusFilter]);
 
-  // Add status filter if not 'all'
-  if (statusFilter !== 'all') {
-    queryParams.status = statusFilter;
-  }
-
-  const { data: productsData, isLoading, isError, error } = useQuery({
+  const { data: productsData, isLoading, isFetching, isError, error } = useQuery({
     queryKey: ['seller-products', page, statusFilter],
     queryFn: async () => {
       const response = await productAPI.getProducts(queryParams);
       return response.data.data;
     },
     retry: 2,
+    placeholderData: keepPreviousData,
   });
 
   const deleteMutation = useMutation({
@@ -115,7 +113,8 @@ const SellerProducts = () => {
     syncStockMutation.mutate(productId);
   };
 
-  if (isLoading) return <Loading message="Loading products..." />;
+  const initialLoading = isLoading && !productsData;
+  if (initialLoading) return <Loading message="Loading products..." />;
   if (isError) {
     const errorMessage = error?.response?.data?.message || error?.message || "Failed to load products. Please try again.";
     return <ErrorMessage message={errorMessage} />;
@@ -172,6 +171,9 @@ const SellerProducts = () => {
           </Link>
         </div>
       </div>
+      {isFetching && (
+        <p className="text-sm text-gray-400">Updating product list...</p>
+      )}
 
       {/* Status Filter Tabs */}
       <Card className="bg-primary border-gray-700">
@@ -242,7 +244,7 @@ const SellerProducts = () => {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           {product.images?.[0] && (
-                            <img
+                            <SafeImage
                               src={product.images[0]}
                               alt={product.name}
                               className="h-12 w-12 rounded object-cover"

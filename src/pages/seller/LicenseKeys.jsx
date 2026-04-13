@@ -19,6 +19,7 @@ import BulkUploadModal from '../../components/BulkUploadModal';
 import { Plus, Key, Search, RefreshCw, ChevronLeft, ChevronRight, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { normalizeToHttps } from '../../lib/utils';
+import SafeImage from '../../components/ui/safe-image';
 
 const SellerLicenseKeys = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -287,7 +288,7 @@ const SellerLicenseKeys = () => {
                 >
                   <div className="flex items-center gap-3">
                     {product.images?.[0] && (
-                      <img src={normalizeToHttps(product.images[0])} alt={product.name} className="w-12 h-12 object-cover rounded" />
+                      <SafeImage src={normalizeToHttps(product.images[0])} alt={product.name} className="w-12 h-12 object-cover rounded" />
                     )}
                     <div className="flex-1">
                       <p className="font-medium text-white">{product.name}</p>

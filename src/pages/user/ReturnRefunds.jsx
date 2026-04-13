@@ -13,6 +13,7 @@ import { showSuccess, showApiError } from '../../utils/toast';
 import RefundRequestModal from '../../components/RefundRequestModal';
 import RefundChat from '../../components/RefundChat';
 import { toast } from 'sonner';
+import SafeImage from '../../components/ui/safe-image';
 
 const STATUS_LABELS = {
   PENDING: 'Pending',
@@ -282,7 +283,7 @@ const UserReturnRefunds = () => {
                       <div className="mt-2 flex flex-wrap gap-2">
                         {refundView.evidenceFiles.map((url, i) => (
                           <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
-                            <img src={url} alt={`Evidence ${i + 1}`} className="h-20 w-20 object-cover rounded border border-gray-600 hover:border-accent" />
+                            <SafeImage src={url} alt={`Evidence ${i + 1}`} className="h-20 w-20 object-cover rounded border border-gray-600 hover:border-accent" />
                           </a>
                         ))}
                       </div>

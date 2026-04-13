@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Carousel, CarouselContent, CarouselItem } from './ui/carousel';
 import { Link } from 'react-router-dom';
 import { homepageSliderAPI } from '../services/api';
+import SafeImage from './ui/safe-image';
 
 const Hero = () => {
   const { data: sliders, isLoading } = useQuery({
@@ -53,7 +54,7 @@ const Hero = () => {
             const slideContent = (
               <div className={`${style.size} rounded-2xl overflow-hidden ${isCenter ? 'shadow-xl' : 'shadow-lg'} relative transition-transform duration-300 ease-out group-hover:scale-105 group-hover:shadow-2xl`}>
                 <div className="relative h-full">
-                  <img
+                  <SafeImage
                     src={slider.image}
                     alt={slider.title}
                     className="w-full h-full object-cover"

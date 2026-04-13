@@ -7,6 +7,7 @@ import { authAPI } from '../../services/api';
 import { Button } from '../ui/button';
 import { User, LogIn, UserPlus, LogOut, LayoutDashboard, ShoppingBag, Key, Info } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import SafeImage from '../ui/safe-image';
 
 const SessionMenu = ({ onItemClick } = {}) => {
   const navigate = useNavigate();
@@ -90,7 +91,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
   const getUserDisplay = () => {
     if (user?.profileImage) {
       return (
-        <img
+        <SafeImage
           src={user.profileImage}
           alt={user.name || 'User'}
           className="w-8 h-8 rounded-full object-cover border-2 border-accent/50"

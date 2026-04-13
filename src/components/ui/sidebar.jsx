@@ -7,6 +7,7 @@ import { logout } from "../../store/slices/authSlice";
 import { authAPI } from "../../services/api";
 import { cn } from "../../lib/utils";
 import { Button } from "./button";
+import SafeImage from "./safe-image";
 import {
   LayoutDashboard,
   Users,
@@ -58,7 +59,7 @@ const SidebarLogo = () => {
       to="/"
       className="flex items-center gap-2 px-6 py-4 hover:opacity-80 transition-opacity border-b border-border"
     >
-      <img
+      <SafeImage
         src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
         alt="logo"
         className="w-10/12 h-10"

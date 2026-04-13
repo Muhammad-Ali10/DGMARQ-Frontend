@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { sellerAPI } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
@@ -26,13 +27,7 @@ const SellerDashboard = () => {
     refetchOnWindowFocus: true,
   });
 
-  const isLoading = infoLoading || balanceLoading || metricsLoading;
-  const isError = infoError || balanceError || metricsError;
-
-  if (isLoading) return <Loading message="Loading seller dashboard..." />;
-  if (isError) return <ErrorMessage message="Error loading seller dashboard" />;
-
-  const statsCards = [
+  const statsCards = useMemo(() => ([
     {
       title: 'Available Balance',
       value: `$${balance?.available?.toFixed(2) || '0.00'}`,
@@ -98,7 +93,12 @@ const SellerDashboard = () => {
       color: 'text-green-400',
       description: 'Sent to PayPal',
     },
-  ];
+  ]), [balance, performanceMetrics, sellerInfo]);
+  const isLoading = infoLoading || balanceLoading || metricsLoading;
+  const isError = infoError || balanceError || metricsError;
+
+  if (isLoading) return <Loading message="Loading seller dashboard..." />;
+  if (isError) return <ErrorMessage message="Error loading seller dashboard" />;
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -127,10 +127,10 @@ const SellerDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsCards.map((stat, index) => {
+        {statsCards.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} className="bg-primary border-gray-700">
+            <Card key={stat.title} className="bg-primary border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
                 <Icon className={`h-4 w-4 ${stat.color}`} />

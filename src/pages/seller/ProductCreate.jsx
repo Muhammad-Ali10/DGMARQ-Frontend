@@ -10,6 +10,7 @@ import { Label } from '../../components/ui/label';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import SafeImage from '../../components/ui/safe-image';
 
 const FEATURED_FEE_MESSAGE = 'If you mark this product as Featured, an additional 10% fee will be charged.';
 
@@ -538,7 +539,7 @@ const ProductCreate = () => {
                   <div className="grid grid-cols-5 gap-4">
                     {images.map((image, index) => (
                       <div key={index} className="relative">
-                        <img
+                        <SafeImage
                           src={URL.createObjectURL(image)}
                           alt={`Preview ${index + 1}`}
                           className="w-full h-24 object-cover rounded-lg"

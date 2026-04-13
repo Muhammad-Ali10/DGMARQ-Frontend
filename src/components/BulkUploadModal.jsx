@@ -9,6 +9,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { SearchableSelect } from './ui/searchable-select';
 import { Upload, FileText, CheckCircle2, Key, User, X, AlertCircle, Info, Loader2, FileCheck, Check } from 'lucide-react';
+import SafeImage from './ui/safe-image';
 
 const BulkUploadModal = ({ open, onOpenChange }) => {
   const queryClient = useQueryClient();
@@ -361,7 +362,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       {product.images?.[0] && (
-                        <img
+                        <SafeImage
                           src={product.images[0]}
                           alt={product.name}
                           className="w-8 h-8 object-cover rounded flex-shrink-0"

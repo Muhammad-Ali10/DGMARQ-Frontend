@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import Hero from "../../components/Hero";
@@ -21,6 +22,8 @@ import {
 import { productAPI } from "../../services/api";
 import { Loading } from "../../components/ui/loading";
 import { useSEO } from "../../hooks/useSEO";
+import SafeImage from "../../components/ui/safe-image";
+import { Helmet } from "react-helmet-async";
 
 const widths = ["w-1/4", "w-1/4", "w-1/2", "w-1/4", "w-1/4", "w-1/2"];
 
@@ -121,13 +124,42 @@ const Home = () => {
   });
 
   const microsoftProducts = softwarePageData?.microsoft || [];
+  const trendingOfferProducts = useMemo(() => {
+    if (!Array.isArray(trendingOffersData) || trendingOffersData.length === 0) return [];
+    const productMap = new Map();
+    trendingOffersData.forEach((offer) => {
+      offer.products?.forEach((product) => {
+        if (!productMap.has(product._id)) {
+          productMap.set(product._id, {
+            ...product,
+            trendingOffer: {
+              discountPercent: offer.discountPercent,
+              offerId: offer._id,
+            },
+          });
+        }
+      });
+    });
+    return Array.from(productMap.values()).slice(0, 6);
+  }, [trendingOffersData]);
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>DGMARQ - Buy and Sell Online Marketplace</title>
+        <meta
+          name="description"
+          content="Find the best listings on DGMARQ. Buy and sell products and services safely and easily."
+        />
+        <meta property="og:title" content="DGMARQ - Buy and Sell Online" />
+        <meta property="og:description" content="Find the best listings on DGMARQ marketplace." />
+        <meta property="og:url" content="https://www.dgmarq.com/" />
+        <link rel="canonical" href="https://www.dgmarq.com/" />
+      </Helmet>
       <Hero />
       <CategoryNavigation scrollOffset={140} />
       <div id="featured-products"></div>
-      {featuredProductsData?.docs && featuredProductsData.docs.length > 0 && (
+      {(isLoadingFeatured || (featuredProductsData?.docs && featuredProductsData.docs.length > 0)) && (
         <section id="featured-products" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -183,12 +215,14 @@ const Home = () => {
             </div>
           ) : bestsellersData?.bestsellers?.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {bestsellersData.bestsellers.map((bestseller) => (
-                <ProductCard
-                  key={bestseller.productId._id}
-                  product={bestseller.productId}
-                />
-              ))}
+              {bestsellersData.bestsellers
+                .filter((bestseller) => bestseller?.productId?._id)
+                .map((bestseller) => (
+                  <ProductCard
+                    key={bestseller.productId._id}
+                    product={bestseller.productId}
+                  />
+                ))}
             </div>
           ) : (
             <div className="text-center py-12">
@@ -223,43 +257,14 @@ const Home = () => {
                 <div className="flex justify-center items-center py-12">
                   <Loading message="Loading trending offers..." />
                 </div>
-              ) : trendingOffersData?.length > 0 ? (
-                (() => {
-                  const productMap = new Map();
-                  trendingOffersData.forEach((offer) => {
-                    offer.products?.forEach((product) => {
-                      if (!productMap.has(product._id)) {
-                        productMap.set(product._id, {
-                          ...product,
-                          trendingOffer: {
-                            discountPercent: offer.discountPercent,
-                            offerId: offer._id,
-                          },
-                        });
-                      }
-                    });
-                  });
-                  const uniqueProducts = Array.from(productMap.values()).slice(
-                    0,
-                    6,
-                  );
-
-                  return uniqueProducts.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {uniqueProducts.map((product) => (
-                        <div key={product._id} className="relative w-full">
-                          <ProductVerticalCard product={product} />
-                        </div>
-                      ))}
+              ) : trendingOfferProducts.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {trendingOfferProducts.map((product) => (
+                    <div key={product._id} className="relative w-full">
+                      <ProductVerticalCard product={product} />
                     </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-400">
-                        No products available in trending offers.
-                      </p>
-                    </div>
-                  );
-                })()
+                  ))}
+                </div>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-gray-400">
@@ -274,7 +279,7 @@ const Home = () => {
 
       <div id="upcoming-new-releases"></div>
 
-      {upcomingReleasesData && upcomingReleasesData.length >= 2 && (
+      {(isLoadingUpcomingReleases || (upcomingReleasesData && upcomingReleasesData.length >= 2)) && (
         <section id="upcoming-new-releases" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 text-center font-poppins">
@@ -360,7 +365,7 @@ const Home = () => {
       )}
 
       <div id="upcoming-games">      </div>
-      {upcomingGamesData && upcomingGamesData.length > 0 && (
+      {(isLoadingUpcomingGames || (upcomingGamesData && upcomingGamesData.length > 0)) && (
         <section id="upcoming-games" className="py-16">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -399,7 +404,7 @@ const Home = () => {
 
       <section id="trending-categories" className="py-16">
         <div className="flex w-full justify-center relative gap-5">
-          <img
+          <SafeImage
             src="/images/CenterShedow.png"
             className="absolute z-10"
             alt=""
@@ -446,13 +451,11 @@ const Home = () => {
                       >
                         <div className="flex flex-row items-start gap-3 sm:gap-5">
                           {category.image && (
-                            <img
+                            <SafeImage
                               src={category.image}
                               alt={category.name}
                               className="w-16 h-20 sm:w-24 sm:h-32 object-cover rounded-lg shrink-0"
-                              onError={(e) => {
-                                e.target.style.display = "none";
-                              }}
+                              hideOnError={true}
                             />
                           )}
                           <div className="flex flex-col items-start gap-1 sm:gap-2">
@@ -502,13 +505,11 @@ const Home = () => {
                         >
                           <div className="flex flex-row items-start gap-3 sm:gap-5">
                             {category.image && (
-                              <img
+                              <SafeImage
                                 src={category.image}
                                 alt={category.name}
                                 className="w-16 h-20 sm:w-24 sm:h-32 object-cover rounded-lg shrink-0"
-                                onError={(e) => {
-                                  e.target.style.display = "none";
-                                }}
+                                hideOnError={true}
                               />
                             )}
                             <div className="flex flex-col items-start gap-1 sm:gap-2">
@@ -570,14 +571,14 @@ const Home = () => {
       />
 
       <div id="microsoft"></div>
-      {microsoftProducts.length > 0 && (
+      {(isLoadingMicrosoft || microsoftProducts.length > 0) && (
         <section id="microsoft" className="py-8 md:py-16">
           <div className="max-w-7xl mx-auto px-4">
             {isLoadingMicrosoft ? (
               <div className="flex flex-row flex-wrap gap-4 sm:gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
+                {[1, 2, 3, 4, 5, 6].map((skeletonId) => (
                   <div
-                    key={i}
+                    key={skeletonId}
                     className="min-h-[280px] sm:min-h-[320px] md:min-h-[340px] rounded-2xl bg-gradient-to-r from-[#1e3a5f] via-[#2563eb] to-[#60a5fa] animate-pulse"
                   >
                     <div className="h-full p-6 sm:p-8 flex flex-col">

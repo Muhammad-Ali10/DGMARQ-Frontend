@@ -1,6 +1,7 @@
 import SectionWrapper from "@/components/marketplace/SectionWrapper";
 import GlowCard from "@/components/marketplace/GlowCard";
 import { PrivacyPolicyPageData } from "@/lib/data";
+import { Helmet } from "react-helmet-async";
 
 const PrivacyPolicy = () => {
   const { hero, sections, finalCta } = PrivacyPolicyPageData;
@@ -20,6 +21,14 @@ const PrivacyPolicy = () => {
 
   return (
     <main className="flex min-h-screen flex-col text-white">
+      <Helmet>
+        <title>Privacy and Cookie Policy | DGMARQ</title>
+        <meta
+          name="description"
+          content="Read how DGMARQ collects, uses, and protects your personal data."
+        />
+        <link rel="canonical" href="https://www.dgmarq.com/privacy-policy" />
+      </Helmet>
       {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden bg-gradient-to-b from-accent/10 via-transparent to-transparent">
         <div className="flex flex-col gap-6 max-w-4xl mx-auto text-center">

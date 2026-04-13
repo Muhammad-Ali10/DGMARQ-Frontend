@@ -4,6 +4,7 @@ import { useMemo, useEffect } from 'react';
 import { categoryAPI } from '../../services/api';
 import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Helmet } from 'react-helmet-async';
 
 // Helper to check if string is a valid MongoDB ObjectId
 const isValidObjectId = (str) => {
@@ -111,10 +112,20 @@ const CategoryListing = () => {
 
   // Pass lockedCategoryId to ProductListingLayout
   return (
-    <ProductListingLayout
-      lockedCategoryId={actualCategoryId}
-      pageTitle={categoryData.name}
-    />
+    <>
+      <Helmet>
+        <title>{categoryData.name} Listings | DGMARQ</title>
+        <meta
+          name="description"
+          content={`Browse all ${categoryData.name} listings on DGMARQ marketplace.`}
+        />
+        <link rel="canonical" href={`https://www.dgmarq.com/category/${categoryData.slug || categoryParam}`} />
+      </Helmet>
+      <ProductListingLayout
+        lockedCategoryId={actualCategoryId}
+        pageTitle={categoryData.name}
+      />
+    </>
   );
 };
 

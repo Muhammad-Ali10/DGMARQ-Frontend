@@ -9,6 +9,7 @@ import { Textarea } from './ui/textarea';
 import { SearchableSelect } from './ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { X, Loader2, AlertCircle, CheckCircle2, ShoppingBag, Package, FileText } from 'lucide-react';
+import SafeImage from './ui/safe-image';
 
 const REFUND_REASONS = [
   'Product not working',
@@ -655,7 +656,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {product.productImage && (
-                        <img
+                        <SafeImage
                           src={product.productImage}
                           alt={product.productName}
                           className="w-10 h-10 object-cover rounded shrink-0"
@@ -722,7 +723,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           {item.productImage && (
-                            <img
+                            <SafeImage
                               src={item.productImage}
                               alt={item.productName}
                               className="w-10 h-10 rounded object-cover shrink-0"
@@ -1000,7 +1001,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                         onClick={() => window.open(url, '_blank', 'noopener')}
                         className="block w-full aspect-square rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden shadow-md hover:border-accent/40 hover:shadow-accent/10 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                       >
-                        <img src={url} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
+                        <SafeImage src={url} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>
