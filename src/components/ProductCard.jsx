@@ -25,7 +25,7 @@ const ProductCard = memo(({ product }) => {
   const title = getProductName(product);
   const platformName = getPlatformName(product);
   const typeName = getTypeName(product);
-
+// console.log("product", product);
   return ( 
     <Link to={`/product/${product.slug || product._id}`}>
       <Card className="w-full max-w-[196px] mx-auto flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2.5 box-border hover:scale-105 transition-transform duration-200">

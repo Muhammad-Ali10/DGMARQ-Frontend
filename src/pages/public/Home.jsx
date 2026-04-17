@@ -61,6 +61,7 @@ const Home = () => {
       },
       staleTime: 120000,
     });
+  console.log(trendingOffersData);
   const { data: upcomingReleasesData, isLoading: isLoadingUpcomingReleases } =
     useQuery({
       queryKey: ["upcoming-releases", "home"],
@@ -260,6 +261,7 @@ const Home = () => {
               ) : trendingOfferProducts.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {trendingOfferProducts.map((product) => (
+                    console.log("product", product),
                     <div key={product._id} className="relative w-full">
                       <ProductVerticalCard product={product} />
                     </div>
