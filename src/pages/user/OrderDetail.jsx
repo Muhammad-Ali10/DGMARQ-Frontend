@@ -334,10 +334,10 @@ const OrderDetail = () => {
                 )}
                 {order.buyerHandlingFee > 0 && (
                   <div className="flex justify-between text-gray-400">
-                    <span>Buyer Handling Fee:</span>
+                    <span>Buyer Protection Fee:</span>
                     <span>${order.buyerHandlingFee.toFixed(2)}</span>
                   </div>
-                )}
+                )}  
                 {(() => {
                   const totalRefunded = (order.items || []).reduce((sum, item) => sum + (Number(item.refundedAmount) || 0), 0);
                   return totalRefunded > 0 ? (
@@ -370,7 +370,11 @@ const OrderDetail = () => {
                     <CreditCard className="w-4 h-4" />
                     <span>Payment Method:</span>
                   </div>
-                  <p className="text-white capitalize">{order.paymentMethod}</p>
+                  <p className="text-white">
+                    {order.paymentMethod === 'Card' ? 'Credit/Debit Card'
+                      : order.paymentMethod === 'Wallet+Card' ? 'Wallet + Credit/Debit Card'
+                      : order.paymentMethod}
+                  </p>
                 </div>
               )}
             </CardContent>

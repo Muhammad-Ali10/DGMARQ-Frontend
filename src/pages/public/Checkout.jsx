@@ -23,9 +23,6 @@ const Checkout = () => {
   
   const checkoutId = searchParams.get('checkoutId');
   const paymentStatus = searchParams.get('status');
-  // Preserve token and PayerID for future payment flows (may be used by downstream payment status handlers)
-  const _token = searchParams.get('token');
-  const _PayerID = searchParams.get('PayerID');
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -154,19 +151,6 @@ const Checkout = () => {
     },
   });
 
-  const processCardPaymentMutation = useMutation({
-    mutationFn: ({ checkoutId, cardData }) => checkoutAPI.processCardPayment(checkoutId, cardData),
-    onSuccess: (data) => {
-      const checkoutId = data.data.data?.checkoutId;
-      if (checkoutId) {
-        navigate(`/checkout?checkoutId=${checkoutId}&status=success`);
-        setPaymentModalOpen(false);
-        queryClient.invalidateQueries(['checkout', checkoutId]);
-      }
-    },
-    onError: () => {},
-  });
-
   const cancelCheckoutMutation = useMutation({
     mutationFn: () => checkoutAPI.cancelCheckout(checkoutId),
     onSuccess: () => {
@@ -278,31 +262,6 @@ const Checkout = () => {
       couponCode: appliedCoupon?.code || couponCode || undefined,
       preferredPaymentMethod: selectedPaymentMethod === 'wallet' ? 'Wallet' : 
                               selectedPaymentMethod === 'card' ? 'Card' : 'PayPal',
-    });
-  };
-
-  // eslint-disable-next-line no-unused-vars
-  const handlePayPalPayment = () => {
-    if (!currentCheckoutId) {
-      handleProceedToPayment();
-      return;
-    }
-    
-    checkoutAPI.getCheckoutStatus(currentCheckoutId).then((res) => {
-      const approvalUrl = res.data.data?.paypalApprovalUrl;
-      if (approvalUrl) {
-        window.location.href = approvalUrl;
-      }
-    }).catch(() => {});
-  };
-
-  // eslint-disable-next-line no-unused-vars
-  const handleCardPayment = (cardData) => {
-    if (!currentCheckoutId) return;
-    
-    processCardPaymentMutation.mutate({
-      checkoutId: currentCheckoutId,
-      cardData,
     });
   };
 
@@ -1016,10 +975,10 @@ const Checkout = () => {
                     </div>
                   )}
 
-                  {/* Buyer Handling Fee (read-only; from server) */}
+                  {/* Buyer Protection Fee (read-only; from server) */}
                   {handlingFeeEnabled && buyerHandlingFee > 0 && (
                     <div className="flex justify-between text-gray-300">
-                      <span>Buyer Handling Fee{feeLabel ? ` (${feeLabel})` : ''}</span>
+                      <span>Buyer Protection Fee{feeLabel ? ` (${feeLabel})` : ''}</span>
                       <span className="text-white">${buyerHandlingFee.toFixed(2)}</span>
                     </div>
                   )}

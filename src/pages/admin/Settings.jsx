@@ -1,35 +1,37 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminAPI } from '../../services/api';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight, Search, DollarSign } from 'lucide-react';
+import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight, Search, DollarSign, Wallet } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
 
 const Settings = () => {
-  const [commissionRate, setCommissionRate] = useState('');
-  const [seoMetaTitle, setSeoMetaTitle] = useState('');
-  const [seoMetaDescription, setSeoMetaDescription] = useState('');
-  const [handlingFeeEnabled, setHandlingFeeEnabled] = useState(false);
-  const [handlingFeeType, setHandlingFeeType] = useState('percentage');
-  const [handlingFeePercentage, setHandlingFeePercentage] = useState('5');
-  const [handlingFeeFixed, setHandlingFeeFixed] = useState('0');
+  // Each setting input keeps a local "draft" overlay. `null` means "no edit yet"; the rendered
+  // <Input> value falls back to the server snapshot from the query, so we never need to call
+  // setState inside an effect when the server data first arrives.
+  const [commissionRateDraft, setCommissionRateDraft] = useState(null);
+  const [seoMetaTitleDraft, setSeoMetaTitleDraft] = useState(null);
+  const [seoMetaDescriptionDraft, setSeoMetaDescriptionDraft] = useState(null);
+  const [handlingFeeEnabledDraft, setHandlingFeeEnabledDraft] = useState(null);
+  const [handlingFeeTypeDraft, setHandlingFeeTypeDraft] = useState(null);
+  const [handlingFeePercentageDraft, setHandlingFeePercentageDraft] = useState(null);
+  const [handlingFeeFixedDraft, setHandlingFeeFixedDraft] = useState(null);
+  const [payoutHoldDaysDraft, setPayoutHoldDaysDraft] = useState(null);
+  const [minimumWithdrawalUsdDraft, setMinimumWithdrawalUsdDraft] = useState(null);
+  const [refundWindowDaysDraft, setRefundWindowDaysDraft] = useState(null);
   const queryClient = useQueryClient();
 
   // Commission Rate Query
   const { data: settings, isLoading, isError, error } = useQuery({
     queryKey: ['commission-rate'],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getCommissionRate();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getCommissionRate();
+      return response.data.data;
     },
     retry: 1,
   });
@@ -38,12 +40,8 @@ const Settings = () => {
   const { data: autoApproveSettings, isLoading: isLoadingAutoApprove } = useQuery({
     queryKey: ['auto-approve-setting'],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getAutoApproveSetting();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getAutoApproveSetting();
+      return response.data.data;
     },
     retry: 1,
   });
@@ -52,56 +50,63 @@ const Settings = () => {
   const { data: seoSettings, isLoading: isLoadingSEO } = useQuery({
     queryKey: ['home-page-seo'],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getHomePageSEO();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getHomePageSEO();
+      return response.data.data;
     },
     retry: 1,
   });
 
-  // Buyer Handling Fee Query
+    // Buyer Protection Fee Query
   const { data: handlingFeeSettings, isLoading: isLoadingHandlingFee } = useQuery({
     queryKey: ['buyer-handling-fee'],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getBuyerHandlingFeeSetting();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getBuyerHandlingFeeSetting();
+      return response.data.data;
     },
     retry: 1,
   });
 
-  useEffect(() => {
-    if (settings?.commissionRate !== undefined) {
-      setCommissionRate(settings.commissionRate.toString());
-    }
-  }, [settings]);
+  // Payout / Refund Settings Query
+  const { data: payoutSettings, isLoading: isLoadingPayoutSettings } = useQuery({
+    queryKey: ['payout-settings'],
+    queryFn: async () => {
+      const response = await adminAPI.getPayoutSettings();
+      return response.data.data;
+    },
+    retry: 1,
+  });
 
-  useEffect(() => {
-    if (seoSettings) {
-      setSeoMetaTitle(seoSettings.metaTitle || '');
-      setSeoMetaDescription(seoSettings.metaDescription || '');
-    }
-  }, [seoSettings]);
+  // Effective input values: prefer the user's draft, fall back to the server snapshot, then
+  // to the bound default. Computed during render -> no setState-in-effect required.
+  const commissionRate = commissionRateDraft
+    ?? (settings?.commissionRate !== undefined ? settings.commissionRate.toString() : '');
 
-  useEffect(() => {
-    if (handlingFeeSettings) {
-      setHandlingFeeEnabled(!!handlingFeeSettings.enabled);
-      setHandlingFeeType(handlingFeeSettings.feeType === 'fixed' ? 'fixed' : 'percentage');
-      setHandlingFeePercentage(String(handlingFeeSettings.percentageValue ?? 5));
-      setHandlingFeeFixed(String(handlingFeeSettings.fixedAmount ?? 0));
-    }
-  }, [handlingFeeSettings]);
+  const seoMetaTitle = seoMetaTitleDraft
+    ?? (typeof seoSettings?.metaTitle === 'string' ? seoSettings.metaTitle : '');
+  const seoMetaDescription = seoMetaDescriptionDraft
+    ?? (typeof seoSettings?.metaDescription === 'string' ? seoSettings.metaDescription : '');
+
+  const handlingFeeEnabled = handlingFeeEnabledDraft
+    ?? !!handlingFeeSettings?.enabled;
+  const handlingFeeType = handlingFeeTypeDraft
+    ?? (handlingFeeSettings?.feeType === 'fixed' ? 'fixed' : 'percentage');
+  const handlingFeePercentage = handlingFeePercentageDraft
+    ?? String(handlingFeeSettings?.percentageValue ?? 5);
+  const handlingFeeFixed = handlingFeeFixedDraft
+    ?? String(handlingFeeSettings?.fixedAmount ?? 0);
+
+  const payoutHoldDaysValue = payoutHoldDaysDraft
+    ?? (typeof payoutSettings?.payoutHoldDays === 'number' ? String(payoutSettings.payoutHoldDays) : '15');
+  const minimumWithdrawalUsdValue = minimumWithdrawalUsdDraft
+    ?? (typeof payoutSettings?.minimumWithdrawalUsd === 'number' ? String(payoutSettings.minimumWithdrawalUsd) : '50');
+  const refundWindowDaysValue = refundWindowDaysDraft
+    ?? (typeof payoutSettings?.refundWindowDays === 'number' ? String(payoutSettings.refundWindowDays) : '10');
 
   const updateMutation = useMutation({
     mutationFn: (rate) => adminAPI.updateCommissionRate({ commissionRate: rate }),
     onSuccess: () => {
       queryClient.invalidateQueries(['commission-rate']);
+      setCommissionRateDraft(null);
       showSuccess('Commission rate updated successfully');
     },
     onError: (error) => {
@@ -140,6 +145,8 @@ const Settings = () => {
     mutationFn: (data) => adminAPI.updateHomePageSEO(data),
     onSuccess: () => {
       queryClient.invalidateQueries(['home-page-seo']);
+      setSeoMetaTitleDraft(null);
+      setSeoMetaDescriptionDraft(null);
       showSuccess('Home page SEO settings updated successfully');
     },
     onError: (error) => {
@@ -147,17 +154,81 @@ const Settings = () => {
     },
   });
 
-  // Buyer Handling Fee Update Mutation
+  // Buyer Protection Fee Update Mutation
   const handlingFeeUpdateMutation = useMutation({
     mutationFn: (data) => adminAPI.updateBuyerHandlingFeeSetting(data),
     onSuccess: () => {
       queryClient.invalidateQueries(['buyer-handling-fee']);
-      showSuccess('Buyer handling fee settings updated successfully');
+      setHandlingFeeEnabledDraft(null);
+      setHandlingFeeTypeDraft(null);
+      setHandlingFeePercentageDraft(null);
+      setHandlingFeeFixedDraft(null);
+      showSuccess('Buyer Protection Fee settings updated successfully');
     },
     onError: (error) => {
-      showApiError(error, 'Failed to update buyer handling fee');
+      showApiError(error, 'Failed to update Buyer Protection Fee');
     },
   });
+
+  // Payout / Refund Settings Update Mutation
+  const payoutSettingsMutation = useMutation({
+    mutationFn: (data) => adminAPI.updatePayoutSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['payout-settings']);
+      showSuccess('Payout settings updated successfully');
+    },
+    onError: (error) => {
+      showApiError(error, 'Failed to update payout settings');
+    },
+  });
+
+  const handlePayoutSettingsUpdate = () => {
+    const bounds = payoutSettings?.bounds || {
+      payoutHoldDays: { min: 0, max: 180 },
+      minimumWithdrawalUsd: { min: 0, max: 10000 },
+      refundWindowDays: { min: 1, max: 170 },
+      combinedRefundWindowMax: 170,
+    };
+    const combinedMax = bounds.combinedRefundWindowMax ?? 170;
+    const hold = Number(payoutHoldDaysValue);
+    if (!Number.isFinite(hold) || hold < bounds.payoutHoldDays.min || hold > bounds.payoutHoldDays.max) {
+      showError(`Payout hold days must be between ${bounds.payoutHoldDays.min} and ${bounds.payoutHoldDays.max}`);
+      return;
+    }
+    const min = Number(minimumWithdrawalUsdValue);
+    if (!Number.isFinite(min) || min < bounds.minimumWithdrawalUsd.min || min > bounds.minimumWithdrawalUsd.max) {
+      showError(`Minimum withdrawal must be between $${bounds.minimumWithdrawalUsd.min} and $${bounds.minimumWithdrawalUsd.max}`);
+      return;
+    }
+    const refundWin = Number(refundWindowDaysValue);
+    if (!Number.isFinite(refundWin) || refundWin < bounds.refundWindowDays.min || refundWin > bounds.refundWindowDays.max) {
+      showError(`Refund window must be between ${bounds.refundWindowDays.min} and ${bounds.refundWindowDays.max} days (capped under PayPal's 180-day capture refund window)`);
+      return;
+    }
+    if (hold + refundWin > combinedMax) {
+      showError(
+        `Payout hold (${hold}d) + refund window (${refundWin}d) = ${hold + refundWin}d exceeds the combined cap of ${combinedMax} days. ` +
+        `PayPal can only refund a capture for 180 days; the combined cap stays under that limit so refunds remain executable.`
+      );
+      return;
+    }
+    payoutSettingsMutation.mutate(
+      {
+        payoutHoldDays: hold,
+        minimumWithdrawalUsd: min,
+        refundWindowDays: refundWin,
+      },
+      {
+        onSuccess: () => {
+          // Server is the source of truth again; clear local drafts so the inputs
+          // re-derive from the freshly invalidated query.
+          setPayoutHoldDaysDraft(null);
+          setMinimumWithdrawalUsdDraft(null);
+          setRefundWindowDaysDraft(null);
+        },
+      }
+    );
+  };
 
   const handleHandlingFeeUpdate = () => {
     if (handlingFeeEnabled) {
@@ -204,7 +275,7 @@ const Settings = () => {
     });
   };
 
-  if (isLoading || isLoadingAutoApprove || isLoadingSEO || isLoadingHandlingFee) return <Loading message="Loading settings..." />;
+  if (isLoading || isLoadingAutoApprove || isLoadingSEO || isLoadingHandlingFee || isLoadingPayoutSettings) return <Loading message="Loading settings..." />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || "Error loading settings"} />;
 
   return (
@@ -214,7 +285,6 @@ const Settings = () => {
         <p className="text-sm sm:text-base text-gray-400 mt-1">Manage platform configuration</p>
       </div>
 
-      Auto-Approve Products Setting
       <Card className="bg-primary border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
@@ -273,12 +343,12 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Buyer Handling Fee Setting */}
+      {/* Buyer Protection Fee Setting */}
       <Card className="bg-primary border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Buyer Handling Fee
+            Buyer Protection Fee
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -288,7 +358,7 @@ const Settings = () => {
           <div className="flex items-center justify-between">
             <Label className="text-gray-300">Enable / Disable</Label>
             <button
-              onClick={() => setHandlingFeeEnabled(!handlingFeeEnabled)}
+              onClick={() => setHandlingFeeEnabledDraft(!handlingFeeEnabled)}
               disabled={handlingFeeUpdateMutation.isPending}
               className={`p-2 rounded-lg transition-all ${handlingFeeEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'}`}
             >
@@ -305,7 +375,7 @@ const Settings = () => {
                       type="radio"
                       name="feeType"
                       checked={handlingFeeType === 'percentage'}
-                      onChange={() => setHandlingFeeType('percentage')}
+                      onChange={() => setHandlingFeeTypeDraft('percentage')}
                       className="rounded border-gray-600"
                     />
                     <span className="text-white">Percentage (default 5%)</span>
@@ -315,7 +385,7 @@ const Settings = () => {
                       type="radio"
                       name="feeType"
                       checked={handlingFeeType === 'fixed'}
-                      onChange={() => setHandlingFeeType('fixed')}
+                      onChange={() => setHandlingFeeTypeDraft('fixed')}
                       className="rounded border-gray-600"
                     />
                     <span className="text-white">Fixed amount</span>
@@ -333,7 +403,7 @@ const Settings = () => {
                       max="100"
                       step="0.1"
                       value={handlingFeePercentage}
-                      onChange={(e) => setHandlingFeePercentage(e.target.value)}
+                      onChange={(e) => setHandlingFeePercentageDraft(e.target.value)}
                       className="bg-gray-800 border-gray-700 text-white w-32"
                     />
                     <span className="text-gray-400">%</span>
@@ -350,7 +420,7 @@ const Settings = () => {
                       min="0"
                       step="0.01"
                       value={handlingFeeFixed}
-                      onChange={(e) => setHandlingFeeFixed(e.target.value)}
+                      onChange={(e) => setHandlingFeeFixedDraft(e.target.value)}
                       className="bg-gray-800 border-gray-700 text-white w-32"
                     />
                   </div>
@@ -362,7 +432,7 @@ const Settings = () => {
             <p className="text-xs text-gray-500">Last updated: {new Date(handlingFeeSettings.lastUpdated).toLocaleDateString()}</p>
           )}
           <Button onClick={handleHandlingFeeUpdate} disabled={handlingFeeUpdateMutation.isPending}>
-            {handlingFeeUpdateMutation.isPending ? 'Updating...' : 'Update Buyer Handling Fee'}
+            {handlingFeeUpdateMutation.isPending ? 'Updating...' : 'Update Buyer Protection Fee'}
           </Button>
         </CardContent>
       </Card>
@@ -402,7 +472,7 @@ const Settings = () => {
                 min="0"
                 max="1"
                 value={commissionRate}
-                onChange={(e) => setCommissionRate(e.target.value)}
+                onChange={(e) => setCommissionRateDraft(e.target.value)}
                 placeholder="e.g., 0.1 for 10%"
                 className="bg-gray-800 border-gray-700 text-white flex-1"
               />
@@ -449,7 +519,7 @@ const Settings = () => {
               type="text"
               maxLength={60}
               value={seoMetaTitle}
-              onChange={(e) => setSeoMetaTitle(e.target.value)}
+              onChange={(e) => setSeoMetaTitleDraft(e.target.value)}
               placeholder="e.g., DG Marq - Digital Marketplace for Games & Software"
               className="bg-gray-800 border-gray-700 text-white"
             />
@@ -471,7 +541,7 @@ const Settings = () => {
               id="seoMetaDescription"
               maxLength={160}
               value={seoMetaDescription}
-              onChange={(e) => setSeoMetaDescription(e.target.value)}
+              onChange={(e) => setSeoMetaDescriptionDraft(e.target.value)}
               placeholder="e.g., Buy digital games, software licenses, and accounts at the best prices. Instant delivery, secure transactions, and 24/7 support."
               className="bg-gray-800 border-gray-700 text-white min-h-[100px]"
               rows={4}
@@ -492,6 +562,115 @@ const Settings = () => {
             className="w-full"
           >
             {seoUpdateMutation.isPending ? 'Updating...' : 'Update SEO Settings'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Payout & Refund Windows */}
+      <Card className="bg-primary border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Wallet className="h-5 w-5" />
+            Payout & Refund Windows
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <p className="text-sm text-gray-400">
+            Controls how long seller earnings are held before becoming available for withdrawal,
+            the minimum withdrawal a seller can request, and how long buyers can open a refund request
+            after order completion. Refund window is capped below PayPal's 180-day capture refund window
+            so refunds can always reach the original payment method.
+          </p>
+
+          {(() => {
+            const combinedMax = payoutSettings?.bounds?.combinedRefundWindowMax ?? 170;
+            const holdNum = Number(payoutHoldDaysValue);
+            const refundNum = Number(refundWindowDaysValue);
+            const sum = (Number.isFinite(holdNum) ? holdNum : 0) + (Number.isFinite(refundNum) ? refundNum : 0);
+            const exceeds = sum > combinedMax;
+            return (
+              <div className={`rounded-lg border px-3 py-2 text-xs ${exceeds ? 'border-red-500/40 bg-red-500/10 text-red-200' : 'border-amber-500/30 bg-amber-500/10 text-amber-100'}`}>
+                <p className="font-medium">
+                  Combined cap: payout hold + refund window must not exceed {combinedMax} days.
+                </p>
+                <p className="mt-1 opacity-80">
+                  PayPal rejects capture refunds older than 180 days. The combined cap keeps a 10-day safety
+                  margin so a buyer who opens a refund at the latest allowed moment can still be refunded
+                  through the original PayPal capture.
+                </p>
+                <p className="mt-1 font-medium">
+                  Current combined: {Number.isFinite(holdNum) ? holdNum : '—'} + {Number.isFinite(refundNum) ? refundNum : '—'} = {Number.isFinite(holdNum) && Number.isFinite(refundNum) ? sum : '—'} days
+                  {exceeds ? ` (over by ${sum - combinedMax})` : ''}.
+                </p>
+              </div>
+            );
+          })()}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="payoutHoldDays" className="text-gray-300">
+                Payout Hold (days)
+              </Label>
+              <Input
+                id="payoutHoldDays"
+                type="number"
+                min={payoutSettings?.bounds?.payoutHoldDays?.min ?? 0}
+                max={payoutSettings?.bounds?.payoutHoldDays?.max ?? 180}
+                step="1"
+                value={payoutHoldDaysValue}
+                onChange={(e) => setPayoutHoldDaysDraft(e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+              <p className="text-xs text-gray-400">
+                Range: {payoutSettings?.bounds?.payoutHoldDays?.min ?? 0} - {payoutSettings?.bounds?.payoutHoldDays?.max ?? 180}. Default: 15.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="minimumWithdrawalUsd" className="text-gray-300">
+                Minimum Withdrawal (USD)
+              </Label>
+              <Input
+                id="minimumWithdrawalUsd"
+                type="number"
+                min={payoutSettings?.bounds?.minimumWithdrawalUsd?.min ?? 0}
+                max={payoutSettings?.bounds?.minimumWithdrawalUsd?.max ?? 10000}
+                step="1"
+                value={minimumWithdrawalUsdValue}
+                onChange={(e) => setMinimumWithdrawalUsdDraft(e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+              <p className="text-xs text-gray-400">
+                Range: ${payoutSettings?.bounds?.minimumWithdrawalUsd?.min ?? 0} - ${payoutSettings?.bounds?.minimumWithdrawalUsd?.max ?? 10000}. Default: $50.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="refundWindowDays" className="text-gray-300">
+                Refund Window (days)
+              </Label>
+              <Input
+                id="refundWindowDays"
+                type="number"
+                min={payoutSettings?.bounds?.refundWindowDays?.min ?? 1}
+                max={payoutSettings?.bounds?.refundWindowDays?.max ?? 170}
+                step="1"
+                value={refundWindowDaysValue}
+                onChange={(e) => setRefundWindowDaysDraft(e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+              <p className="text-xs text-gray-400">
+                Range: {payoutSettings?.bounds?.refundWindowDays?.min ?? 1} - {payoutSettings?.bounds?.refundWindowDays?.max ?? 170}. Default: 10.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={handlePayoutSettingsUpdate}
+            disabled={payoutSettingsMutation.isPending}
+            className="w-full sm:w-auto"
+          >
+            {payoutSettingsMutation.isPending ? 'Updating...' : 'Update Payout & Refund Windows'}
           </Button>
         </CardContent>
       </Card>

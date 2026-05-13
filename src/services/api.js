@@ -31,6 +31,9 @@ export const authAPI = {
 
 export const adminAPI = {
   getDashboardStats: () => api.get('/admin/dashboard/stats'),
+  // Phase 2: platform-wide payout balance (same source as seller balance API).
+  getPlatformPayoutBalance: () => api.get('/payout/admin/platform-balance'),
+  getOrderPayoutLines: (orderId) => api.get(`/payout/order/${orderId}/lines`),
   getPendingSellers: (params) => api.get('/admin/sellers/pending', { params }),
   getAllSellers: (params) => api.get('/admin/sellers', { params }),
   getSellerDetails: (sellerId) => api.get(`/admin/seller/${sellerId}`),
@@ -44,7 +47,14 @@ export const adminAPI = {
   rejectProduct: (productId, data) => api.post(`/admin/product/${productId}/reject`, data),
   deleteProduct: (productId) => api.delete(`/admin/products/${productId}`),
   getAllPayouts: (params) => api.get('/admin/payouts', { params }),
+  getOrderPayoutDetails: (orderId) => api.get(`/payout/admin/order/${orderId}`),
   processPayout: (payoutId) => api.post(`/admin/payout/${payoutId}/process`),
+  // Phase 5: admin withdrawal lifecycle management.
+  listWithdrawals: (params) => api.get('/withdrawal/admin', { params }),
+  getWithdrawal: (id) => api.get(`/withdrawal/${id}`),
+  approveWithdrawal: (id) => api.patch(`/withdrawal/${id}/approve`),
+  rejectWithdrawal: (id, data) => api.patch(`/withdrawal/${id}/reject`, data),
+  retryWithdrawal: (id) => api.post(`/withdrawal/${id}/retry`),
   getAllUsers: (params) => api.get('/admin/users', { params }),
   banUser: (userId, data) => api.post(`/admin/user/${userId}/ban`, data),
   getCommissionRate: () => api.get('/admin/settings/commission-rate'),
@@ -55,15 +65,19 @@ export const adminAPI = {
   updateHomePageSEO: (data) => api.patch('/admin/settings/seo/home', data),
   getBuyerHandlingFeeSetting: () => api.get('/admin/settings/buyer-handling-fee'),
   updateBuyerHandlingFeeSetting: (data) => api.patch('/admin/settings/buyer-handling-fee', data),
+  getPayoutSettings: () => api.get('/admin/settings/payouts'),
+  updatePayoutSettings: (data) => api.patch('/admin/settings/payouts', data),
   getHandlingFeeStats: () => api.get('/admin/stats/handling-fees'),
   getAllSupportChats: () => api.get('/support/admin/chats'),
   assignAdminToChat: (chatId, assignTo = null) => api.post(`/support/admin/${chatId}/assign`, assignTo ? { assignTo } : {}),
   getSupportStats: () => api.get('/support/admin/stats'),
   moderateChat: (conversationId, data) => api.post(`/admin/chat/${conversationId}/moderate`, data),
-  verifyPayoutAccount: (accountId) => api.patch(`/payout-account/${accountId}/verify`),
+  // Phase 4 (RETIRED): manual verify is gone. Verification is now automatic
+  // via PayPal OAuth or Payoneer payee validation. The route still returns 410
+  // on the backend; the client method is removed so admin UI cannot call it.
   blockPayoutAccount: (accountId, data) => api.patch(`/payout-account/${accountId}/block`, data),
   getSellerPayoutAccount: (sellerId) => api.get(`/payout-account/seller/${sellerId}`),
-  getSellersPayoutStatus: () => api.get('/payout-account/sellers/status'),
+  getSellersPayoutStatus: (params) => api.get('/payout-account/sellers/status', { params }),
   createBundleDeal: (formData) => api.post('/bundle-deal', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
@@ -94,6 +108,9 @@ export const sellerAPI = {
   getPayoutBalance: () => api.get('/payout/balance'),
   getPayoutDetails: (payoutId) => api.get(`/payout/${payoutId}`),
   getPayoutRequests: () => api.get('/payout/requests'),
+  // Phase 2 additions - shared between seller and admin contexts.
+  getPublicPayoutSettings: () => api.get('/payout/settings/public'),
+  getOrderPayoutLines: (orderId) => api.get(`/payout/order/${orderId}/lines`),
   getLicenseKeys: (productId, params) => api.get(`/seller/license-keys/${productId}`, { params }),
   revealLicenseKey: (keyId) => api.get(`/seller/license-keys/${keyId}/reveal`),
   deleteLicenseKey: (keyId) => api.delete(`/seller/license-keys/${keyId}`),
@@ -102,6 +119,15 @@ export const sellerAPI = {
   getPayPalConnectUrl: () => api.get('/payout-account/paypal/connect'),
   getMyPayoutAccount: () => api.get('/payout-account/my'),
   linkPayoutAccount: (data) => api.post('/payout-account/link', data),
+  // Phase 4: Payoneer / Local Bank / SWIFT payout setup.
+  getPayoneerRequirements: (params) => api.get('/payout-account/payoneer/requirements', { params }),
+  linkPayoneerAccount: (data) => api.post('/payout-account/payoneer/link', data),
+  unlinkPayoutAccount: (method) => api.delete(`/payout-account/method/${method}`),
+  // Phase 5: withdrawal request flow (replaces auto-release).
+  getWithdrawalQuote: (data) => api.post('/withdrawal/quote', data),
+  createWithdrawal: (data) => api.post('/withdrawal', data),
+  listMyWithdrawals: (params) => api.get('/withdrawal/my', { params }),
+  getWithdrawal: (id) => api.get(`/withdrawal/${id}`),
   applySeller: (formData) => api.post('/seller/apply-seller', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
@@ -245,6 +271,16 @@ export const returnRefundAPI = {
   getCompletedOrders: () => api.get('/return-refund/completed-orders'),
   getOrderItemLicenseKeys: (orderId, productId) =>
     api.get('/return-refund/order-item-keys', { params: { orderId, productId } }),
+  previewSplit: (orderId, productId, licenseKeyIds, refundDestination) => {
+    const params = { orderId, productId };
+    if (Array.isArray(licenseKeyIds) && licenseKeyIds.length > 0) {
+      params.licenseKeyIds = licenseKeyIds.join(',');
+    }
+    if (refundDestination) {
+      params.refundDestination = refundDestination;
+    }
+    return api.get('/return-refund/preview-split', { params });
+  },
   validateGuestOrder: (queryString) =>
     api.get(`/return-refund/guest/validate?${queryString}`),
   escalateToAdmin: (refundId) => api.post(`/return-refund/${refundId}/escalate`),
@@ -263,7 +299,6 @@ export const returnRefundAPI = {
   sellerSubmitFeedback: (refundId, feedback) => api.patch(`/return-refund/seller/${refundId}/feedback`, { feedback }),
   getAllRefunds: (params) => api.get('/return-refund/admin/all', { params }),
   updateRefundStatus: (refundId, data) => api.patch(`/return-refund/admin/${refundId}`, data),
-  markManualRefund: (refundId, data) => api.patch(`/return-refund/admin/${refundId}/mark-manual-refund`, data || {}),
   requestSellerInput: (refundId, note) => api.patch(`/return-refund/admin/${refundId}/request-seller-input`, { note }),
   getRefundKeyDetails: (refundId) => api.get(`/return-refund/${refundId}/key-details`),
 };

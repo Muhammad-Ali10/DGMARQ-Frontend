@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI } from '../../services/api';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -11,6 +11,7 @@ import { ShoppingCart, RotateCcw, Eye, RefreshCw } from 'lucide-react';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import RefundRequestModal from '../../components/RefundRequestModal';
 import { showSuccess, showApiError } from '../../utils/toast';
+import { useSocket } from '../../hooks/useSocket';
 
 const UserOrders = () => {
   const [page, setPage] = useState(1);
@@ -19,11 +20,27 @@ const UserOrders = () => {
   const [reorderOrderId, setReorderOrderId] = useState(null);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
 
   const { data: ordersData, isLoading } = useQuery({
     queryKey: ['user-orders', page, status],
     queryFn: () => userAPI.getMyOrders({ page, limit: 10, status }).then(res => res.data.data),
   });
+
+  // Phase 6 / Step 12 PART C — refresh order list when an admin executes a
+  // refund for any of this buyer's orders. The socket emit is fan-out to
+  // user:<buyerId>; we don't need to filter by orderId here because the
+  // query layer will refetch only the buyer's pages.
+  useEffect(() => {
+    if (!socket || !isConnected) return undefined;
+    const onRefundExecuted = () => {
+      queryClient.invalidateQueries({ queryKey: ['user-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['user-refunds'] });
+      queryClient.invalidateQueries({ queryKey: ['order-detail'] });
+    };
+    socket.on('refund_executed', onRefundExecuted);
+    return () => socket.off('refund_executed', onRefundExecuted);
+  }, [socket, isConnected, queryClient]);
 
   const reorderMutation = useMutation({
     mutationFn: (orderId) => userAPI.reorder(orderId),

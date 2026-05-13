@@ -27,6 +27,16 @@ const SellerDashboard = () => {
     refetchOnWindowFocus: true,
   });
 
+  // Phase 2: hold-period copy is driven by the live admin setting.
+  const { data: payoutSettings } = useQuery({
+    queryKey: ['public-payout-settings'],
+    queryFn: () => sellerAPI.getPublicPayoutSettings().then(res => res.data.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const holdDays = typeof payoutSettings?.payoutHoldDays === 'number'
+    ? payoutSettings.payoutHoldDays
+    : 15;
+
   const statsCards = useMemo(() => ([
     {
       title: 'Available Balance',
@@ -40,7 +50,7 @@ const SellerDashboard = () => {
       value: `$${balance?.pending?.amount?.toFixed(2) || '0.00'}`,
       icon: TrendingUp,
       color: 'text-yellow-500',
-      description: 'On hold (15 days)',
+      description: `On hold (${holdDays} days)`,
     },
     {
       title: 'Total Revenue',
@@ -93,7 +103,7 @@ const SellerDashboard = () => {
       color: 'text-green-400',
       description: 'Sent to PayPal',
     },
-  ]), [balance, performanceMetrics, sellerInfo]);
+  ]), [balance, performanceMetrics, sellerInfo, holdDays]);
   const isLoading = infoLoading || balanceLoading || metricsLoading;
   const isError = infoError || balanceError || metricsError;
 
@@ -245,7 +255,7 @@ const SellerDashboard = () => {
                 <h3 className="text-white font-semibold mb-1">Earnings on Hold</h3>
                 <p className="text-gray-300 text-sm">
                   You have <span className="font-semibold text-yellow-400">${balance.pending.amount.toFixed(2)}</span> on hold. 
-                  Your payout will be available <span className="font-semibold">{balance.pending.daysUntilAvailable} day{balance.pending.daysUntilAvailable > 1 ? 's' : ''}</span> after order completion (15-day hold period).
+                  Your payout will be available <span className="font-semibold">{balance.pending.daysUntilAvailable} day{balance.pending.daysUntilAvailable > 1 ? 's' : ''}</span> after order completion ({holdDays}-day hold period).
                   {balance.pending.earliestReleaseDate && (
                     <span className="block mt-1 text-xs text-gray-400">
                       Earliest release date: {new Date(balance.pending.earliestReleaseDate).toLocaleDateString()}

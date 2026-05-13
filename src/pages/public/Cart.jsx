@@ -284,8 +284,6 @@ const Cart = () => {
                               {item.name || "Product"}
                             </h3>
                           </Link>
-                          {/* <p className="text-xs text-gray-400">Platform: {platformName}</p>
-                          <p className="text-xs text-gray-400 mb-1">Type: {typeName}</p> */}
                           {hasDiscount ? (
                             <div className="flex items-center gap-2">
                               <p className="text-lg font-bold text-accent">
@@ -608,23 +606,11 @@ const Cart = () => {
                             {product?.name || "Product"}
                           </h3>
                         </Link>
-                        {/* <p className="text-xs text-gray-400">Platform: {platformName}</p>
-                        <p className="text-xs text-gray-400 mb-1">Type: {typeName}</p> */}
                         {product?.category?.name && (
                           <p className="text-sm text-gray-400 mb-2">
                             {product.category.name}
                           </p>
                         )}
-                        {/* {hasDiscount && (
-                          <div className="flex items-center gap-1 mb-1">
-                            <Tag className="w-3 h-3 text-green-400" />
-                            <span className="text-xs text-green-400 font-medium">
-                              {discountPercentage > 0
-                                ? `${discountPercentage.toFixed(0)}% OFF`
-                                : `$${discountAmount.toFixed(2)} OFF`}
-                            </span>
-                          </div>
-                        )} */}
                         <div className="flex items-center gap-2">
                           {hasDiscount ? (
                             <>

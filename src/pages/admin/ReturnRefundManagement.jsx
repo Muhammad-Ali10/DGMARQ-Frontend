@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { returnRefundAPI } from '../../services/api';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSocket } from '../../hooks/useSocket';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
@@ -35,24 +35,51 @@ const ReturnRefundManagement = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [sellerInputNote, setSellerInputNote] = useState('');
   const [showRequestSellerInput, setShowRequestSellerInput] = useState(false);
-  const [manualRefundReference, setManualRefundReference] = useState('');
   const [showKeyDetails, setShowKeyDetails] = useState(false);
   const [keyDetails, setKeyDetails] = useState(null);
   const [keyDetailsLoading, setKeyDetailsLoading] = useState(false);
   const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
 
   const { data: refundsData, isLoading, isError, error } = useQuery({
     queryKey: ['admin-refunds', page, statusFilter],
     queryFn: () => returnRefundAPI.getAllRefunds({ page, limit: 10, status: statusFilter || undefined }).then(res => res.data.data),
   });
 
+  // Phase 6 / Step 12 PART C — refund_executed socket fan-out lands in the
+  // role:admin room, so this listener fires for every admin viewing the page.
+  // We invalidate the refund list, the per-refund detail (if open), the
+  // order detail, and the seller-balance source so admins see the executed
+  // refund without reloading.
+  useEffect(() => {
+    if (!socket || !isConnected) return undefined;
+    const onRefundExecuted = () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-refunds'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-refund-details'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-order-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-balance'] });
+    };
+    socket.on('refund_executed', onRefundExecuted);
+    return () => socket.off('refund_executed', onRefundExecuted);
+  }, [socket, isConnected, queryClient]);
+
   const updateMutation = useMutation({
     mutationFn: ({ refundId, data }) => returnRefundAPI.updateRefundStatus(refundId, data),
-    onSuccess: () => {
-      const message = actionType === 'approve'
-        ? 'Refund approved and processed successfully'
-        : 'Refund request rejected';
-      toast.success(message);
+    onSuccess: (res) => {
+      // Backend returns 202 + payload.providerFailed=true when the automated
+      // provider refund could not run. The refund remains in admin review for retry.
+      const payload = res?.data?.data;
+      const message = actionType === 'reject'
+        ? 'Refund request rejected'
+        : payload?.providerFailed
+          ? (res?.data?.message || 'Provider refund failed. Fix the issue and retry approval.')
+          : (res?.data?.message || 'Refund approved and processed successfully');
+      if (payload?.providerFailed) {
+        toast.warning(message);
+      } else {
+        toast.success(message);
+      }
       // Refresh refunds and all affected order views (admin, seller, user)
       queryClient.invalidateQueries(['admin-refunds']);
       queryClient.invalidateQueries(['admin-orders']);
@@ -69,32 +96,6 @@ const ReturnRefundManagement = () => {
     onError: (error) => {
       const errorMessage = error.response?.data?.message || 'Failed to update refund status';
       toast.error(errorMessage);
-    },
-  });
-
-  const markManualRefundMutation = useMutation({
-    mutationFn: ({ refundId, manualRefundReference }) =>
-      returnRefundAPI.markManualRefund(refundId, manualRefundReference ? { manualRefundReference } : {}),
-    onSuccess: () => {
-      toast.success('Refund marked as completed (manual PayPal refund).');
-      // Refresh refunds and all affected order views (admin, seller, user)
-      queryClient.invalidateQueries(['admin-refunds']);
-      queryClient.invalidateQueries(['admin-orders']);
-      queryClient.invalidateQueries(['admin-order-detail']);
-      queryClient.invalidateQueries(['seller-orders']);
-      queryClient.invalidateQueries(['user-orders']);
-      queryClient.invalidateQueries(['order-detail']);
-      setIsViewOpen(false);
-      setSelectedRefund(null);
-      setManualRefundReference('');
-    },
-    onError: (error) => {
-      const data = error.response?.data;
-      if (data?.hold) {
-        toast.error('Seller balance insufficient. Refund is on hold. ' + (data?.message || ''));
-      } else {
-        toast.error(data?.message || 'Failed to mark manual refund');
-      }
     },
   });
 
@@ -149,31 +150,27 @@ const ReturnRefundManagement = () => {
     const variants = {
       PENDING: 'warning', SELLER_REVIEW: 'warning', SELLER_APPROVED: 'default', SELLER_REJECTED: 'destructive',
       ADMIN_REVIEW: 'secondary', ADMIN_APPROVED: 'default', ADMIN_REJECTED: 'destructive',
-      COMPLETED: 'success', WAITING_FOR_MANUAL_REFUND: 'secondary', ON_HOLD_INSUFFICIENT_FUNDS: 'destructive',
+      COMPLETED: 'success', WAITING_FOR_MANUAL_REFUND: 'secondary',
+      ON_HOLD_INSUFFICIENT_FUNDS: 'destructive',
       pending: 'warning', approved: 'default', rejected: 'destructive', completed: 'success',
     };
     const labels = {
       PENDING: 'Pending', SELLER_REVIEW: 'Seller review', SELLER_APPROVED: 'Seller approved', SELLER_REJECTED: 'Seller rejected',
       ADMIN_REVIEW: 'In progress', ADMIN_APPROVED: 'Admin approved', ADMIN_REJECTED: 'Rejected',
-      COMPLETED: 'Completed', WAITING_FOR_MANUAL_REFUND: 'Waiting manual refund', ON_HOLD_INSUFFICIENT_FUNDS: 'On hold (insufficient funds)',
+      COMPLETED: 'Completed', WAITING_FOR_MANUAL_REFUND: 'Waiting manual refund',
+      ON_HOLD_INSUFFICIENT_FUNDS: 'On hold (insufficient funds)',
     };
     return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
   };
 
-  const isManualPayPalRefund = (refund) => refund?.refundMethod === 'ORIGINAL_PAYMENT';
   const getRefundStatus = (refund) => String(refund?.status || '').toUpperCase();
-  const canShowMarkManualRefund = (refund) =>
-    isManualPayPalRefund(refund) && ['ADMIN_REVIEW', 'WAITING_FOR_MANUAL_REFUND'].includes(getRefundStatus(refund));
 
   const statusAllowsAdminActions = (refund) => {
     const s = getRefundStatus(refund);
-    return s === 'ADMIN_REVIEW' || s === 'WAITING_FOR_MANUAL_REFUND' || s === 'ON_HOLD_INSUFFICIENT_FUNDS';
+    return s === 'ADMIN_REVIEW' || s === 'ON_HOLD_INSUFFICIENT_FUNDS';
   };
 
-  const canAdminApprove = (refund) => {
-    if (isManualPayPalRefund(refund)) return false;
-    return getRefundStatus(refund) === 'ADMIN_REVIEW';
-  };
+  const canAdminApprove = (refund) => getRefundStatus(refund) === 'ADMIN_REVIEW';
 
   const canAdminReject = (refund) => statusAllowsAdminActions(refund);
 
@@ -219,7 +216,6 @@ const ReturnRefundManagement = () => {
               <SelectItem value="PENDING">Pending</SelectItem>
               <SelectItem value="SELLER_REVIEW">Seller review</SelectItem>
               <SelectItem value="ADMIN_REVIEW">In progress</SelectItem>
-              <SelectItem value="WAITING_FOR_MANUAL_REFUND">Waiting manual refund</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
               <SelectItem value="ADMIN_REJECTED">Rejected</SelectItem>
               <SelectItem value="ON_HOLD_INSUFFICIENT_FUNDS">On hold</SelectItem>
@@ -280,17 +276,6 @@ const ReturnRefundManagement = () => {
                       <Eye className="w-4 h-4 mr-1" />
                       View
                     </Button>
-                    {canShowMarkManualRefund(refund) && (
-                      <Button
-                        size="sm"
-                        onClick={() => markManualRefundMutation.mutate({ refundId: refund._id })}
-                        disabled={markManualRefundMutation.isPending}
-                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs"
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-1" />
-                        Manual Refund
-                      </Button>
-                    )}
                     {canAdminApprove(refund) && (
                       <Button
                         size="sm"
@@ -382,17 +367,6 @@ const ReturnRefundManagement = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          {canShowMarkManualRefund(refund) && (
-                            <Button
-                              size="sm"
-                              onClick={() => markManualRefundMutation.mutate({ refundId: refund._id })}
-                              disabled={markManualRefundMutation.isPending}
-                              className="bg-amber-600 hover:bg-amber-700 text-white"
-                            >
-                              <CheckCircle2 className="w-4 h-4 mr-1" />
-                              Mark as Refunded (Manual)
-                            </Button>
-                          )}
                           {canAdminApprove(refund) && (
                             <Button
                               size="sm"
@@ -594,37 +568,54 @@ const ReturnRefundManagement = () => {
                       <p className="text-white mt-1 capitalize">{refundView.refundMethod.replace('_', ' ')}</p>
                     </div>
                   )}
-                  {refundView?.refundMethod === 'ORIGINAL_PAYMENT' && refundView?.customerPayPalEmail && (
+                  {(Number(refundView?.walletRefundAmount || 0) > 0 || Number(refundView?.providerRefundAmount || 0) > 0) && (
                     <div>
-                      <span className="text-gray-400">Customer PayPal email:</span>
-                      <p className="text-white mt-1">{refundView.customerPayPalEmail}</p>
+                      <span className="text-gray-400">Refund split:</span>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5">
+                          <p className="text-emerald-200/80">Wallet portion</p>
+                          <p className="text-emerald-100 font-semibold">${Number(refundView?.walletRefundAmount || 0).toFixed(2)}</p>
+                        </div>
+                        <div className="rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-1.5">
+                          <p className="text-sky-200/80">Provider (PayPal capture)</p>
+                          <p className="text-sky-100 font-semibold">${Number(refundView?.providerRefundAmount || 0).toFixed(2)}</p>
+                        </div>
+                      </div>
+                      {refundView?.splitBreakdown?.paypalCaptureId && (
+                        <p className="mt-2 text-[11px] text-gray-400">
+                          Capture ID: <span className="font-mono">{refundView.splitBreakdown.paypalCaptureId}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {(refundView?.providerRefundStatus && refundView.providerRefundStatus !== 'NONE') && (
+                    <div>
+                      <span className="text-gray-400">Provider refund status:</span>
+                      <p className="text-white mt-1">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                          refundView.providerRefundStatus === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-200' :
+                          refundView.providerRefundStatus === 'FAILED' ? 'bg-red-500/20 text-red-200' :
+                          'bg-amber-500/20 text-amber-200'
+                        }`}>
+                          {refundView.providerRefundStatus}
+                        </span>
+                        {Array.isArray(refundView?.providerRefundIds) && refundView.providerRefundIds.length > 0 && (
+                          <span className="ml-2 font-mono text-xs text-gray-400">
+                            {refundView.providerRefundIds[refundView.providerRefundIds.length - 1]}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  {refundView?.fallbackUsed && (
+                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200">
+                      Provider portion was completed manually by admin (fallback).
                     </div>
                   )}
                   <div>
                     <span className="text-gray-400">Status:</span>
                     <div className="mt-1">{getStatusBadge(refundView?.status)}</div>
                   </div>
-                  {canShowMarkManualRefund(selectedRefund) && (
-                    <div className="pt-2 space-y-2">
-                      <Label className="text-gray-300 text-xs">PayPal transaction / reference (optional)</Label>
-                      <Input
-                        value={manualRefundReference}
-                        onChange={(e) => setManualRefundReference(e.target.value)}
-                        placeholder="e.g. PayPal transaction ID or note"
-                        className="bg-secondary border-gray-700 text-white"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => markManualRefundMutation.mutate({ refundId: selectedRefund._id, manualRefundReference: manualRefundReference.trim() || null })}
-                        disabled={markManualRefundMutation.isPending}
-                        className="bg-amber-600 hover:bg-amber-700 text-white"
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-1" />
-                        Mark as Refunded (Manual)
-                      </Button>
-                      <p className="text-xs text-gray-400">After sending refund via PayPal, click to complete. Refund cannot be completed twice.</p>
-                    </div>
-                  )}
                   {(canAdminApprove(selectedRefund) || canAdminReject(selectedRefund)) && (
                     <div className="pt-3 pb-2 border-t border-gray-700">
                       <Label className="text-gray-300 block mb-2">Admin actions</Label>
@@ -895,21 +886,39 @@ const ReturnRefundManagement = () => {
                 required={actionType === 'reject'}
               />
             </div>
-            {actionType === 'approve' && selectedRefund && (
-              <div className="p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-                  <div className="text-sm text-yellow-200">
-                    <p className="font-semibold mb-1">Important:</p>
-                    <ul className="list-disc list-inside space-y-1 text-yellow-300/80">
-                      <li>Customer wallet will be credited with ${selectedRefund.refundAmount?.toFixed(2) || selectedRefund.productId?.price?.toFixed(2) || '0.00'}</li>
-                      <li>Seller balance will be deducted</li>
-                      <li>Product keys/accounts will be permanently invalidated</li>
-                    </ul>
+            {actionType === 'approve' && selectedRefund && (() => {
+              const totalRefund = Number(selectedRefund.refundAmount || 0);
+              const walletPortion = Number(selectedRefund.walletRefundAmount || 0);
+              const providerPortion = Number(selectedRefund.providerRefundAmount || 0);
+              const hasSplit = walletPortion > 0 || providerPortion > 0;
+              return (
+                <div className="p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+                    <div className="text-sm text-yellow-200">
+                      <p className="font-semibold mb-1">Important:</p>
+                      <ul className="list-disc list-inside space-y-1 text-yellow-300/80">
+                        {hasSplit ? (
+                          <>
+                            {providerPortion > 0 && (
+                              <li>${providerPortion.toFixed(2)} will be refunded to the buyer's original payment method (PayPal capture).</li>
+                            )}
+                            {walletPortion > 0 && (
+                              <li>${walletPortion.toFixed(2)} will be credited to the buyer's wallet.</li>
+                            )}
+                          </>
+                        ) : (
+                          <li>${totalRefund.toFixed(2) || '0.00'} will be returned to the buyer (split is determined automatically).</li>
+                        )}
+                        <li>Seller balance will be deducted.</li>
+                        <li>Product keys/accounts will be permanently invalidated.</li>
+                        <li>If the original PayPal capture cannot cover the provider portion, the refund stays in admin review so you can retry after fixing the issue.</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <div className="flex flex-col sm:flex-row gap-3 pt-4 sticky bottom-0 bg-primary pb-1">
               <Button
                 type="button"

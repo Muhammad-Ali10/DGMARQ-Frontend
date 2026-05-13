@@ -8,12 +8,8 @@ const AdminDashboard = () => {
   const { data: stats, isLoading, isError, error } = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getDashboardStats();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getDashboardStats();
+      return response.data.data;
     },
     retry: 1,
     refetchOnWindowFocus: true,
@@ -104,6 +100,28 @@ const AdminDashboard = () => {
       icon: DollarSign,
       color: 'text-pink-500',
       description: 'Awaiting processing',
+    },
+    {
+      // Phase 2: amounts from the unified balance source so admin and seller views match.
+      title: 'Available Payouts',
+      value: `$${(stats?.payouts?.availableAmount ?? 0).toFixed(2)}`,
+      icon: DollarSign,
+      color: 'text-green-500',
+      description: `${stats?.payouts?.availableCount ?? 0} line(s) ready`,
+    },
+    {
+      title: 'Pending Payouts ($)',
+      value: `$${(stats?.payouts?.pendingAmount ?? 0).toFixed(2)}`,
+      icon: DollarSign,
+      color: 'text-yellow-500',
+      description: `${stats?.payouts?.pendingCount ?? 0} line(s) on hold`,
+    },
+    {
+      title: 'Paid Out',
+      value: `$${(stats?.payouts?.releasedAmount ?? 0).toFixed(2)}`,
+      icon: DollarSign,
+      color: 'text-blue-500',
+      description: `${stats?.payouts?.releasedCount ?? 0} line(s) released`,
     },
     {
       title: 'Active Conversations',

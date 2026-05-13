@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { userAPI } from "../../services/api";
+import { useParams, useNavigate } from "react-router-dom";
+import { userAPI, sellerAPI } from "../../services/api";
+import { payoutBadgeProps } from "../../utils/statusTaxonomy";
 import {
   Card,
   CardContent,
@@ -19,7 +20,6 @@ import {
   CreditCard,
   MapPin,
   Calendar,
-  ExternalLink,
 } from "lucide-react";
 import { showApiError } from "../../utils/toast";
 
@@ -42,6 +42,25 @@ const SellerOrderDetail = () => {
       showApiError(err, "Failed to load order details");
     },
   });
+
+  // Phase 2: per-item payout lines so the UI shows backend-driven release-state
+  // (held / available / released / blocked) instead of computing it locally.
+  const { data: payoutLinesData } = useQuery({
+    queryKey: ["seller-order-payout-lines", orderId],
+    queryFn: () => sellerAPI.getOrderPayoutLines(orderId).then((res) => res.data.data),
+    enabled: !!orderId,
+    retry: 0,
+  });
+  // Index payout lines by productId for fast per-item lookup.
+  const payoutLineByProductId = useMemo(() => {
+    const map = new Map();
+    const lines = payoutLinesData?.lines || [];
+    for (const line of lines) {
+      const key = (line.productId || "").toString();
+      if (key && !map.has(key)) map.set(key, line);
+    }
+    return map;
+  }, [payoutLinesData]);
 
   if (isLoading) return <Loading message="Loading order details..." />;
 
@@ -120,17 +139,19 @@ const SellerOrderDetail = () => {
       (sum, item) => sum + (Number(item.refundedAmount) || 0),
       0
     ) || 0;
-  const totalSellerEarning = (order.items || []).reduce(
-    (sum, item) =>
-      sum +
-      (Number(item.sellerEarning) || 0) -
-      (Number(item.refundedSellerAmount) || 0),
-    0
-  );
+  const payoutLines = payoutLinesData?.lines || [];
+  const totalSellerEarning = payoutLines.length > 0
+    ? payoutLines.reduce((sum, line) => sum + (Number(line.netAmount) || 0), 0)
+    : (order.items || []).reduce(
+        (sum, item) =>
+          sum +
+          (Number(item.sellerEarning) || 0) -
+          (Number(item.refundedSellerAmount) || 0),
+        0
+      );
   const isGuestOrder = order.isGuest || !order.userId;
   const buyerName =
     order.userId?.name ?? (isGuestOrder ? "Guest User" : "Customer");
-  const buyerEmail = order.userId?.email ?? order.guestEmail ?? null;
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -160,23 +181,39 @@ const SellerOrderDetail = () => {
               <div className="space-y-6">
                 {order.items?.map((item, idx) => {
                   const productImage = item.productId?.images?.[0];
-                  const sellerId = item.sellerId?._id ?? item.sellerId;
-                  const sellerName =
-                    item.sellerId?.shopName ??
-                    (typeof item.sellerId === "object" ? null : "Seller");
-                  const sellerLogo = item.sellerId?.shopLogo;
-                  const displaySellerName = sellerName || "Seller";
                   const lineTotal =
                     item.lineTotal ?? (item.qty || 0) * (item.unitPrice || 0);
                   const itemRefunded = Number(item.refundedAmount) || 0;
-                  const itemSellerEarning =
-                    (Number(item.sellerEarning) || 0) -
-                    (Number(item.refundedSellerAmount) || 0);
+                  const productKey = (item.productId?._id || item.productId || "").toString();
+                  const payoutLine = productKey ? payoutLineByProductId.get(productKey) : null;
+                  const itemSellerEarning = payoutLine
+                    ? Number(payoutLine.netAmount) || 0
+                    : (Number(item.sellerEarning) || 0) -
+                      (Number(item.refundedSellerAmount) || 0);
+                  // Phase 5: highlight rows whose payout line is currently held / blocked
+                  // because of an open dispute or refund request. Operators (and sellers
+                  // double-checking their orders) can spot disputed rows at a glance.
+                  const isDisputedRow =
+                    !!payoutLine &&
+                    (payoutLine.status === "blocked" || payoutLine.status === "hold");
                   return (
                     <div
                       key={idx}
-                      className="p-4 bg-secondary rounded-lg border border-gray-700 space-y-4"
+                      className={`p-4 rounded-lg border space-y-4 ${
+                        isDisputedRow
+                          ? "bg-red-950/30 border-red-700/60"
+                          : "bg-secondary border-gray-700"
+                      }`}
                     >
+                      {isDisputedRow && (
+                        <div className="text-xs text-red-300 flex items-start gap-2">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
+                          <span>
+                            This item is on hold due to an open dispute or refund request. Other items in this order release on schedule.
+                            {payoutLine?.blockReason ? ` (${payoutLine.blockReason})` : ""}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-start gap-4">
                         {productImage && (
                           <div className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-800">
@@ -241,36 +278,26 @@ const SellerOrderDetail = () => {
                             </span>
                           </div>
                         )}
-                      </div>
-                      {sellerId && (
-                        <div className="border-t border-gray-700 pt-4">
-                          <p className="text-sm text-gray-400 mb-2">Sold by</p>
-                          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-[#0E092C]/60 border border-gray-700">
-                            <div className="flex items-center gap-3">
-                              {sellerLogo && (
-                                <SafeImage
-                                  src={sellerLogo}
-                                  alt={displaySellerName}
-                                  className="w-8 h-8 rounded-full object-cover"
-                                />
-                              )}
-                              <span className="font-medium text-white">
-                                {displaySellerName}
-                              </span>
+                        {payoutLine && (
+                          <>
+                            <div className="flex justify-between items-center">
+                              <span>Payout status:</span>
+                              {(() => {
+                                const props = payoutBadgeProps(payoutLine.displayStatus || payoutLine.status);
+                                return <Badge variant={props.variant}>{props.label}</Badge>;
+                              })()}
                             </div>
-                            <Link to={`/seller/${sellerId}`}>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="gap-1.5"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                                View Seller Profile
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      )}
+                            {payoutLine.holdUntil && (
+                              <div className="flex justify-between">
+                                <span>Release date:</span>
+                                <span className="text-gray-300">
+                                  {new Date(payoutLine.holdUntil).toLocaleDateString()}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -379,7 +406,7 @@ const SellerOrderDetail = () => {
                 )}
                 {order.buyerHandlingFee > 0 && (
                   <div className="flex justify-between text-gray-400">
-                    <span>Buyer Handling Fee:</span>
+                    <span>Buyer Protection Fee:</span>
                     <span>${order.buyerHandlingFee.toFixed(2)}</span>
                   </div>
                 )}
@@ -429,8 +456,10 @@ const SellerOrderDetail = () => {
                     <CreditCard className="w-4 h-4" />
                     <span>Payment Method:</span>
                   </div>
-                  <p className="text-white capitalize">
-                    {order.paymentMethod}
+                  <p className="text-white">
+                    {order.paymentMethod === 'Card' ? 'Credit/Debit Card'
+                      : order.paymentMethod === 'Wallet+Card' ? 'Wallet + Credit/Debit Card'
+                      : order.paymentMethod}
                   </p>
                 </div>
               )}

@@ -8,7 +8,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { SearchableSelect } from './ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { X, Loader2, AlertCircle, CheckCircle2, ShoppingBag, Package, FileText } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2, ShoppingBag, Package, FileText, Wallet, CreditCard } from 'lucide-react';
 import SafeImage from './ui/safe-image';
 
 const REFUND_REASONS = [
@@ -21,10 +21,7 @@ const REFUND_REASONS = [
   'Other',
 ];
 
-const REFUND_METHODS = [
-  { value: 'WALLET', label: 'Refund to Wallet', description: 'Credit will be added to your account for future purchases.' },
-  { value: 'ORIGINAL_PAYMENT', label: 'Admin will Refund Through the Original Payment Method', description: 'Refund will be processed to the original payment method.' },
-];
+const formatUsd = (n) => `$${Number(n || 0).toFixed(2)}`;
 
 const RefundRequestModal = ({ open, onOpenChange }) => {
   const queryClient = useQueryClient();
@@ -32,10 +29,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   const [selectedProductId, setSelectedProductId] = useState('');
   const [refundReason, setRefundReason] = useState('');
   const [customReason, setCustomReason] = useState('');
-  const [refundMethod, setRefundMethod] = useState('WALLET');
   const [selectedLicenseKeyIds, setSelectedLicenseKeyIds] = useState([]);
   const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [errors, setErrors] = useState({});
+  const [refundDestination, setRefundDestination] = useState('ORIGINAL_PAYMENT');
 
   // Refund type: regular vs guest purchase
   const [refundType, setRefundType] = useState('REGULAR'); // 'REGULAR' | 'GUEST'
@@ -75,43 +72,58 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     return urls;
   }, [evidenceFiles]);
 
-  // Determine which refund methods are allowed based on how the order was paid
-  // This applies to both regular orders and guest orders
-  const allowedRefundMethods = useMemo(() => {
-    // Use the appropriate order based on refund type
-    const order = refundType === 'GUEST' ? guestOrder : selectedOrder;
-    if (!order) return ['WALLET', 'ORIGINAL_PAYMENT'];
+  // Buyer chooses whether the refund follows the original payment split or is
+  // credited entirely to wallet. The backend previews and persists the same mode.
+  const orderForSplit = refundType === 'GUEST' ? guestOrder : selectedOrder;
+  const productIdForSplit = refundType === 'GUEST' ? guestSelectedProductId : selectedProductId;
+  const keyIdsForSplit = refundType === 'GUEST' ? guestSelectedKeyIds : selectedLicenseKeyIds;
+  const splitOrderId = useMemo(() => {
+    if (refundType === 'GUEST') return guestOrder?.orderId || guestOrder?._id || '';
+    return selectedOrderId || '';
+  }, [refundType, guestOrder, selectedOrderId]);
 
-    // These fields should reflect how much of the order was paid by each source.
-    // They are coerced to numbers and default to 0 if missing to avoid runtime issues.
-    const walletAmount = Number(order.walletAmount ?? 0);
-    const cardAmount = Number(order.cardAmount ?? 0);
-    const paypalAmount = Number(order.paypalAmount ?? 0);
-    const cardOrPaypalAmount = cardAmount + paypalAmount;
+  const { data: splitPreview, isFetching: splitLoading, error: splitError } = useQuery({
+    queryKey: ['refund-split-preview', splitOrderId, productIdForSplit, keyIdsForSplit?.join(','), refundDestination],
+    queryFn: () =>
+      returnRefundAPI
+        .previewSplit(splitOrderId, productIdForSplit, keyIdsForSplit, refundDestination)
+        .then((res) => res.data?.data),
+    enabled: open && !!splitOrderId && !!productIdForSplit,
+    staleTime: 5_000,
+  });
 
-    // TC-PAYMENT-REFUND-001: Wallet only purchase -> refund to wallet only
-    if (walletAmount > 0 && cardOrPaypalAmount === 0) {
-      return ['WALLET'];
-    }
+  // Phase 6 / Step 12 (Step 8 carry-over) — refund window expired path.
+  //
+  // Backend `previewSplit` returns { windowExpired: true, walletCreditFallback }
+  // when the order is past `holdDays + refundWindowDays`. In that case the
+  // refund cannot route to PayPal/card any more (capture is unrefundable),
+  // but we still let the buyer request a wallet-credit refund pending admin
+  // approval. We:
+  //   1. Render the preview as wallet=full / provider=$0 (override the
+  //      regular proportional split visual).
+  //   2. Show a confirmation step before submission.
+  //   3. Re-submit with `acknowledgeOutOfWindow: true` so the backend
+  //      forces the wallet-credit fallback path on `createReturnRefund`.
+  const windowExpired = !!splitPreview?.windowExpired;
+  const walletCreditFallback = splitPreview?.walletCreditFallback;
+  const totalRefundAmount = Number(splitPreview?.refundAmount || 0);
+  const effectiveWalletPortion = windowExpired
+    ? totalRefundAmount
+    : Number(splitPreview?.walletPortion || 0);
+  const effectiveProviderPortion = windowExpired
+    ? 0
+    : Number(splitPreview?.providerPortion || 0);
 
-    // TC-PAYMENT-REFUND-002: Wallet + Card/PayPal -> refund to wallet only
-    if (walletAmount > 0 && cardOrPaypalAmount > 0) {
-      return ['WALLET'];
-    }
+  const [outOfWindowConfirmOpen, setOutOfWindowConfirmOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState(null);
 
-    // TC-PAYMENT-REFUND-003: Card/PayPal only -> allow wallet OR original method
-    if (walletAmount === 0 && cardOrPaypalAmount > 0) {
-      return ['WALLET', 'ORIGINAL_PAYMENT'];
-    }
-
-    // Sensible fallback if structure is different/unexpected
-    return ['WALLET'];
-  }, [selectedOrder, guestOrder, refundType]);
+  // Suppress lint about unused order shape readers (kept available if needed later).
+  void orderForSplit;
 
   useEffect(() => {
     return () => {
       evidencePreviewUrls.forEach((url) => {
-        try { URL.revokeObjectURL(url); } catch (_) {}
+        try { URL.revokeObjectURL(url); } catch { /* noop */ }
       });
     };
   }, [evidencePreviewUrls]);
@@ -122,10 +134,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       setSelectedProductId('');
       setRefundReason('');
       setCustomReason('');
-      setRefundMethod('WALLET');
       setSelectedLicenseKeyIds([]);
       setEvidenceFiles([]);
       setErrors({});
+      setRefundDestination('ORIGINAL_PAYMENT');
       setRefundType('REGULAR');
       setGuestPurchaseEmail('');
       setGuestOrderNumber('');
@@ -133,6 +145,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       setGuestSelectedProductId('');
       setGuestSelectedKeyIds([]);
       setValidatingGuestOrder(false);
+      // Step 12 PART B — also clear out-of-window confirm state so re-opening
+      // the modal lands on a clean slate.
+      setOutOfWindowConfirmOpen(false);
+      setPendingPayload(null);
     }
   }, [open]);
 
@@ -140,12 +156,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     setSelectedLicenseKeyIds([]);
   }, [selectedOrderId, selectedProductId]);
 
-  // Reset refund method to WALLET if current selection is no longer allowed
-  useEffect(() => {
-    if (!allowedRefundMethods.includes(refundMethod)) {
-      setRefundMethod('WALLET');
-    }
-  }, [allowedRefundMethods, refundMethod]);
 
   const handleValidateGuestOrder = async () => {
     if (!guestPurchaseEmail.trim() || !guestOrderNumber.trim()) {
@@ -217,13 +227,8 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       const res = await returnRefundAPI.createRefundRequest(payload);
       return res.data;
     },
-    onSuccess: (_, variables) => {
-      const isWallet = variables.refundMethod === 'WALLET';
-      toast.success(
-        isWallet
-          ? 'Refund request created. Admin will review.'
-          : 'Refund request submitted. Admin will process the refund to your original payment method.'
-      );
+    onSuccess: () => {
+      toast.success('Refund request submitted. Admin will review.');
       queryClient.invalidateQueries(['user-refunds']);
       queryClient.invalidateQueries(['completed-orders-for-refund']);
       onOpenChange(false);
@@ -271,8 +276,8 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       orderId: orderIdToSend,
       productId: productIdToSend,
       reason: reason.trim(),
-      refundMethod: refundMethod,
       evidenceFiles: evidenceUrls,
+      refundDestination,
     };
 
     if (refundType === 'REGULAR') {
@@ -289,12 +294,43 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       payload.orderNumber = guestOrderNumber.trim();
     }
 
+    // Step 12 PART B — refund window expired: pause and ask the buyer to
+    // explicitly opt into the wallet-credit fallback. The backend will
+    // reject createReturnRefund without `acknowledgeOutOfWindow=true`, so
+    // we MUST gate here rather than just setting the flag silently.
+    if (windowExpired) {
+      setPendingPayload(payload);
+      setOutOfWindowConfirmOpen(true);
+      return;
+    }
+
     try {
       submitGuardRef.current = true;
       await createRefundMutation.mutateAsync(payload);
     } finally {
       submitGuardRef.current = false;
     }
+  };
+
+  const handleOutOfWindowConfirm = async () => {
+    if (!pendingPayload) {
+      setOutOfWindowConfirmOpen(false);
+      return;
+    }
+    const acknowledgedPayload = { ...pendingPayload, acknowledgeOutOfWindow: true };
+    setOutOfWindowConfirmOpen(false);
+    setPendingPayload(null);
+    try {
+      submitGuardRef.current = true;
+      await createRefundMutation.mutateAsync(acknowledgedPayload);
+    } finally {
+      submitGuardRef.current = false;
+    }
+  };
+
+  const handleOutOfWindowCancel = () => {
+    setOutOfWindowConfirmOpen(false);
+    setPendingPayload(null);
   };
 
   const toggleKeySelection = (keyId) => {
@@ -555,8 +591,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               onValueChange={(value) => {
                 setSelectedOrderId(value);
                 setSelectedProductId(''); // Reset product when order changes
-                // Reset refund method to a safe default; backend still enforces rules.
-                setRefundMethod('WALLET');
                 setErrors(prev => ({ ...prev, orderId: undefined }));
               }}
               placeholder="Select an order..."
@@ -934,43 +968,135 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* Refund method - shown for both regular and guest orders */}
+          {/* Refund routing + split preview — shown for both regular and guest orders. */}
           {(selectedProductId || guestSelectedProductId) && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                  <Package className="w-4 h-4 text-accent" />
+                  <Wallet className="w-4 h-4 text-accent" />
                 </div>
                 <div>
-                  <Label className="text-white text-sm font-semibold">Refund method *</Label>
+                  <Label className="text-white text-sm font-semibold">How you'll be refunded</Label>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {allowedRefundMethods.length === 1 && allowedRefundMethods[0] === 'WALLET'
-                      ? 'Orders paid with wallet can only be refunded to wallet'
-                      : 'Choose how you want to receive the refund'}
+                    Choose original payment split or full wallet credit.
                   </p>
                 </div>
               </div>
-              <div className="grid gap-2">
-                {REFUND_METHODS.filter((m) => allowedRefundMethods.includes(m.value)).map((m) => (
-                  <label
-                    key={m.value}
-                    className="flex items-start gap-3 p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] cursor-pointer has-checked:border-accent/50 has-checked:bg-accent/[0.06] transition-all"
-                  >
-                    <input
-                      type="radio"
-                      name="refundMethod"
-                      value={m.value}
-                      checked={refundMethod === m.value}
-                      onChange={() => setRefundMethod(m.value)}
-                      className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
-                    />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setRefundDestination('ORIGINAL_PAYMENT')}
+                  className={`rounded-xl border p-4 text-left transition ${
+                    refundDestination === 'ORIGINAL_PAYMENT'
+                      ? 'border-sky-400 bg-sky-500/10 ring-2 ring-sky-400/20'
+                      : 'border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <CreditCard className="mt-0.5 h-4 w-4 text-sky-300" />
                     <div>
-                      <span className="text-sm font-medium text-white">{m.label}</span>
-                      <p className="text-xs text-gray-400 mt-0.5">{m.description}</p>
+                      <p className="text-sm font-semibold text-white">Refund to original payment method</p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Card goes to card, PayPal goes to PayPal, wallet goes to wallet using the proportional split.
+                      </p>
                     </div>
-                  </label>
-                ))}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRefundDestination('WALLET')}
+                  className={`rounded-xl border p-4 text-left transition ${
+                    refundDestination === 'WALLET'
+                      ? 'border-emerald-400 bg-emerald-500/10 ring-2 ring-emerald-400/20'
+                      : 'border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <Wallet className="mt-0.5 h-4 w-4 text-emerald-300" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">Refund everything to wallet</p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Full refund amount is credited to your DGMARQ wallet after approval.
+                      </p>
+                    </div>
+                  </div>
+                </button>
               </div>
+
+              {splitLoading && !splitPreview && (
+                <p className="text-sm text-gray-400 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Calculating split...
+                </p>
+              )}
+              {splitError && (
+                <p className="text-sm text-red-400 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  Could not calculate split. You can still submit; admin will reconcile.
+                </p>
+              )}
+
+              {splitPreview && (
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-400">Total refund</span>
+                    <span className="text-sm font-semibold text-white">{formatUsd(totalRefundAmount)}</span>
+                  </div>
+
+                  {/* Step 12 PART B — refund window expired. Show a warning and
+                      override the proportional split visual to wallet=full. */}
+                  {windowExpired && (
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 space-y-1">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-amber-100">Refund window has expired</p>
+                          <p className="text-[11px] text-amber-200/80 mt-0.5">
+                            We can no longer return funds to the original payment method. You can still
+                            request a wallet-credit refund of {formatUsd(totalRefundAmount)}; an admin
+                            must approve it manually before the credit is applied.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {effectiveWalletPortion > 0 && (
+                    <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-4 h-4 text-emerald-300" />
+                        <div>
+                          <p className="text-sm font-medium text-emerald-100">To your wallet</p>
+                          <p className="text-[11px] text-emerald-200/70">
+                            {windowExpired
+                              ? 'Pending admin approval (manual review required)'
+                              : 'Credited immediately on approval'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-emerald-100">{formatUsd(effectiveWalletPortion)}</span>
+                    </div>
+                  )}
+
+                  {effectiveProviderPortion > 0 && (
+                    <div className="flex items-center justify-between rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-sky-300" />
+                        <div>
+                          <p className="text-sm font-medium text-sky-100">To original payment method</p>
+                          <p className="text-[11px] text-sky-200/70">
+                            {splitPreview.breakdown?.paymentMethod === 'PayPal'
+                              ? 'Refunded to your PayPal account'
+                              : 'Refunded to your card via PayPal'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-sky-100">{formatUsd(effectiveProviderPortion)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -1120,6 +1246,65 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           </div>
         </form>
       </DialogContent>
+
+      {/* Step 12 PART B — refund-window expired confirmation.
+          Sibling Dialog (not nested) so it gets its own focus trap and the
+          backdrop layers cleanly above the parent modal. */}
+      <Dialog open={outOfWindowConfirmOpen} onOpenChange={(o) => !o && handleOutOfWindowCancel()}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
+                <AlertCircle className="w-4 h-4 text-amber-300" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold">Refund window has expired</DialogTitle>
+                <DialogDescription className="text-xs text-gray-400 mt-0.5">
+                  This refund cannot go back to the original payment method.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="px-6 py-4 space-y-3 text-sm text-gray-300">
+            <p>
+              The refund period for this order has ended. We can only credit{' '}
+              <span className="font-semibold text-emerald-200">
+                {formatUsd(walletCreditFallback?.refundAmount ?? totalRefundAmount)}
+              </span>{' '}
+              to your wallet, and an admin must approve it manually before the credit is applied.
+            </p>
+            <p className="text-xs text-gray-400">Continue with a wallet-credit refund?</p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 px-6 pb-5 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleOutOfWindowCancel}
+              className="border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white px-4"
+              disabled={createRefundMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleOutOfWindowConfirm}
+              disabled={createRefundMutation.isPending}
+              className="bg-amber-500/90 hover:bg-amber-500 text-amber-950 px-5 font-semibold"
+            >
+              {createRefundMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                'Continue with wallet credit'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 };

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { analyticsAPI } from '../../services/api';
+import { analyticsAPI, sellerAPI } from '../../services/api';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -19,18 +19,22 @@ const SellerAnalytics = () => {
   const { data: analytics, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['seller-analytics', startDate, endDate, selectedMonth, selectedYear, filterType],
     queryFn: async () => {
-      try {
-        const params = filterType === 'range' && startDate && endDate
-          ? { startDate, endDate }
-          : { month: selectedMonth, year: selectedYear };
-        const response = await analyticsAPI.getSellerMonthlyAnalytics(params);
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const params = filterType === 'range' && startDate && endDate
+        ? { startDate, endDate }
+        : { month: selectedMonth, year: selectedYear };
+      const response = await analyticsAPI.getSellerMonthlyAnalytics(params);
+      return response.data.data;
     },
     enabled: true,
     retry: 2,
+  });
+
+  // Phase 6: payout/balance cards must use the same source as Earnings and
+  // Dashboard, not the date-filtered analytics endpoint.
+  const { data: balance } = useQuery({
+    queryKey: ['seller-balance'],
+    queryFn: () => sellerAPI.getPayoutBalance().then((res) => res.data.data),
+    staleTime: 60 * 1000,
   });
 
   const handleDateFilter = () => {
@@ -44,11 +48,6 @@ const SellerAnalytics = () => {
     setSelectedYear(new Date().getFullYear());
     setFilterType('month');
   };
-
-  // Calculate conversion rate (if we have views data)
-  const conversionRate = analytics?.totalSales && analytics?.totalProducts
-    ? ((analytics.totalSales / (analytics.totalProducts * 100)) * 100).toFixed(2)
-    : '0.00';
 
   return (
     <div className="space-y-6">
@@ -290,10 +289,10 @@ const SellerAnalytics = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              ${(analytics?.earnings?.pending || 0).toFixed(2)}
+              ${(balance?.pending?.amount || 0).toFixed(2)}
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              {analytics?.earnings?.pendingCount ? `${analytics.earnings.pendingCount} payout(s)` : 'Awaiting release'}
+              {balance?.pending?.count ? `${balance.pending.count} payout(s)` : 'Awaiting release'}
             </p>
           </CardContent>
         </Card>

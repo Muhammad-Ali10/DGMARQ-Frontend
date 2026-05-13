@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { orderAPI } from '../../services/api';
+import { orderAPI, adminAPI } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import SafeImage from '../../components/ui/safe-image';
-import { ArrowLeft, Package, CreditCard, MapPin, Calendar, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Package, CreditCard, MapPin, Calendar, ExternalLink, DollarSign } from 'lucide-react';
 import { showApiError } from '../../utils/toast';
+import { payoutBadgeProps } from '../../utils/statusTaxonomy';
 
 const AdminOrderDetail = () => {
   const { orderId } = useParams();
@@ -22,6 +24,24 @@ const AdminOrderDetail = () => {
       showApiError(err, 'Failed to load order details');
     },
   });
+
+  // Phase 2: per-item payout-line state from the unified backend source so the admin
+  // view matches the seller view and the Earnings/Dashboard pages.
+  const { data: payoutLinesData } = useQuery({
+    queryKey: ['admin-order-payout-lines', orderId],
+    queryFn: () => adminAPI.getOrderPayoutLines(orderId).then((res) => res.data.data),
+    enabled: !!orderId,
+    retry: 0,
+  });
+  const payoutLineByProductId = useMemo(() => {
+    const map = new Map();
+    const lines = payoutLinesData?.lines || [];
+    for (const line of lines) {
+      const key = (line.productId || '').toString();
+      if (key && !map.has(key)) map.set(key, line);
+    }
+    return map;
+  }, [payoutLinesData]);
 
   if (isLoading) return <Loading message="Loading order details..." />;
 
@@ -111,13 +131,19 @@ const AdminOrderDetail = () => {
     let totalSeller = 0;
 
     order.items.forEach((item) => {
+      const productKey = (item.productId?._id || item.productId || '').toString();
+      const payoutLine = productKey ? payoutLineByProductId.get(productKey) : null;
       const breakdown = getItemCommissionBreakdown(item);
       normal += breakdown.normalCommission;
       featured += breakdown.featuredExtraCommission;
-      totalSeller += breakdown.sellerEarning;
+      totalSeller += payoutLine ? Number(payoutLine.netAmount) || 0 : breakdown.sellerEarning;
     });
 
-    const totalCommission = normal + featured;
+    const payoutLineCommission = Array.from(payoutLineByProductId.values()).reduce(
+      (sum, line) => sum + (Number(line.commissionAmount) || 0),
+      0
+    );
+    const totalCommission = payoutLineByProductId.size > 0 ? payoutLineCommission : normal + featured;
 
     return {
       normalCommission: normal,
@@ -161,9 +187,40 @@ const AdminOrderDetail = () => {
                   const sellerName = item.sellerId?.shopName ?? (typeof item.sellerId === 'object' ? null : 'Seller');
                   const sellerLogo = item.sellerId?.shopLogo;
                   const displaySellerName = sellerName || 'Seller';
-                  const breakdown = getItemCommissionBreakdown(item);
+                  const productKey = (item.productId?._id || item.productId || '').toString();
+                  const payoutLine = productKey ? payoutLineByProductId.get(productKey) : null;
+                  const localBreakdown = getItemCommissionBreakdown(item);
+                  const breakdown = payoutLine
+                    ? {
+                        ...localBreakdown,
+                        totalCommission: Number(payoutLine.commissionAmount) || 0,
+                        sellerEarning: Number(payoutLine.netAmount) || 0,
+                      }
+                    : localBreakdown;
+                  // Phase 5: highlight rows whose payout line is on dispute hold so
+                  // the operator immediately sees which item in a multi-item order is
+                  // blocked (matching the seller-side behaviour).
+                  const isDisputedRow =
+                    !!payoutLine &&
+                    (payoutLine.status === 'blocked' || payoutLine.status === 'hold');
                   return (
-                    <div key={idx} className="p-4 bg-secondary rounded-lg border border-gray-700 space-y-4">
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-lg border space-y-4 ${
+                        isDisputedRow
+                          ? 'bg-red-950/30 border-red-700/60'
+                          : 'bg-secondary border-gray-700'
+                      }`}
+                    >
+                      {isDisputedRow && (
+                        <div className="text-xs text-red-300 flex items-start gap-2">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
+                          <span>
+                            Payout for this item is on hold due to an open dispute or refund request.
+                            {payoutLine?.blockReason ? ` (${payoutLine.blockReason})` : ''}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-start gap-4">
                         {productImage && (
                           <div className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-800">
@@ -227,6 +284,23 @@ const AdminOrderDetail = () => {
                               <span>Refunded seller amount:</span>
                               <span>-${(item.refundedSellerAmount || 0).toFixed(2)}</span>
                             </div>
+                          </>
+                        )}
+                        {payoutLine && (
+                          <>
+                            <div className="flex justify-between items-center">
+                              <span>Payout status:</span>
+                              {(() => {
+                                const props = payoutBadgeProps(payoutLine.displayStatus || payoutLine.status);
+                                return <Badge variant={props.variant}>{props.label}</Badge>;
+                              })()}
+                            </div>
+                            {payoutLine.holdUntil && (
+                              <div className="flex justify-between">
+                                <span>Release date:</span>
+                                <span>{new Date(payoutLine.holdUntil).toLocaleDateString()}</span>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -353,7 +427,7 @@ const AdminOrderDetail = () => {
                 )}
                 {order.buyerHandlingFee > 0 && (
                   <div className="flex justify-between text-gray-400">
-                    <span>Buyer Handling Fee:</span>
+                    <span>Buyer Protection Fee:</span>
                     <span>${order.buyerHandlingFee.toFixed(2)}</span>
                   </div>
                 )}
@@ -405,9 +479,22 @@ const AdminOrderDetail = () => {
                     <CreditCard className="w-4 h-4" />
                     <span>Payment Method:</span>
                   </div>
-                  <p className="text-white capitalize">{order.paymentMethod}</p>
+                  <p className="text-white">
+                    {order.paymentMethod === 'Card' ? 'Credit/Debit Card'
+                      : order.paymentMethod === 'Wallet+Card' ? 'Wallet + Credit/Debit Card'
+                      : order.paymentMethod}
+                  </p>
                 </div>
               )}
+
+              <div className="pt-4 border-t border-gray-700">
+                <Button asChild variant="outline" className="w-full border-gray-700 text-gray-300">
+                  <Link to={`/admin/payouts/${order._id}`}>
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    View Payout Details
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

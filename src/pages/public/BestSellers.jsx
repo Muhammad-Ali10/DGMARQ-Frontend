@@ -110,7 +110,6 @@ const BestSellers = () => {
               {bestsellers
                 .filter((bestseller) => bestseller?.productId?._id)
                 .map((bestseller) => (
-                  console.log(bestseller),
                 <ProductCard
                   key={bestseller.productId._id}
                   product={bestseller.productId}

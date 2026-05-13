@@ -80,6 +80,7 @@ const SubscriptionsManagement = lazy(() => import("./pages/admin/SubscriptionsMa
 const PayoutAccountsManagement = lazy(() => import("./pages/admin/PayoutAccountsManagement"));
 const BundleDeals = lazy(() => import("./pages/admin/BundleDeals"));
 const AdminNotifications = lazy(() => import("./pages/admin/Notifications"));
+const AdminPayoutDetail = lazy(() => import("./pages/admin/AdminPayoutDetail"));
 
 // Lazy-loaded seller pages
 const SellerDashboard = lazy(() => import("./pages/seller/Dashboard"));
@@ -87,6 +88,7 @@ const SellerOrders = lazy(() => import("./pages/seller/Orders"));
 const SellerOrderDetail = lazy(() => import("./pages/seller/SellerOrderDetail"));
 const SellerProducts = lazy(() => import("./pages/seller/Products"));
 const SellerEarnings = lazy(() => import("./pages/seller/Earnings"));
+const SellerPayoutDetail = lazy(() => import("./pages/seller/PayoutDetail"));
 const SellerPerformance = lazy(() => import("./pages/seller/Performance"));
 const SellerSupport = lazy(() => import("./pages/seller/Support"));
 const PayoutAccount = lazy(() => import("./pages/seller/PayoutAccount"));
@@ -207,6 +209,7 @@ function App() {
           <Route path="return-refund" element={<ReturnRefundManagement />} />
           <Route path="subscriptions" element={<SubscriptionsManagement />} />
           <Route path="payout-accounts" element={<PayoutAccountsManagement />} />
+          <Route path="payouts/:orderId" element={<AdminPayoutDetail />} />
           <Route path="bundle-deals" element={<BundleDeals />} />
           <Route path="" element={<Navigate to="/admin/dashboard" replace />} />
         </Route>
@@ -220,6 +223,7 @@ function App() {
           <Route path="orders/:orderId" element={<SellerOrderDetail />} />
           <Route path="products" element={<SellerProducts />} />
           <Route path="earnings" element={<SellerEarnings />} />
+          <Route path="earnings/:payoutId" element={<SellerPayoutDetail />} />
           <Route path="payout-account" element={<PayoutAccount />} />
           <Route path="performance" element={<SellerPerformance />} />
           <Route path="support" element={<SellerSupport />} />

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { returnRefundAPI } from '../../services/api';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSocket } from '../../hooks/useSocket';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
@@ -45,11 +46,26 @@ const UserReturnRefunds = () => {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedRefund, setSelectedRefund] = useState(null);
   const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
 
   const { data: refundsData, isLoading, isError } = useQuery({
     queryKey: ['user-refunds'],
     queryFn: () => returnRefundAPI.getMyRefunds().then(res => res.data.data),
   });
+
+  // Phase 6 / Step 12 PART C — refund_executed socket fan-out updates the
+  // buyer's refund list (status flips to COMPLETED) and the per-refund
+  // detail dialog if it's open on the affected refund.
+  useEffect(() => {
+    if (!socket || !isConnected) return undefined;
+    const onRefundExecuted = () => {
+      queryClient.invalidateQueries({ queryKey: ['user-refunds'] });
+      queryClient.invalidateQueries({ queryKey: ['user-refund-details'] });
+      queryClient.invalidateQueries({ queryKey: ['user-orders'] });
+    };
+    socket.on('refund_executed', onRefundExecuted);
+    return () => socket.off('refund_executed', onRefundExecuted);
+  }, [socket, isConnected, queryClient]);
 
   const refunds = refundsData?.refunds || [];
   const { data: refundDetails, isLoading: detailsLoading } = useQuery({
@@ -58,6 +74,11 @@ const UserReturnRefunds = () => {
     enabled: !!selectedRefund?._id && isViewOpen,
   });
 
+  // Intentionally retained: the "Cancel refund" buttons are currently
+  // commented out in the UI (see lines wired to {/* canCancel(...) && ... */})
+  // but the backend mutation contract is stable, so we keep the hook ready
+  // for the moment the buttons are re-enabled.
+  // eslint-disable-next-line no-unused-vars
   const cancelMutation = useMutation({
     mutationFn: (refundId) => returnRefundAPI.cancelRefund(refundId),
     onSuccess: () => {
@@ -95,6 +116,7 @@ const UserReturnRefunds = () => {
     return <Badge variant={variants[status] || 'default'}>{label}</Badge>;
   };
 
+  // eslint-disable-next-line no-unused-vars
   const canCancel = (refund) => {
     const s = (refund?.status || '').toUpperCase();
     return ['PENDING', 'ADMIN_REVIEW', 'SELLER_REVIEW'].includes(s) || refund?.status === 'pending';

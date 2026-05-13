@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { sellerAPI } from "../../services/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSocket } from "../../hooks/useSocket";
 import {
   Card,
   CardContent,
@@ -37,6 +38,8 @@ import { Link } from "react-router-dom";
 const SellerOrders = () => {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
+  const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
 
   const {
     data: ordersData,
@@ -49,6 +52,21 @@ const SellerOrders = () => {
         .getMyOrders({ page, limit: 10, status })
         .then((res) => res.data.data),
   });
+
+  // Phase 6 / Step 12 PART C — when a refund is executed for one of this
+  // seller's items, the order's net total / payout breakdown shifts and the
+  // seller's available balance drops. Invalidate both data sources so the
+  // UI reflects the new state without a manual refresh.
+  useEffect(() => {
+    if (!socket || !isConnected) return undefined;
+    const onRefundExecuted = () => {
+      queryClient.invalidateQueries({ queryKey: ["seller-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["seller-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["seller-payouts"] });
+    };
+    socket.on("refund_executed", onRefundExecuted);
+    return () => socket.off("refund_executed", onRefundExecuted);
+  }, [socket, isConnected, queryClient]);
 
   if (isLoading) return <Loading message="Loading orders..." />;
   if (isError) return <ErrorMessage message="Error loading orders" />;

@@ -179,10 +179,12 @@ const SellerProfileView = () => {
               <Label className="text-gray-400 text-sm">City</Label>
               <p className="text-white mt-1">{seller?.city || 'N/A'}</p>
             </div>
-            <div>
-              <Label className="text-gray-400 text-sm">Min Payout Amount</Label>
-              <p className="text-white mt-1">${seller?.minPayoutAmount || 0}</p>
-            </div>
+            {/*
+              Phase 6: legacy "Min Payout Amount" tile removed. The withdrawal
+              minimum is now an admin-wide platform setting (Admin Settings ->
+              "Minimum withdrawal amount"), enforced by withdrawal.service.js.
+              Per-seller overrides are no longer supported.
+            */}
             <div>
               <Label className="text-gray-400 text-sm">Auto Release Payouts</Label>
               <p className="text-white mt-1">{seller?.payoutAutoRelease ? 'Yes' : 'No'}</p>
