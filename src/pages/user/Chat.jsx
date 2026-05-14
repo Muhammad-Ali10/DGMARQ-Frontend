@@ -82,7 +82,11 @@ const UserChat = () => {
         .getConversations({ role: 'buyer' })
         .then((res) => {
           const payload = res?.data?.data;
-          const normalized = Array.isArray(payload) ? payload : [];
+          const normalized = Array.isArray(payload)
+            ? payload
+            : Array.isArray(payload?.conversations)
+              ? payload.conversations
+              : [];
           userConversationsCache = { ts: Date.now(), data: normalized, pending: null };
           return normalized;
         })

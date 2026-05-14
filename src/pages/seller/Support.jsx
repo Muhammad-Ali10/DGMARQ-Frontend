@@ -51,6 +51,10 @@ const SellerSupport = () => {
     refetchOnWindowFocus: false,
   });
 
+  const chatsList = ensureArray(chats, 'chats');
+  const messages = ensureArray(messagesData, 'messages');
+  const selectedChatData = chatsList.find((c) => c._id === selectedChat);
+
   // Socket: join/leave support chat room
   useEffect(() => {
     if (!socket || !selectedChat) return;
@@ -201,10 +205,6 @@ const SellerSupport = () => {
   };
 
   if (chatsLoading) return <Loading message="Loading support chats..." />;
-
-  const chatsList = ensureArray(chats, 'chats');
-  const messages = ensureArray(messagesData, 'messages');
-  const selectedChatData = chatsList.find((c) => c._id === selectedChat);
 
   const getStatusBadge = (status) => {
     const variants = {
