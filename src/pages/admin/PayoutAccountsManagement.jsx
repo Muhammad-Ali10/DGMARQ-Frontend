@@ -16,16 +16,13 @@ import { showSuccess, showApiError } from '../../utils/toast';
  * Phase 4 — admin payout accounts management.
  *
  * Manual verification is RETIRED in Phase 4. Verification now happens
- * automatically (PayPal OAuth or Payoneer payee validation). This page only
+ * automatically (PayPal OAuth). This page only
  * lets admins inspect per-method statuses and block / unblock individual
  * methods.
  */
 
 const METHOD_LABEL = {
   paypal: 'PayPal',
-  payoneer: 'Payoneer',
-  local_bank: 'Local Bank',
-  swift: 'SWIFT',
 };
 
 const STATUS_VARIANT = {
@@ -90,7 +87,7 @@ const PayoutAccountsManagement = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Payout Accounts Management</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">
-            Inspect per-method payout accounts. Verification is automatic (PayPal OAuth / Payoneer) — admins can only block / unblock.
+            Inspect per-method payout accounts. Verification is automatic (PayPal OAuth) — admins can only block / unblock.
           </p>
         </div>
       </div>

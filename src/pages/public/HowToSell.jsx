@@ -4,7 +4,7 @@ import AnimatedHeading from "@/components/marketplace/AnimatedHeading";
 import GlowCard from "@/components/marketplace/GlowCard";
 import FAQAccordion from "@/components/marketplace/FAQAccordion";
 import { HowToSellPageData } from "@/lib/data";
-import { Helmet } from "react-helmet-async";
+import { useSEO } from "@/hooks/useSEO";
 
 const HowToSell = () => {
   const {
@@ -20,16 +20,16 @@ const HowToSell = () => {
     finalCta,
   } = HowToSellPageData;
 
+  useSEO({
+    title: "How to Sell | DGMARQ",
+    description:
+      "Start selling on DGMARQ marketplace today. List your products and reach thousands of buyers.",
+    canonical: "/how-to-sell",
+    useDefaults: false,
+  });
+
   return (
     <main className="flex min-h-screen flex-col text-white">
-      <Helmet>
-        <title>How to Sell | DGMARQ</title>
-        <meta
-          name="description"
-          content="Start selling on DGMARQ marketplace today. List your products and reach thousands of buyers."
-        />
-        <link rel="canonical" href="https://www.dgmarq.com/how-to-sell" />
-      </Helmet>
       {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />

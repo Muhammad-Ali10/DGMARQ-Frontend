@@ -32,7 +32,7 @@ const SellerLicenseKeys = () => {
 
   const { data: productsData, isLoading: isLoadingProducts, isError: productsError } = useQuery({
     queryKey: ['seller-products', searchTerm],
-    queryFn: () => productAPI.getProducts({ search: searchTerm, limit: 50 }).then(res => res.data.data),
+    queryFn: () => productAPI.getProducts({ search: searchTerm, limit: 50, mine: true }).then(res => res.data.data),
     retry: 2,
   });
 

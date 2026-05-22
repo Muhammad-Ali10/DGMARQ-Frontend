@@ -56,7 +56,7 @@ import { Link } from "react-router-dom";
 //      processing / sent / failed / failed_with_retry / rejected
 //      Admin actions: approve, reject (with reason), retry.
 //      Surfaces fallbackUsed prominently so a fee that came from the static
-//      table (Payoneer unreachable) gets visible operator review.
+//      table gets visible operator review when fallback fees are used.
 //   2. All payouts (legacy) - retained for visibility of pre-Phase-5
 //      auto-released payout lines.
 // ============================================================================
@@ -84,9 +84,6 @@ const WITHDRAWAL_STATUS_VARIANT = {
 
 const METHOD_LABEL = {
   paypal: "PayPal",
-  payoneer: "Payoneer",
-  local_bank: "Local Bank",
-  swift: "SWIFT",
 };
 
 const formatUsd = (n) => `$${Number(n || 0).toFixed(2)}`;
@@ -294,11 +291,6 @@ const PayoutsManagement = () => {
     retry: 1,
   });
 
-  const processMutation = useMutation({
-    mutationFn: (payoutId) => adminAPI.processPayout(payoutId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-payouts"] }),
-  });
-
   const payoutList = useMemo(() => payouts?.payouts || [], [payouts]);
   const pagination = payouts?.pagination || {};
   const totalItems = pagination.total ?? 0;
@@ -359,9 +351,6 @@ const PayoutsManagement = () => {
                   <SelectContent>
                     <SelectItem value="all">All methods</SelectItem>
                     <SelectItem value="paypal">PayPal</SelectItem>
-                    <SelectItem value="payoneer">Payoneer</SelectItem>
-                    <SelectItem value="local_bank">Local Bank</SelectItem>
-                    <SelectItem value="swift">SWIFT</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -653,15 +642,6 @@ const PayoutsManagement = () => {
                                       <Eye className="w-3 h-3 mr-1" />
                                       View Details
                                     </Link>
-                                  </Button>
-                                )}
-                                {payout.status === "pending" && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => processMutation.mutate(payout._id)}
-                                    disabled={processMutation.isPending}
-                                  >
-                                    Process
                                   </Button>
                                 )}
                               </div>

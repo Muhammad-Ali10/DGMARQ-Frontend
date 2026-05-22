@@ -2,9 +2,15 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { categoryAPI } from '../../services/api';
 import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
-import { Helmet } from 'react-helmet-async';
+import { useSEO } from '../../hooks/useSEO';
 
 const Software = () => {
+  useSEO({
+    title: 'Software | DGMARQ',
+    description: 'Browse software products on DGMARQ marketplace. Find great deals with instant delivery.',
+    canonical: '/software',
+    useDefaults: false,
+  });
   const { data: categoriesData } = useQuery({
     queryKey: ['categories', 'Software'],
     queryFn: async () => {
@@ -24,14 +30,6 @@ const Software = () => {
 
   return (
     <>
-      <Helmet>
-        <title>All Products | DGMARQ</title>
-        <meta
-          name="description"
-          content="Browse all products on DGMARQ marketplace. Find great deals on products and services."
-        />
-        <link rel="canonical" href="https://www.dgmarq.com/products" />
-      </Helmet>
       <ProductListingLayout
         lockedCategoryId={softwareCategory?._id}
         pageTitle="Software"

@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/static-components */
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
+import { useSEO } from '../../hooks/useSEO';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { productAPI, platformAPI, categoryAPI, subcategoryAPI, regionAPI, deviceAPI, typeAPI, genreAPI, themeAPI, modeAPI } from '../../services/api';
 import ProductCard from '../ProductCard';
@@ -43,8 +44,21 @@ const ProductListingLayout = ({
     gcTime: 30 * 60 * 1000,
   };
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [page, setPage] = useState(parseInt(searchParams.get('page')) || 1);
   const [search, setSearch] = useState(searchParams.get('search') || searchParams.get('q') || '');
+
+  const trimmedSearch = search.trim();
+  useSEO({
+    title: trimmedSearch
+      ? `Search: ${trimmedSearch} | DGMARQ`
+      : `${pageTitle} | DGMARQ`,
+    description: trimmedSearch
+      ? `Search results for "${trimmedSearch}" on DGMARQ marketplace.`
+      : `Browse ${pageTitle} on DGMARQ marketplace. Find great deals with instant delivery.`,
+    canonical: location.pathname,
+    useDefaults: false,
+  });
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [layout, setLayout] = useState(searchParams.get('layout') || 'listing');
@@ -1214,7 +1228,7 @@ const ProductListingLayout = ({
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 items-stretch">
                     {products.map((product) => (
                       <ProductCard key={product._id} product={product} />
                     ))}

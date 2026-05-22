@@ -9,6 +9,7 @@ import {
   CardFooter,
 } from "./ui/card";
 import { ShoppingCart } from "lucide-react";
+import { cn } from "../lib/utils";
 import {
   calculateProductPrice,
   getProductImage,
@@ -25,9 +26,14 @@ const ProductCard = memo(({ product }) => {
   const title = getProductName(product);
   const platformName = getPlatformName(product);
   const typeName = getTypeName(product);
+  const hasDiscount = discountPercentage > 0;
+
   return ( 
-    <Link to={`/product/${product.slug || product._id}`}>
-      <Card className="w-full max-w-[196px] mx-auto flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2.5 box-border hover:scale-105 transition-transform duration-200">
+    <Link
+      to={`/product/${product.slug || product._id}`}
+      className="block h-full"
+    >
+      <Card className="w-full max-w-[196px] mx-auto h-full flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2.5 box-border hover:scale-105 transition-transform duration-200">
         <div className="relative">
           {image &&
           image !== PRODUCT_IMAGE_PLACEHOLDER ? (
@@ -52,39 +58,52 @@ const ProductCard = memo(({ product }) => {
           )}
         </div>
 
-        <CardHeader className="p-0">
+        <CardHeader className="p-0 flex-1 min-h-0">
           <CardTitle className="text-xs md:text-sm font-semibold -tracking-normal truncate">
             {title}
           </CardTitle>
           <p className="text-xs md:text-sm font-normal -tracking-normal">
             Platform: <span className="font-bold">{platformName}</span>
           </p>
-          {typeName && (
-            <p className="text-xs md:text-sm font-normal -tracking-normal">
-              Type: <span className="font-bold">{typeName}</span>
-            </p>
-          )}
-        </CardHeader>
-        <CardContent className="flex flex-row justify-between items-center w-full p-0 gap-2">
-          <p className="text-xs md:text-sm font-bold truncate">
-            {discountPrice.toFixed(2)} &nbsp;
-            <span className="font-normal uppercase">USD</span>
+          <p
+            className={cn(
+              "text-xs md:text-sm font-normal -tracking-normal min-h-[1.125rem] md:min-h-[1.25rem]",
+              !typeName && "invisible"
+            )}
+            aria-hidden={!typeName}
+          >
+            Type: <span className="font-bold">{typeName || "—"}</span>
           </p>
-          {discountPercentage > 0 && (
+        </CardHeader>
+
+        <div className="mt-auto shrink-0 w-full">
+          <CardContent className="flex flex-row justify-between items-center w-full p-0 gap-2 min-h-[1.5rem] md:min-h-[1.625rem]">
+            <p className="text-xs md:text-sm font-bold truncate">
+              {discountPrice.toFixed(2)} &nbsp;
+              <span className="font-normal uppercase">USD</span>
+            </p>
             <h3
-              className="text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]"
+              className={cn(
+                "text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]",
+                !hasDiscount && "invisible"
+              )}
+              aria-hidden={!hasDiscount}
             >
-              {`-${discountPercentage}%`}
-            </h3> 
-          )}
-        </CardContent>
-        {discountPercentage > 0 && (
-          <CardFooter className="p-0">
-            <del className="text-xs md:text-sm font-normal uppercase">
-              {originalPrice.toFixed(2)} usd
+              {hasDiscount ? `-${discountPercentage}%` : "-0%"}
+            </h3>
+          </CardContent>
+          <CardFooter className="p-0 min-h-[1.125rem] md:min-h-[1.25rem] flex items-start">
+            <del
+              className={cn(
+                "text-xs md:text-sm font-normal uppercase leading-none",
+                !hasDiscount && "invisible"
+              )}
+              aria-hidden={!hasDiscount}
+            >
+              {(hasDiscount ? originalPrice : 0).toFixed(2)} usd
             </del>
           </CardFooter>
-        )}
+        </div>
       </Card>
     </Link>
   );

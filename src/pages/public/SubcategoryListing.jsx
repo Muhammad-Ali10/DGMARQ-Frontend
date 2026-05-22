@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { subcategoryAPI } from '../../services/api';
 import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { useSEO } from '../../hooks/useSEO';
 
 const SubcategoryListing = () => {
   const {
@@ -71,6 +72,22 @@ const SubcategoryListing = () => {
       }
     },
     enabled: !!(routeSubcategoryParam || subCategoryIdFromQuery),
+  });
+
+  const subcategoryCanonical =
+    categorySlug && subcategorySlug
+      ? `/category/${categorySlug}/${subcategorySlug}`
+      : undefined;
+
+  useSEO({
+    title: subcategoryData?.name
+      ? `${subcategoryData.name} | DGMARQ`
+      : undefined,
+    description: subcategoryData?.name
+      ? `Browse ${subcategoryData.name} products on DGMARQ marketplace.`
+      : undefined,
+    canonical: subcategoryCanonical,
+    useDefaults: true,
   });
 
   // Once we know the real slugs from the API, redirect legacy URLs to the

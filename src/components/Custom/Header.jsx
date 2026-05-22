@@ -3,7 +3,7 @@ import { getGuestCartCount } from "../../utils/guestCart";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { calculateProductPrice } from "../../utils/productUtils";
+import { calculateProductPrice, getProductPath } from "../../utils/productUtils";
 import {
   Search,
   Heart,
@@ -296,7 +296,7 @@ const Header = () => {
   const handleSuggestionClick = (product) => {
     setShowSearchSuggestions(false);
     setSearchQuery("");
-    navigate(`/product/${product._id}`);
+    navigate(getProductPath(product));
   };
 
   const handleCategoryHover = async (category) => {
@@ -645,22 +645,8 @@ const Header = () => {
                                 key={subcategory._id}
                                 to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${hoveredCategory?._id || ""}`}
                                 onClick={() => setShowCategoriesDropdown(false)}
-                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-800/50 transition-colors group border-b border-gray-800/20 last:border-b-0"
+                                className="flex items-center px-4 py-2.5 hover:bg-gray-800/50 transition-colors group border-b border-gray-800/20 last:border-b-0"
                               >
-                                {/* Subcategory Icon */}
-                                {subcategory.image ? (
-                                  <SafeImage
-                                    src={subcategory.image}
-                                    alt={subcategory.name}
-                                    className="w-8 h-8 object-cover rounded shrink-0"
-                                  />
-                                ) : (
-                                  <div className="w-8 h-8 bg-gray-700 rounded shrink-0 flex items-center justify-center">
-                                    <Menu className="h-4 w-4 text-gray-400" />
-                                  </div>
-                                )}
-
-                                {/* Subcategory Name */}
                                 <span className="text-white text-sm group-hover:text-accent flex-1">
                                   {subcategory.name}
                                 </span>

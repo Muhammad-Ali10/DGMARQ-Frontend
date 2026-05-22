@@ -2,7 +2,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Button } from "../../components/ui/button";
-import { Card } from "../../components/ui/card";
 import Hero from "../../components/Hero";
 import CategoryNavigation from "../../components/CategoryNavigation";
 import ProductCard from "../../components/ProductCard";
@@ -15,7 +14,6 @@ import {
   trendingOfferAPI,
   upcomingReleaseAPI,
   upcomingGamesAPI,
-  trendingCategoryAPI,
   softwareAPI,
   seoAPI,
 } from "../../services/api";
@@ -23,7 +21,6 @@ import { productAPI } from "../../services/api";
 import { Loading } from "../../components/ui/loading";
 import { useSEO } from "../../hooks/useSEO";
 import SafeImage from "../../components/ui/safe-image";
-import { Helmet } from "react-helmet-async";
 
 const widths = ["w-1/4", "w-1/4", "w-1/2", "w-1/4", "w-1/4", "w-1/2"];
 
@@ -81,18 +78,6 @@ const Home = () => {
       staleTime: 120000,
     });
 
-  const {
-    data: trendingCategoriesData,
-    isLoading: isLoadingTrendingCategories,
-  } = useQuery({
-    queryKey: ["trending-categories", "home"],
-    queryFn: async () => {
-      const response = await trendingCategoryAPI.getTrendingCategories();
-      return response.data.data;
-    },
-    staleTime: 120000,
-  });
-
   const { data: softwarePageData, isLoading: isLoadingMicrosoft } = useQuery({
     queryKey: ["software-page", "home"],
     queryFn: async () => {
@@ -118,8 +103,9 @@ const Home = () => {
   });
 
   useSEO({
-    title: seoSettings?.metaTitle,
-    description: seoSettings?.metaDescription,
+    title: seoSettings?.metaTitle || undefined,
+    description: seoSettings?.metaDescription || undefined,
+    canonical: "/",
     useDefaults: true,
   });
 
@@ -145,17 +131,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen">
-      <Helmet>
-        <title>DGMARQ - Buy and Sell Online Marketplace</title>
-        <meta
-          name="description"
-          content="Find the best listings on DGMARQ. Buy and sell products and services safely and easily."
-        />
-        <meta property="og:title" content="DGMARQ - Buy and Sell Online" />
-        <meta property="og:description" content="Find the best listings on DGMARQ marketplace." />
-        <meta property="og:url" content="https://www.dgmarq.com/" />
-        <link rel="canonical" href="https://www.dgmarq.com/" />
-      </Helmet>
       <Hero />
       <CategoryNavigation scrollOffset={140} />
       <div id="featured-products"></div>
@@ -178,7 +153,7 @@ const Home = () => {
                 <Loading message="Loading featured products..." />
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 items-stretch">
                 {featuredProductsData.docs.map((product) => (
                   <ProductCard key={product._id} product={product} />
                 ))}
@@ -214,7 +189,7 @@ const Home = () => {
               <Loading message="Loading best sellers..." />
             </div>
           ) : bestsellersData?.bestsellers?.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 items-stretch">
               {bestsellersData.bestsellers
                 .filter((bestseller) => bestseller?.productId?._id)
                 .map((bestseller) => (
@@ -384,7 +359,7 @@ const Home = () => {
                 <Loading message="Loading upcoming games..." />
               </div>
             ) : upcomingGamesData?.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 items-stretch">
                 {upcomingGamesData.slice(0, 6).map((product) => (
                   <ProductCard key={product._id} product={product} />
                 ))}
@@ -399,148 +374,6 @@ const Home = () => {
           </div>
         </section>
       )}
-
-     <div id="trending-categories"></div>
-
-      <section id="trending-categories" className="py-16">
-        <div className="flex w-full justify-center relative gap-5">
-          <SafeImage
-            src="/images/CenterShedow.png"
-            className="absolute z-10"
-            alt=""
-          />
-          <div className="flex flex-col items-center md:items-start max-w-1260 w-full gap-4 md:gap-8 z-20 px-4">
-            <div>
-              <h3 className="text-xl sm:text-2xl md:text-3xl -tracking-tight font-semibold text-start text-white">
-                Top Trending Categories
-              </h3>
-              <p className="text-sm sm:text-base font-normal -tracking-tight text-start text-white mb-4">
-                From popular subscriptions and software to e-learning, top-ups,
-                and more.
-              </p>
-            </div>
-
-            {isLoadingTrendingCategories ? (
-              <div className="flex justify-center items-center py-12 w-full">
-                <Loading message="Loading trending categories..." />
-              </div>
-            ) : trendingCategoriesData && trendingCategoriesData.length > 0 ? (
-              <>
-                <div className="flex flex-col md:flex-row w-full justify-between gap-4 md:gap-8">
-                  {trendingCategoriesData.slice(0, 2).map((item, index) => {
-                    const category = item.category;
-                    if (!category) return null;
-
-                    const cardWidth =
-                      index === 0 ? "max-w-[430px]" : "max-w-[804px]";
-
-                    return (
-                      <Card
-                        key={item._id || index}
-                        style={{
-                          backgroundImage: category.image
-                            ? `url('${category.image}')`
-                            : `url('https://res.cloudinary.com/dptwervy7/image/upload/v1754393639/BgCategories1_cn0mq1.png')`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
-                        className={`rounded-21 flex justify-end ${cardWidth} w-full h-[300px] sm:h-[400px] md:h-[461px] p-4 sm:p-5 border-0 cursor-pointer hover:opacity-90 transition-opacity`}
-                        onClick={() =>
-                          navigate(`/category/${category.slug || category._id}`)
-                        }
-                      >
-                        <div className="flex flex-row items-start gap-3 sm:gap-5">
-                          {category.image && (
-                            <SafeImage
-                              src={category.image}
-                              alt={category.name}
-                              className="w-16 h-20 sm:w-24 sm:h-32 object-cover rounded-lg shrink-0"
-                              hideOnError={true}
-                            />
-                          )}
-                          <div className="flex flex-col items-start gap-1 sm:gap-2">
-                            <Button className="bg-[#F05F00] px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg font-poppins text-xs sm:text-base text-white pointer-events-none">
-                              Best seller
-                            </Button>
-                            <h3 className="text-lg sm:text-xl md:text-2xl font-bold font-poppins text-white">
-                              {category.name}
-                            </h3>
-                            <span className="text-xs sm:text-sm md:text-base font-medium font-poppins text-white">
-                              {category.description ||
-                                `${category.name} · Global · Key`}
-                            </span>
-                          </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {trendingCategoriesData.length > 2 && (
-                  <div className="flex flex-col md:flex-row-reverse w-full justify-between z-20 gap-4 md:gap-8">
-                    {trendingCategoriesData.slice(2, 4).map((item, index) => {
-                      const category = item.category;
-                      if (!category) return null;
-
-                      const actualIndex = index + 2;
-                      const cardWidth =
-                        actualIndex === 2 ? "max-w-[430px]" : "max-w-[804px]";
-
-                      return (
-                        <Card
-                          key={item._id || actualIndex}
-                          style={{
-                            backgroundImage: category.image
-                              ? `url('${category.image}')`
-                              : `url('https://res.cloudinary.com/dptwervy7/image/upload/v1754393639/BgCategories1_cn0mq1.png')`,
-                            backgroundSize: "cover",
-                            backgroundPosition: "center",
-                          }}
-                          className={`rounded-21 flex justify-end ${cardWidth} w-full h-[300px] sm:h-[400px] md:h-[461px] bg-cover bg-center p-4 sm:p-5 border-0 cursor-pointer hover:opacity-90 transition-opacity`}
-                          onClick={() =>
-                            navigate(
-                              `/category/${category.slug || category._id}`,
-                            )
-                          }
-                        >
-                          <div className="flex flex-row items-start gap-3 sm:gap-5">
-                            {category.image && (
-                              <SafeImage
-                                src={category.image}
-                                alt={category.name}
-                                className="w-16 h-20 sm:w-24 sm:h-32 object-cover rounded-lg shrink-0"
-                                hideOnError={true}
-                              />
-                            )}
-                            <div className="flex flex-col items-start gap-1 sm:gap-2">
-                              <Button className="bg-[#F05F00] px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg font-poppins text-xs sm:text-base text-white pointer-events-none">
-                                Best seller
-                              </Button>
-                              <h3 className="text-lg sm:text-xl md:text-2xl font-bold font-poppins text-white">
-                                {category.name}
-                              </h3>
-                              <span className="text-xs sm:text-sm md:text-base font-medium font-poppins text-white">
-                                {category.description ||
-                                  `${category.name} · Global · Key`}
-                              </span>
-                            </div>
-                          </div>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-12 w-full">
-                <p className="text-gray-400">
-                  No trending categories available at the moment.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
       <div id="software"></div>
       <CategoryProductSection

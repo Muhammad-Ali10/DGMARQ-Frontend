@@ -23,7 +23,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['seller-products-for-upload'],
-    queryFn: () => productAPI.getProducts({ page: 1, limit: 1000 }).then(res => res.data.data),
+    queryFn: () => productAPI.getProducts({ page: 1, limit: 1000, mine: true }).then(res => res.data.data),
     enabled: open,
   });
 

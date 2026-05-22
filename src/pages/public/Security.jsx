@@ -4,21 +4,20 @@ import AnimatedHeading from "@/components/marketplace/AnimatedHeading";
 import GlowCard from "@/components/marketplace/GlowCard";
 import FAQAccordion from "@/components/marketplace/FAQAccordion";
 import { SecurityPageData } from "@/lib/data";
-import { Helmet } from "react-helmet-async";
+import { useSEO } from "@/hooks/useSEO";
 
 const Security = () => {
   const { hero, escrow, fraudDetection, verifiedSeller, paymentInfrastructure, disputeResolution, dataProtection, accountTools, faq, trust, finalCta } = SecurityPageData;
 
+  useSEO({
+    title: "Security | DGMARQ",
+    description: "Learn how DGMARQ keeps your transactions and data safe and secure.",
+    canonical: "/security",
+    useDefaults: false,
+  });
+
   return (
     <main className="flex min-h-screen flex-col text-white">
-      <Helmet>
-        <title>Security | DGMARQ</title>
-        <meta
-          name="description"
-          content="Learn how DGMARQ keeps your transactions and data safe and secure."
-        />
-        <link rel="canonical" href="https://www.dgmarq.com/about/security" />
-      </Helmet>
       {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />

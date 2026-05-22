@@ -24,7 +24,7 @@ const SellerProducts = () => {
   const queryClient = useQueryClient();
 
   const queryParams = useMemo(() => {
-    const params = { page, limit: 10 };
+    const params = { page, limit: 10, mine: true };
     if (statusFilter !== 'all') params.status = statusFilter;
     return params;
   }, [page, statusFilter]);

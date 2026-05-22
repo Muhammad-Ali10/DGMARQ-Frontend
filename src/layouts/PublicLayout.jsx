@@ -11,7 +11,7 @@ const PublicLayout = () => {
       <Header />
 
       {/* Main Content - Add bottom padding on mobile to avoid overlap with bottom bar */}
-      <main className="mx-auto py-8 pb-20 md:pb-8">
+      <main className="mx-auto py-8 pb-[7.5rem] md:pb-8">
         <Outlet />
       </main>
 

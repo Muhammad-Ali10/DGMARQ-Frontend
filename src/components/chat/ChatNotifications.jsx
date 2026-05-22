@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useSelector } from 'react-redux';
+import { resolveNotificationActionUrl } from '../../utils/notificationActionUrl';
 
 /**
  * Notifications Component
@@ -16,7 +17,8 @@ const ChatNotifications = () => {
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { user, roles: authRoles } = useSelector((state) => state.auth);
+  const roles = authRoles?.length ? authRoles : (user?.roles || []);
   const { notifications, unreadCount, markNotificationAsRead, removeNotification } = useNotifications();
   
   // Filter to show only unread notifications first, then read ones
@@ -52,7 +54,6 @@ const ChatNotifications = () => {
 
   // Determine notifications route based on user role
   const getNotificationsRoute = () => {
-    const roles = user?.roles || [];
     const normalizedRoles = Array.isArray(roles) ? roles.map(r => String(r).toLowerCase()) : [];
     
     if (normalizedRoles.includes('admin')) {
@@ -66,7 +67,6 @@ const ChatNotifications = () => {
 
   // Determine chat route based on user role
   const getChatRoute = () => {
-    const roles = user?.roles || [];
     const normalizedRoles = Array.isArray(roles) ? roles.map(r => String(r).toLowerCase()) : [];
     
     if (normalizedRoles.includes('admin')) {
@@ -82,10 +82,12 @@ const ChatNotifications = () => {
     // Mark notification as read
     await markNotificationAsRead(notification.notificationId || notification.id);
     setIsOpen(false);
-    
+
+    const actionUrl = resolveNotificationActionUrl(notification.actionUrl, roles);
+
     // Navigate based on notification type and actionUrl
-    if (notification.actionUrl) {
-      navigate(notification.actionUrl);
+    if (actionUrl) {
+      navigate(actionUrl);
     } else if (notification.type === 'chat' && notification.data?.conversationId) {
       const chatRoute = getChatRoute();
       navigate(`${chatRoute}?conversation=${notification.data.conversationId}`);

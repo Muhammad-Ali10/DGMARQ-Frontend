@@ -4,7 +4,7 @@ import { useMemo, useEffect } from 'react';
 import { categoryAPI } from '../../services/api';
 import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Helmet } from 'react-helmet-async';
+import { useSEO } from '../../hooks/useSEO';
 
 // Helper to check if string is a valid MongoDB ObjectId
 const isValidObjectId = (str) => {
@@ -98,6 +98,19 @@ const CategoryListing = () => {
     initialData: actualCategory || undefined, // Use cached data if available
   });
 
+  const categorySlug = categoryData?.slug || categoryParam;
+
+  useSEO({
+    title: categoryData?.name
+      ? `${categoryData.name} Listings | DGMARQ`
+      : undefined,
+    description: categoryData?.name
+      ? `Browse all ${categoryData.name} listings on DGMARQ marketplace.`
+      : undefined,
+    canonical: categorySlug ? `/category/${categorySlug}` : undefined,
+    useDefaults: true,
+  });
+
   if (categoryLoading) {
     return <Loading message="Loading category..." />;
   }
@@ -110,17 +123,8 @@ const CategoryListing = () => {
     );
   }
 
-  // Pass lockedCategoryId to ProductListingLayout
   return (
     <>
-      <Helmet>
-        <title>{categoryData.name} Listings | DGMARQ</title>
-        <meta
-          name="description"
-          content={`Browse all ${categoryData.name} listings on DGMARQ marketplace.`}
-        />
-        <link rel="canonical" href={`https://www.dgmarq.com/category/${categoryData.slug || categoryParam}`} />
-      </Helmet>
       <ProductListingLayout
         lockedCategoryId={actualCategoryId}
         pageTitle={categoryData.name}

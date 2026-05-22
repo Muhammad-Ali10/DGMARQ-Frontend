@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { sellerAPI } from '../../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -6,33 +6,15 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import {
-  Banknote,
   CheckCircle2,
   CreditCard,
   ExternalLink,
-  Globe2,
   Info,
-  Landmark,
-  Plug,
   ShieldAlert,
   Trash2,
 } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
 import { useSocket } from '../../hooks/useSocket';
-import PayoneerPayoutSetupModal from '../../components/PayoneerPayoutSetupModal';
-
-/**
- * Phase 4 — Multi-method seller payout account page.
- *
- * Replaces the previous PayPal-only single-card UI with a four-method matrix:
- *   - PayPal (OAuth, unchanged behaviour)
- *   - Payoneer (payee ID validation)
- *   - Local Bank Transfer (Payoneer-routed)
- *   - SWIFT International (Payoneer-routed)
- *
- * The plan's `payout_account_linked` socket event is used to invalidate the
- * relevant queries when an account is added in another tab/device.
- */
 
 const METHODS = [
   {
@@ -42,30 +24,6 @@ const METHODS = [
     icon: CreditCard,
     routedFrom: 'PayPal',
     accent: 'bg-sky-500/10 border-sky-500/30 text-sky-100',
-  },
-  {
-    key: 'payoneer',
-    label: 'Payoneer',
-    description: 'Receive payouts directly to your Payoneer account.',
-    icon: Globe2,
-    routedFrom: 'Payoneer',
-    accent: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-100',
-  },
-  {
-    key: 'local_bank',
-    label: 'Local Bank Transfer',
-    description: 'Domestic bank transfer in your country, routed via Payoneer.',
-    icon: Landmark,
-    routedFrom: 'Payoneer',
-    accent: 'bg-amber-500/10 border-amber-500/30 text-amber-100',
-  },
-  {
-    key: 'swift',
-    label: 'SWIFT International',
-    description: 'International wire to any bank in the world via SWIFT.',
-    icon: Banknote,
-    routedFrom: 'Payoneer',
-    accent: 'bg-violet-500/10 border-violet-500/30 text-violet-100',
   },
 ];
 
@@ -85,7 +43,6 @@ const StatusBadge = ({ status }) => {
 const PayoutAccount = () => {
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
-  const [payoneerModalMethod, setPayoneerModalMethod] = useState(null); // 'payoneer' | 'local_bank' | 'swift' | null
 
   const { data: payoutAccountData, isLoading, isError } = useQuery({
     queryKey: ['payout-account'],
@@ -93,7 +50,6 @@ const PayoutAccount = () => {
     refetchInterval: 30000,
   });
 
-  // Phase 2: hold-period copy is driven by the live admin setting.
   const { data: payoutSettings } = useQuery({
     queryKey: ['public-payout-settings'],
     queryFn: () => sellerAPI.getPublicPayoutSettings().then((res) => res.data.data),
@@ -115,7 +71,6 @@ const PayoutAccount = () => {
     };
   }, [socket, isConnected, queryClient]);
 
-  // PayPal OAuth callback toast handling (unchanged from previous behaviour).
   const paypalSuccess = new URLSearchParams(window.location.search).get('paypal') === 'success';
   const paypalError = new URLSearchParams(window.location.search).get('paypal') === 'error';
   const paypalReason = new URLSearchParams(window.location.search).get('reason') || '';
@@ -148,13 +103,11 @@ const PayoutAccount = () => {
     return map;
   }, [payoutAccountData]);
 
-  const payoneerConfigured = !!payoutAccountData?.payoneerConfigured;
-
   const unlinkMutation = useMutation({
     mutationFn: (method) => sellerAPI.unlinkPayoutAccount(method),
     onSuccess: (_data, method) => {
       queryClient.invalidateQueries({ queryKey: ['payout-account'] });
-      showSuccess(`${methodLabelFor(method)} disconnected.`);
+      showSuccess(`${method === 'paypal' ? 'PayPal' : method} disconnected.`);
     },
     onError: (err) => showApiError(err, 'Could not unlink account.'),
   });
@@ -174,7 +127,7 @@ const PayoutAccount = () => {
   };
 
   const handleUnlink = (method) => {
-    if (!window.confirm(`Disconnect ${methodLabelFor(method)}? You can reconnect anytime.`)) return;
+    if (!window.confirm(`Disconnect PayPal? You can reconnect anytime.`)) return;
     unlinkMutation.mutate(method);
   };
 
@@ -188,14 +141,14 @@ const PayoutAccount = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Payout Account</h1>
         <p className="text-gray-400 mt-1">
-          Connect any of the supported payout methods. Once connected, your earnings release automatically every {holdDays} day{holdDays === 1 ? '' : 's'} after order completion.
+          Connect your PayPal account. Once connected, your earnings release automatically every {holdDays} day{holdDays === 1 ? '' : 's'} after order completion.
         </p>
       </div>
 
       <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-3 flex items-start gap-2">
         <Info className="w-4 h-4 text-sky-300 mt-0.5 shrink-0" />
         <p className="text-xs text-sky-100/90">
-          PayPal payouts are sent from our PayPal account. Payoneer, Local Bank Transfer, and SWIFT International payouts are sent from our Payoneer account. You pay the provider fee for the method you choose at withdrawal time.
+          PayPal payouts are sent from our PayPal account. You pay the provider fee for withdrawals at request time.
         </p>
       </div>
 
@@ -214,8 +167,6 @@ const PayoutAccount = () => {
           const isConnected = !!account && account.status !== 'blocked';
           const isBlocked = account?.status === 'blocked';
           const Icon = m.icon;
-          const isPayoneerRouted = m.key !== 'paypal';
-          const payoneerGated = isPayoneerRouted && !payoneerConfigured;
 
           return (
             <Card key={m.key} className="bg-primary border-gray-700">
@@ -235,7 +186,7 @@ const PayoutAccount = () => {
                 {isConnected && account ? (
                   <div className="rounded-md bg-gray-800 p-3 space-y-1">
                     <p className="text-sm text-white">
-                      {account.accountIdentifier || account.displayDetails?.bankName || 'Connected'}
+                      {account.accountIdentifier || 'Connected'}
                     </p>
                     {account.accountName ? <p className="text-xs text-gray-300">{account.accountName}</p> : null}
                     {account.linkedAt ? (
@@ -252,33 +203,15 @@ const PayoutAccount = () => {
                   </p>
                 ) : null}
 
-                {payoneerGated ? (
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-100">
-                    Payoneer integration is not configured on this server yet. Ask the admin to enable it.
-                  </div>
-                ) : null}
-
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {m.key === 'paypal' ? (
-                    <Button
-                      onClick={handleConnectPayPal}
-                      className="bg-accent hover:bg-accent/90 inline-flex items-center gap-2"
-                      size="sm"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      {isConnected ? 'Reconnect' : 'Connect PayPal'}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => setPayoneerModalMethod(m.key)}
-                      className="bg-accent hover:bg-accent/90 inline-flex items-center gap-2"
-                      size="sm"
-                      disabled={payoneerGated}
-                    >
-                      <Plug className="h-4 w-4" />
-                      {isConnected ? 'Replace details' : `Connect ${m.label}`}
-                    </Button>
-                  )}
+                  <Button
+                    onClick={handleConnectPayPal}
+                    className="bg-accent hover:bg-accent/90 inline-flex items-center gap-2"
+                    size="sm"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {isConnected ? 'Reconnect' : 'Connect PayPal'}
+                  </Button>
                   {isConnected ? (
                     <Button
                       onClick={() => handleUnlink(m.key)}
@@ -297,24 +230,8 @@ const PayoutAccount = () => {
           );
         })}
       </div>
-
-      <PayoneerPayoutSetupModal
-        open={!!payoneerModalMethod}
-        onOpenChange={(v) => { if (!v) setPayoneerModalMethod(null); }}
-        method={payoneerModalMethod || 'payoneer'}
-      />
     </div>
   );
-};
-
-const methodLabelFor = (method) => {
-  switch (method) {
-    case 'paypal': return 'PayPal';
-    case 'payoneer': return 'Payoneer';
-    case 'local_bank': return 'Local Bank Transfer';
-    case 'swift': return 'SWIFT International';
-    default: return method;
-  }
 };
 
 export default PayoutAccount;

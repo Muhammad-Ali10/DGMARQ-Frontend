@@ -48,7 +48,6 @@ export const adminAPI = {
   deleteProduct: (productId) => api.delete(`/admin/products/${productId}`),
   getAllPayouts: (params) => api.get('/admin/payouts', { params }),
   getOrderPayoutDetails: (orderId) => api.get(`/payout/admin/order/${orderId}`),
-  processPayout: (payoutId) => api.post(`/admin/payout/${payoutId}/process`),
   // Phase 5: admin withdrawal lifecycle management.
   listWithdrawals: (params) => api.get('/withdrawal/admin', { params }),
   getWithdrawal: (id) => api.get(`/withdrawal/${id}`),
@@ -73,8 +72,7 @@ export const adminAPI = {
   getSupportStats: () => api.get('/support/admin/stats'),
   moderateChat: (conversationId, data) => api.post(`/admin/chat/${conversationId}/moderate`, data),
   // Phase 4 (RETIRED): manual verify is gone. Verification is now automatic
-  // via PayPal OAuth or Payoneer payee validation. The route still returns 410
-  // on the backend; the client method is removed so admin UI cannot call it.
+  // via PayPal OAuth. The route still returns 410 on the backend.
   blockPayoutAccount: (accountId, data) => api.patch(`/payout-account/${accountId}/block`, data),
   getSellerPayoutAccount: (sellerId) => api.get(`/payout-account/seller/${sellerId}`),
   getSellersPayoutStatus: (params) => api.get('/payout-account/sellers/status', { params }),
@@ -119,9 +117,6 @@ export const sellerAPI = {
   getPayPalConnectUrl: () => api.get('/payout-account/paypal/connect'),
   getMyPayoutAccount: () => api.get('/payout-account/my'),
   linkPayoutAccount: (data) => api.post('/payout-account/link', data),
-  // Phase 4: Payoneer / Local Bank / SWIFT payout setup.
-  getPayoneerRequirements: (params) => api.get('/payout-account/payoneer/requirements', { params }),
-  linkPayoneerAccount: (data) => api.post('/payout-account/payoneer/link', data),
   unlinkPayoutAccount: (method) => api.delete(`/payout-account/method/${method}`),
   // Phase 5: withdrawal request flow (replaces auto-release).
   getWithdrawalQuote: (data) => api.post('/withdrawal/quote', data),
@@ -359,13 +354,8 @@ export const subcategoryAPI = {
   getSubcategoryBySlug: (categorySlug, subcategorySlug) => api.get(`/subcategory/get-subcategory-by-slug/${categorySlug}/${subcategorySlug}`),
   getSubcategoriesByCategoryId: (categoryId, params) => api.get(`/subcategory/get-subcategories-by-category/${categoryId}`, { params }),
   getSubcategoriesByCategorySlug: (categorySlug, params) => api.get(`/subcategory/get-subcategories-by-category-slug/${categorySlug}`, { params }),
-  createSubcategory: (formData) => api.post('/subcategory/create-subcategory', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
+  createSubcategory: (data) => api.post('/subcategory/create-subcategory', data),
   updateSubcategory: (subCategoryId, data) => api.patch(`/subcategory/update-subcategory/${subCategoryId}`, data),
-  updateSubcategoryImage: (subCategoryId, formData) => api.patch(`/subcategory/update-subcategory-image/${subCategoryId}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
   updateSubcategoryStatus: (subCategoryId, data) => api.post(`/subcategory/update-subcategory-status/${subCategoryId}`, data),
   deleteSubcategory: (subCategoryId) => api.delete(`/subcategory/delete-subcategory/${subCategoryId}`),
 };
@@ -452,13 +442,6 @@ export const homepageSliderAPI = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   deleteHomepageSlider: (id) => api.delete(`/homepage-slider/${id}`),
-};
-
-export const trendingCategoryAPI = {
-  getTrendingCategories: () => api.get('/trending-category'),
-  getTrendingCategoryById: (id) => api.get(`/trending-category/${id}`),
-  getAllTrendingCategories: () => api.get('/trending-category/admin/all'),
-  updateTrendingCategories: (data) => api.post('/trending-category/update', data),
 };
 
 export const bestsellerAPI = {

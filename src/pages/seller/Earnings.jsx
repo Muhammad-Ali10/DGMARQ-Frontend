@@ -46,9 +46,6 @@ const WITHDRAWAL_STATUS_VARIANT = {
 
 const METHOD_LABEL = {
   paypal: "PayPal",
-  payoneer: "Payoneer",
-  local_bank: "Local Bank",
-  swift: "SWIFT",
 };
 
 const formatUsd = (n) => `$${Number(n || 0).toFixed(2)}`;
@@ -423,7 +420,7 @@ const SellerEarnings = () => {
             <div>
               <h3 className="text-white font-semibold mb-1">No payout method connected</h3>
               <p className="text-gray-300 text-sm">
-                Connect at least one payout method (PayPal, Payoneer, Local Bank, or SWIFT) before
+                Connect your PayPal payout account before
                 requesting a withdrawal.
                 <Link to="/seller/payout-account" className="text-blue-400 hover:underline ml-1">
                   Manage payout methods

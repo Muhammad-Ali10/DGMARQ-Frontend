@@ -25,7 +25,7 @@ import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import SafeImage from '../../components/ui/safe-image';
-import { Helmet } from 'react-helmet-async';
+import { useSEO } from '../../hooks/useSEO';
 
 const PublicSellerProfile = () => {
   const { sellerId } = useParams();
@@ -85,6 +85,17 @@ const PublicSellerProfile = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  useSEO({
+    title: sellerProfile?.shopName
+      ? `${sellerProfile.shopName} | Seller on DGMARQ`
+      : undefined,
+    description: sellerProfile?.shopName
+      ? `View listings by ${sellerProfile.shopName} on DGMARQ marketplace.`
+      : undefined,
+    canonical: sellerId ? `/seller/${sellerId}` : undefined,
+    useDefaults: true,
+  });
+
   if (profileLoading) {
     return <Loading message="Loading seller profile..." />;
   }
@@ -100,14 +111,6 @@ const PublicSellerProfile = () => {
 
   return (
     <div className="min-h-screen container mx-auto  text-white">
-      <Helmet>
-        <title>{sellerProfile.shopName} | Seller on DGMARQ</title>
-        <meta
-          name="description"
-          content={`View listings by ${sellerProfile.shopName} on DGMARQ marketplace.`}
-        />
-        <link rel="canonical" href={`https://www.dgmarq.com/seller/${sellerId}`} />
-      </Helmet>
       {/* Seller Header */}
       <div className="relative">
         {/* Banner */}
@@ -259,7 +262,7 @@ const PublicSellerProfile = () => {
                     {productsFetching && (
                       <p className="mb-4 text-sm text-gray-400">Updating products...</p>
                     )}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6 items-stretch">
                       {products.map((product) => (
                         <ProductCard key={product._id} product={product} />
                       ))}

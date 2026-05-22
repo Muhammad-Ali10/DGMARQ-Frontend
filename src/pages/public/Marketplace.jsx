@@ -22,7 +22,7 @@ import {
   MarketplaceRoadmap,
   MarketplaceFinalCta,
 } from "@/lib/data";
-import { Helmet } from "react-helmet-async";
+import { useSEO } from "@/hooks/useSEO";
 
 const iconMap = {
   HiCpuChip,
@@ -36,6 +36,13 @@ const iconMap = {
 const Marketplace = () => {
   const { categories, promotions, metrics } = useMarketplaceOverview();
 
+  useSEO({
+    title: "About Our Marketplace | DGMARQ",
+    description: "Discover how DGMARQ marketplace works for buyers and sellers.",
+    canonical: "/marketplace",
+    useDefaults: false,
+  });
+
   const { ref: roadmapRef, isInView: roadmapInView } = useInView({
     threshold: 0.2,
     once: true,
@@ -43,14 +50,6 @@ const Marketplace = () => {
 
   return (
     <main className="flex min-h-screen flex-col text-white">
-      <Helmet>
-        <title>About Our Marketplace | DGMARQ</title>
-        <meta
-          name="description"
-          content="Discover how DGMARQ marketplace works for buyers and sellers."
-        />
-        <link rel="canonical" href="https://www.dgmarq.com/about/marketplace" />
-      </Helmet>
       {/* 1. Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden bg-gradient-to-b from-accent/5 via-transparent to-transparent" withTopBorder>
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">

@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from './useSocket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationAPI } from '../services/api';
 import { useSelector } from 'react-redux';
+import { invalidateAllNotificationQueries } from '../utils/notificationQueries';
 
 /**
  * Optimized notifications hook.
@@ -14,8 +15,6 @@ export const useNotifications = () => {
   const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const debounceRef = useRef(null);
-
   const { data: notificationsData, isLoading: notificationsLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
@@ -91,23 +90,14 @@ export const useNotifications = () => {
     if (!socket || !isConnected || !user) return;
 
     const handleNotificationNew = () => {
-      // Increment count locally — instant badge update, zero API calls
       setUnreadCount((prev) => prev + 1);
-
-      // Debounced refetch to sync full notification list (batches rapid events)
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        queryClient.invalidateQueries({ queryKey: ['notification-unread-count'] });
-        debounceRef.current = null;
-      }, 5000);
+      invalidateAllNotificationQueries(queryClient);
     };
 
     socket.on('notification_new', handleNotificationNew);
 
     return () => {
       socket.off('notification_new', handleNotificationNew);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [socket, isConnected, user, queryClient]);
 
@@ -118,8 +108,10 @@ export const useNotifications = () => {
     );
     setUnreadCount((prev) => Math.max(0, prev - 1));
     // Persist (non-blocking)
-    notificationAPI.markAsRead(notificationId).catch(() => {});
-  }, []);
+    notificationAPI.markAsRead(notificationId).then(() => {
+      invalidateAllNotificationQueries(queryClient);
+    }).catch(() => {});
+  }, [queryClient]);
 
   const clearNotifications = useCallback(() => {
     setNotifications([]);
@@ -131,8 +123,10 @@ export const useNotifications = () => {
     setNotifications((prev) => prev.filter((n) => n.notificationId !== notificationId));
     setUnreadCount((prev) => Math.max(0, prev - 1));
     // Persist (non-blocking)
-    notificationAPI.deleteNotification(notificationId).catch(() => {});
-  }, []);
+    notificationAPI.deleteNotification(notificationId).then(() => {
+      invalidateAllNotificationQueries(queryClient);
+    }).catch(() => {});
+  }, [queryClient]);
 
   return {
     notifications,

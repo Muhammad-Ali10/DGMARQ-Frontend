@@ -30,7 +30,7 @@ const SellerReviews = () => {
     queryKey: ['seller-products-for-reviews'],
     queryFn: async () => {
       // Fetch all seller products (with high limit to get all)
-      const response = await productAPI.getProducts({ limit: 1000 });
+      const response = await productAPI.getProducts({ limit: 1000, mine: true });
       return response.data.data;
     },
     enabled: !!sellerInfo,

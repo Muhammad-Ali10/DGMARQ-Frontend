@@ -6,7 +6,8 @@ import ProductCard from "../../components/ProductCard";
 import { Loading, ErrorMessage } from "../../components/ui/loading";
 import { Button } from "../../components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-  
+import { useSEO } from "../../hooks/useSEO";
+
 const PlatformsButton = [
   { name: "steam Games", url: "#" },
   { name: "Origin Games ", url: "#" },
@@ -38,6 +39,13 @@ const PopularTopics = [
 ];
 
 const BestSellers = () => {
+  useSEO({
+    title: "Best Sellers | DGMARQ",
+    description: "Shop the best selling games and digital products on DGMARQ marketplace.",
+    canonical: "/bestsellers",
+    useDefaults: false,
+  });
+
   const [page, setPage] = useState(1);
   const limit = 12;
 
@@ -106,7 +114,7 @@ const BestSellers = () => {
             {isFetching && (
               <p className="text-sm text-gray-400 mb-4">Updating best sellers...</p>
             )}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8 items-stretch">
               {bestsellers
                 .filter((bestseller) => bestseller?.productId?._id)
                 .map((bestseller) => (

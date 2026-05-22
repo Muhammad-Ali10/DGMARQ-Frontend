@@ -12,6 +12,7 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 import RefundRequestModal from '../../components/RefundRequestModal';
 import { showSuccess, showApiError } from '../../utils/toast';
 import { useSocket } from '../../hooks/useSocket';
+import { getOrderItemProductName } from '../../utils/orderItem';
 
 const UserOrders = () => {
   const [page, setPage] = useState(1);
@@ -128,7 +129,7 @@ const UserOrders = () => {
                         <div key={idx} className="flex items-center justify-between text-sm bg-primary p-2 rounded">
                           <div className="flex items-center space-x-3">
                             <span className="font-medium text-gray-300">{item.qty}x</span>
-                            <span className="text-white">{item.productId?.name || 'Product'}</span>
+                            <span className="text-white">{getOrderItemProductName(item)}</span>
                           </div>
                           <span className="text-gray-400">${item.unitPrice?.toFixed(2)}</span>
                         </div>

@@ -695,7 +695,7 @@ const PayoutDetail = () => {
               </div>
             )}
             {/* SECURITY: admin-only fields (failureReason, blockReason, notes,
-                processedBy, paypalBatchId, payoneerPaymentId, metadata, retry*)
+                processedBy, paypalBatchId, metadata, retry*)
                 are NOT rendered on the seller view, and the backend no longer
                 ships them in this payload. */}
           </div>

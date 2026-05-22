@@ -1,10 +1,17 @@
 import SectionWrapper from "@/components/marketplace/SectionWrapper";
 import GlowCard from "@/components/marketplace/GlowCard";
 import { TermsConditionsPageData } from "@/lib/data";
-import { Helmet } from "react-helmet-async";
+import { useSEO } from "@/hooks/useSEO";
 
 const TermsConditions = () => {
   const { hero, sections, finalCta } = TermsConditionsPageData;
+
+  useSEO({
+    title: "Terms and Conditions | DGMARQ",
+    description: "Read DGMARQ terms and conditions for using our marketplace platform.",
+    canonical: "/terms-conditions",
+    useDefaults: false,
+  });
 
   const renderContent = (item) => {
     if (Array.isArray(item)) {
@@ -21,14 +28,6 @@ const TermsConditions = () => {
 
   return (
     <main className="flex min-h-screen flex-col text-white">
-      <Helmet>
-        <title>Terms and Conditions | DGMARQ</title>
-        <meta
-          name="description"
-          content="Read DGMARQ terms and conditions for using our marketplace platform."
-        />
-        <link rel="canonical" href="https://www.dgmarq.com/terms-and-conditions" />
-      </Helmet>
       {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden bg-gradient-to-b from-accent/10 via-transparent to-transparent">
         <div className="flex flex-col gap-6 max-w-4xl mx-auto text-center">

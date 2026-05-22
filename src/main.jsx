@@ -8,6 +8,7 @@ import { Toaster } from './components/ui/sonner';
 import { store } from './store/store';
 import { setOnLogoutCallback } from './store/slices/authSlice';
 import App from './App';
+import { SEOProvider } from './components/SEOProvider';
 import './index.css';
 
 export const queryClient = new QueryClient({
@@ -35,8 +36,10 @@ createRoot(document.getElementById('root')).render(
       <QueryClientProvider client={queryClient}>
         <HelmetProvider>
           <BrowserRouter>
-            <App />
-            <Toaster />
+            <SEOProvider>
+              <App />
+              <Toaster />
+            </SEOProvider>
           </BrowserRouter>
         </HelmetProvider>
       </QueryClientProvider>

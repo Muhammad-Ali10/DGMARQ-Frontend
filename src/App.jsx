@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { useSEO } from "./hooks/useSEO";
 import { Loading } from "./components/ui/loading";
 
 // Layouts — loaded eagerly since they wrap all routes
@@ -70,7 +69,6 @@ const ModesManagement = lazy(() => import("./pages/admin/ModesManagement"));
 const TypesManagement = lazy(() => import("./pages/admin/TypesManagement"));
 const FlashDealsManagement = lazy(() => import("./pages/admin/FlashDealsManagement"));
 const HomepageSlidersManagement = lazy(() => import("./pages/admin/HomepageSlidersManagement"));
-const TrendingCategoriesManagement = lazy(() => import("./pages/admin/TrendingCategoriesManagement"));
 const TrendingOffersManagement = lazy(() => import("./pages/admin/TrendingOffersManagement"));
 const UpcomingReleasesManagement = lazy(() => import("./pages/admin/UpcomingReleasesManagement"));
 const UpcomingGamesManagement = lazy(() => import("./pages/admin/UpcomingGamesManagement"));
@@ -127,7 +125,6 @@ const PageLoader = () => (
 );
 
 function App() {
-  useSEO();
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
@@ -200,7 +197,6 @@ function App() {
           <Route path="types" element={<TypesManagement />} />
           <Route path="flash-deals" element={<FlashDealsManagement />} />
           <Route path="homepage-sliders" element={<HomepageSlidersManagement />} />
-          <Route path="trending-categories" element={<TrendingCategoriesManagement />} />
           <Route path="trending-offers" element={<TrendingOffersManagement />} />
           <Route path="upcoming-releases" element={<UpcomingReleasesManagement />} />
           <Route path="upcoming-games" element={<UpcomingGamesManagement />} />

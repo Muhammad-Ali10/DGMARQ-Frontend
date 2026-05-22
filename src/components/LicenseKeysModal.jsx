@@ -14,21 +14,45 @@ import { toast } from 'sonner';
 import { showApiError } from '../utils/toast';
 
 /**
- * Modal that fetches and displays license keys/account credentials for an order.
- * Works for logged-in users (no extra params) and guest users (pass guestEmail).
+ * Modal that displays license keys/account credentials.
+ * - Pass `orderId` (+ optional `guestEmail`) to fetch keys for an order.
+ * - Pass `licenseDetails` to show pre-loaded keys (e.g. after reveal on My License Keys).
  */
-export default function LicenseKeysModal({ open, onOpenChange, orderId, guestEmail }) {
+export default function LicenseKeysModal({
+  open,
+  onOpenChange,
+  orderId,
+  guestEmail,
+  licenseDetails: licenseDetailsProp,
+  loading: externalLoading = false,
+  footerNote,
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const isStaticMode = licenseDetailsProp != null;
 
   useEffect(() => {
-    if (!open || !orderId) {
+    if (!open) {
       setData(null);
       setError(null);
       return;
     }
+
+    if (isStaticMode) {
+      setData({ licenseDetails: licenseDetailsProp });
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    if (!orderId) {
+      setData(null);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     const params = guestEmail ? { guestEmail: guestEmail.trim() } : {};
@@ -43,7 +67,7 @@ export default function LicenseKeysModal({ open, onOpenChange, orderId, guestEma
         showApiError(err, 'Failed to load license keys');
       })
       .finally(() => setLoading(false));
-  }, [open, orderId, guestEmail]);
+  }, [open, orderId, guestEmail, licenseDetailsProp, isStaticMode]);
 
   const handleCopy = (text, label = 'License key', id) => {
     if (!text) return;
@@ -60,6 +84,7 @@ export default function LicenseKeysModal({ open, onOpenChange, orderId, guestEma
   const details = data?.licenseDetails || [];
   const allRefunded = details.length > 0 && details.every((d) => d.refunded);
   const emptyKeys = details.length === 0 && !data?.message;
+  const showLoading = loading || externalLoading;
 
   const CopyButton = ({ text, label, id }) => (
     <Button
@@ -95,7 +120,7 @@ export default function LicenseKeysModal({ open, onOpenChange, orderId, guestEma
 
         <DialogBody>
           <div className="space-y-4">
-            {loading && (
+            {showLoading && (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-accent" />
                 <span className="ml-3 text-sm text-gray-400">Loading license details...</span>
@@ -109,7 +134,7 @@ export default function LicenseKeysModal({ open, onOpenChange, orderId, guestEma
               </div>
             )}
 
-            {!loading && !error && (
+            {!showLoading && !error && (
               <>
                 <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/8 border border-amber-500/15">
                   <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
@@ -219,6 +244,10 @@ export default function LicenseKeysModal({ open, onOpenChange, orderId, guestEma
                     </div>
                   );
                 })}
+
+                {footerNote && (
+                  <p className="text-xs text-gray-500 text-center pt-1">{footerNote}</p>
+                )}
               </>
             )}
           </div>

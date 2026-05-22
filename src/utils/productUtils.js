@@ -105,6 +105,24 @@ export const getProductName = (product) => {
   return product?.name || 'Unnamed Product';
 };
 
+const MONGO_OBJECT_ID_PATTERN = /^[a-f0-9]{24}$/i;
+
+export const isMongoObjectId = (value) =>
+  MONGO_OBJECT_ID_PATTERN.test(String(value ?? '').trim());
+
+/** Public product detail path; prefers slug over MongoDB id. */
+export const getProductPath = (product) => {
+  const slug = typeof product?.slug === 'string' ? product.slug.trim() : '';
+  if (slug) return `/product/${slug}`;
+
+  const id = product?._id ?? product?.id;
+  if (id != null && String(id).trim()) {
+    return `/product/${String(id).trim()}`;
+  }
+
+  return '/search';
+};
+
 const normalizeEntityName = (value) => {
   if (typeof value === 'string' && value.trim()) {
     const trimmed = value.trim();

@@ -19,7 +19,7 @@ import {
   AboutPhilosophy,
   AboutFinalCta,
 } from '../../lib/data';
-import { Helmet } from 'react-helmet-async';
+import { useSEO } from '../../hooks/useSEO';
 
 // HUD-style corner bracket (CSS-only)
 function CornerBrackets({ className = '' }) {
@@ -40,16 +40,16 @@ function CornerBrackets({ className = '' }) {
 export default function About() {
   const { ref: heroRef, isInView: heroInView } = useInView({ threshold: 0.2, once: true });
 
+  useSEO({
+    title: 'About DGMARQ | Our Company',
+    description:
+      'Learn about DGMARQ, our mission, and how we are building a better marketplace.',
+    canonical: '/about',
+    useDefaults: false,
+  });
+
   return (
     <div className="min-h-screen text-white">
-      <Helmet>
-        <title>About DGMARQ | Our Company</title>
-        <meta
-          name="description"
-          content="Learn about DGMARQ, our mission, and how we are building a better marketplace."
-        />
-        <link rel="canonical" href="https://www.dgmarq.com/about/company" />
-      </Helmet>
       {/* [1] IMMERSIVE HERO */}
       <section className="relative min-h-[85vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />

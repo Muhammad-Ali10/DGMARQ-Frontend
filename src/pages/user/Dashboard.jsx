@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store, Wallet } from 'lucide-react';
+import { getOrderItemProductName } from '../../utils/orderItem';
 
 const UserDashboard = () => {
   const { roles } = useSelector((state) => state.auth);
@@ -20,9 +21,9 @@ const UserDashboard = () => {
     queryFn: () => userAPI.getMyOrders({ page: 1, limit: 5 }).then(res => res.data.data),
   });
 
-  const { data: unreadCount, isLoading: notifLoading } = useQuery({
-    queryKey: ['unread-notifications'],
-    queryFn: () => notificationAPI.getUnreadCount().then(res => res.data.data),
+  const { data: unreadCount = 0, isLoading: notifLoading } = useQuery({
+    queryKey: ['notification-unread-count'],
+    queryFn: () => notificationAPI.getUnreadCount().then((res) => res.data?.data?.unreadCount ?? 0),
   });
 
   const { data: wishlist, isLoading: wishlistLoading } = useQuery({
@@ -143,7 +144,7 @@ const UserDashboard = () => {
     {
       id: 'unread-notifications',
       title: 'Unread Notifications',
-      value: unreadCount?.unreadCount || 0,
+      value: unreadCount || 0,
       icon: Bell,
       color: 'text-yellow-500',
       bgColor: 'bg-yellow-500/10',
@@ -245,8 +246,10 @@ const UserDashboard = () => {
                           })}
                         </p>
                         {order.items?.length > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                            {order.items
+                              .map((item) => `${item.qty || 1}x ${getOrderItemProductName(item)}`)
+                              .join(', ')}
                           </p>
                         )}
                       </div>
@@ -294,8 +297,8 @@ const UserDashboard = () => {
                 <Button variant="outline" className="w-full border-gray-700 text-gray-300 hover:bg-accent hover:border-accent hover:text-white h-auto py-4 flex flex-col items-center gap-2">
                   <Bell className="w-5 h-5" />
                   <span className="text-sm">Notifications</span>
-                  {unreadCount?.unreadCount > 0 && (
-                    <Badge className="ml-1 bg-accent text-white">{unreadCount.unreadCount}</Badge>
+                  {unreadCount > 0 && (
+                    <Badge className="ml-1 bg-accent text-white">{unreadCount}</Badge>
                   )}
                 </Button>
               </Link>

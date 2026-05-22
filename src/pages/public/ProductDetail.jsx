@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productAPI, cartAPI, reviewAPI, userAPI } from '../../services/api';
@@ -33,9 +33,8 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { addToGuestCart } from '../../utils/guestCart';
-import { calculateProductPrice, getPlatformName, getTypeName, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productUtils';
+import { calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productUtils';
 import SafeImage from '../../components/ui/safe-image';
-import { Helmet } from 'react-helmet-async';
 
 const ProductDetail = () => {
   const { identifier } = useParams();
@@ -63,6 +62,13 @@ const ProductDetail = () => {
     },
     retry: 1,
   });
+
+  useEffect(() => {
+    if (!product?.slug || !identifier) return;
+    if (isMongoObjectId(identifier) && product.slug !== identifier) {
+      navigate(getProductPath(product), { replace: true });
+    }
+  }, [product, identifier, navigate]);
 
   const { data: userOrders } = useQuery({
     queryKey: ['user-orders-for-review', product?._id],
@@ -253,9 +259,17 @@ const ProductDetail = () => {
 
   const productSEO = product ? generateProductSEO(product) : null;
 
+  const productPath = product ? getProductPath(product) : undefined;
+  const productImage =
+    Array.isArray(product?.images) && product.images[0]
+      ? product.images[0]
+      : undefined;
+
   useSEO({
     title: productSEO?.title,
     description: productSEO?.description,
+    image: productImage,
+    canonical: productPath,
     useDefaults: true,
   });
 
@@ -343,15 +357,6 @@ const ProductDetail = () => {
 
   return (
     <div className="space-y-6 pb-8 container mx-auto">
-      <Helmet>
-        <title>{product.name} | DGMARQ</title>
-        <meta name="description" content={product.description?.slice(0, 155)} />
-        <meta property="og:title" content={product.name} />
-        <meta property="og:description" content={product.description?.slice(0, 155)} />
-        <meta property="og:image" content={product.images?.[0]} />
-        <meta property="og:url" content={`https://www.dgmarq.com/product/${product.slug || product._id}`} />
-        <link rel="canonical" href={`https://www.dgmarq.com/product/${product.slug || product._id}`} />
-      </Helmet>
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-400">
         <div className="flex items-center gap-2">

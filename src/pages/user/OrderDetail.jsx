@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import LicenseKeysModal from '../../components/LicenseKeysModal';
 import SafeImage from '../../components/ui/safe-image';
+import { getOrderItemProductName } from '../../utils/orderItem';
 import { ArrowLeft, Package, CreditCard, MapPin, Calendar, MessageSquare, ExternalLink } from 'lucide-react';
 import { showApiError } from '../../utils/toast';
 import { toast } from 'sonner';
@@ -154,14 +155,14 @@ const OrderDetail = () => {
                           <div className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-800">
                             <SafeImage
                               src={productImage}
-                              alt={item.productId?.name || 'Product'}
+                              alt={getOrderItemProductName(item)}
                               className="w-full h-full object-cover"
                             />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-white mb-1">
-                            {item.productId?.name || 'Product'}
+                            {getOrderItemProductName(item)}
                           </h4>
                           {item.productId?.slug && (
                             <p className="text-sm text-gray-400 mb-1">

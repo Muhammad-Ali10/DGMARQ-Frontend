@@ -102,6 +102,11 @@ const UsersManagement = () => {
   const totalPages = pagination.pages ?? 1;
   const showPagination = totalItems > 0;
 
+  const isUserActive = (user) => user.isActive !== false;
+  const getUserRoles = (user) => (Array.isArray(user.roles) ? user.roles : []);
+  const isAdminUser = (user) => getUserRoles(user).includes('admin');
+  const getUserId = (user) => user._id || user.id;
+
   const getRoleBadges = (roles) => {
     if (!roles || roles.length === 0) {
       return <Badge variant="secondary" className="capitalize">Customer</Badge>;
@@ -190,14 +195,17 @@ const UsersManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
-                      <TableRow key={user._id} className="border-gray-700 hover:bg-gray-800">
+                    {users.map((user) => {
+                      const active = isUserActive(user);
+                      const userId = getUserId(user);
+                      return (
+                      <TableRow key={userId} className="border-gray-700 hover:bg-gray-800">
                         <TableCell className="text-white font-medium">{user.name || 'N/A'}</TableCell>
                         <TableCell className="text-gray-300">{user.email}</TableCell>
                         <TableCell>{getRoleBadges(user.roles)}</TableCell>
                         <TableCell>
-                          <Badge variant={user.isActive ? 'success' : 'destructive'}>
-                            {user.isActive ? 'Active' : 'Banned'}
+                          <Badge variant={active ? 'success' : 'destructive'}>
+                            {active ? 'Active' : 'Banned'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-gray-300">
@@ -205,21 +213,25 @@ const UsersManagement = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            {user.isActive ? (
+                            {active ? (
+                              isAdminUser(user) ? (
+                                <span className="text-xs text-gray-500 self-center">Protected</span>
+                              ) : (
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleBanClick(user._id)}
+                                onClick={() => handleBanClick(userId)}
                                 disabled={banMutation.isPending}
                               >
                                 <UserX className="h-4 w-4 mr-1" />
                                 Ban
                               </Button>
+                              )
                             ) : (
                               <Button
                                 variant="default"
                                 size="sm"
-                                onClick={() => handleUnbanClick(user._id)}
+                                onClick={() => handleUnbanClick(userId)}
                                 disabled={unbanMutation.isPending}
                               >
                                 <UserCheck className="h-4 w-4 mr-1" />
@@ -229,7 +241,7 @@ const UsersManagement = () => {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );})}
                   </TableBody>
                 </Table>
               </div>

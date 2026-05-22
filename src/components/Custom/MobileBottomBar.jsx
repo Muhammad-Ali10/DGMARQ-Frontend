@@ -16,7 +16,7 @@ import {
   Key,
   Info,
 } from "lucide-react";
-import { calculateProductPrice } from "../../utils/productUtils";
+import { calculateProductPrice, getProductPath } from "../../utils/productUtils";
 import { cartAPI, userAPI, productAPI, authAPI } from "../../services/api";
 import { logout } from "../../store/slices/authSlice";
 import { cn } from "../../lib/utils";
@@ -277,7 +277,7 @@ const MobileBottomBar = () => {
     setShowSearchSuggestions(false);
     setSearchQuery("");
     setSearchOpen(false);
-    navigate(`/product/${product._id}`);
+    navigate(getProductPath(product));
   };
 
   const handleWishlist = () => {
@@ -593,19 +593,16 @@ const MobileBottomBar = () => {
       {/* Bottom Navigation Bar */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-[100] bg-[#041536] border-t-2 border-gray-600 shadow-2xl md:hidden"
-        style={{
-          paddingBottom: "max(env(safe-area-inset-bottom, 0px), 0px)",
-          minHeight: "4rem",
-          width: "100%",
-          boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.5)",
-        }}
+    
+        aria-label="Mobile navigation"
       >
-        <div className="flex items-center justify-around w-full h-16 px-2">
-          {/* Search Button */}
+        {/* Section 1 */}
+        <div className="grid grid-cols-4 border-b border-gray-600">
           <button
+            type="button"
             onClick={handleSearchClick}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
+              "flex flex-col items-center justify-center gap-1 transition-colors py-2",
               searchOpen || isActive("/search")
                 ? "text-accent"
                 : "text-gray-300 hover:text-white",
@@ -616,11 +613,11 @@ const MobileBottomBar = () => {
             <span className="text-xs font-medium">Search</span>
           </button>
 
-          {/* Wishlist Button */}
           <button
+            type="button"
             onClick={handleWishlist}
             className={cn(
-              "relative flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
+              "relative flex flex-col items-center justify-center gap-1 border-l border-gray-600 transition-colors py-2",
               isActive("/wishlist")
                 ? "text-accent"
                 : "text-gray-300 hover:text-white",
@@ -629,18 +626,18 @@ const MobileBottomBar = () => {
           >
             <Heart className="h-5 w-5" strokeWidth={2} />
             {wishlistCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+              <span className="absolute top-1 right-4 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
                 {wishlistCount > 9 ? "9+" : wishlistCount}
               </span>
             )}
             <span className="text-xs font-medium">Wishlist</span>
           </button>
 
-          {/* Cart Button */}
           <button
+            type="button"
             onClick={handleCart}
             className={cn(
-              "relative flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
+              "relative flex flex-col items-center justify-center border-l border-gray-600 gap-1 transition-colors py-2",
               isActive("/cart")
                 ? "text-accent"
                 : "text-gray-300 hover:text-white",
@@ -649,40 +646,39 @@ const MobileBottomBar = () => {
           >
             <ShoppingCart className="h-5 w-5" strokeWidth={2} />
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+              <span className="absolute top-1 right-4 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
                 {cartCount > 9 ? "9+" : cartCount}
               </span>
             )}
             <span className="text-xs font-medium">Cart</span>
           </button>
 
-          {/* Register/Account Button */}
-          <div className="relative">
-            <button
-              ref={accountButtonRef}
-              onClick={handleAccountClick}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 min-w-[60px] h-full px-2 transition-colors",
-                accountMenuOpen || isActive("/account")
-                  ? "text-accent"
-                  : "text-gray-300 hover:text-white",
-              )}
-              aria-label={isAuthenticated ? "Account" : "Register"}
-            >
-              {isAuthenticated ? (
-                <>
-                  <User className="h-5 w-5" strokeWidth={2} />
-                  <span className="text-xs font-medium">Account</span>
-                </>
-              ) : (
-                <>
-                  <UserPlus className="h-5 w-5" strokeWidth={2} />
-                  <span className="text-xs font-medium">Register</span>
-                </>
-              )}
-            </button>
-          </div>
+          <button
+            type="button"
+            ref={accountButtonRef}
+            onClick={handleAccountClick}
+            className={cn(
+              "flex flex-col items-center justify-center gap-1 border-l border-gray-600 transition-colors py-2",
+              accountMenuOpen || isActive("/account")
+                ? "text-accent"
+                : "text-gray-300 hover:text-white",
+            )}
+            aria-label={isAuthenticated ? "Account" : "Register"}
+          >
+            {isAuthenticated ? (
+              <>
+                <User className="h-5 w-5" strokeWidth={2} />
+                <span className="text-xs font-medium">Account</span>
+              </>
+            ) : (
+              <>
+                <UserPlus className="h-5 w-5" strokeWidth={2} />
+                <span className="text-xs font-medium">Register</span>
+              </>
+            )}
+          </button>
         </div>
+
       </nav>
     </>
   );

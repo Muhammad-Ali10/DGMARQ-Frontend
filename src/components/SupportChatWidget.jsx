@@ -22,7 +22,7 @@ const SupportChatWidget = () => {
   return (
     <>
       {/* Floating Support Chat Icon */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-[7.5rem] md:bottom-6 right-6 z-50">
         <button
           onClick={handleIconClick}
           className="relative bg-accent hover:bg-accent/90 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 flex items-center justify-center"

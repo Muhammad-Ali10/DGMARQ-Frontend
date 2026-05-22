@@ -10,16 +10,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Plus, Edit, Trash2, Image as ImageIcon, Power, ChevronLeft, ChevronRight, Search, X, Layers, Filter, RefreshCw } from 'lucide-react';
-import SafeImage from '../../components/ui/safe-image';
+import { Plus, Edit, Trash2, Power, ChevronLeft, ChevronRight, Search, X, Layers, Filter, RefreshCw } from 'lucide-react';
 
 const SubcategoriesManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isImageOpen, setIsImageOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-  const [formData, setFormData] = useState({ name: '', slug: '', description: '', parentCategory: '', image: null });
+  const [formData, setFormData] = useState({ name: '', slug: '', description: '', parentCategory: '' });
   const [statusData, setStatusData] = useState({ status: true });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -59,11 +57,11 @@ const SubcategoriesManagement = () => {
   };
 
   const createMutation = useMutation({
-    mutationFn: (formData) => subcategoryAPI.createSubcategory(formData),
+    mutationFn: (data) => subcategoryAPI.createSubcategory(data),
     onSuccess: () => {
       queryClient.invalidateQueries(['subcategories']);
       setIsCreateOpen(false);
-      setFormData({ name: '', slug: '', description: '', parentCategory: '', image: null });
+      setFormData({ name: '', slug: '', description: '', parentCategory: '' });
       setPage(1);
       toast.success('Subcategory created successfully');
     },
@@ -82,19 +80,6 @@ const SubcategoriesManagement = () => {
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Failed to update subcategory');
-    },
-  });
-
-  const updateImageMutation = useMutation({
-    mutationFn: ({ subCategoryId, formData }) => subcategoryAPI.updateSubcategoryImage(subCategoryId, formData),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['subcategories']);
-      setIsImageOpen(false);
-      setSelectedSubcategory(null);
-      toast.success('Subcategory image updated successfully');
-    },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || 'Failed to update image');
     },
   });
 
@@ -128,17 +113,16 @@ const SubcategoriesManagement = () => {
 
   const handleCreate = (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.slug || !formData.parentCategory || !formData.image) {
-      toast.warning('Name, slug, parent category, and image are required');
+    if (!formData.name || !formData.slug || !formData.parentCategory) {
+      toast.warning('Name, slug, and parent category are required');
       return;
     }
-    const formDataToSend = new FormData();
-    formDataToSend.append('name', formData.name);
-    formDataToSend.append('slug', formData.slug);
-    formDataToSend.append('parentCategory', formData.parentCategory);
-    if (formData.description) formDataToSend.append('description', formData.description);
-    formDataToSend.append('image', formData.image);
-    createMutation.mutate(formDataToSend);
+    createMutation.mutate({
+      name: formData.name,
+      slug: formData.slug,
+      parentCategory: formData.parentCategory,
+      description: formData.description || '',
+    });
   };
 
   const handleUpdate = (e) => {
@@ -150,16 +134,6 @@ const SubcategoriesManagement = () => {
     updateMutation.mutate({
       subCategoryId: selectedSubcategory._id,
       data: { name: formData.name, slug: formData.slug, description: formData.description, parentCategory: formData.parentCategory },
-    });
-  };
-
-  const handleImageUpdate = (e) => {
-    e.preventDefault();
-    const formDataToSend = new FormData();
-    if (formData.image) formDataToSend.append('image', formData.image);
-    updateImageMutation.mutate({
-      subCategoryId: selectedSubcategory._id,
-      formData: formDataToSend,
     });
   };
 
@@ -302,24 +276,6 @@ const SubcategoriesManagement = () => {
                   className="bg-secondary border-gray-700 text-white"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="image" className="text-gray-300">Subcategory Image *</Label>
-                <div className="relative">
-                  <Input
-                    id="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })}
-                    className="bg-secondary border-gray-700 text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-blue-700 cursor-pointer"
-                    required
-                  />
-                </div>
-                {formData.image && (
-                  <p className="text-xs text-green-400 flex items-center gap-1">
-                    <span>✓</span> Image selected: {formData.image.name}
-                  </p>
-                )}
-              </div>
               <div className="flex gap-3 pt-2">
                 <Button 
                   type="button" 
@@ -459,7 +415,6 @@ const SubcategoriesManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
-                  <TableHead className="text-gray-300 font-semibold">Image</TableHead>
                   <TableHead className="text-gray-300 font-semibold">Name</TableHead>
                   <TableHead className="text-gray-300 font-semibold">Slug</TableHead>
                   <TableHead className="text-gray-300 font-semibold">Parent Category</TableHead>
@@ -475,24 +430,6 @@ const SubcategoriesManagement = () => {
                       key={subcategory._id} 
                       className="border-gray-700 hover:bg-secondary/20 transition-colors duration-150"
                     >
-                      <TableCell>
-                        <div className="flex items-center">
-                          {subcategory.image ? (
-                            <div className="relative group">
-                              <SafeImage 
-                                src={subcategory.image} 
-                                alt={subcategory.name} 
-                                className="w-14 h-14 object-cover rounded-lg border-2 border-gray-700 group-hover:border-accent/50 transition-colors"
-                              />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors" />
-                            </div>
-                          ) : (
-                            <div className="w-14 h-14 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center border-2 border-gray-700">
-                              <ImageIcon className="w-6 h-6 text-gray-500" />
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
                       <TableCell>
                         <div className="font-semibold text-white">{subcategory.name}</div>
                       </TableCell>
@@ -532,7 +469,6 @@ const SubcategoriesManagement = () => {
                                 slug: subcategory.slug || '', 
                                 description: subcategory.description || '', 
                                 parentCategory: subcategory.parentCategory?._id || subcategory.parentCategory || '',
-                                image: null 
                               });
                               setIsEditOpen(true);
                             }}
@@ -540,19 +476,6 @@ const SubcategoriesManagement = () => {
                             title="Edit Subcategory"
                           >
                             <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedSubcategory(subcategory);
-                              setFormData({ image: null });
-                              setIsImageOpen(true);
-                            }}
-                            className="border-gray-700 hover:bg-purple-600/20 hover:border-purple-500/50 hover:text-purple-400 transition-all"
-                            title="Update Image"
-                          >
-                            <ImageIcon className="w-4 h-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -586,7 +509,7 @@ const SubcategoriesManagement = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <div className="flex flex-col items-center justify-center gap-3">
                         <div className="p-4 bg-secondary/30 rounded-full">
                           <Layers className="w-8 h-8 text-gray-500" />
@@ -720,64 +643,6 @@ const SubcategoriesManagement = () => {
                   <>
                     <Edit className="w-4 h-4 mr-2" />
                     Update Subcategory
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Image Update Dialog */}
-      <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="text-white text-xl font-semibold">Update Subcategory Image</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Upload a new image for this subcategory
-            </DialogDescription>
-          </DialogHeader>
-          {selectedSubcategory?.image && (
-            <div className="mt-4 p-4 bg-secondary/50 rounded-lg border border-gray-700">
-              <p className="text-sm text-gray-400 mb-2">Current Image:</p>
-              <SafeImage src={selectedSubcategory.image} alt={selectedSubcategory.name} className="w-32 h-32 object-cover rounded-lg" />
-            </div>
-          )}
-          <form onSubmit={handleImageUpdate} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="update-image" className="text-gray-300">New Image</Label>
-              <Input
-                id="update-image"
-                type="file"
-                accept="image/*"
-                onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })}
-                className="bg-secondary border-gray-700 text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-accent file:text-white hover:file:bg-blue-700 cursor-pointer"
-                required
-              />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsImageOpen(false)}
-                className="flex-1 border-gray-700"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={updateImageMutation.isPending} 
-                className="flex-1 bg-accent hover:bg-blue-700 shadow-lg shadow-accent/20"
-              >
-                {updateImageMutation.isPending ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <ImageIcon className="w-4 h-4 mr-2" />
-                    Update Image
                   </>
                 )}
               </Button>

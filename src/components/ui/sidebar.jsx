@@ -36,7 +36,6 @@ import {
   Zap,
   Gift,
   Image,
-  TrendingUp,
   Flame,
   Award,
   AlertTriangle,
@@ -62,7 +61,7 @@ const SidebarLogo = () => {
       <SafeImage
         src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
         alt="logo"
-        className="w-10/12 h-10"
+        className="w-3/4 h-10"
       />
     </Link>
   );
@@ -222,9 +221,6 @@ export const AdminSidebar = () => {
           </SidebarItem>
           <SidebarItem to="/admin/homepage-sliders" icon={Image}>
             Homepage Sliders
-          </SidebarItem>
-          <SidebarItem to="/admin/trending-categories" icon={TrendingUp}>
-            Trending Categories
           </SidebarItem>
           <SidebarItem to="/admin/upcoming-releases" icon={Calendar}>
             Upcoming Releases

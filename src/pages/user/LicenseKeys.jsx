@@ -4,17 +4,41 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Key, Eye, Copy, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import LicenseKeysModal from '../../components/LicenseKeysModal';
+import { Key, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import SafeImage from '../../components/ui/safe-image';
 
+const buildLicenseDetailsFromReveal = (data) => {
+  if (!data) return [];
+
+  const isAccount =
+    data.keyType === 'account' ||
+    (typeof data.keyData === 'object' && data.keyData !== null) ||
+    (typeof data.keyData === 'string' && data.keyData.trim().startsWith('{'));
+
+  let keyEntry = '';
+  if (typeof data.keyData === 'object' && data.keyData !== null) {
+    keyEntry = JSON.stringify(data.keyData);
+  } else {
+    keyEntry = String(data.keyData ?? data.key ?? '');
+  }
+
+  return [
+    {
+      productName: data.productName || 'Product',
+      productType: isAccount ? 'ACCOUNT_BASED' : 'LICENSE_KEY',
+      keys: keyEntry ? [keyEntry] : [],
+      refunded: false,
+    },
+  ];
+};
+
 const LicenseKeys = () => {
-  const [revealedKey, setRevealedKey] = useState(null);
+  const [revealDetails, setRevealDetails] = useState(null);
   const [isRevealOpen, setIsRevealOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [page, setPage] = useState(1);
   const { data: licenseKeysData, isLoading, isError, error } = useQuery({
     queryKey: ['license-keys', page],
@@ -33,7 +57,7 @@ const LicenseKeys = () => {
       return response.data.data;
     },
     onSuccess: (data) => {
-      setRevealedKey(data);
+      setRevealDetails(buildLicenseDetailsFromReveal(data));
       setIsRevealOpen(true);
     },
     onError: (error) => {
@@ -43,12 +67,6 @@ const LicenseKeys = () => {
 
   const handleReveal = (keyId) => {
     revealMutation.mutate(keyId);
-  };
-
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const getDisplayOrderId = (key) => {
@@ -176,168 +194,16 @@ const LicenseKeys = () => {
         </CardContent>
       </Card>
 
-      {/* Reveal Dialog */}
-      <Dialog open={isRevealOpen} onOpenChange={setIsRevealOpen}>
-        <DialogContent size="md" className="bg-primary border-gray-700">
-          <DialogHeader>
-            <DialogTitle className="text-white">License Key</DialogTitle>
-          </DialogHeader>
-          {revealedKey && (
-            <div className="space-y-4">
-              <div className="bg-secondary p-4 rounded-lg">
-                <p className="text-gray-300 mb-2 text-sm">
-                  {typeof revealedKey.keyData === 'object' ? 'Account Credentials:' : 'Your License Key:'}
-                </p>
-                <div className="space-y-2">
-                  {typeof revealedKey.keyData === 'object' ? (
-                    (() => {
-                      const creds = revealedKey.keyData || {};
-                      const email = creds.email || creds.emailAddress || null;
-                      const usernameId = creds.usernameId || creds.username || null;
-                      const rawPassword = creds.password || null;
-                      const emailPassword =
-                        creds.emailPassword ||
-                        (email && !usernameId ? rawPassword : null) ||
-                        null;
-                      const usernamePassword =
-                        creds.usernamePassword ||
-                        (usernameId ? rawPassword : null) ||
-                        null;
-
-                      const hasAnyUsername = !!usernameId || !!usernamePassword;
-
-                      return (
-                        <div className="space-y-3">
-                          {email && (
-                            <div>
-                              <p className="text-xs text-gray-400 mb-1">Email:</p>
-                              <div className="flex items-center gap-2">
-                                <p className="text-white font-mono text-sm flex-1 break-all">
-                                  {email}
-                                </p>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCopy(email)}
-                                  className="border-gray-700 text-gray-300"
-                                >
-                                  {copied ? (
-                                    <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                  ) : (
-                                    <Copy className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                          {emailPassword && (
-                            <div>
-                              <p className="text-xs text-gray-400 mb-1">Email Password:</p>
-                              <div className="flex items-center gap-2">
-                                <p className="text-white font-mono text-sm flex-1 break-all">
-                                  {emailPassword}
-                                </p>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCopy(emailPassword)}
-                                  className="border-gray-700 text-gray-300"
-                                >
-                                  {copied ? (
-                                    <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                  ) : (
-                                    <Copy className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                          {hasAnyUsername && (
-                            <>
-                              {usernameId && (
-                                <div>
-                                  <p className="text-xs text-gray-400 mb-1">Username ID:</p>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-white font-mono text-sm flex-1 break-all">
-                                      {usernameId}
-                                    </p>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleCopy(usernameId)}
-                                      className="border-gray-700 text-gray-300"
-                                    >
-                                      {copied ? (
-                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                      ) : (
-                                        <Copy className="w-4 h-4" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                              {usernamePassword && (
-                                <div>
-                                  <p className="text-xs text-gray-400 mb-1">Username Password:</p>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-white font-mono text-sm flex-1 break-all">
-                                      {usernamePassword}
-                                    </p>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleCopy(usernamePassword)}
-                                      className="border-gray-700 text-gray-300"
-                                    >
-                                      {copied ? (
-                                        <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                      ) : (
-                                        <Copy className="w-4 h-4" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          )}
-                          {!email && !emailPassword && !hasAnyUsername && (
-                            <div className="flex items-center gap-2">
-                              <p className="text-white font-mono text-sm flex-1 break-all">
-                                {JSON.stringify(creds, null, 2)}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="text-white font-mono text-lg flex-1 break-all">
-                        {revealedKey.keyData || revealedKey.key}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleCopy(revealedKey.keyData || revealedKey.key)}
-                        className="border-gray-700 text-gray-300"
-                      >
-                        {copied ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-gray-400">
-                ⚠️ Please save this {typeof revealedKey.keyData === 'object' ? 'information' : 'key'} securely. It will not be shown again.
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <LicenseKeysModal
+        open={isRevealOpen}
+        onOpenChange={(open) => {
+          setIsRevealOpen(open);
+          if (!open) setRevealDetails(null);
+        }}
+        licenseDetails={revealDetails}
+        loading={revealMutation.isPending}
+        footerNote="Please save this key or account information securely. It may not be shown again."
+      />
     </div>
   );
 };

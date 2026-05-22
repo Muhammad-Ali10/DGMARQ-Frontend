@@ -15,21 +15,15 @@ import { AlertCircle, RefreshCw, Wallet } from "lucide-react";
 // ============================================================================
 //
 // Flow:
-//   1. Pick a connected (verified) payout method (paypal / payoneer / local_bank / swift).
+//   1. Pick a connected (verified) PayPal payout account.
 //   2. Enter the gross amount the seller wants to withdraw.
-//   3. Auto-fetch a quote (live for Payoneer routes, static for PayPal). The quote
-//      carries `expiresAt` for live Payoneer rates - we run a countdown and
-//      auto-refresh the quote ~60s before expiry so submission never hits a
-//      stale-quote error.
+//   3. Auto-fetch a quote (static fee from admin settings).
 //   4. Submit -> backend validates cap + minimum + freshness, creates a
 //      `requested` Withdrawal row.
 // ============================================================================
 
 const METHOD_LABEL = {
   paypal: "PayPal",
-  payoneer: "Payoneer",
-  local_bank: "Local Bank Transfer",
-  swift: "SWIFT International",
 };
 
 const QUOTE_REFRESH_SLACK_MS = 60 * 1000;
@@ -192,7 +186,7 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <div>
             You don't have any verified payout methods connected yet. Connect at least one
-            method (PayPal, Payoneer, Local Bank, or SWIFT) to request a withdrawal.
+            PayPal account to request a withdrawal.
           </div>
         </div>
         <div className="flex justify-end">
@@ -237,7 +231,7 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
           ))}
         </select>
         <p className="text-[11px] text-gray-500">
-          PayPal payouts are sent from our PayPal account. Payoneer / Local Bank / SWIFT payouts are sent from our Payoneer account.
+          PayPal payouts are sent from our PayPal account.
         </p>
       </div>
 
@@ -295,9 +289,8 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
             <div>
               <p className="text-gray-400">Source</p>
               <p className="text-white text-xs">
-                {quoteQuery.data.feeSource === "live" && "Live Payoneer quote"}
-                {quoteQuery.data.feeSource === "fallback" && "Static fallback (Payoneer unreachable)"}
                 {quoteQuery.data.feeSource === "static" && "Admin-configured static fee"}
+                {(quoteQuery.data.feeSource === "live" || quoteQuery.data.feeSource === "fallback") && "Configured fee"}
               </p>
             </div>
           </div>
