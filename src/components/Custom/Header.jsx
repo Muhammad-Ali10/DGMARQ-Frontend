@@ -391,6 +391,7 @@ const Header = () => {
                   </div>
                   <Button
                     type="submit"
+                    aria-label="Search"
                     className="bg-gradient-to-r from-accent to-blue-600 hover:from-accent/90 hover:to-blue-600/90 rounded-lg h-full px-4 shadow-lg"
                   >
                     <Search className="h-5 w-5 text-white" />
@@ -490,6 +491,7 @@ const Header = () => {
                 size="icon"
                 className="border-accent text-white hover:bg-accent/10 relative rounded-lg"
                 onClick={() => navigate("/wishlist")}
+                aria-label="Wishlist"
               >
                 <Heart className="h-5 w-5" strokeWidth={2} />
                 {wishlistCount > 0 && (
@@ -505,6 +507,7 @@ const Header = () => {
                 size="icon"
                 className="border-accent text-white hover:bg-accent/10 relative rounded-lg"
                 onClick={() => navigate("/cart")}
+                aria-label="Cart"
               >
                 <ShoppingCart className="h-5 w-5" strokeWidth={2} />
                 {cartCount > 0 && (

@@ -7,6 +7,7 @@ import { authAPI } from '../../services/api';
 import { Button } from '../ui/button';
 import { User, LogIn, UserPlus, LogOut, LayoutDashboard, ShoppingBag, Key, Info } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { API_ORIGIN } from '../../lib/config';
 import SafeImage from '../ui/safe-image';
 
 const SessionMenu = ({ onItemClick } = {}) => {
@@ -60,9 +61,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
   };
 
   const handleGoogleLogin = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-    const baseUrl = apiBaseUrl.replace('/api/v1', '');
-    window.location.href = `${baseUrl}/api/v1/user/auth/google`;
+    window.location.href = `${API_ORIGIN}/api/v1/user/auth/google`;
   };
 
   useEffect(() => {

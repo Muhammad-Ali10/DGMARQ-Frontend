@@ -9,6 +9,42 @@ import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { ArrowLeft, Store, Mail, MapPin, Calendar, DollarSign, Package, ShoppingCart, FileText, Image as ImageIcon } from 'lucide-react';
 import SafeImage from '../../components/ui/safe-image';
 
+// Renders a verification document tile. Image documents show a clickable
+// thumbnail; PDFs/other show an icon. Clicking opens the file full-size.
+const isImageUrl = (url = '') => /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?|$)/i.test(url);
+
+const DocumentTile = ({ url, label }) => {
+  const image = isImageUrl(url);
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Click to view full size"
+      className="group block overflow-hidden rounded-lg border border-gray-700 transition-colors hover:border-accent"
+    >
+      {image ? (
+        <div className="relative">
+          <SafeImage
+            src={url}
+            alt={label}
+            className="h-32 w-full object-cover transition-transform group-hover:scale-105"
+          />
+          <span className="absolute inset-x-0 bottom-0 truncate bg-black/60 px-2 py-1 text-center text-xs text-white">
+            {label}
+          </span>
+        </div>
+      ) : (
+        <div className="flex h-32 flex-col items-center justify-center p-4 text-center">
+          <FileText className="mb-2 h-8 w-8 text-accent" />
+          <p className="text-sm text-white">{label}</p>
+          <p className="mt-1 text-xs text-gray-400">Click to view</p>
+        </div>
+      )}
+    </a>
+  );
+};
+
 const SellerProfileView = () => {
   const { sellerId } = useParams();
   const navigate = useNavigate();
@@ -16,12 +52,8 @@ const SellerProfileView = () => {
   const { data: sellerData, isLoading, isError, error } = useQuery({
     queryKey: ['seller-details', sellerId],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getSellerDetails(sellerId);
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getSellerDetails(sellerId);
+      return response.data.data;
     },
     retry: 1,
   });
@@ -233,6 +265,85 @@ const SellerProfileView = () => {
         </Card>
       </div>
 
+      {/* Identity & KYC Verification */}
+      <Card className="bg-primary border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Identity &amp; KYC Verification
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label className="text-gray-400 text-sm">KYC Status</Label>
+              <div className="mt-1">
+                <Badge
+                  variant={
+                    seller?.kycStatus === 'verified' ? 'success'
+                      : seller?.kycStatus === 'rejected' ? 'destructive'
+                      : 'warning'
+                  }
+                >
+                  {(seller?.kycStatus || 'not_submitted').replace(/_/g, ' ').toUpperCase()}
+                </Badge>
+              </div>
+            </div>
+            <div>
+              <Label className="text-gray-400 text-sm">Full Legal Name</Label>
+              <p className="text-white mt-1">{seller?.fullLegalName || 'N/A'}</p>
+            </div>
+            <div>
+              <Label className="text-gray-400 text-sm">Date of Birth</Label>
+              <p className="text-white mt-1">
+                {seller?.dateOfBirth ? new Date(seller.dateOfBirth).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <Label className="text-gray-400 text-sm">ID Type</Label>
+              <p className="text-white mt-1">
+                {seller?.idType
+                  ? (seller.idType === 'drivers_license' ? "Driver's License" : 'Passport')
+                  : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <Label className="text-gray-400 text-sm">Business Name</Label>
+              <p className="text-white mt-1">{seller?.businessName || 'N/A'}</p>
+            </div>
+            <div>
+              <Label className="text-gray-400 text-sm">Tax ID</Label>
+              <p className="text-white mt-1">
+                {seller?.taxId ? `${seller.taxId}${seller.taxIdType ? ` (${seller.taxIdType})` : ''}` : 'N/A'}
+              </p>
+            </div>
+          </div>
+
+          {/* Verification documents */}
+          {(() => {
+            const docs = [
+              { label: 'ID — Front', url: seller?.idFrontImage },
+              { label: 'ID — Back', url: seller?.idBackImage },
+              { label: 'Proof of Address', url: seller?.proofOfAddress },
+              { label: 'Certificate of Incorporation', url: seller?.certificateOfIncorporation },
+            ].filter((d) => d.url);
+            if (docs.length === 0) {
+              return <p className="text-gray-400 text-sm">No verification documents uploaded.</p>;
+            }
+            return (
+              <div>
+                <Label className="text-gray-400 text-sm">Verification Documents</Label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                  {docs.map((doc) => (
+                    <DocumentTile key={doc.label} url={doc.url} label={doc.label} />
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
+
       {/* Shop Banner */}
       {seller?.shopBanner && (
         <Card className="bg-primary border-gray-700">
@@ -262,21 +373,9 @@ const SellerProfileView = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {seller.kycDocs.map((doc, index) => (
-                <a
-                  key={index}
-                  href={doc}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center p-4 border border-gray-700 rounded-lg hover:border-accent transition-colors"
-                >
-                  <div className="text-center">
-                    <FileText className="h-8 w-8 text-accent mx-auto mb-2" />
-                    <p className="text-white text-sm">Document {index + 1}</p>
-                    <p className="text-gray-400 text-xs mt-1">Click to view</p>
-                  </div>
-                </a>
+                <DocumentTile key={index} url={doc} label={`Document ${index + 1}`} />
               ))}
             </div>
           </CardContent>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef, useMemo, useCallback, memo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminAPI } from '../../services/api';
 import { Button } from '../../components/ui/button';
@@ -13,6 +14,104 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { UserX, UserCheck, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '../../utils/toast';
+
+// Pure helpers hoisted to module scope so they keep a stable identity and can be
+// shared with the memoized row component below (avoids re-creating per render).
+const isUserActive = (user) => user.isActive !== false;
+const getUserRoles = (user) => (Array.isArray(user.roles) ? user.roles : []);
+const isAdminUser = (user) => getUserRoles(user).includes('admin');
+const getUserId = (user) => user._id || user.id;
+
+const getRoleBadges = (roles) => {
+  if (!roles || roles.length === 0) {
+    return <Badge variant="secondary" className="capitalize">Customer</Badge>;
+  }
+
+  const roleArray = Array.isArray(roles) ? roles : [roles];
+  const roleVariants = {
+    admin: 'destructive',
+    seller: 'default',
+    customer: 'secondary',
+  };
+
+  // Show all roles, prioritizing admin > seller > customer
+  const sortedRoles = roleArray.sort((a, b) => {
+    const priority = { admin: 1, seller: 2, customer: 3 };
+    return (priority[a] || 99) - (priority[b] || 99);
+  });
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {sortedRoles.map((role, index) => (
+        <Badge
+          key={index}
+          variant={roleVariants[role] || 'secondary'}
+          className="capitalize text-xs"
+        >
+          {role}
+        </Badge>
+      ))}
+    </div>
+  );
+};
+
+// Memoized row so unrelated state changes (filters, dialogs, pagination) don't
+// force every visible row to re-render. Only re-renders when its `user` or the
+// pending flags actually change.
+const UserRow = memo(function UserRow({
+  user,
+  onBanClick,
+  onUnbanClick,
+  banPending,
+  unbanPending,
+}) {
+  const active = isUserActive(user);
+  const userId = getUserId(user);
+  return (
+    <TableRow key={userId} className="border-gray-700 hover:bg-gray-800">
+      <TableCell className="text-white font-medium">{user.name || 'N/A'}</TableCell>
+      <TableCell className="text-gray-300">{user.email}</TableCell>
+      <TableCell>{getRoleBadges(user.roles)}</TableCell>
+      <TableCell>
+        <Badge variant={active ? 'success' : 'destructive'}>
+          {active ? 'Active' : 'Banned'}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-gray-300">
+        {new Date(user.createdAt).toLocaleDateString()}
+      </TableCell>
+      <TableCell>
+        <div className="flex gap-2">
+          {active ? (
+            isAdminUser(user) ? (
+              <span className="text-xs text-gray-500 self-center">Protected</span>
+            ) : (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onBanClick(userId)}
+                disabled={banPending}
+              >
+                <UserX className="h-4 w-4 mr-1" />
+                Ban
+              </Button>
+            )
+          ) : (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => onUnbanClick(userId)}
+              disabled={unbanPending}
+            >
+              <UserCheck className="h-4 w-4 mr-1" />
+              Unban
+            </Button>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
 
 const UsersManagement = () => {
   const [page, setPage] = useState(1);
@@ -69,15 +168,15 @@ const UsersManagement = () => {
     },
   });
 
-  const handleBanClick = (userId) => {
+  const handleBanClick = useCallback((userId) => {
     setSelectedUserId(userId);
     setBanDialogOpen(true);
-  };
+  }, []);
 
-  const handleUnbanClick = (userId) => {
+  const handleUnbanClick = useCallback((userId) => {
     setSelectedUserId(userId);
     setUnbanDialogOpen(true);
-  };
+  }, []);
 
   const handleBan = () => {
     if (banReason.trim() && selectedUserId) {
@@ -93,52 +192,35 @@ const UsersManagement = () => {
     }
   };
 
-  if (isLoading) return <Loading message="Loading users..." />;
-  if (isError) return <ErrorMessage message={`Error loading users: ${error.message}`} />;
-
-  const users = usersData?.users || [];
+  // Derived data memoized so it isn't recomputed on every unrelated re-render.
+  const users = useMemo(() => usersData?.users || [], [usersData]);
   const pagination = usersData?.pagination || {};
   const totalItems = pagination.total ?? users.length;
   const totalPages = pagination.pages ?? 1;
   const showPagination = totalItems > 0;
 
-  const isUserActive = (user) => user.isActive !== false;
-  const getUserRoles = (user) => (Array.isArray(user.roles) ? user.roles : []);
-  const isAdminUser = (user) => getUserRoles(user).includes('admin');
-  const getUserId = (user) => user._id || user.id;
+  // Windowed (virtualized) rendering of the rows. The scroll container only
+  // mounts the rows in/near the viewport; spacer <tr>s above and below reserve
+  // the height of the off-screen rows so scroll position and column widths stay
+  // identical to a plain table (same columns, ordering, filtering, actions).
+  // NOTE: rows are server-paginated (limit 10), so today only a small window is
+  // ever fetched — virtualization is in place so larger page sizes scale.
+  const scrollContainerRef = useRef(null);
+  const ROW_HEIGHT = 57; // approximate height of a data row (px)
+  const rowVirtualizer = useVirtualizer({
+    count: users.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const totalSize = rowVirtualizer.getTotalSize();
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+  const paddingBottom =
+    virtualRows.length > 0 ? totalSize - virtualRows[virtualRows.length - 1].end : 0;
 
-  const getRoleBadges = (roles) => {
-    if (!roles || roles.length === 0) {
-      return <Badge variant="secondary" className="capitalize">Customer</Badge>;
-    }
-    
-    const roleArray = Array.isArray(roles) ? roles : [roles];
-    const roleVariants = {
-      admin: 'destructive',
-      seller: 'default',
-      customer: 'secondary',
-    };
-
-    // Show all roles, prioritizing admin > seller > customer
-    const sortedRoles = roleArray.sort((a, b) => {
-      const priority = { admin: 1, seller: 2, customer: 3 };
-      return (priority[a] || 99) - (priority[b] || 99);
-    });
-
-    return (
-      <div className="flex flex-wrap gap-1">
-        {sortedRoles.map((role, index) => (
-          <Badge 
-            key={index} 
-            variant={roleVariants[role] || 'secondary'}
-            className="capitalize text-xs"
-          >
-            {role}
-          </Badge>
-        ))}
-      </div>
-    );
-  };
+  if (isLoading) return <Loading message="Loading users..." />;
+  if (isError) return <ErrorMessage message={`Error loading users: ${error.message}`} />;
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -182,7 +264,10 @@ const UsersManagement = () => {
             <div className="text-center py-12 text-gray-400">No users found</div>
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div
+                ref={scrollContainerRef}
+                className="overflow-auto max-h-[70vh]"
+              >
                 <Table>
                   <TableHeader>
                     <TableRow className="border-gray-700 hover:bg-gray-800">
@@ -195,53 +280,29 @@ const UsersManagement = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => {
-                      const active = isUserActive(user);
-                      const userId = getUserId(user);
+                    {paddingTop > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={6} style={{ height: `${paddingTop}px`, padding: 0, border: 0 }} />
+                      </tr>
+                    )}
+                    {virtualRows.map((virtualRow) => {
+                      const user = users[virtualRow.index];
                       return (
-                      <TableRow key={userId} className="border-gray-700 hover:bg-gray-800">
-                        <TableCell className="text-white font-medium">{user.name || 'N/A'}</TableCell>
-                        <TableCell className="text-gray-300">{user.email}</TableCell>
-                        <TableCell>{getRoleBadges(user.roles)}</TableCell>
-                        <TableCell>
-                          <Badge variant={active ? 'success' : 'destructive'}>
-                            {active ? 'Active' : 'Banned'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-gray-300">
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            {active ? (
-                              isAdminUser(user) ? (
-                                <span className="text-xs text-gray-500 self-center">Protected</span>
-                              ) : (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleBanClick(userId)}
-                                disabled={banMutation.isPending}
-                              >
-                                <UserX className="h-4 w-4 mr-1" />
-                                Ban
-                              </Button>
-                              )
-                            ) : (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleUnbanClick(userId)}
-                                disabled={unbanMutation.isPending}
-                              >
-                                <UserCheck className="h-4 w-4 mr-1" />
-                                Unban
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );})}
+                        <UserRow
+                          key={getUserId(user)}
+                          user={user}
+                          onBanClick={handleBanClick}
+                          onUnbanClick={handleUnbanClick}
+                          banPending={banMutation.isPending}
+                          unbanPending={unbanMutation.isPending}
+                        />
+                      );
+                    })}
+                    {paddingBottom > 0 && (
+                      <tr aria-hidden="true">
+                        <td colSpan={6} style={{ height: `${paddingBottom}px`, padding: 0, border: 0 }} />
+                      </tr>
+                    )}
                   </TableBody>
                 </Table>
               </div>

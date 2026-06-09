@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { authAPI } from '../../services/api';
+import { API_ORIGIN } from '../../lib/config';
 import { showSuccess, showApiError } from '../../utils/toast';
 import { Chrome } from 'lucide-react';
 
@@ -106,9 +107,7 @@ const Register = () => {
   };
 
   const handleGoogleLogin = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-    const baseUrl = apiBaseUrl.replace('/api/v1', '');
-    window.location.href = `${baseUrl}/api/v1/user/auth/google`;
+    window.location.href = `${API_ORIGIN}/api/v1/user/auth/google`;
   };
 
   return (
@@ -122,7 +121,11 @@ const Register = () => {
         </CardHeader>
         <CardContent>
           {error && typeof error === 'string' && error.length > 0 && (
-            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm"
+            >
               {error}
             </div>
           )}

@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import api from '../../lib/axios';
+import { API_ORIGIN } from '../../lib/config';
 import { Chrome } from 'lucide-react';
 
 const Login = () => {
@@ -48,11 +49,9 @@ const Login = () => {
         roles = ['customer'];
       }
       roles = [...new Set(roles)].filter(r => r);
-      dispatch(setCredentials({
-        user,
-        accessToken: data.data.accessToken,
-        refreshToken: data.data.refreshToken,
-      }));
+      // SECURITY FIX (#5): tokens are set as httpOnly cookies by the server
+      // and are no longer in the response body. We only hydrate the profile.
+      dispatch(setCredentials({ user }));
       const previousLocation = sessionStorage.getItem('previousLocation');
       if (previousLocation && previousLocation !== '/login' && previousLocation !== '/') {
         sessionStorage.removeItem('previousLocation');
@@ -99,9 +98,7 @@ const Login = () => {
   };
 
   const handleGoogleLogin = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
-    const baseUrl = apiBaseUrl.replace('/api/v1', '');
-    window.location.href = `${baseUrl}/api/v1/user/auth/google`;
+    window.location.href = `${API_ORIGIN}/api/v1/user/auth/google`;
   };
 
   return (
@@ -115,7 +112,11 @@ const Login = () => {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm"
+            >
               {typeof error === 'string' ? error : 'Login failed. Please check your credentials.'}
             </div>
           )}

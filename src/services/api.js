@@ -4,7 +4,8 @@ export const authAPI = {
   login: (credentials) => api.post('/user/login', credentials),
   register: (data) => api.post('/user/register', data),
   logout: () => api.post('/user/logout'),
-  refreshToken: (refreshToken) => api.post('/user/refresh-token', { refreshToken }),
+  // SECURITY FIX (#5): refresh token is read from the httpOnly cookie server-side.
+  refreshToken: () => api.post('/user/refresh-token', {}),
   updateProfile: (data, formData) => {
     if (formData) {
       return api.patch('/user/update-profile', formData, {

@@ -9,7 +9,19 @@ import { store } from './store/store';
 import { setOnLogoutCallback } from './store/slices/authSlice';
 import App from './App';
 import { SEOProvider } from './components/SEOProvider';
+import ErrorBoundary, { maybeReloadOnChunkError } from './components/ErrorBoundary';
 import './index.css';
+
+// Global safety net for dynamic-import/chunk load failures that occur outside
+// of React's render tree (e.g. a route chunk failing to fetch after a deploy).
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    maybeReloadOnChunkError(event?.error || event?.message);
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    maybeReloadOnChunkError(event?.reason);
+  });
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,17 +44,19 @@ setOnLogoutCallback(() => queryClient.clear());
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <HelmetProvider>
-          <BrowserRouter>
-            <SEOProvider>
-              <App />
-              <Toaster />
-            </SEOProvider>
-          </BrowserRouter>
-        </HelmetProvider>
-      </QueryClientProvider>
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <HelmetProvider>
+            <BrowserRouter>
+              <SEOProvider>
+                <App />
+                <Toaster />
+              </SEOProvider>
+            </BrowserRouter>
+          </HelmetProvider>
+        </QueryClientProvider>
+      </Provider>
+    </ErrorBoundary>
   </StrictMode>
 );

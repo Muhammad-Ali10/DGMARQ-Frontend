@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authAPI } from '../../services/api';
+import { API_BASE_URL } from '../../lib/config';
 import { updateUser, logout } from '../../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
@@ -434,7 +435,7 @@ const UserProfile = () => {
                       <Button
                         size="sm"
                         onClick={() => {
-                          window.location.href = `${import.meta.env.VITE_API_BASE_URL}/user/auth/google`;
+                          window.location.href = `${API_BASE_URL}/user/auth/google`;
                         }}
                         className="bg-accent hover:bg-blue-700"
                       >
@@ -464,7 +465,7 @@ const UserProfile = () => {
                       <Button
                         size="sm"
                         onClick={() => {
-                          window.location.href = `${import.meta.env.VITE_API_BASE_URL}/user/auth/facebook`;
+                          window.location.href = `${API_BASE_URL}/user/auth/facebook`;
                         }}
                         className="bg-accent hover:bg-blue-700"
                       >

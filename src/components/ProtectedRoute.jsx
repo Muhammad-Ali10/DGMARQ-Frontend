@@ -5,25 +5,33 @@ import api from '../lib/axios';
 import { Loading } from './ui/loading';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const { isAuthenticated, roles, token } = useSelector((state) => state.auth);
+  // SECURITY FIX (#5): there is no client-readable token anymore. Auth is the
+  // httpOnly cookie; the SERVER is the source of truth. We gate on the cached
+  // isAuthenticated flag for UX, then confirm the session by calling the API
+  // (the cookie authenticates it). A failed verification forces logout.
+  const { isAuthenticated, roles } = useSelector((state) => state.auth);
 
-  // Verify token validity — cached for 5 min instead of firing on every mount
-  const { isPending: isVerifyingToken } = useQuery({
-    queryKey: ['verify-token', token],
+  const { isPending: isVerifyingToken, isError } = useQuery({
+    queryKey: ['verify-token'],
     queryFn: () => api.get('/user/profile'),
-    enabled: !!token && isAuthenticated,
+    enabled: isAuthenticated,
     staleTime: 300000, // 5 minutes
     retry: false,
     meta: { skipErrorToast: true },
   });
 
-  if (!isAuthenticated || !token) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Prevent UI flicker while auth state is being validated for protected routes.
+  // Prevent UI flicker while the session is being validated server-side.
   if (isVerifyingToken) {
     return <Loading message="Checking session..." />;
+  }
+
+  // Server rejected the cookie (expired/invalid) → send to login.
+  if (isError) {
+    return <Navigate to="/login" replace />;
   }
 
   if (allowedRoles.length > 0) {

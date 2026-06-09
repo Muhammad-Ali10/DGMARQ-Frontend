@@ -4,40 +4,24 @@ import { createSlice } from '@reduxjs/toolkit';
 let onLogoutCallback = null;
 export const setOnLogoutCallback = (cb) => { onLogoutCallback = cb; };
 
-// Load initial state from localStorage
+// SECURITY FIX (#5): tokens now live ONLY in httpOnly cookies, which JS cannot
+// read. We persist only the non-sensitive user profile for fast UI hydration.
+// Authorization is proven by the cookie on each request; the server is the
+// source of truth (verify-token / getProfile).
 const loadInitialState = () => {
-  const accessToken = localStorage.getItem('accessToken');
-  const refreshToken = localStorage.getItem('refreshToken');
   const userStr = localStorage.getItem('user');
-
-  if (accessToken && userStr) {
+  if (userStr) {
     try {
       const user = JSON.parse(userStr);
       const roles = Array.isArray(user?.roles)
-        ? user.roles.map(r => r.toLowerCase())
-        : (user?.role ? [user.role.toLowerCase()] : ['customer']);
-
-      return {
-        user,
-        token: accessToken,
-        refreshToken: refreshToken || null,
-        roles,
-        isAuthenticated: true,
-      };
-    } catch (e) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+        ? user.roles.map(r => String(r).toLowerCase())
+        : (user?.role ? [String(user.role).toLowerCase()] : ['customer']);
+      return { user, roles, isAuthenticated: true };
+    } catch {
       localStorage.removeItem('user');
     }
   }
-
-  return {
-    user: null,
-    token: null,
-    refreshToken: null,
-    roles: [],
-    isAuthenticated: false,
-  };
+  return { user: null, roles: [], isAuthenticated: false };
 };
 
 const initialState = loadInitialState();
@@ -47,69 +31,41 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      const { user, accessToken, refreshToken } = action.payload;
+      // Accept { user } — tokens are no longer passed around the client.
+      const { user } = action.payload;
       const userData = Array.isArray(user) ? user[0] : user;
 
-      if (userData && userData.seller === null) {
-        userData.seller = null;
-      }
-
       const roles = Array.isArray(userData?.roles)
-        ? userData.roles.map(r => r.toLowerCase())
-        : (userData?.role ? [userData.role.toLowerCase()] : ['customer']);
+        ? userData.roles.map(r => String(r).toLowerCase())
+        : (userData?.role ? [String(userData.role).toLowerCase()] : ['customer']);
 
       state.user = userData;
-      state.token = accessToken;
-      state.refreshToken = refreshToken;
       state.roles = roles;
       state.isAuthenticated = true;
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('user', JSON.stringify(userData));
-      if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken);
-      }
-    },
-    setToken: (state, action) => {
-      const { accessToken, refreshToken } = action.payload;
-      state.token = accessToken;
-      if (refreshToken) {
-        state.refreshToken = refreshToken;
-        localStorage.setItem('refreshToken', refreshToken);
-      }
-      localStorage.setItem('accessToken', accessToken);
+      // Persistence is handled by a store subscription (see store.js) so that
+      // reducers stay pure and free of side effects. Only the profile is
+      // cached there — NEVER tokens.
     },
     logout: (state) => {
       state.user = null;
-      state.token = null;
-      state.refreshToken = null;
       state.roles = [];
       state.isAuthenticated = false;
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-
-      // Clear React Query cache to prevent data leakage between users
+      // Clearing of the cached user is handled by the store subscription.
       if (onLogoutCallback) onLogoutCallback();
     },
     updateUser: (state, action) => {
       const merged = { ...state.user, ...action.payload };
       state.user = merged;
-      if (
-        action.payload?.roles !== undefined ||
-        action.payload?.role !== undefined
-      ) {
+      if (action.payload?.roles !== undefined || action.payload?.role !== undefined) {
         state.roles = Array.isArray(merged.roles)
           ? merged.roles.map((r) => String(r).toLowerCase())
-          : merged.role
-            ? [String(merged.role).toLowerCase()]
-            : ['customer'];
+          : merged.role ? [String(merged.role).toLowerCase()] : ['customer'];
       }
-      if (state.isAuthenticated && state.token) {
-        localStorage.setItem('user', JSON.stringify(merged));
-      }
+      // Persistence is handled by the store subscription.
     },
   },
 });
 
-export const { setCredentials, logout, updateUser, setToken } = authSlice.actions;
+// `setToken` removed — there is no client-side token to set anymore.
+export const { setCredentials, logout, updateUser } = authSlice.actions;
 export default authSlice.reducer;

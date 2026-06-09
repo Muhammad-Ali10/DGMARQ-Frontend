@@ -9,10 +9,10 @@ import SellerLayout from "./layouts/SellerLayout";
 import UserLayout from "./layouts/UserLayout";
 import PublicLayout from "./layouts/PublicLayout";
 
-// Auth pages — loaded eagerly since they're entry points
-import Login from "./pages/public/Login";
-import Register from "./pages/public/Register";
-import AuthCallback from "./pages/AuthCallback";
+// Auth pages — lazy-loaded like the other routes
+const Login = lazy(() => import("./pages/public/Login"));
+const Register = lazy(() => import("./pages/public/Register"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 
 // Lazy-loaded public pages
 const Home = lazy(() => import("./pages/public/Home"));

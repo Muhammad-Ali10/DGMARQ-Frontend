@@ -1,10 +1,11 @@
 import axios from 'axios';
 import { store } from '../store/store';
-import { setToken, logout } from '../store/slices/authSlice';
+import { logout } from '../store/slices/authSlice';
 import { showApiError } from '../utils/toast';
+import { API_BASE_URL } from './config';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -44,13 +45,10 @@ if (typeof window !== 'undefined') {
   } catch (e) {}
 }
 
+// SECURITY FIX (#5): no Authorization header from localStorage. The httpOnly
+// accessToken cookie is sent automatically because withCredentials:true.
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
@@ -58,7 +56,7 @@ api.interceptors.request.use(
       config.skipToast = config.skipErrorToast;
       delete config.skipErrorToast;
     }
-    
+
     return config;
   },
   (error) => {
@@ -76,39 +74,28 @@ api.interceptors.response.use(
     };
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+
       const currentPath = window.location.pathname;
       const isProtected = isProtectedRoute(currentPath);
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
-        try {
-          const response = await axios.post(
-            `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'}/user/refresh-token`,
-            { refreshToken },
-            { withCredentials: true }
-          );
-          const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-          store.dispatch(setToken({ 
-            accessToken, 
-            refreshToken: newRefreshToken || refreshToken 
-          }));
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          store.dispatch(logout());
-          if (isProtected && currentPath !== '/login') {
-            showApiError(refreshError, 'Session expired. Please login again.');
-            window.location.href = '/login';
-          }
-          return Promise.reject(refreshError);
-        }
-      } else {
+
+      // SECURITY FIX (#5): refresh relies on the httpOnly refresh cookie — we
+      // can't read it from JS, so we just POST (withCredentials) and the server
+      // reads the cookie. No token in the body, none in localStorage.
+      try {
+        await axios.post(
+          `${API_BASE_URL}/user/refresh-token`,
+          {},
+          { withCredentials: true }
+        );
+        // New cookies are set by the server response; just replay the request.
+        return api(originalRequest);
+      } catch (refreshError) {
         store.dispatch(logout());
         if (isProtected && currentPath !== '/login') {
-          showApiError(error, 'Please login to continue.');
+          showApiError(refreshError, 'Session expired. Please login again.');
           window.location.href = '/login';
         }
-        return Promise.reject(error);
+        return Promise.reject(refreshError);
       }
     }
     const isTimeout = error.code === 'ECONNABORTED' || 

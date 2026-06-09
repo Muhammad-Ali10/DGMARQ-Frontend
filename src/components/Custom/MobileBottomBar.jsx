@@ -20,6 +20,7 @@ import { calculateProductPrice, getProductPath } from "../../utils/productUtils"
 import { cartAPI, userAPI, productAPI, authAPI } from "../../services/api";
 import { logout } from "../../store/slices/authSlice";
 import { cn } from "../../lib/utils";
+import { API_ORIGIN } from "../../lib/config";
 import { getGuestCartCount } from "../../utils/guestCart";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -192,10 +193,7 @@ const MobileBottomBar = () => {
   };
 
   const handleGoogleLogin = () => {
-    const apiBaseUrl =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
-    const baseUrl = apiBaseUrl.replace("/api/v1", "");
-    window.location.href = `${baseUrl}/api/v1/user/auth/google`;
+    window.location.href = `${API_ORIGIN}/api/v1/user/auth/google`;
   };
 
   const getUserDisplay = () => {

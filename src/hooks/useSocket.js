@@ -32,8 +32,11 @@ const destroyGlobalSocket = () => {
 export const useSocket = () => {
   const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
-  const { token, isAuthenticated } = useSelector((state) => state.auth);
-  const accessToken = token || localStorage.getItem('accessToken');
+  // SECURITY FIX (#5): auth is carried by the httpOnly accessToken cookie
+  // (withCredentials below). There is no client-readable token anymore; we gate
+  // the socket purely on isAuthenticated and let the cookie authenticate the
+  // handshake server-side.
+  const { isAuthenticated } = useSelector((state) => state.auth);
 
   useEffect(() => {
     let isUnmounted = false;
@@ -47,7 +50,7 @@ export const useSocket = () => {
     }
 
     // Cleanup if logged out
-    if (!isAuthenticated || !accessToken) {
+    if (!isAuthenticated) {
       destroyGlobalSocket();
       globalSocketRefCount = 0;
       socketRef.current = null;
@@ -55,8 +58,8 @@ export const useSocket = () => {
       return;
     }
 
-    // If token changed (e.g. refresh), recreate socket
-    if (globalSocket && globalSocketToken !== accessToken) {
+    // If auth state changed, recreate socket
+    if (globalSocket && globalSocketToken !== 'authenticated') {
       destroyGlobalSocket();
     }
 
@@ -100,7 +103,8 @@ export const useSocket = () => {
     const socketUrl = getSocketUrl();
     globalConnectionPending = true;
     globalSocket = io(socketUrl, {
-      auth: { token: accessToken },
+      // Auth travels via the httpOnly accessToken cookie (withCredentials).
+      auth: {},
       transports: ['polling', 'websocket'],
       upgrade: true,
       rememberUpgrade: true,
@@ -113,7 +117,7 @@ export const useSocket = () => {
       forceNew: false,
       withCredentials: true,
     });
-    globalSocketToken = accessToken;
+    globalSocketToken = 'authenticated';
     globalSocketRefCount++;
 
     globalSocket.on('connect', () => {
@@ -160,7 +164,7 @@ export const useSocket = () => {
         }, SOCKET_DESTROY_GRACE_MS);
       }
     };
-  }, [isAuthenticated, accessToken]);
+  }, [isAuthenticated]);
 
   return { socket: socketRef.current, isConnected };
 };
