@@ -7,7 +7,7 @@ import { logout } from '../../store/slices/authSlice';
 import { authAPI } from '../../services/api';
 import { User, LogOut, Settings } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import ChatNotifications from '../chat/ChatNotifications';
+import NotificationBell from '../notifications/NotificationBell';
 import SafeImage from './safe-image';
 
 const AvatarDropdown = ({ user }) => {
@@ -178,9 +178,9 @@ const TopBar = () => {
 
   return (
     <header className="h-16 bg-secondary border-b border-border flex items-center justify-end px-6 gap-4">
-      {/* Right: Chat Notifications and User Avatar */}
+      {/* Right: Notifications and User Avatar */}
       <div className="flex items-center gap-3">
-        <ChatNotifications />
+        <NotificationBell />
         <AvatarDropdown user={user} />
       </div>
     </header>

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from './useSocket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationAPI } from '../services/api';
 import { useSelector } from 'react-redux';
 import { invalidateAllNotificationQueries } from '../utils/notificationQueries';
+import { playNotificationSound } from '../utils/notificationSound';
 
 /**
  * Optimized notifications hook.
@@ -15,6 +16,11 @@ export const useNotifications = () => {
   const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Guards the ding against rapid duplicate `notification_new` events (a few
+  // controllers emit it manually in addition to the central emit), so a single
+  // notification never double-dings. The unread count self-corrects via the
+  // invalidated count query.
+  const lastDingRef = useRef(0);
   const { data: notificationsData, isLoading: notificationsLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
@@ -92,6 +98,13 @@ export const useNotifications = () => {
     const handleNotificationNew = () => {
       setUnreadCount((prev) => prev + 1);
       invalidateAllNotificationQueries(queryClient);
+      // Pleasant ding (respects the user's sound on/off preference). Suppress a
+      // repeat within 800ms so a notification that's emitted twice dings once.
+      const now = Date.now();
+      if (now - lastDingRef.current > 800) {
+        lastDingRef.current = now;
+        playNotificationSound();
+      }
     };
 
     socket.on('notification_new', handleNotificationNew);

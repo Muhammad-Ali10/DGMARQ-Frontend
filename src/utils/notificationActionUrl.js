@@ -60,6 +60,11 @@ export const resolveNotificationActionUrl = (actionUrl, roles = []) => {
     return `${rolePrefix}${trimmed.startsWith('/') ? trimmed : `/${trimmed}`}`;
   }
 
+  // Chat-reply notifications are stored role-agnostic (/chat or /chat?c=...).
+  if (trimmed === '/chat' || trimmed.startsWith('/chat?') || trimmed.startsWith('/chat/')) {
+    return `${rolePrefix}${trimmed}`;
+  }
+
   return trimmed;
 };
 

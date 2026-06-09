@@ -12,19 +12,25 @@ import { Bell, Check, Trash2, CheckCheck, ChevronLeft, ChevronRight } from 'luci
 import { showSuccess, showApiError } from '../../utils/toast';
 import { getNotificationPagination, resolveNotificationActionUrl } from '../../utils/notificationActionUrl';
 import { invalidateAllNotificationQueries } from '../../utils/notificationQueries';
+import NotificationFilterTabs from '../../components/notifications/NotificationFilterTabs';
 
 const AdminNotifications = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { roles } = useSelector((state) => state.auth);
   const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState('all'); // 'all' | 'unread' | 'read'
   const { socket, isConnected } = useSocket();
 
   const { data: notificationsData, isLoading, isFetching } = useQuery({
-    queryKey: ['admin-notifications', page],
-    queryFn: () => notificationAPI.getNotifications({ page, limit: 10 }).then(res => res.data.data),
+    queryKey: ['admin-notifications', page, filter],
+    queryFn: () => notificationAPI
+      .getNotifications({ page, limit: 10, ...(filter === 'unread' ? { unreadOnly: true } : {}) })
+      .then(res => res.data.data),
     placeholderData: keepPreviousData,
   });
+
+  const onFilterChange = (next) => { setFilter(next); setPage(1); };
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['notification-unread-count'],
@@ -72,7 +78,10 @@ const AdminNotifications = () => {
     },
   });
 
-  const notifications = notificationsData?.notifications || [];
+  const rawNotifications = notificationsData?.notifications || [];
+  const notifications = filter === 'read'
+    ? rawNotifications.filter((n) => n.isRead)
+    : rawNotifications;
   const pagination = getNotificationPagination(notificationsData?.pagination, page);
 
   useEffect(() => {
@@ -106,9 +115,13 @@ const AdminNotifications = () => {
         )}
       </div>
 
+      <NotificationFilterTabs value={filter} onChange={onFilterChange} unreadCount={unreadCount} />
+
       <Card className="bg-primary border-gray-700">
         <CardHeader>
-          <CardTitle className="text-white">All Notifications</CardTitle>
+          <CardTitle className="text-white">
+            {filter === 'unread' ? 'Unread Notifications' : filter === 'read' ? 'Read Notifications' : 'All Notifications'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

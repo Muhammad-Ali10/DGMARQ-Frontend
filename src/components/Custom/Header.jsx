@@ -57,6 +57,7 @@ import {
 import { cn } from "../../lib/utils";
 import SessionMenu from "./SessionMenu";
 import SafeImage from "../ui/safe-image";
+import NotificationBell from "../notifications/NotificationBell";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -516,6 +517,9 @@ const Header = () => {
                   </span>
                 )}
               </Button>
+
+              {/* Notifications (logged-in users only) */}
+              {isAuthenticated && <NotificationBell />}
             </div>
           </div>
         </div>
