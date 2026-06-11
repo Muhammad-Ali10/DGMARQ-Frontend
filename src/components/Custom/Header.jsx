@@ -152,7 +152,6 @@ const Header = () => {
       }
     },
     enabled: isAuthenticated,
-    refetchInterval: 30000,
   });
 
   const [guestCartCount, setGuestCartCount] = useState(() =>
@@ -186,7 +185,6 @@ const Header = () => {
       }
     },
     enabled: isAuthenticated,
-    refetchInterval: 30000,
   });
 
   const wishlistCount = wishlistData?.count || 0;
@@ -210,6 +208,9 @@ const Header = () => {
           search: debouncedSearchQuery,
           limit: 10,
           status: "active",
+          // Use the index-backed prefix search so partial words ("fortn")
+          // match ("Fortnite") in the suggestions dropdown.
+          searchMode: "prefix",
         };
         if (selectedCategory !== "all") {
           params.categoryId = selectedCategory;

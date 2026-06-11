@@ -73,7 +73,7 @@ const FlashDealsManagement = () => {
   const createMutation = useMutation({
     mutationFn: (formData) => flashDealAPI.createFlashDeal(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['flash-deals']);
+      queryClient.invalidateQueries({ queryKey: ['flash-deals'] });
       setIsCreateOpen(false);
       setFormData({ productId: '', discountPercentage: '', startDate: '', endDate: '', banner: null });
       setSelectedProduct(null);
@@ -88,7 +88,7 @@ const FlashDealsManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, formData }) => flashDealAPI.updateFlashDeal(id, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['flash-deals']);
+      queryClient.invalidateQueries({ queryKey: ['flash-deals'] });
       setIsEditOpen(false);
       setSelectedDeal(null);
       showSuccess('Flash deal updated successfully');
@@ -101,7 +101,7 @@ const FlashDealsManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => flashDealAPI.deleteFlashDeal(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['flash-deals']);
+      queryClient.invalidateQueries({ queryKey: ['flash-deals'] });
       showSuccess('Flash deal deleted successfully');
     },
     onError: (err) => {

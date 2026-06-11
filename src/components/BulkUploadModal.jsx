@@ -20,6 +20,10 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState('');
   const [validationErrors, setValidationErrors] = useState([]);
+  // FIX 4: background-upload progress state.
+  const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState(null); // { processed, total, inserted }
+  const pollCancelRef = useRef(false);
 
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['seller-products-for-upload'],
@@ -45,11 +49,18 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
       setFileName('');
       setValidationErrors([]);
       setIsDragging(false);
+      // Stop any in-flight status polling; the background job keeps running.
+      pollCancelRef.current = true;
+      setProcessing(false);
+      setProgress(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   }, [open]);
+
+  // Cancel polling if the component unmounts.
+  useEffect(() => () => { pollCancelRef.current = true; }, []);
 
   useEffect(() => {
     if (bulkData && detectedUploadType) {
@@ -59,19 +70,68 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
     }
   }, [bulkData, detectedUploadType]);
 
+  const finishSuccess = (uploaded, uploadTypeLabel) => {
+    toast.success(`${uploaded} ${uploadTypeLabel} uploaded successfully`);
+    queryClient.invalidateQueries({ queryKey: ['seller-products'] });
+    queryClient.invalidateQueries({ queryKey: ['seller-products-for-upload'] });
+    queryClient.invalidateQueries({ queryKey: ['product-keys'] });
+    onOpenChange(false);
+  };
+
+  // Poll the background upload job until it completes/fails (FIX 4).
+  async function pollUploadStatus(productId, jobId, uploadTypeLabel) {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const MAX_ATTEMPTS = 600; // ~15 min at 1.5s intervals
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (pollCancelRef.current) return;
+      await sleep(1500);
+      if (pollCancelRef.current) return;
+
+      let job;
+      try {
+        const res = await productAPI.getUploadKeysStatus(productId, jobId);
+        job = res.data.data;
+      } catch {
+        continue; // transient error — keep polling
+      }
+
+      if (job?.progress) setProgress(job.progress);
+
+      if (job?.state === 'completed') {
+        setProcessing(false);
+        setProgress(null);
+        finishSuccess(job.result?.uploaded ?? 0, uploadTypeLabel);
+        return;
+      }
+      if (job?.state === 'failed') {
+        setProcessing(false);
+        setProgress(null);
+        toast.error(job.failedReason || `Failed to upload ${uploadTypeLabel}`);
+        return;
+      }
+    }
+    setProcessing(false);
+    toast.message('Upload is still processing in the background. Check back shortly.');
+    onOpenChange(false);
+  }
+
   const uploadMutation = useMutation({
     mutationFn: ({ productId, keys }) => productAPI.uploadKeys(productId, keys),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       const result = data.data.data;
       const uploadTypeLabel = detectedUploadType === 'LICENSE_KEY' ? 'keys' : 'accounts';
-      toast.success(
-        `${result.uploaded} ${uploadTypeLabel} uploaded successfully`
-      );
-      // Invalidate product queries to refresh data
-      queryClient.invalidateQueries(['seller-products']);
-      queryClient.invalidateQueries(['seller-products-for-upload']);
-      queryClient.invalidateQueries(['product-keys']); // Refresh keys list if viewing a product
-      onOpenChange(false);
+
+      // Background job (202) → poll for progress/completion.
+      if (result?.jobId) {
+        pollCancelRef.current = false;
+        setProgress({ processed: 0, total: result.total || 0, inserted: 0 });
+        setProcessing(true);
+        pollUploadStatus(variables.productId, result.jobId, uploadTypeLabel);
+        return;
+      }
+
+      // Inline result (Redis unavailable) → behave as before.
+      finishSuccess(result.uploaded, uploadTypeLabel);
     },
     onError: (error) => {
       const uploadTypeLabel = detectedUploadType === 'LICENSE_KEY' ? 'keys' : 'accounts';
@@ -654,6 +714,37 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
+          {processing && (
+            <div className="p-4 rounded-xl border border-accent/20 bg-accent/[0.04]">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-5 h-5 text-accent animate-spin shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-white">
+                    Processing upload in the background…
+                  </p>
+                  {progress?.total ? (
+                    <>
+                      <div className="mt-2 h-2 w-full rounded-full bg-white/[0.08] overflow-hidden">
+                        <div
+                          className="h-full bg-accent transition-all"
+                          style={{ width: `${Math.min(100, Math.round((progress.processed / progress.total) * 100))}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {progress.processed} / {progress.total} processed · {progress.inserted} added
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-400 mt-1">Starting…</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    You can close this dialog — the upload will continue.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
             <div className="flex items-center gap-2 text-sm text-gray-400">
               {itemCount > 0 && (
@@ -677,13 +768,13 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
               </Button>
               <Button
                 type="submit"
-                disabled={uploadMutation.isPending || !selectedProductId || !detectedUploadType || itemCount === 0 || validationErrors.length > 0}
+                disabled={uploadMutation.isPending || processing || !selectedProductId || !detectedUploadType || itemCount === 0 || validationErrors.length > 0}
                 className="bg-accent hover:bg-accent/90 min-w-[160px] px-6 font-semibold shadow-lg shadow-accent/25 disabled:opacity-40 transition-all"
               >
-                {uploadMutation.isPending ? (
+                {uploadMutation.isPending || processing ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Uploading...
+                    {processing ? 'Processing...' : 'Uploading...'}
                   </>
                 ) : detectedUploadType && itemCount > 0 ? (
                   <>

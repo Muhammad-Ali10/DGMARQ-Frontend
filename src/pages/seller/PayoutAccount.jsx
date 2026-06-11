@@ -77,7 +77,7 @@ const PayoutAccount = () => {
 
   useEffect(() => {
     if (paypalSuccess) {
-      queryClient.invalidateQueries(['payout-account']);
+      queryClient.invalidateQueries({ queryKey: ['payout-account'] });
       showSuccess('PayPal connected successfully.');
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -85,7 +85,7 @@ const PayoutAccount = () => {
 
   useEffect(() => {
     if (paypalError) {
-      queryClient.invalidateQueries(['payout-account']);
+      queryClient.invalidateQueries({ queryKey: ['payout-account'] });
       const msg = paypalReason === 'invalid_state' ? 'Link expired or invalid. Please try connecting again.'
         : paypalReason === 'oauth_failed' ? 'PayPal sign-in failed. Try again.'
         : paypalReason === 'userinfo_failed' ? 'Could not load your PayPal account details. Try again.'

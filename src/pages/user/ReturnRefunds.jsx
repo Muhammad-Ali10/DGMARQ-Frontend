@@ -82,7 +82,7 @@ const UserReturnRefunds = () => {
   const cancelMutation = useMutation({
     mutationFn: (refundId) => returnRefundAPI.cancelRefund(refundId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-refunds']);
+      queryClient.invalidateQueries({ queryKey: ['user-refunds'] });
       showSuccess('Refund request cancelled successfully');
       setIsViewOpen(false);
       setSelectedRefund(null);
@@ -95,7 +95,7 @@ const UserReturnRefunds = () => {
   const escalateMutation = useMutation({
     mutationFn: (refundId) => returnRefundAPI.escalateToAdmin(refundId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-refunds']);
+      queryClient.invalidateQueries({ queryKey: ['user-refunds'] });
       toast.success('Refund escalated to admin for final decision.');
       setIsViewOpen(false);
       setSelectedRefund(null);

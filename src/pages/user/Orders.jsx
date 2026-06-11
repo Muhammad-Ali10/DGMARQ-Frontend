@@ -46,7 +46,7 @@ const UserOrders = () => {
   const reorderMutation = useMutation({
     mutationFn: (orderId) => userAPI.reorder(orderId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
       showSuccess('Items added to cart for reorder');
       setShowReorderModal(false);
     },

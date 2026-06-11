@@ -27,6 +27,11 @@ const SearchableSelect = React.forwardRef(
         const label = getOptionLabel(option).toLowerCase();
         return label.includes(searchQuery.toLowerCase());
       },
+      // When provided, the typed query is surfaced to the parent (e.g. to drive
+      // a server-side search). In that mode the parent owns the option list, so
+      // local client-side filtering is skipped.
+      onSearchChange,
+      serverSide = false,
     },
     ref
   ) => {
@@ -43,11 +48,18 @@ const SearchableSelect = React.forwardRef(
     );
 
     const filteredOptions = React.useMemo(() => {
+      // In server-side mode the parent already returns the matching options for
+      // the typed query, so we must not filter again on the client.
+      if (serverSide) return options;
       if (!searchQuery.trim()) {
         return options;
       }
       return options.filter((option) => filterFunction(option, searchQuery));
-    }, [options, searchQuery, filterFunction]);
+    }, [options, searchQuery, filterFunction, serverSide]);
+
+    React.useEffect(() => {
+      if (onSearchChange) onSearchChange(searchQuery);
+    }, [searchQuery, onSearchChange]);
 
     React.useEffect(() => {
       if (open && inputRef.current) {

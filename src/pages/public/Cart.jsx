@@ -59,7 +59,7 @@ const Cart = () => {
   const removeItemMutation = useMutation({
     mutationFn: (data) => cartAPI.removeItem(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["cart"]);
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
       showSuccess("Item removed from cart");
     },
     onError: (error) => {
@@ -70,7 +70,7 @@ const Cart = () => {
   const updateCartMutation = useMutation({
     mutationFn: (data) => cartAPI.updateCart(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["cart"]);
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
     },
     onError: (error) => {
       showApiError(error, "Failed to update cart");
@@ -80,7 +80,7 @@ const Cart = () => {
   const clearCartMutation = useMutation({
     mutationFn: () => cartAPI.clearCart(),
     onSuccess: () => {
-      queryClient.invalidateQueries(["cart"]);
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
       showSuccess("Cart cleared successfully");
     },
     onError: (error) => {
@@ -163,7 +163,7 @@ const Cart = () => {
       }
       clearGuestCart();
       setGuestCartItems([]);
-      queryClient.invalidateQueries(["cart"]);
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
     };
     merge();
   }, [isAuthenticated, queryClient]);
@@ -443,7 +443,7 @@ const Cart = () => {
                 "Unable to load your cart. Please try again."}
             </p>
             <Button
-              onClick={() => queryClient.invalidateQueries(["cart"])}
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["cart"] })}
               className="bg-accent hover:bg-accent/90 text-white"
             >
               Try Again

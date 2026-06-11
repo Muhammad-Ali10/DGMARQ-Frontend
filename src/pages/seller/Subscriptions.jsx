@@ -26,14 +26,14 @@ const SellerSubscriptions = () => {
   const cancelMutation = useMutation({
     mutationFn: () => subscriptionAPI.cancelSubscription(),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-subscription']);
+      queryClient.invalidateQueries({ queryKey: ['seller-subscription'] });
     },
   });
 
   const renewMutation = useMutation({
     mutationFn: (data) => subscriptionAPI.renewSubscription(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-subscription']);
+      queryClient.invalidateQueries({ queryKey: ['seller-subscription'] });
     },
   });
 

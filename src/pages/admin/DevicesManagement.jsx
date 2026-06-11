@@ -55,7 +55,7 @@ const DevicesManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => deviceAPI.createDevice(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['devices']);
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
       setIsCreateOpen(false);
       setFormData({ name: '' });
       setPage(1);
@@ -69,7 +69,7 @@ const DevicesManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => deviceAPI.updateDevice(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['devices']);
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
       setIsEditOpen(false);
       setSelectedDevice(null);
       toast.success('Device updated successfully');
@@ -82,7 +82,7 @@ const DevicesManagement = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: (id) => deviceAPI.toggleDeviceStatus(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['devices']);
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
       toast.success('Device status updated successfully');
     },
     onError: (error) => {
@@ -93,7 +93,7 @@ const DevicesManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => deviceAPI.deleteDevice(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['devices']);
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
       if (devices.length === 1 && page > 1) {
         setPage(page - 1);
       }

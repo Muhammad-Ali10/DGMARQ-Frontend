@@ -87,7 +87,7 @@ const GenresManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => genreAPI.createGenre(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["genres"]);
+      queryClient.invalidateQueries({ queryKey: ["genres"] });
       setIsCreateOpen(false);
       setFormData({ name: "" });
       setPage(1);
@@ -101,7 +101,7 @@ const GenresManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => genreAPI.updateGenre(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["genres"]);
+      queryClient.invalidateQueries({ queryKey: ["genres"] });
       setIsEditOpen(false);
       setSelectedGenre(null);
       toast.success("Genre updated successfully");
@@ -114,7 +114,7 @@ const GenresManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => genreAPI.deleteGenre(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(["genres"]);
+      queryClient.invalidateQueries({ queryKey: ["genres"] });
       if (genres.length === 1 && page > 1) {
         setPage(page - 1);
       }

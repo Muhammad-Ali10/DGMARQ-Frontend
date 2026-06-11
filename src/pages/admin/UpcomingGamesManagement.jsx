@@ -59,8 +59,8 @@ const UpcomingGamesManagement = () => {
   const addProductsMutation = useMutation({
     mutationFn: (data) => upcomingGamesAPI.addProducts(data),
     onSuccess: (response) => {
-      queryClient.invalidateQueries(['upcoming-games-config']);
-      queryClient.invalidateQueries(['upcoming-games']);
+      queryClient.invalidateQueries({ queryKey: ['upcoming-games-config'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-games'] });
       toast.success('Products added successfully');
       setProductSearch('');
       setIsProductDropdownOpen(false);
@@ -74,8 +74,8 @@ const UpcomingGamesManagement = () => {
   const removeProductsMutation = useMutation({
     mutationFn: (data) => upcomingGamesAPI.removeProducts(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['upcoming-games-config']);
-      queryClient.invalidateQueries(['upcoming-games']);
+      queryClient.invalidateQueries({ queryKey: ['upcoming-games-config'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-games'] });
       toast.success('Products removed successfully');
     },
     onError: (error) => {
@@ -86,8 +86,8 @@ const UpcomingGamesManagement = () => {
   const reorderProductsMutation = useMutation({
     mutationFn: (data) => upcomingGamesAPI.reorderProducts(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['upcoming-games-config']);
-      queryClient.invalidateQueries(['upcoming-games']);
+      queryClient.invalidateQueries({ queryKey: ['upcoming-games-config'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-games'] });
       toast.success('Order updated successfully');
     },
     onError: (error) => {
@@ -98,8 +98,8 @@ const UpcomingGamesManagement = () => {
   const updateUpcomingGamesMutation = useMutation({
     mutationFn: (data) => upcomingGamesAPI.updateUpcomingGames(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['upcoming-games-config']);
-      queryClient.invalidateQueries(['upcoming-games']);
+      queryClient.invalidateQueries({ queryKey: ['upcoming-games-config'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-games'] });
       toast.success('Upcoming games updated successfully');
     },
     onError: (error) => {

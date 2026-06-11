@@ -99,8 +99,9 @@ export const useChatNotifications = () => {
       // Skip own messages
       if (senderId.toString() === user._id?.toString()) return;
 
-      // Increment unread count locally (no API call)
-      setUnreadCount((prev) => prev + 1);
+      // Note: the unread-count increment lives solely in the `notification_new`
+      // (chat) handler below — the canonical persistent notification — to avoid
+      // double-counting the same inbound chat message.
 
       // Debounced notification refetch — batch multiple rapid messages into one refetch
       if (debounceRef.current) clearTimeout(debounceRef.current);

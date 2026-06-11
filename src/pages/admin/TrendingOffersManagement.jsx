@@ -73,7 +73,7 @@ const TrendingOffersManagement = () => {
   const createMutation = useMutation({
     mutationFn: (formData) => trendingOfferAPI.createTrendingOffer(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['trending-offers']);
+      queryClient.invalidateQueries({ queryKey: ['trending-offers'] });
       setIsCreateOpen(false);
       setFormData({ products: [], discountPercent: '', startTime: '', endTime: '' });
       setProductSearch('');
@@ -87,7 +87,7 @@ const TrendingOffersManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, formData }) => trendingOfferAPI.updateTrendingOffer(id, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['trending-offers']);
+      queryClient.invalidateQueries({ queryKey: ['trending-offers'] });
       setIsEditOpen(false);
       setSelectedOffer(null);
       showSuccess('Trending offer updated successfully');
@@ -100,7 +100,7 @@ const TrendingOffersManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => trendingOfferAPI.deleteTrendingOffer(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['trending-offers']);
+      queryClient.invalidateQueries({ queryKey: ['trending-offers'] });
       setShowDeleteModal(false);
       setDeleteId(null);
       showSuccess('Trending offer deleted successfully');

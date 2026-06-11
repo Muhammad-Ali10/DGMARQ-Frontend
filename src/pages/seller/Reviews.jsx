@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { reviewAPI, sellerAPI, productAPI } from '../../services/api';
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
@@ -25,106 +25,98 @@ const SellerReviews = () => {
     queryFn: () => sellerAPI.getSellerInfo().then(res => res.data.data),
   });
 
-  // Get seller's products to filter reviews
+  // Server-paginated page of the SELLER'S OWN products. The public reviews
+  // endpoint (/review/get-reviews) only filters by a single productId and has
+  // no sellerId filter, so we paginate the seller's products server-side
+  // (8 per page) and then pull each product's reviews server-side below.
+  // This removes the previous limit:1000 product + limit:1000 review fetches.
+  const PRODUCTS_PER_PAGE = 8;
   const { data: productsData, isLoading: productsLoading } = useQuery({
-    queryKey: ['seller-products-for-reviews'],
+    queryKey: ['seller-products-for-reviews', page],
     queryFn: async () => {
-      // Fetch all seller products (with high limit to get all)
-      const response = await productAPI.getProducts({ limit: 1000, mine: true });
+      const response = await productAPI.getProducts({
+        mine: true,
+        page,
+        limit: PRODUCTS_PER_PAGE,
+      });
       return response.data.data;
     },
     enabled: !!sellerInfo,
+    placeholderData: keepPreviousData,
   });
 
-  // Get all reviews, then filter by seller's products
+  const pageProducts = productsData?.docs || productsData?.products || [];
+  const productTotalPages = productsData?.totalPages || 0;
+
+  // Fetch reviews server-side for just the products on the current page, then
+  // flatten + enrich them with product info for display.
   const { data: reviewsData, isLoading } = useQuery({
-    queryKey: ['seller-reviews', page, sellerInfo?._id],
+    queryKey: ['seller-reviews', page, sellerInfo?._id, pageProducts.map((p) => p._id)],
     queryFn: async () => {
-      // Fetch reviews with higher limit to get more data for filtering
-      const response = await reviewAPI.getReviews({ page: 1, limit: 1000 });
-      const allReviews = response.data.data;
-      
-      // Get seller's product IDs
-      const sellerProductIds = new Set();
-      if (productsData) {
-        const products = productsData.docs || productsData.products || [];
-        products.forEach(product => {
-          if (product._id) {
-            sellerProductIds.add(product._id.toString());
-          }
-        });
-      }
-
-      // Filter reviews for seller's products
-      const allReviewsList = allReviews.reviews || allReviews.docs || [];
-      const filteredReviews = allReviewsList.filter(review => {
-        // productId can be an ObjectId string or an object with _id
-        let productId = null;
-        if (review.productId) {
-          if (typeof review.productId === 'object' && review.productId._id) {
-            productId = review.productId._id.toString();
-          } else if (typeof review.productId === 'object' && review.productId.toString) {
-            productId = review.productId.toString();
-          } else if (typeof review.productId === 'string') {
-            productId = review.productId;
-          }
-        }
-        return productId && sellerProductIds.has(productId);
-      });
-
-      // Create a product lookup map for enriching reviews
       const productMap = new Map();
-      const products = productsData.docs || productsData.products || [];
-      products.forEach(product => {
-        if (product._id) {
-          productMap.set(product._id.toString(), product);
-        }
+      pageProducts.forEach((product) => {
+        if (product._id) productMap.set(product._id.toString(), product);
       });
 
-      // Enrich reviews with product information
-      const enrichedReviews = filteredReviews.map(review => {
-        let productId = null;
-        if (review.productId) {
-          if (typeof review.productId === 'object' && review.productId._id) {
-            productId = review.productId._id.toString();
-          } else if (typeof review.productId === 'object' && review.productId.toString) {
-            productId = review.productId.toString();
-          } else if (typeof review.productId === 'string') {
-            productId = review.productId;
+      const perProductLimit = 100;
+      const responses = await Promise.all(
+        pageProducts.map((product) =>
+          reviewAPI
+            .getReviews({ productId: product._id, page: 1, limit: perProductLimit })
+            .then((res) => res.data.data)
+            .catch(() => null),
+        ),
+      );
+
+      const enrichedReviews = [];
+      responses.forEach((data) => {
+        if (!data) return;
+        const list = data.reviews || data.docs || [];
+        list.forEach((review) => {
+          let productId = null;
+          if (review.productId) {
+            if (typeof review.productId === 'object' && review.productId._id) {
+              productId = review.productId._id.toString();
+            } else if (typeof review.productId === 'object' && review.productId.toString) {
+              productId = review.productId.toString();
+            } else if (typeof review.productId === 'string') {
+              productId = review.productId;
+            }
           }
-        }
-        const product = productId ? productMap.get(productId) : null;
-        return {
-          ...review,
-          productId: productId ? { _id: productId, name: product?.name, slug: product?.slug, images: product?.images } : review.productId,
-        };
+          const product = productId ? productMap.get(productId) : null;
+          enrichedReviews.push({
+            ...review,
+            productId: productId
+              ? { _id: productId, name: product?.name, slug: product?.slug, images: product?.images }
+              : review.productId,
+          });
+        });
       });
 
-      // Apply pagination to filtered results
-      const limit = 20;
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      const paginatedReviews = enrichedReviews.slice(startIndex, endIndex);
+      // Newest first across all products on this page.
+      enrichedReviews.sort(
+        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+      );
 
       return {
-        reviews: paginatedReviews,
+        reviews: enrichedReviews,
         pagination: {
           page,
-          limit,
           total: enrichedReviews.length,
-          totalPages: Math.ceil(enrichedReviews.length / limit),
-          hasNextPage: endIndex < enrichedReviews.length,
+          totalPages: productTotalPages,
+          hasNextPage: page < productTotalPages,
           hasPrevPage: page > 1,
         },
       };
     },
     enabled: !!sellerInfo && !!productsData,
+    placeholderData: keepPreviousData,
   });
 
   const replyMutation = useMutation({
     mutationFn: ({ reviewId, data }) => reviewAPI.replyToReview(reviewId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-reviews']);
+      queryClient.invalidateQueries({ queryKey: ['seller-reviews'] });
       setReplyText('');
       setSelectedReview(null);
       showSuccess('Reply posted successfully');
@@ -169,7 +161,9 @@ const SellerReviews = () => {
             <p className="text-gray-500 text-sm mt-2">Customer reviews will appear here</p>
           </CardContent>
         </Card>
-      ) : (
+      ) : null}
+
+      {reviews.length > 0 && (
         <div className="space-y-4">
           {reviews.map((review) => (
             <Card key={review._id} className="bg-primary border-gray-700">
@@ -272,35 +266,36 @@ const SellerReviews = () => {
               </CardContent>
             </Card>
           ))}
-          {(pagination.total ?? pagination.totalDocs ?? 0) > 0 && (
-            <div className="flex items-center justify-between pt-4">
-              <p className="text-sm text-gray-400">
-                Page {page} of {pagination.totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="border-gray-700 text-gray-300"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  disabled={page >= pagination.totalPages}
-                  className="border-gray-700 text-gray-300"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+        </div>
+      )}
+
+      {(pagination.totalPages ?? 0) > 1 && (
+        <div className="flex items-center justify-between pt-4">
+          <p className="text-sm text-gray-400">
+            Page {page} of {pagination.totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="border-gray-700 text-gray-300"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+              disabled={page >= pagination.totalPages}
+              className="border-gray-700 text-gray-300"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       )}
     </div>

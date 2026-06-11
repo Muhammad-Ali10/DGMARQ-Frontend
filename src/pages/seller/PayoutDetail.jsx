@@ -368,6 +368,31 @@ const PayoutDetail = () => {
         </Card>
       </div>
 
+      {/* Frozen-by-refund timeline: when a refund pauses this payout line, show
+          when the payment was paused and when funds are expected to release. */}
+      {isFrozen && (
+        <Card className="bg-primary border-cyan-700/40">
+          <CardContent className="pt-5 pb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                  <Clock className="w-3.5 h-3.5" /> Payment Pause Date
+                </div>
+                <p className="text-white">
+                  {formatDate(payout.frozenAt || refund?.createdAt || payout.updatedAt)}
+                </p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                  <Calendar className="w-3.5 h-3.5" /> Expected Release Date
+                </div>
+                <p className="text-white">{formatDate(payout.holdUntil)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Single line-block — same shape as the admin's per-line block.
           The admin page renders one of these per (seller, line); sellers see
           exactly one because the route is scoped to their own payoutId. */}

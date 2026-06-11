@@ -63,7 +63,7 @@ const HomepageSlidersManagement = () => {
   const createMutation = useMutation({
     mutationFn: (formData) => homepageSliderAPI.createHomepageSlider(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['homepage-sliders']);
+      queryClient.invalidateQueries({ queryKey: ['homepage-sliders'] });
       setIsCreateOpen(false);
       setFormData({ title: '', productId: '', slideIndex: 0, image: null });
       setProductSearchQuery('');
@@ -73,7 +73,7 @@ const HomepageSlidersManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, formData }) => homepageSliderAPI.updateHomepageSlider(id, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['homepage-sliders']);
+      queryClient.invalidateQueries({ queryKey: ['homepage-sliders'] });
       setIsEditOpen(false);
       setSelectedSlider(null);
       setProductSearchQuery('');
@@ -87,7 +87,7 @@ const HomepageSlidersManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => homepageSliderAPI.deleteHomepageSlider(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['homepage-sliders']);
+      queryClient.invalidateQueries({ queryKey: ['homepage-sliders'] });
       setShowDeleteModal(false);
       setDeleteId(null);
       showSuccess('Homepage slider deleted successfully');

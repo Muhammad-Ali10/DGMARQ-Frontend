@@ -76,10 +76,10 @@ const SellersManagement = () => {
   const approveMutation = useMutation({
     mutationFn: (sellerId) => adminAPI.approveSeller(sellerId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['pending-sellers']);
-      queryClient.invalidateQueries(['active-sellers']);
-      queryClient.invalidateQueries(['banned-sellers']);
-      queryClient.invalidateQueries(['admin-dashboard-stats']);
+      queryClient.invalidateQueries({ queryKey: ['pending-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['active-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['banned-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       showSuccess('Seller approved successfully');
     },
     onError: (err) => {
@@ -90,10 +90,10 @@ const SellersManagement = () => {
   const rejectMutation = useMutation({
     mutationFn: ({ sellerId, reason }) => adminAPI.rejectSeller(sellerId, { reason }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['pending-sellers']);
-      queryClient.invalidateQueries(['active-sellers']);
-      queryClient.invalidateQueries(['banned-sellers']);
-      queryClient.invalidateQueries(['admin-dashboard-stats']);
+      queryClient.invalidateQueries({ queryKey: ['pending-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['active-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['banned-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       setRejectingId(null);
       setRejectReason('');
       setRejectDialogOpen(false);
@@ -107,9 +107,9 @@ const SellersManagement = () => {
   const blockMutation = useMutation({
     mutationFn: ({ sellerId, reason }) => adminAPI.blockSeller(sellerId, { action: 'block', reason }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['active-sellers']);
-      queryClient.invalidateQueries(['banned-sellers']);
-      queryClient.invalidateQueries(['admin-dashboard-stats']);
+      queryClient.invalidateQueries({ queryKey: ['active-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['banned-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       setBlockingId(null);
       setBlockReason('');
       setBlockDialogOpen(false);
@@ -123,9 +123,9 @@ const SellersManagement = () => {
   const unblockMutation = useMutation({
     mutationFn: (sellerId) => adminAPI.blockSeller(sellerId, { action: 'unblock' }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['active-sellers']);
-      queryClient.invalidateQueries(['banned-sellers']);
-      queryClient.invalidateQueries(['admin-dashboard-stats']);
+      queryClient.invalidateQueries({ queryKey: ['active-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['banned-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       showSuccess('Seller unblocked successfully');
     },
     onError: (err) => {

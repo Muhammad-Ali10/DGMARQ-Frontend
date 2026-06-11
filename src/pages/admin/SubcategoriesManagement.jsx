@@ -59,7 +59,7 @@ const SubcategoriesManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => subcategoryAPI.createSubcategory(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['subcategories']);
+      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       setIsCreateOpen(false);
       setFormData({ name: '', slug: '', description: '', parentCategory: '' });
       setPage(1);
@@ -73,7 +73,7 @@ const SubcategoriesManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ subCategoryId, data }) => subcategoryAPI.updateSubcategory(subCategoryId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['subcategories']);
+      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       setIsEditOpen(false);
       setSelectedSubcategory(null);
       toast.success('Subcategory updated successfully');
@@ -86,7 +86,7 @@ const SubcategoriesManagement = () => {
   const updateStatusMutation = useMutation({
     mutationFn: ({ subCategoryId, data }) => subcategoryAPI.updateSubcategoryStatus(subCategoryId, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries(['subcategories']);
+      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       setIsStatusOpen(false);
       setSelectedSubcategory(null);
       const status = variables.data.status ? 'activated' : 'deactivated';
@@ -100,7 +100,7 @@ const SubcategoriesManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (subCategoryId) => subcategoryAPI.deleteSubcategory(subCategoryId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['subcategories']);
+      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       if (subcategories.length === 1 && page > 1) {
         setPage(page - 1);
       }

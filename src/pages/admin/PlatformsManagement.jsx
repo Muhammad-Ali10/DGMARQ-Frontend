@@ -53,7 +53,7 @@ const PlatformsManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => platformAPI.createPlatform(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['platforms']);
+      queryClient.invalidateQueries({ queryKey: ['platforms'] });
       setIsCreateOpen(false);
       setFormData({ name: '' });
       setPage(1);
@@ -67,7 +67,7 @@ const PlatformsManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => platformAPI.updatePlatform(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['platforms']);
+      queryClient.invalidateQueries({ queryKey: ['platforms'] });
       setIsEditOpen(false);
       setSelectedPlatform(null);
       toast.success('Platform updated successfully');
@@ -80,7 +80,7 @@ const PlatformsManagement = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: (id) => platformAPI.togglePlatformStatus(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['platforms']);
+      queryClient.invalidateQueries({ queryKey: ['platforms'] });
       toast.success('Platform status updated successfully');
     },
     onError: (error) => {
@@ -91,7 +91,7 @@ const PlatformsManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => platformAPI.deletePlatform(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['platforms']);
+      queryClient.invalidateQueries({ queryKey: ['platforms'] });
       if (platforms.length === 1 && page > 1) {
         setPage(page - 1);
       }

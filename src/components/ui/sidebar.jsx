@@ -8,6 +8,7 @@ import { authAPI } from "../../services/api";
 import { cn } from "../../lib/utils";
 import { Button } from "./button";
 import SafeImage from "./safe-image";
+import { useSupportUnread } from "../../hooks/useSupportUnread";
 import {
   LayoutDashboard,
   Users,
@@ -101,7 +102,14 @@ const LogoutButton = () => {
   );
 };
 
-const SidebarItem = ({ to, icon: Icon, children, onClick }) => {
+const SidebarBadge = ({ count }) =>
+  count > 0 ? (
+    <span className="ml-auto bg-red-500 text-white text-[10px] font-semibold rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
+      {count > 9 ? '9+' : count}
+    </span>
+  ) : null;
+
+const SidebarItem = ({ to, icon: Icon, children, onClick, badge = 0 }) => {
   if (onClick) {
     return (
       <Button
@@ -113,6 +121,7 @@ const SidebarItem = ({ to, icon: Icon, children, onClick }) => {
       >
         <Icon className="mr-3 h-5 w-5" />
         {children}
+        <SidebarBadge count={badge} />
       </Button>
     );
   }
@@ -131,6 +140,7 @@ const SidebarItem = ({ to, icon: Icon, children, onClick }) => {
     >
       {Icon && <Icon className="mr-3 h-5 w-5" />}
       {children}
+      <SidebarBadge count={badge} />
     </NavLink>
   );
 };
@@ -336,6 +346,7 @@ export const SellerSidebar = () => {
 
 export const UserSidebar = () => {
   const { roles } = useSelector((state) => state.auth);
+  const supportUnread = useSupportUnread();
   const normalizedRoles = roles?.map((r) => r.toLowerCase()) || [];
   const isSeller = normalizedRoles.includes("seller");
   const explicitAccess = typeof window !== 'undefined' && sessionStorage.getItem('allowCustomerAccess') === 'true';
@@ -377,7 +388,7 @@ export const UserSidebar = () => {
         <SidebarItem to="/user/chat" icon={MessageSquare}>
           Chat
         </SidebarItem>
-        <SidebarItem to="/user/support" icon={Headphones}>
+        <SidebarItem to="/user/support" icon={Headphones} badge={supportUnread}>
           Support
         </SidebarItem>
         <SidebarItem to="/user/cart" icon={ShoppingCart}>

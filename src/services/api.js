@@ -68,9 +68,17 @@ export const adminAPI = {
   getPayoutSettings: () => api.get('/admin/settings/payouts'),
   updatePayoutSettings: (data) => api.patch('/admin/settings/payouts', data),
   getHandlingFeeStats: () => api.get('/admin/stats/handling-fees'),
-  getAllSupportChats: () => api.get('/support/admin/chats'),
+  getAllSupportChats: (params) => api.get('/support/admin/chats', { params }),
   assignAdminToChat: (chatId, assignTo = null) => api.post(`/support/admin/${chatId}/assign`, assignTo ? { assignTo } : {}),
+  unassignChat: (chatId) => api.post(`/support/admin/${chatId}/unassign`, {}),
+  updateChatPriority: (chatId, priority) => api.patch(`/support/admin/${chatId}/priority`, { priority }),
+  updateChatStatus: (chatId, status) => api.patch(`/support/admin/${chatId}/status`, { status }),
   getSupportStats: () => api.get('/support/admin/stats'),
+  // Canned responses
+  getCannedResponses: () => api.get('/support/admin/canned'),
+  createCannedResponse: (data) => api.post('/support/admin/canned', data),
+  updateCannedResponse: (id, data) => api.patch(`/support/admin/canned/${id}`, data),
+  deleteCannedResponse: (id) => api.delete(`/support/admin/canned/${id}`),
   moderateChat: (conversationId, data) => api.post(`/admin/chat/${conversationId}/moderate`, data),
   // Phase 4 (RETIRED): manual verify is gone. Verification is now automatic
   // via PayPal OAuth. The route still returns 410 on the backend.
@@ -164,6 +172,7 @@ export const productAPI = {
   }),
   deleteProduct: (id) => api.delete(`/product/delete-product/${id}`),
   uploadKeys: (productId, keys) => api.post(`/product/${productId}/upload-keys`, { keys }),
+  getUploadKeysStatus: (productId, jobId) => api.get(`/product/${productId}/upload-keys/status/${jobId}`),
   getProductKeys: (id, params) => api.get(`/product/${id}/keys`, { params }),
   syncStock: (id) => api.post(`/product/${id}/sync-stock`),
   duplicateProduct: (id) => api.post(`/product/${id}/duplicate`),
@@ -193,9 +202,11 @@ export const analyticsAPI = {
 export const supportAPI = {
   createSupportChat: (data) => api.post('/support', data),
   getMySupportChats: (params) => api.get('/support', { params }),
-  getSupportMessages: (chatId) => api.get(`/support/${chatId}/messages`),
+  getSupportMessages: (chatId, params) => api.get(`/support/${chatId}/messages`, { params }),
   sendSupportMessage: (chatId, data) => api.post(`/support/${chatId}/message`, data),
   sendSupportImageMessage: (chatId, formData) => api.post(`/support/${chatId}/message/image`, formData),
+  markMessagesRead: (chatId, data = {}) => api.patch(`/support/${chatId}/messages/read`, data),
+  rateSupportChat: (chatId, data) => api.post(`/support/${chatId}/rate`, data),
   closeSupportChat: (chatId, data = {}) => api.patch(`/support/${chatId}/close`, data),
 };
 

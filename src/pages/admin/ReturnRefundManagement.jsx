@@ -81,12 +81,12 @@ const ReturnRefundManagement = () => {
         toast.success(message);
       }
       // Refresh refunds and all affected order views (admin, seller, user)
-      queryClient.invalidateQueries(['admin-refunds']);
-      queryClient.invalidateQueries(['admin-orders']);
-      queryClient.invalidateQueries(['admin-order-detail']);
-      queryClient.invalidateQueries(['seller-orders']);
-      queryClient.invalidateQueries(['user-orders']);
-      queryClient.invalidateQueries(['order-detail']);
+      queryClient.invalidateQueries({ queryKey: ['admin-refunds'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-order-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['user-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order-detail'] });
       setIsActionOpen(false);
       setSelectedRefund(null);
       setAdminNotes('');
@@ -103,7 +103,7 @@ const ReturnRefundManagement = () => {
     mutationFn: ({ refundId, note }) => returnRefundAPI.requestSellerInput(refundId, note),
     onSuccess: () => {
       toast.success('Seller has been requested to provide input.');
-      queryClient.invalidateQueries(['admin-refunds']);
+      queryClient.invalidateQueries({ queryKey: ['admin-refunds'] });
       setSellerInputNote('');
       setShowRequestSellerInput(false);
     },

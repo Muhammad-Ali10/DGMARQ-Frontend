@@ -50,9 +50,13 @@ export const setSoundEnabled = (enabled) => {
  * preview the sound when the user flips the toggle on).
  */
 export const playNotificationSound = (force = false) => {
-  if (!force && !isSoundEnabled()) return;
+  if (!force && !isSoundEnabled()) {
+    return;
+  }
   const ctx = getCtx();
-  if (!ctx) return;
+  if (!ctx) {
+    return;
+  }
   try {
     // Browsers suspend the context until a user gesture; resume best-effort.
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});

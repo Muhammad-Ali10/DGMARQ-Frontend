@@ -105,7 +105,7 @@ const Settings = () => {
   const updateMutation = useMutation({
     mutationFn: (rate) => adminAPI.updateCommissionRate({ commissionRate: rate }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['commission-rate']);
+      queryClient.invalidateQueries({ queryKey: ['commission-rate'] });
       setCommissionRateDraft(null);
       showSuccess('Commission rate updated successfully');
     },
@@ -118,7 +118,7 @@ const Settings = () => {
   const autoApproveMutation = useMutation({
     mutationFn: (autoApprove) => adminAPI.updateAutoApproveSetting({ autoApprove }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['auto-approve-setting']);
+      queryClient.invalidateQueries({ queryKey: ['auto-approve-setting'] });
       showSuccess('Auto-approve setting updated successfully');
     },
     onError: (error) => {
@@ -144,7 +144,7 @@ const Settings = () => {
   const seoUpdateMutation = useMutation({
     mutationFn: (data) => adminAPI.updateHomePageSEO(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['home-page-seo']);
+      queryClient.invalidateQueries({ queryKey: ['home-page-seo'] });
       setSeoMetaTitleDraft(null);
       setSeoMetaDescriptionDraft(null);
       showSuccess('Home page SEO settings updated successfully');
@@ -158,7 +158,7 @@ const Settings = () => {
   const handlingFeeUpdateMutation = useMutation({
     mutationFn: (data) => adminAPI.updateBuyerHandlingFeeSetting(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['buyer-handling-fee']);
+      queryClient.invalidateQueries({ queryKey: ['buyer-handling-fee'] });
       setHandlingFeeEnabledDraft(null);
       setHandlingFeeTypeDraft(null);
       setHandlingFeePercentageDraft(null);
@@ -174,7 +174,7 @@ const Settings = () => {
   const payoutSettingsMutation = useMutation({
     mutationFn: (data) => adminAPI.updatePayoutSettings(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['payout-settings']);
+      queryClient.invalidateQueries({ queryKey: ['payout-settings'] });
       showSuccess('Payout settings updated successfully');
     },
     onError: (error) => {

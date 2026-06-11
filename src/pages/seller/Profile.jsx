@@ -55,7 +55,7 @@ const SellerProfile = () => {
   const updateProfileMutation = useMutation({
     mutationFn: (data) => sellerAPI.updateProfile(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-info']);
+      queryClient.invalidateQueries({ queryKey: ['seller-info'] });
       showSuccess('Profile updated successfully');
     },
     onError: (error) => {
@@ -66,7 +66,7 @@ const SellerProfile = () => {
   const updateLogoMutation = useMutation({
     mutationFn: (formData) => sellerAPI.updateShopLogo(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-info']);
+      queryClient.invalidateQueries({ queryKey: ['seller-info'] });
       setShopLogo(null);
       showSuccess('Shop logo updated successfully');
     },
@@ -78,7 +78,7 @@ const SellerProfile = () => {
   const updateBannerMutation = useMutation({
     mutationFn: (formData) => sellerAPI.updateShopBanner(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-info']);
+      queryClient.invalidateQueries({ queryKey: ['seller-info'] });
       setShopBanner(null);
       showSuccess('Shop banner updated successfully');
     },

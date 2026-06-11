@@ -36,7 +36,7 @@ const CouponsManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => couponAPI.createCoupon(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['coupons']);
+      queryClient.invalidateQueries({ queryKey: ['coupons'] });
       setIsCreateOpen(false);
       setFormData({
         code: '',
@@ -55,7 +55,7 @@ const CouponsManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ couponId, data }) => couponAPI.updateCoupon(couponId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['coupons']);
+      queryClient.invalidateQueries({ queryKey: ['coupons'] });
       setIsEditOpen(false);
       setSelectedCoupon(null);
     },
@@ -64,7 +64,7 @@ const CouponsManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (couponId) => couponAPI.deleteCoupon(couponId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['coupons']);
+      queryClient.invalidateQueries({ queryKey: ['coupons'] });
     },
   });
 

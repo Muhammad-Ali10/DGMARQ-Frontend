@@ -8,6 +8,28 @@ const getThumbnailUrl = (url) => {
   return url.replace('/upload/', '/upload/w_300,c_limit,q_auto/');
 };
 
+// Hoisted to module scope so they are not recreated on every render. The bubble
+// itself is memo()'d, so for a long message list these run only when an
+// individual bubble actually re-renders.
+const getInitials = (name) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
+
+const formatTime = (timestamp) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
 const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
@@ -17,24 +39,6 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
     setImgLoaded(false);
     setImgError(false);
   }, [message.attachment]);
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  };
-
-  const formatTime = (timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  };
 
   return (
     <div className={cn(

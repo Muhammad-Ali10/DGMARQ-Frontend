@@ -42,8 +42,8 @@ const Wishlist = () => {
   const removeItemMutation = useMutation({
     mutationFn: (productId) => userAPI.removeFromWishlist({ productId }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['wishlist']);
-      queryClient.invalidateQueries(['wishlist-count']);
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+      queryClient.invalidateQueries({ queryKey: ['wishlist-count'] });
       showSuccess('Item removed from wishlist');
     },
     onError: (error) => {
@@ -54,8 +54,8 @@ const Wishlist = () => {
   const clearWishlistMutation = useMutation({
     mutationFn: () => userAPI.clearWishlist(),
     onSuccess: () => {
-      queryClient.invalidateQueries(['wishlist']);
-      queryClient.invalidateQueries(['wishlist-count']);
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+      queryClient.invalidateQueries({ queryKey: ['wishlist-count'] });
       showSuccess('Wishlist cleared successfully');
     },
     onError: (error) => {
@@ -66,8 +66,8 @@ const Wishlist = () => {
   const addToCartMutation = useMutation({
     mutationFn: (productId) => cartAPI.addItem({ productId, qty: 1 }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['cart']);
-      queryClient.invalidateQueries(['cart-count']);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      queryClient.invalidateQueries({ queryKey: ['cart-count'] });
       showSuccess('Item added to cart');
     },
     onError: (error) => {
@@ -152,7 +152,7 @@ const Wishlist = () => {
               {error?.response?.data?.message || 'Unable to load your wishlist. Please try again.'}
             </p>
             <Button
-              onClick={() => queryClient.invalidateQueries(['wishlist'])}
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['wishlist'] })}
               className="bg-accent hover:bg-accent/90 text-white"
             >
               Try Again

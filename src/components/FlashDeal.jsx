@@ -45,7 +45,7 @@ const FlashDeal = () => {
     },
     onSuccess: () => {
       toast.success('Product added to cart successfully!');
-      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Failed to add product to cart');

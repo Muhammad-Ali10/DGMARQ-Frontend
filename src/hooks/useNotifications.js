@@ -16,11 +16,10 @@ export const useNotifications = () => {
   const queryClient = useQueryClient();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  // Guards the ding against rapid duplicate `notification_new` events (a few
-  // controllers emit it manually in addition to the central emit), so a single
-  // notification never double-dings. The unread count self-corrects via the
-  // invalidated count query.
-  const lastDingRef = useRef(0);
+  // De-dupes by notificationId so a notification that's delivered twice (rare,
+  // e.g. socket reconnect replay) is handled once — while EVERY genuinely
+  // distinct notification still increments the count and plays a sound.
+  const lastNotifIdRef = useRef(null);
   const { data: notificationsData, isLoading: notificationsLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
@@ -80,6 +79,7 @@ export const useNotifications = () => {
         timestamp: new Date(notif.createdAt),
         isRead: notif.isRead || false,
       }));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNotifications(formattedNotifications);
     } else if (!notificationsLoading) {
       setNotifications([]);
@@ -88,6 +88,8 @@ export const useNotifications = () => {
 
   useEffect(() => {
     if (unreadCountData !== undefined) {
+      // Sync the authoritative server count into local state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUnreadCount(unreadCountData);
     }
   }, [unreadCountData]);
@@ -95,16 +97,21 @@ export const useNotifications = () => {
   useEffect(() => {
     if (!socket || !isConnected || !user) return;
 
-    const handleNotificationNew = () => {
+    const handleNotificationNew = (payload) => {
+      // Ignore an exact duplicate of the immediately-preceding event; otherwise
+      // EVERY notification (any type) increments the count and plays the ding.
+      const id = payload?.notificationId;
+      if (id && id === lastNotifIdRef.current) {
+        return;
+      }
+      lastNotifIdRef.current = id || null;
+
       setUnreadCount((prev) => prev + 1);
       invalidateAllNotificationQueries(queryClient);
-      // Pleasant ding (respects the user's sound on/off preference). Suppress a
-      // repeat within 800ms so a notification that's emitted twice dings once.
-      const now = Date.now();
-      if (now - lastDingRef.current > 800) {
-        lastDingRef.current = now;
-        playNotificationSound();
-      }
+      // Sound on every notification type (respects the user's on/off preference,
+      // default ON). Browsers may block audio until the first user gesture; the
+      // sound util resumes the AudioContext best-effort on play.
+      playNotificationSound();
     };
 
     socket.on('notification_new', handleNotificationNew);

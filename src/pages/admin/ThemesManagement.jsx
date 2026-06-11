@@ -85,7 +85,7 @@ const ThemesManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => themeAPI.createTheme(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["themes"]);
+      queryClient.invalidateQueries({ queryKey: ["themes"] });
       setIsCreateOpen(false);
       setFormData({ name: "" });
       setPage(1);
@@ -99,7 +99,7 @@ const ThemesManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => themeAPI.updateTheme(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["themes"]);
+      queryClient.invalidateQueries({ queryKey: ["themes"] });
       setIsEditOpen(false);
       setSelectedTheme(null);
       toast.success("Theme updated successfully");
@@ -112,7 +112,7 @@ const ThemesManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => themeAPI.deleteTheme(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(["themes"]);
+      queryClient.invalidateQueries({ queryKey: ["themes"] });
       if (themes.length === 1 && page > 1) setPage(page - 1);
       toast.success("Theme deleted successfully");
     },

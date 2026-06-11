@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatAPI } from '../../services/api';
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -12,7 +12,6 @@ import { useSocket } from '../../hooks/useSocket';
 import { useChatNotifications } from '../../hooks/useChatNotifications';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import MessageBubble from '../../components/chat/MessageBubble';
-import VirtualizedMessageList from '../../components/chat/VirtualizedMessageList';
 import ChatMessageSkeleton from '../../components/chat/ChatMessageSkeleton';
 import { useSelector } from 'react-redux';
 import { showApiError } from '../../utils/toast';
@@ -57,10 +56,23 @@ const UserChat = () => {
   const conversationFromUrl = searchParams.get('conversation');
   const [selectedConversation, setSelectedConversation] = useState(conversationFromUrl || null);
   const [message, setMessage] = useState('');
+  const [peerTyping, setPeerTyping] = useState(false);
+  const isTypingRef = useRef(false);
+  const typingStopTimerRef = useRef(null);
+  const peerTypingTimerRef = useRef(null);
   const imageInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const fetchNextPageTimeoutRef = useRef(null);
+  // ─── Scroll management state (per conversation) ───
+  // initialScrollDone: have we pinned to the bottom for this conversation yet?
+  // prependAnchor: scrollHeight/scrollTop captured right before loading an older
+  // page, so we can restore the visual position after the older messages prepend.
+  // scrollMeta: first/last message ids of the last render, to tell a prepend
+  // (older page) apart from an append (new incoming/sent message).
+  const initialScrollDoneRef = useRef(false);
+  const prependAnchorRef = useRef(null);
+  const scrollMetaRef = useRef({ firstId: null, lastId: null });
   const selectedConversationRef = useRef(selectedConversation);
   selectedConversationRef.current = selectedConversation;
   const queryClient = useQueryClient();
@@ -125,6 +137,10 @@ const UserChat = () => {
       queryClient.removeQueries({ queryKey: ['conversation-messages', prevConvRef.current] });
     }
     prevConvRef.current = selectedConversation;
+    // A new conversation must re-pin to the bottom on its first render.
+    initialScrollDoneRef.current = false;
+    prependAnchorRef.current = null;
+    scrollMetaRef.current = { firstId: null, lastId: null };
   }, [selectedConversation, queryClient]);
 
   // ─── Messages infinite query ───
@@ -168,17 +184,26 @@ const UserChat = () => {
     return unique;
   }, [messagesData?.pages]);
 
-  // ─── Socket: join conversation room (re-join on reconnect) ───
+  // ─── Socket: join conversation room + recover missed messages on reconnect ───
   useEffect(() => {
     if (!socket || !selectedConversation) return;
     const joinRoom = () => socket.emit('join_conversation', selectedConversation);
     joinRoom();
     socket.on('connect', joinRoom);
+    // Reconnection recovery: after a dropped connection the live push for any
+    // messages sent while we were offline is gone, so re-fetch the thread (and
+    // the conversation list) once the socket reconnects.
+    const onReconnect = () => {
+      queryClient.invalidateQueries({ queryKey: ['conversation-messages', selectedConversation], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['user-conversations'] });
+    };
+    socket.io?.on?.('reconnect', onReconnect);
     return () => {
       socket.off('connect', joinRoom);
+      socket.io?.off?.('reconnect', onReconnect);
       if (socket.connected) socket.emit('leave_conversation', selectedConversation);
     };
-  }, [socket, selectedConversation]);
+  }, [socket, selectedConversation, queryClient]);
 
   // ─── Socket: new_message from conversation room ───
   useEffect(() => {
@@ -251,6 +276,32 @@ const UserChat = () => {
     socket.on('message_received', handler);
     return () => { socket.off('message_received', handler); };
   }, [socket, myId, queryClient]);
+
+  // ─── Typing indicator (room-scoped) ───
+  useEffect(() => {
+    if (!socket || !selectedConversation) return;
+    const onPeerTyping = ({ userId, isTyping }) => {
+      if (!userId || userId.toString() === myId) return; // ignore own echo
+      setPeerTyping(!!isTyping);
+      if (peerTypingTimerRef.current) clearTimeout(peerTypingTimerRef.current);
+      if (isTyping) {
+        // Safety auto-clear if the matching "stop" event is missed.
+        peerTypingTimerRef.current = setTimeout(() => setPeerTyping(false), 5000);
+      }
+    };
+    socket.on('user_typing', onPeerTyping);
+    return () => {
+      socket.off('user_typing', onPeerTyping);
+      if (peerTypingTimerRef.current) clearTimeout(peerTypingTimerRef.current);
+      setPeerTyping(false);
+      // Leaving this thread: stop my own typing here.
+      if (typingStopTimerRef.current) { clearTimeout(typingStopTimerRef.current); typingStopTimerRef.current = null; }
+      if (isTypingRef.current && socket.connected) {
+        socket.emit('typing', { conversationId: selectedConversation, isTyping: false });
+      }
+      isTypingRef.current = false;
+    };
+  }, [socket, selectedConversation, myId]);
 
   // ─── Mutations ───
   const sendMessageMutation = useMutation({
@@ -342,32 +393,55 @@ const UserChat = () => {
 
   const markAsReadMutation = useMutation({
     mutationFn: (conversationId) => chatAPI.markAsRead(conversationId),
-    onSuccess: () => { queryClient.invalidateQueries(['user-conversations']); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['user-conversations'] }); },
     retry: false,
   });
 
-  // ─── Auto-scroll on new messages ───
-  const prevMessagesLengthRef = useRef(0);
-  useEffect(() => {
-    const len = messages.length;
-    if (len > prevMessagesLengthRef.current && scrollContainerRef.current && len < 40) {
-      const el = scrollContainerRef.current;
-      if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
-        requestAnimationFrame(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        });
-      }
+  // ─── Scroll management ───
+  // Runs synchronously after every message-list change, before paint, so the
+  // user never sees a flash at the wrong position. Three cases:
+  //  1. First render of a conversation → jump to the bottom (newest message).
+  //  2. Older page just prepended (firstId changed, lastId unchanged) → restore
+  //     the prior visual position so the thread doesn't jump under the user.
+  //  3. New message appended (lastId changed) → follow to the bottom only if the
+  //     user was already near the bottom (don't yank them up out of history).
+  useLayoutEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el || messages.length === 0) return;
+    const firstId = messages[0]?._id?.toString() || null;
+    const lastId = messages[messages.length - 1]?._id?.toString() || null;
+    const prev = scrollMetaRef.current;
+
+    if (!initialScrollDoneRef.current) {
+      el.scrollTop = el.scrollHeight;
+      initialScrollDoneRef.current = true;
+    } else if (prependAnchorRef.current && firstId !== prev.firstId && lastId === prev.lastId) {
+      // Older messages were prepended: keep the same message under the viewport.
+      const { scrollHeight: prevSH, scrollTop: prevST } = prependAnchorRef.current;
+      el.scrollTop = el.scrollHeight - prevSH + prevST;
+      prependAnchorRef.current = null;
+    } else if (lastId !== prev.lastId) {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 250;
+      if (nearBottom) el.scrollTop = el.scrollHeight;
     }
-    prevMessagesLengthRef.current = len;
-  }, [messages.length]);
+
+    scrollMetaRef.current = { firstId, lastId };
+  }, [messages]);
 
   const handleScrollToTop = useCallback(() => {
     if (fetchNextPageTimeoutRef.current) return;
+    if (!hasNextPage || isFetchingNextPage) return;
     fetchNextPageTimeoutRef.current = setTimeout(() => {
+      const el = scrollContainerRef.current;
+      if (el) {
+        // Snapshot the position so the layout effect can restore it once the
+        // older page prepends (otherwise the thread jumps under the user).
+        prependAnchorRef.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop };
+      }
       fetchNextPage();
       fetchNextPageTimeoutRef.current = null;
     }, 200);
-  }, [fetchNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   // ─── Mark as read ───
   const markAsReadRef = useRef(null);
@@ -418,10 +492,37 @@ const UserChat = () => {
     e.target.value = '';
   };
 
+  // Debounced typing: emit one 'typing:true' per burst, 'typing:false' after a
+  // 2.5s pause. The backend rebroadcasts room-scoped to the other participant.
+  const handleMessageChange = (e) => {
+    setMessage(e.target.value);
+    if (!socket || !selectedConversation) return;
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socket.emit('typing', { conversationId: selectedConversation, isTyping: true });
+    }
+    if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+    typingStopTimerRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      if (socket.connected) socket.emit('typing', { conversationId: selectedConversation, isTyping: false });
+    }, 2500);
+  };
+
+  const stopTyping = () => {
+    if (typingStopTimerRef.current) { clearTimeout(typingStopTimerRef.current); typingStopTimerRef.current = null; }
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      if (socket?.connected && selectedConversation) {
+        socket.emit('typing', { conversationId: selectedConversation, isTyping: false });
+      }
+    }
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!message.trim() || !selectedConversation) return;
     const messageText = message.trim();
+    stopTyping();
 
     // Optimistic UI
     const optimisticMessage = {
@@ -442,9 +543,10 @@ const UserChat = () => {
 
     // Socket-first with HTTP fallback
     if (socket && isConnected) {
-      socket.emit('send_message', { conversationId: selectedConversation, messageText }, (ack) => {
-        // If socket ACK returns error, fall back to HTTP
-        if (ack && ack.error) {
+      // FIX: timeout the socket send so a lost/missing ACK falls back to HTTP
+      // instead of leaving the optimistic bubble stuck forever.
+      socket.timeout(8000).emit('send_message', { conversationId: selectedConversation, messageText }, (err, ack) => {
+        if (err || (ack && ack.error)) {
           sendMessageMutation.mutate({ conversationId: selectedConversation, messageText });
         }
       });
@@ -530,7 +632,7 @@ const UserChat = () => {
                   style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}
                   onScroll={(e) => {
                     const { scrollTop } = e.target;
-                    if (scrollTop < 200 && hasNextPage && !isFetchingNextPage) {
+                    if (initialScrollDoneRef.current && scrollTop < 200 && hasNextPage && !isFetchingNextPage) {
                       handleScrollToTop();
                     }
                   }}
@@ -563,15 +665,6 @@ const UserChat = () => {
                           <p className="text-gray-400 text-lg font-medium mb-2">No messages yet</p>
                           <p className="text-gray-500 text-sm">Start the conversation by sending a message</p>
                         </div>
-                      ) : messages.length > 40 ? (
-                        <VirtualizedMessageList
-                          messages={messages}
-                          currentUserId={user}
-                          scrollContainerRef={scrollContainerRef}
-                          onScrollToTop={handleScrollToTop}
-                          hasNextPage={hasNextPage}
-                          isFetchingNextPage={isFetchingNextPage}
-                        />
                       ) : (
                         <div className="max-w-2xl mx-auto">
                           {isFetchingNextPage && (
@@ -602,6 +695,13 @@ const UserChat = () => {
                   )}
                 </div>
 
+                {/* Typing indicator */}
+                {peerTyping && (
+                  <div className="shrink-0 px-5 pb-1 text-xs text-gray-400 italic">
+                    typing…
+                  </div>
+                )}
+
                 {/* Input Area - Fixed at bottom */}
                 <div className="shrink-0 p-4 border-t border-gray-700 bg-primary">
                   <form onSubmit={handleSendMessage} className="flex gap-2 max-w-2xl mx-auto">
@@ -624,7 +724,7 @@ const UserChat = () => {
                     </Button>
                     <Input
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={handleMessageChange}
                       placeholder="Type your message..."
                       className="bg-gray-800 border-gray-700 text-white flex-1"
                       disabled={sendMessageMutation.isPending || (!isConnected && !socket)}

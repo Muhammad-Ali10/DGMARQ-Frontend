@@ -52,7 +52,7 @@ const CategoriesManagement = () => {
   const createMutation = useMutation({
     mutationFn: (formData) => categoryAPI.createCategory(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsCreateOpen(false);
       setFormData({ name: '', slug: '', description: '', image: null });
       setPage(1);
@@ -66,7 +66,7 @@ const CategoriesManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ categoryId, data }) => categoryAPI.updateCategory(categoryId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsEditOpen(false);
       setSelectedCategory(null);
       toast.success('Category updated successfully');
@@ -79,7 +79,7 @@ const CategoriesManagement = () => {
   const updateImageMutation = useMutation({
     mutationFn: ({ categoryId, formData }) => categoryAPI.updateCategoryImage(categoryId, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsImageOpen(false);
       setSelectedCategory(null);
       toast.success('Category image updated successfully');
@@ -92,7 +92,7 @@ const CategoriesManagement = () => {
   const updateStatusMutation = useMutation({
     mutationFn: ({ categoryId, data }) => categoryAPI.updateCategoryStatus(categoryId, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsStatusOpen(false);
       setSelectedCategory(null);
       const status = variables.data.status ? 'activated' : 'deactivated';
@@ -106,7 +106,7 @@ const CategoriesManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (categoryId) => categoryAPI.deleteCategory(categoryId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['categories']);
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       if (categories.length === 1 && page > 1) {
         setPage(page - 1);
       }

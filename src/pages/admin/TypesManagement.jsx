@@ -90,7 +90,7 @@ const TypesManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => typeAPI.createType(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["types"]);
+      queryClient.invalidateQueries({ queryKey: ["types"] });
       setIsCreateOpen(false);
       setFormData({ name: "" });
       setPage(1);
@@ -106,7 +106,7 @@ const TypesManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => typeAPI.updateType(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["types"]);
+      queryClient.invalidateQueries({ queryKey: ["types"] });
       setIsEditOpen(false);
       setSelectedType(null);
       toast.success("Product type updated successfully");
@@ -121,7 +121,7 @@ const TypesManagement = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: (id) => typeAPI.toggleTypeStatus(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(["types"]);
+      queryClient.invalidateQueries({ queryKey: ["types"] });
       toast.success("Product type status updated successfully");
     },
     onError: (error) => {
@@ -132,7 +132,7 @@ const TypesManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => typeAPI.deleteType(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(["types"]);
+      queryClient.invalidateQueries({ queryKey: ["types"] });
       if (types.length === 1 && page > 1) setPage(page - 1);
       toast.success("Product type deleted successfully");
     },

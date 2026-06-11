@@ -147,7 +147,7 @@ const ProductDetail = () => {
     },
     onSuccess: () => {
       toast.success('Product added to cart!');
-      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Failed to add product to cart');
@@ -164,8 +164,8 @@ const ProductDetail = () => {
       setReviewRating(0);
       setReviewComment('');
       setSelectedOrderId('');
-      queryClient.invalidateQueries(['product-reviews']);
-      queryClient.invalidateQueries(['product-detail', identifier]);
+      queryClient.invalidateQueries({ queryKey: ['product-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['product-detail', identifier] });
     },
     onError: (error) => {
       const errors = error?.response?.data?.errors;

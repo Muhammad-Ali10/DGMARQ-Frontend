@@ -1,167 +1,104 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminAPI, supportAPI } from '../../services/api';
-import { useState, useEffect, useRef } from 'react';
-import { useSocket } from '../../hooks/useSocket';
+import { adminAPI } from '../../services/api';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Headphones, MessageSquare, Clock, CheckCircle2, UserPlus, Send, X, ImagePlus, Loader2 } from 'lucide-react';
+import { Headphones, MessageSquare, Clock, CheckCircle2, UserPlus, UserMinus, Search, BookText, Star } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
-import SafeImage from '../../components/ui/safe-image';
+import MessageList from '../../components/support/MessageList';
+import ChatInput from '../../components/support/ChatInput';
+import PresenceBar from '../../components/support/PresenceBar';
+import CannedResponsesManager from '../../components/support/CannedResponsesManager';
+import { PriorityBadge, StatusBadge } from '../../components/support/badges';
+import { STATUS_FILTERS, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../utils/supportChat';
+import { useSupportThread } from '../../hooks/useSupportThread';
+
+const Avatar = ({ user, fallback }) => {
+  const name = user?.name || fallback || 'Guest';
+  if (user?.profileImage) {
+    return <img src={user.profileImage} alt={name} className="h-7 w-7 rounded-full object-cover" />;
+  }
+  return (
+    <div className="h-7 w-7 rounded-full bg-gray-600 flex items-center justify-center text-xs text-white shrink-0">
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+};
 
 const SupportManagement = () => {
   const queryClient = useQueryClient();
   const [selectedChat, setSelectedChat] = useState(null);
-  const [message, setMessage] = useState('');
   const [chatDialogOpen, setChatDialogOpen] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(null);
-  const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const { socket, isConnected } = useSocket();
+  const [cannedOpen, setCannedOpen] = useState(false);
+
+  // Filters / search / sort
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sort, setSort] = useState('activity');
+  const [mine, setMine] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const params = {
+    status: statusFilter,
+    sort,
+    ...(search ? { search } : {}),
+    ...(mine ? { mine: 'me' } : {}),
+  };
+
+  const thread = useSupportThread({ chatId: selectedChat, side: 'admin', enabled: !!selectedChat && chatDialogOpen });
+
+  const { data: chats, isLoading: isLoadingChats, isError: isErrorChats } = useQuery({
+    queryKey: ['admin-support-chats', params],
+    queryFn: () => adminAPI.getAllSupportChats(params).then((r) => r.data.data),
+    placeholderData: (prev) => prev,
+    retry: 1,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['support-stats'],
+    queryFn: () => adminAPI.getSupportStats().then((r) => r.data.data),
+    retry: 1,
+  });
+
+  const { data: canned = [] } = useQuery({
+    queryKey: ['canned-responses'],
+    queryFn: () => adminAPI.getCannedResponses().then((r) => r.data.data),
+    enabled: chatDialogOpen,
+    staleTime: 60000,
+  });
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-support-chats'] });
+    queryClient.invalidateQueries({ queryKey: ['support-stats'] });
+  };
 
   const assignMutation = useMutation({
     mutationFn: (chatId) => adminAPI.assignAdminToChat(chatId),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['admin-support-chats']);
-      queryClient.invalidateQueries(['admin-support-messages', selectedChat]);
-      showSuccess('Chat assigned successfully');
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to assign chat');
-    },
+    onSuccess: () => { refresh(); showSuccess('Assigned to you'); },
+    onError: (e) => showApiError(e, 'Failed to assign'),
   });
-
-  const closeChatMutation = useMutation({
-    mutationFn: (chatId) => supportAPI.closeSupportChat(chatId),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['admin-support-chats']);
-      queryClient.invalidateQueries(['admin-support-messages', selectedChat]);
-      queryClient.invalidateQueries(['support-stats']);
-      showSuccess('Support ticket closed successfully');
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to close support ticket');
-    },
+  const unassignMutation = useMutation({
+    mutationFn: (chatId) => adminAPI.unassignChat(chatId),
+    onSuccess: () => { refresh(); showSuccess('Unassigned'); },
+    onError: (e) => showApiError(e, 'Failed to unassign'),
   });
-
-  const { data: chats, isLoading: isLoadingChats, isError: isErrorChats } = useQuery({
-    queryKey: ['admin-support-chats'],
-    queryFn: async () => {
-      try {
-        const response = await adminAPI.getAllSupportChats();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
-    },
-    retry: 1,
+  const priorityMutation = useMutation({
+    mutationFn: ({ chatId, priority }) => adminAPI.updateChatPriority(chatId, priority),
+    onSuccess: refresh,
+    onError: (e) => showApiError(e, 'Failed to update priority'),
   });
-
-  const { data: stats, isLoading: isLoadingStats, isError: isErrorStats } = useQuery({
-    queryKey: ['support-stats'],
-    queryFn: async () => {
-      try {
-        const response = await adminAPI.getSupportStats();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
-    },
-    retry: 1,
-  });
-
-  // Fetch messages for selected chat
-  const { data: messagesData, isLoading: messagesLoading } = useQuery({
-    queryKey: ['admin-support-messages', selectedChat],
-    queryFn: () => supportAPI.getSupportMessages(selectedChat).then(res => res.data.data),
-    enabled: !!selectedChat && chatDialogOpen,
-  });
-
-  const messages = messagesData?.messages || [];
-
-  // Socket event handlers for real-time updates
-  useEffect(() => {
-    if (!socket || !isConnected || !selectedChat) return;
-
-    // Join support chat room
-    socket.emit('join_support_chat', selectedChat);
-
-    // Join admin support room for notifications
-    socket.emit('join_admin_support');
-
-    // Listen for new messages — append directly instead of refetching
-    const handleNewMessage = (incomingMsg) => {
-      if (incomingMsg.supportChatId?.toString() === selectedChat) {
-        queryClient.setQueryData(['admin-support-messages', selectedChat], (old) => {
-          if (!old?.messages) return old;
-          if (incomingMsg._id && old.messages.some((m) => m._id === incomingMsg._id)) return old;
-          return { ...old, messages: [...old.messages, incomingMsg] };
-        });
-      }
-    };
-
-    // Listen for errors
-    const handleError = (error) => {
-    };
-
-    socket.on('support_message', handleNewMessage);
-    socket.on('error', handleError);
-
-    return () => {
-      socket.off('support_message', handleNewMessage);
-      socket.off('error', handleError);
-      if (selectedChat) {
-        socket.emit('leave_support_chat', selectedChat);
-      }
-    };
-  }, [socket, isConnected, selectedChat, queryClient]);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const sendMessageMutation = useMutation({
-    mutationFn: ({ chatId, data }) => supportAPI.sendSupportMessage(chatId, data),
-    onSuccess: (response) => {
-      setMessage('');
-      const sent = response?.data?.data;
-      if (sent && selectedChat) {
-        queryClient.setQueryData(['admin-support-messages', selectedChat], (old) => {
-          if (!old?.messages) return old;
-          if (sent._id && old.messages.some((m) => m._id === sent._id)) return old;
-          return { ...old, messages: [...old.messages, sent] };
-        });
-      }
-    },
-  });
-
-  const sendImageMutation = useMutation({
-    mutationFn: ({ chatId, formData }) => supportAPI.sendSupportImageMessage(chatId, formData),
-    onSuccess: (response, { preview }) => {
-      if (preview) URL.revokeObjectURL(preview);
-      setUploadingImage(null);
-      const sent = response?.data?.data;
-      if (sent && selectedChat) {
-        queryClient.setQueryData(['admin-support-messages', selectedChat], (old) => {
-          if (!old?.messages) return old;
-          if (sent._id && old.messages.some((m) => m._id === sent._id)) return old;
-          return { ...old, messages: [...old.messages, sent] };
-        });
-      }
-    },
-    onError: (error, { preview }) => {
-      if (preview) URL.revokeObjectURL(preview);
-      setUploadingImage(null);
-      showApiError(error, 'Failed to upload image');
-    },
+  const statusMutation = useMutation({
+    mutationFn: ({ chatId, status }) => adminAPI.updateChatStatus(chatId, status),
+    onSuccess: () => { refresh(); showSuccess('Status updated'); },
+    onError: (e) => showApiError(e, 'Failed to update status'),
   });
 
   const handleViewChat = (chat) => {
@@ -169,141 +106,160 @@ const SupportManagement = () => {
     setChatDialogOpen(true);
   };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!message.trim() || !selectedChat) return;
-
-    const messageText = message.trim();
-
-    // Use socket when available (instant delivery), fallback to HTTP
-    if (socket && isConnected) {
-      socket.emit('send_support_message', {
-        chatId: selectedChat,
-        messageText,
-      });
-      setMessage('');
-    } else {
-      sendMessageMutation.mutate({
-        chatId: selectedChat,
-        data: { messageText },
-      });
-    }
-  };
-
-  const handleImageSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedChat) return;
-    const preview = URL.createObjectURL(file);
-    setUploadingImage({ preview });
-    const formData = new FormData();
-    formData.append('image', file);
-    if (message.trim()) formData.append('messageText', message.trim());
-    sendImageMutation.mutate({ chatId: selectedChat, formData, preview });
-    e.target.value = '';
-  };
-
-  const isLoading = isLoadingChats || isLoadingStats;
-  const isError = isErrorChats || isErrorStats;
-
-  if (isLoading) return <Loading message="Loading support data..." />;
-  if (isError) return <ErrorMessage message="Error loading support data" />;
+  if (isLoadingChats && !chats) return <Loading message="Loading support data..." />;
+  if (isErrorChats) return <ErrorMessage message="Error loading support data" />;
 
   const statsCards = [
-    { title: 'Open Tickets', value: stats?.open || 0, icon: MessageSquare, color: 'text-blue-500' },
-    { title: 'Pending Tickets', value: stats?.pending || 0, icon: Clock, color: 'text-yellow-500' },
-    { title: 'Closed Tickets', value: stats?.closed || 0, icon: CheckCircle2, color: 'text-green-500' },
+    { title: 'Open', value: stats?.open || 0, icon: MessageSquare, color: 'text-blue-500' },
+    { title: 'In Progress', value: stats?.inProgress || 0, icon: Clock, color: 'text-indigo-400' },
+    { title: 'Waiting', value: stats?.waiting || 0, icon: Clock, color: 'text-amber-400' },
+    { title: 'Resolved', value: stats?.resolved || 0, icon: CheckCircle2, color: 'text-green-500' },
   ];
 
-  const selectedChatData = chats?.chats?.find((c) => c._id === selectedChat);
-
-  const getStatusBadge = (status) => {
-    const variants = {
-      open: 'success',
-      pending: 'warning',
-      closed: 'secondary',
-    };
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
-  };
+  const rows = chats?.chats || [];
+  const selectedChatData = rows.find((c) => c._id === selectedChat);
+  const isClosed = selectedChatData?.status === 'closed';
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Support Management</h1>
-        <p className="text-sm sm:text-base text-gray-400 mt-1">Manage customer support tickets</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Support Management</h1>
+          <p className="text-sm sm:text-base text-gray-400 mt-1">Manage customer support tickets</p>
+        </div>
+        <Button variant="outline" onClick={() => setCannedOpen(true)}>
+          <BookText className="h-4 w-4 mr-2" /> Canned Responses
+        </Button>
       </div>
 
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {statsCards.map((stat, index) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={index} className="bg-primary border-gray-700">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
-                  <Icon className={`h-4 w-4 ${stat.color}`} />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-white">{stat.value}</div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {statsCards.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.title} className="bg-primary border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
+                <Icon className={`h-4 w-4 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-white">{stat.value}</div>
+              </CardContent>
+            </Card>
+          );
+        })}
+        <Card className="bg-primary border-gray-700">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-300">Satisfaction</CardTitle>
+            <Star className="h-4 w-4 text-yellow-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">
+              {stats?.avgRating != null ? `${stats.avgRating}★` : '—'}
+            </div>
+            <p className="text-xs text-gray-500">{stats?.ratingCount || 0} ratings</p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="bg-primary border-gray-700">
-        <CardHeader>
+        <CardHeader className="space-y-3">
           <CardTitle className="text-white flex items-center gap-2">
-            <Headphones className="h-5 w-5" />
-            Support Chats
+            <Headphones className="h-5 w-5" /> Support Chats
           </CardTitle>
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap gap-1">
+              {STATUS_FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setStatusFilter(f.value)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    statusFilter === f.value ? 'bg-accent text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search name, email, subject…"
+                className="bg-gray-800 border-gray-700 text-white pl-8"
+              />
+            </div>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="bg-gray-800 border border-gray-700 text-white text-sm rounded-md px-2 py-2"
+            >
+              <option value="activity">Last activity</option>
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="priority">Priority</option>
+            </select>
+            <button
+              onClick={() => setMine((v) => !v)}
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                mine ? 'bg-accent text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              My tickets
+            </button>
+          </div>
         </CardHeader>
         <CardContent>
-          {!chats || !chats.chats || chats.chats.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">No support chats found</div>
+          {rows.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">No tickets match these filters.</div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="border-gray-700 hover:bg-gray-800">
-                    <TableHead className="text-gray-300">Subject</TableHead>
-                    <TableHead className="text-gray-300">User</TableHead>
+                    <TableHead className="text-gray-300">Ticket</TableHead>
+                    <TableHead className="text-gray-300">Customer</TableHead>
+                    <TableHead className="text-gray-300">Priority</TableHead>
                     <TableHead className="text-gray-300">Status</TableHead>
-                    <TableHead className="text-gray-300">Created</TableHead>
+                    <TableHead className="text-gray-300">Assignee</TableHead>
+                    <TableHead className="text-gray-300">Activity</TableHead>
                     <TableHead className="text-gray-300">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {chats.chats.map((chat) => (
+                  {rows.map((chat) => (
                     <TableRow key={chat._id} className="border-gray-700 hover:bg-gray-800">
-                      <TableCell className="text-white">{chat.subject || 'No subject'}</TableCell>
-                      <TableCell className="text-gray-300">
-                        {chat.userId?.name || chat.guestName || 'Guest'}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(chat.status)}</TableCell>
-                      <TableCell className="text-gray-300">
-                        {new Date(chat.createdAt).toLocaleDateString()}
+                      <TableCell className="max-w-[220px]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-medium truncate">{chat.subject || 'No subject'}</span>
+                          {chat.unreadCountAdmin > 0 && (
+                            <span className="bg-red-500 text-white text-[10px] rounded-full h-4 min-w-4 px-1 flex items-center justify-center">
+                              {chat.unreadCountAdmin > 9 ? '9+' : chat.unreadCountAdmin}
+                            </span>
+                          )}
+                        </div>
+                        {chat.lastMessage && <p className="text-gray-400 text-xs truncate">{chat.lastMessage}</p>}
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar user={chat.userId} fallback={chat.guestName} />
+                          <div className="min-w-0">
+                            <p className="text-gray-200 text-sm truncate">{chat.userId?.name || chat.guestName || 'Guest'}</p>
+                            <p className="text-gray-500 text-xs truncate">{chat.userId?.email || chat.guestEmail || '—'}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell><PriorityBadge priority={chat.priority} /></TableCell>
+                      <TableCell><StatusBadge status={chat.status} /></TableCell>
+                      <TableCell className="text-gray-300 text-sm">{chat.assignedTo?.name || <span className="text-gray-500">Unassigned</span>}</TableCell>
+                      <TableCell className="text-gray-400 text-xs">{new Date(chat.lastMessageAt || chat.updatedAt).toLocaleString()}</TableCell>
+                      <TableCell>
                         <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewChat(chat)}
-                          >
-                            View
-                          </Button>
-                          {!chat.adminId && (
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => {
-                                  assignMutation.mutate(chat._id);
-                              }}
-                              disabled={assignMutation.isPending}
-                            >
-                              <UserPlus className="w-4 h-4 mr-1" />
-                              Assign
+                          <Button size="sm" variant="outline" onClick={() => handleViewChat(chat)}>View</Button>
+                          {!chat.assignedTo && (
+                            <Button size="sm" onClick={() => assignMutation.mutate(chat._id)} disabled={assignMutation.isPending}>
+                              <UserPlus className="w-4 h-4 mr-1" /> Assign
                             </Button>
                           )}
                         </div>
@@ -317,166 +273,92 @@ const SupportManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Chat View Dialog */}
+      {/* Chat dialog */}
       <Dialog open={chatDialogOpen} onOpenChange={setChatDialogOpen}>
-        <DialogContent size="lg" className="bg-primary border-gray-700 flex flex-col">
+        <DialogContent size="lg" className="bg-primary border-gray-700 flex flex-col h-[85vh]">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center justify-between">
-              <div>
-                <span>{selectedChatData?.subject || 'Support Chat'}</span>
+            <DialogTitle className="text-white flex items-center justify-between flex-wrap gap-2">
+              <div className="min-w-0">
+                <span className="truncate">{selectedChatData?.subject || 'Support Chat'}</span>
                 <span className="ml-2 text-sm text-gray-400">
                   - {selectedChatData?.userId?.name || selectedChatData?.guestName || 'Guest'}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                {getStatusBadge(selectedChatData?.status)}
-                {!selectedChatData?.adminId && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => {
-                      assignMutation.mutate(selectedChat);
-                    }}
-                    disabled={assignMutation.isPending}
-                  >
-                    <UserPlus className="w-4 h-4 mr-1" />
-                    Assign to Me
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedChatData && <PriorityBadge priority={selectedChatData.priority} />}
+                {/* Priority control */}
+                <select
+                  value={selectedChatData?.priority || 'low'}
+                  onChange={(e) => selectedChat && priorityMutation.mutate({ chatId: selectedChat, priority: e.target.value })}
+                  className="bg-gray-800 border border-gray-700 text-white text-xs rounded px-1.5 py-1"
+                  title="Priority"
+                >
+                  {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+                {/* Status control */}
+                <select
+                  value={STATUS_OPTIONS.includes(selectedChatData?.status) ? selectedChatData?.status : 'in_progress'}
+                  onChange={(e) => selectedChat && statusMutation.mutate({ chatId: selectedChat, status: e.target.value })}
+                  className="bg-gray-800 border border-gray-700 text-white text-xs rounded px-1.5 py-1"
+                  title="Status"
+                >
+                  {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                </select>
+                {selectedChatData?.assignedTo ? (
+                  <Button size="sm" variant="outline" onClick={() => unassignMutation.mutate(selectedChat)} disabled={unassignMutation.isPending}>
+                    <UserMinus className="w-4 h-4 mr-1" /> Unassign
                   </Button>
-                )}
-                {selectedChatData?.status !== 'closed' && (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => {
-                      if (selectedChat) {
-                        closeChatMutation.mutate(selectedChat);
-                      }
-                    }}
-                    disabled={closeChatMutation.isPending}
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Close Ticket
+                ) : (
+                  <Button size="sm" onClick={() => assignMutation.mutate(selectedChat)} disabled={assignMutation.isPending}>
+                    <UserPlus className="w-4 h-4 mr-1" /> Assign to Me
                   </Button>
                 )}
               </div>
             </DialogTitle>
             <DialogDescription className="text-gray-400">
               {selectedChatData?.userId?.email || selectedChatData?.guestEmail || 'No email'}
+              {selectedChatData?.assignedTo?.name && <span className="ml-2">• Assigned to {selectedChatData.assignedTo.name}</span>}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Messages */}
-            <div
-              ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-900 rounded-lg mb-4"
-            >
-              {messagesLoading ? (
-                <Loading message="Loading messages..." />
-              ) : messages.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">No messages yet</div>
-              ) : (
-                messages.map((msg) => {
-                  const isAdmin = msg.senderType === 'admin';
-                  const isImage = msg.messageType === 'image' || msg.attachment;
-                  return (
-                    <div
-                      key={msg._id}
-                      className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[70%] rounded-lg p-3 ${
-                          isAdmin
-                            ? 'bg-accent text-white'
-                            : 'bg-gray-800 text-gray-200'
-                        }`}
-                      >
-                        <div className="text-xs opacity-70 mb-1">
-                          {msg.senderName || msg.senderId?.name || (isAdmin ? 'Admin' : 'User')}
-                        </div>
-                        {isImage && msg.attachment ? (
-                          <a
-                            href={msg.attachment}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block rounded overflow-hidden max-w-full"
-                          >
-                            <SafeImage
-                              src={msg.attachment}
-                              alt={msg.messageText || 'Attachment'}
-                              className="max-h-64 w-auto object-contain rounded"
-                            />
-                          </a>
-                        ) : null}
-                        {msg.messageText && (msg.messageText !== 'Image' || !isImage) && (
-                          <p className="text-sm">{msg.messageText}</p>
-                        )}
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(msg.sentAt || msg.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-              {uploadingImage && (
-                <div className="flex justify-end">
-                  <div className="max-w-[70%] rounded-lg p-3 bg-accent text-white relative">
-                    <div className="relative inline-block">
-                      <SafeImage
-                        src={uploadingImage.preview}
-                        alt="Uploading"
-                        className="max-h-48 w-auto object-contain rounded opacity-80"
-                      />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded">
-                        <Loader2 className="h-8 w-8 animate-spin text-white mb-1" />
-                        <span className="text-xs font-medium">Uploading...</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Message Input */}
-            {selectedChatData?.status !== 'closed' && (
-              <form onSubmit={handleSendMessage} className="flex gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  className="hidden"
-                  onChange={handleImageSelect}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  disabled={sendImageMutation.isPending}
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Attach image"
-                >
-                  <ImagePlus className="h-4 w-4" />
-                </Button>
-                <Input
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type your reply..."
-                  className="bg-gray-800 border-gray-700 text-white flex-1"
-                  disabled={sendMessageMutation.isPending}
-                />
-                <Button
-                  type="submit"
-                  disabled={sendMessageMutation.isPending || !message.trim()}
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </form>
+          <div className="flex-1 flex flex-col overflow-hidden bg-gray-900 rounded-lg">
+            <PresenceBar
+              userId={selectedChatData?.userId?._id}
+              name={selectedChatData?.userId?.name || selectedChatData?.guestName || 'Customer'}
+              connected={thread.connected}
+              onlineText="Online now"
+              offlineText="Offline"
+            />
+            {thread.isLoading ? (
+              <Loading message="Loading messages..." />
+            ) : (
+              <MessageList
+                messages={thread.messages}
+                side="admin"
+                hasMore={thread.hasMore}
+                isLoadingOlder={thread.isLoadingOlder}
+                onLoadOlder={thread.loadOlder}
+                onRetry={thread.retry}
+                typing={thread.otherTyping}
+                typingLabel="Customer"
+                emptyText="No messages yet"
+              />
+            )}
+            {!isClosed && (
+              <ChatInput
+                onSendText={thread.sendText}
+                onSendImage={thread.sendImage}
+                onType={thread.notifyTyping}
+                placeholder="Type your reply…  (type / for canned responses)"
+                cannedResponses={canned}
+                allowInternal
+              />
             )}
           </div>
         </DialogContent>
       </Dialog>
+
+      <CannedResponsesManager open={cannedOpen} onOpenChange={setCannedOpen} />
     </div>
   );
 };

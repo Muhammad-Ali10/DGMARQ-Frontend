@@ -52,7 +52,7 @@ const RegionsManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => regionAPI.createRegion(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['regions']);
+      queryClient.invalidateQueries({ queryKey: ['regions'] });
       setIsCreateOpen(false);
       setFormData({ name: '' });
       setPage(1);
@@ -66,7 +66,7 @@ const RegionsManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ regionId, data }) => regionAPI.updateRegion(regionId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['regions']);
+      queryClient.invalidateQueries({ queryKey: ['regions'] });
       setIsEditOpen(false);
       setSelectedRegion(null);
       toast.success('Region updated successfully');
@@ -79,7 +79,7 @@ const RegionsManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (regionId) => regionAPI.deleteRegion(regionId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['regions']);
+      queryClient.invalidateQueries({ queryKey: ['regions'] });
       if (regions.length === 1 && page > 1) {
         setPage(page - 1);
       }

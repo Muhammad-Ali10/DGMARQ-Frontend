@@ -229,8 +229,8 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     },
     onSuccess: () => {
       toast.success('Refund request submitted. Admin will review.');
-      queryClient.invalidateQueries(['user-refunds']);
-      queryClient.invalidateQueries(['completed-orders-for-refund']);
+      queryClient.invalidateQueries({ queryKey: ['user-refunds'] });
+      queryClient.invalidateQueries({ queryKey: ['completed-orders-for-refund'] });
       onOpenChange(false);
     },
     onError: (error) => {

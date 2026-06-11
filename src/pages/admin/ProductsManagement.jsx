@@ -71,9 +71,9 @@ const ProductsManagement = () => {
   const approveMutation = useMutation({
     mutationFn: (productId) => adminAPI.approveProduct(productId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['pending-products']);
-      queryClient.invalidateQueries(['approved-products']);
-      queryClient.invalidateQueries(['admin-dashboard-stats']);
+      queryClient.invalidateQueries({ queryKey: ['pending-products'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       toast.success('Product approved successfully');
       if (pendingProducts?.products?.length === 1 && page > 1) {
         setPage(page - 1);
@@ -87,9 +87,9 @@ const ProductsManagement = () => {
   const rejectMutation = useMutation({
     mutationFn: ({ productId, reason }) => adminAPI.rejectProduct(productId, { reason }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['pending-products']);
-      queryClient.invalidateQueries(['rejected-products']);
-      queryClient.invalidateQueries(['admin-dashboard-stats']);
+      queryClient.invalidateQueries({ queryKey: ['pending-products'] });
+      queryClient.invalidateQueries({ queryKey: ['rejected-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       setRejectingId(null);
       setRejectReason('');
       setDialogOpen(false);
@@ -106,10 +106,10 @@ const ProductsManagement = () => {
   const deleteProductMutation = useMutation({
     mutationFn: (productId) => adminAPI.deleteProduct(productId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['pending-products']);
-      queryClient.invalidateQueries(['approved-products']);
-      queryClient.invalidateQueries(['rejected-products']);
-      queryClient.invalidateQueries(['admin-dashboard-stats']);
+      queryClient.invalidateQueries({ queryKey: ['pending-products'] });
+      queryClient.invalidateQueries({ queryKey: ['approved-products'] });
+      queryClient.invalidateQueries({ queryKey: ['rejected-products'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       setProductToDelete(null);
       setDeleteDialogOpen(false);
       toast.success('Product deleted successfully');

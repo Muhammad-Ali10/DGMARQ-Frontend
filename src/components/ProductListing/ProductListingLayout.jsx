@@ -32,6 +32,122 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
+// Hoisted to module scope so they keep a stable component identity across the
+// parent's renders (otherwise they remount every render -> filter inputs lose
+// focus and the whole subtree needlessly reconciles). Everything they need is
+// passed explicitly as props instead of being captured from the render closure.
+const FilterSection = ({
+  title,
+  children,
+  section,
+  hasSearch = false,
+  itemCount,
+  totalItems = 0,
+  isExpanded,
+  searchValue,
+  onSearchChange,
+  onToggleSection,
+}) => {
+  const hasMoreItems = totalItems > 5;
+
+  return (
+    <div className="bg-slate-800 rounded-lg overflow-hidden mb-4 text-white">
+      <div className="bg-[#043086] px-4 py-3 flex items-center justify-between">
+        <h3 className="text-white font-medium text-sm uppercase tracking-wide">
+          {title}
+        </h3>
+        {itemCount > 0 && (
+          <span className="text-base text-white px-2 py-1 rounded">
+            {itemCount}
+          </span>
+        )}
+      </div>
+      <div className="py-4 px-3 space-y-3 bg-[#052157]">
+        {hasSearch && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+            <Input
+              placeholder={`Search for ${title}`}
+              className="pl-10 bg-transparent text-white placeholder-white focus:border-blue-500"
+              value={searchValue || ''}
+              onChange={(e) => onSearchChange(section, e.target.value)}
+            />
+          </div>
+        )}
+        <div className="space-y-1">
+          {children}
+        </div>
+        {section && hasMoreItems && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleSection(section);
+            }}
+            className="w-full text-white hover:bg-slate-700"
+          >
+            {isExpanded ? (
+              <>Show Less <ChevronUp className="ml-2 h-4 w-4" /></>
+            ) : (
+              <>Show More <ChevronDown className="ml-2 h-4 w-4" /></>
+            )}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CheckboxItem = ({ id, title, type, count, isLocked = false, isChecked, onToggle }) => {
+  return (
+    <div
+      className={`flex items-center justify-between py-3 px-2 cursor-pointer bg-[#052157] transition-all duration-200 group ${
+        isChecked
+          ? 'bg-[#06051C]/60 hover:bg-[#06051C]'
+          : 'hover:bg-slate-700'
+      } ${isLocked ? 'opacity-75' : ''}`}
+      onClick={() => !isLocked && onToggle(type, id)}
+    >
+      <div className="flex items-center space-x-3">
+        <div className="relative">
+          <Checkbox
+            id={id}
+            checked={isChecked}
+            onCheckedChange={() => !isLocked && onToggle(type, id)}
+            disabled={isLocked}
+            className="h-4 w-4 border-white data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+          />
+          {isLocked && (
+            <Lock className="absolute -top-1 -right-1 h-3 w-3 text-blue-400" />
+          )}
+        </div>
+        <Label
+          htmlFor={id}
+          className={`text-sm cursor-pointer transition-colors ${
+            isChecked
+              ? 'text-white font-medium'
+              : 'text-slate-200 group-hover:text-white'
+          } ${isLocked ? 'cursor-not-allowed' : ''}`}
+        >
+          {title}
+          {isLocked && <span className="ml-2 text-xs text-blue-400">(Locked)</span>}
+        </Label>
+      </div>
+      {count && (
+        <span className={`text-xs px-2 py-1 rounded transition-colors ${
+          isChecked
+            ? 'text-red-100 bg-blue-500'
+            : 'text-slate-400 bg-slate-700 group-hover:bg-slate-600'
+        }`}>
+          {count}
+        </span>
+      )}
+    </div>
+  );
+};
+
 const ProductListingLayout = ({ 
   lockedCategoryId = null, 
   lockedPlatformId = null,
@@ -347,6 +463,10 @@ const ProductListingLayout = ({
 
     if (debouncedSearch.trim()) {
       params.search = debouncedSearch.trim();
+      // Use the SAME index-backed prefix search the header typeahead uses, so
+      // pressing Enter on "fortn" returns the same Fortnite results the
+      // suggestions showed (no suggestions -> empty-results-page mismatch).
+      params.searchMode = 'prefix';
     }
 
     if (minPrice) {
@@ -547,112 +667,13 @@ const ProductListingLayout = ({
     );
   }, []);
 
-  const FilterSection = ({ title, children, section, hasSearch = false, itemCount, totalItems = 0 }) => {
-    const hasMoreItems = totalItems > 5;
-    const isExpanded = expandedSections[section];
-    
-    return (
-      <div className="bg-slate-800 rounded-lg overflow-hidden mb-4 text-white">
-        <div className="bg-[#043086] px-4 py-3 flex items-center justify-between">
-          <h3 className="text-white font-medium text-sm uppercase tracking-wide">
-            {title}
-          </h3>
-          {itemCount > 0 && (
-            <span className="text-base text-white px-2 py-1 rounded">
-              {itemCount}
-            </span>
-          )}
-        </div>
-        <div className="py-4 px-3 space-y-3 bg-[#052157]">
-          {hasSearch && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input
-                placeholder={`Search for ${title}`}
-                className="pl-10 bg-transparent text-white placeholder-white focus:border-blue-500"
-                value={searchTerms[section] || ''}
-                onChange={(e) => handleSearch(section, e.target.value)}
-              />
-            </div>
-          )}
-          <div className="space-y-1">
-            {children}
-          </div>
-          {section && hasMoreItems && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleSection(section);
-              }}
-              className="w-full text-white hover:bg-slate-700"
-            >
-              {isExpanded ? (
-                <>Show Less <ChevronUp className="ml-2 h-4 w-4" /></>
-              ) : (
-                <>Show More <ChevronDown className="ml-2 h-4 w-4" /></>
-              )}
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const CheckboxItem = ({ id, title, type, count, isLocked = false }) => {
-    const isChecked = type === 'categoryId'
-      ? effectiveCategoryIds.includes(id)
-      : type === 'subCategoryId'
-        ? effectiveSubCategoryIds.includes(id)
-        : checkboxFilters[type]?.includes(id);
-    return (
-      <div
-        className={`flex items-center justify-between py-3 px-2 cursor-pointer bg-[#052157] transition-all duration-200 group ${
-          isChecked
-            ? 'bg-[#06051C]/60 hover:bg-[#06051C]'
-            : 'hover:bg-slate-700'
-        } ${isLocked ? 'opacity-75' : ''}`}
-        onClick={() => !isLocked && handleCheckboxChange(type, id)}
-      >
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <Checkbox
-              id={id}
-              checked={isChecked}
-              onCheckedChange={() => !isLocked && handleCheckboxChange(type, id)}
-              disabled={isLocked}
-              className="h-4 w-4 border-white data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-            />
-            {isLocked && (
-              <Lock className="absolute -top-1 -right-1 h-3 w-3 text-blue-400" />
-            )}
-          </div>
-          <Label
-            htmlFor={id}
-            className={`text-sm cursor-pointer transition-colors ${
-              isChecked
-                ? 'text-white font-medium'
-                : 'text-slate-200 group-hover:text-white'
-            } ${isLocked ? 'cursor-not-allowed' : ''}`}
-          >
-            {title}
-            {isLocked && <span className="ml-2 text-xs text-blue-400">(Locked)</span>}
-          </Label>
-        </div>
-        {count && (
-          <span className={`text-xs px-2 py-1 rounded transition-colors ${
-            isChecked
-              ? 'text-red-100 bg-blue-500'
-              : 'text-slate-400 bg-slate-700 group-hover:bg-slate-600'
-          }`}>
-            {count}
-          </span>
-        )}
-      </div>
-    );
-  };
+  // Resolves the checked state for a given filter type/id so the hoisted
+  // CheckboxItem stays presentational (no closure over parent state).
+  const isItemChecked = useCallback((type, id) => {
+    if (type === 'categoryId') return effectiveCategoryIds.includes(id);
+    if (type === 'subCategoryId') return effectiveSubCategoryIds.includes(id);
+    return checkboxFilters[type]?.includes(id) || false;
+  }, [effectiveCategoryIds, effectiveSubCategoryIds, checkboxFilters]);
 
   const filteredCategories = useMemo(() => filterItems(categories, searchTerms.categories), [categories, searchTerms.categories, filterItems]);
   const filteredSubcategories = useMemo(() => filterItems(subcategories, searchTerms.subcategories), [subcategories, searchTerms.subcategories, filterItems]);
@@ -760,6 +781,10 @@ const ProductListingLayout = ({
               section="categories"
               hasSearch={categories.length > 10}
               itemCount={effectiveCategoryIds.length || 0}
+              isExpanded={expandedSections.categories}
+              searchValue={searchTerms.categories}
+              onSearchChange={handleSearch}
+              onToggleSection={toggleSection}
             >
               {displayedCategories.map(cat => {
                 const isLocked = lockedCategoryId === cat._id;
@@ -771,6 +796,8 @@ const ProductListingLayout = ({
                     type="categoryId"
                     count={cat.count}
                     isLocked={isLocked}
+                    isChecked={isItemChecked('categoryId', cat._id)}
+                    onToggle={handleCheckboxChange}
                   />
                 );
               })}
@@ -784,6 +811,10 @@ const ProductListingLayout = ({
                 hasSearch={subcategories.length > 10}
                 itemCount={effectiveSubCategoryIds.length || 0}
                 totalItems={filteredSubcategories.length}
+                isExpanded={expandedSections.subcategories}
+                searchValue={searchTerms.subcategories}
+                onSearchChange={handleSearch}
+                onToggleSection={toggleSection}
               >
                 {displayedSubcategories.map(subcat => (
                   <CheckboxItem
@@ -792,6 +823,8 @@ const ProductListingLayout = ({
                     title={subcat.title}
                     type="subCategoryId"
                     count={subcat.count}
+                    isChecked={isItemChecked('subCategoryId', subcat._id)}
+                    onToggle={handleCheckboxChange}
                   />
                 ))}
               </FilterSection>
@@ -859,6 +892,10 @@ const ProductListingLayout = ({
               hasSearch={platforms.length > 5}
               itemCount={checkboxFilters.platform?.length || 0}
               totalItems={filteredPlatforms.length}
+              isExpanded={expandedSections.platforms}
+              searchValue={searchTerms.platforms}
+              onSearchChange={handleSearch}
+              onToggleSection={toggleSection}
             >
               {displayedPlatforms.map(platform => {
                 const isLocked = lockedPlatformId === platform._id;
@@ -870,6 +907,8 @@ const ProductListingLayout = ({
                     type="platform"
                     count={platform.count}
                     isLocked={isLocked}
+                    isChecked={isItemChecked('platform', platform._id)}
+                    onToggle={handleCheckboxChange}
                   />
                 );
               })}
@@ -882,6 +921,10 @@ const ProductListingLayout = ({
               hasSearch={regions.length > 5}
               itemCount={checkboxFilters.region?.length || 0}
               totalItems={filteredRegions.length}
+              isExpanded={expandedSections.regions}
+              searchValue={searchTerms.regions}
+              onSearchChange={handleSearch}
+              onToggleSection={toggleSection}
             >
               {displayedRegions.map(region => (
                 <CheckboxItem
@@ -890,6 +933,8 @@ const ProductListingLayout = ({
                   title={region.title}
                   type="region"
                   count={region.count}
+                  isChecked={isItemChecked('region', region._id)}
+                  onToggle={handleCheckboxChange}
                 />
               ))}
             </FilterSection>
@@ -901,6 +946,10 @@ const ProductListingLayout = ({
               hasSearch={devices.length > 5}
               itemCount={checkboxFilters.device?.length || 0}
               totalItems={filteredDevices.length}
+              isExpanded={expandedSections.devices}
+              searchValue={searchTerms.devices}
+              onSearchChange={handleSearch}
+              onToggleSection={toggleSection}
             >
               {displayedDevices.map(device => (
                 <CheckboxItem
@@ -909,6 +958,8 @@ const ProductListingLayout = ({
                   title={device.title}
                   type="device"
                   count={device.count}
+                  isChecked={isItemChecked('device', device._id)}
+                  onToggle={handleCheckboxChange}
                 />
               ))}
             </FilterSection>
@@ -920,6 +971,10 @@ const ProductListingLayout = ({
               hasSearch={types.length > 5}
               itemCount={checkboxFilters.type?.length || 0}
               totalItems={filteredTypes.length}
+              isExpanded={expandedSections.types}
+              searchValue={searchTerms.types}
+              onSearchChange={handleSearch}
+              onToggleSection={toggleSection}
             >
               {displayedTypes.map(type => (
                 <CheckboxItem
@@ -928,6 +983,8 @@ const ProductListingLayout = ({
                   title={type.title}
                   type="type"
                   count={type.count}
+                  isChecked={isItemChecked('type', type._id)}
+                  onToggle={handleCheckboxChange}
                 />
               ))}
             </FilterSection>
@@ -940,6 +997,10 @@ const ProductListingLayout = ({
                 hasSearch={genres.length > 5}
                 itemCount={checkboxFilters.genre?.length || 0}
                 totalItems={filteredGenres.length}
+                isExpanded={expandedSections.genres}
+                searchValue={searchTerms.genres}
+                onSearchChange={handleSearch}
+                onToggleSection={toggleSection}
               >
                 {displayedGenres.map(genre => (
                   <CheckboxItem
@@ -948,6 +1009,8 @@ const ProductListingLayout = ({
                     title={genre.title}
                     type="genre"
                     count={genre.count}
+                    isChecked={isItemChecked('genre', genre._id)}
+                    onToggle={handleCheckboxChange}
                   />
                 ))}
               </FilterSection>
@@ -961,6 +1024,10 @@ const ProductListingLayout = ({
                 hasSearch={themes.length > 5}
                 itemCount={checkboxFilters.theme?.length || 0}
                 totalItems={filteredThemes.length}
+                isExpanded={expandedSections.themes}
+                searchValue={searchTerms.themes}
+                onSearchChange={handleSearch}
+                onToggleSection={toggleSection}
               >
                 {displayedThemes.map(theme => (
                   <CheckboxItem
@@ -969,6 +1036,8 @@ const ProductListingLayout = ({
                     title={theme.title}
                     type="theme"
                     count={theme.count}
+                    isChecked={isItemChecked('theme', theme._id)}
+                    onToggle={handleCheckboxChange}
                   />
                 ))}
               </FilterSection>
@@ -982,6 +1051,10 @@ const ProductListingLayout = ({
                 hasSearch={modes.length > 5}
                 itemCount={checkboxFilters.mode?.length || 0}
                 totalItems={filteredModes.length}
+                isExpanded={expandedSections.modes}
+                searchValue={searchTerms.modes}
+                onSearchChange={handleSearch}
+                onToggleSection={toggleSection}
               >
                 {displayedModes.map(mode => (
                   <CheckboxItem
@@ -990,6 +1063,8 @@ const ProductListingLayout = ({
                     title={mode.title}
                     type="mode"
                     count={mode.count}
+                    isChecked={isItemChecked('mode', mode._id)}
+                    onToggle={handleCheckboxChange}
                   />
                 ))}
               </FilterSection>
@@ -1035,6 +1110,10 @@ const ProductListingLayout = ({
                 hasSearch={categories.length > 10}
                 itemCount={effectiveCategoryIds.length || 0}
                 totalItems={filteredCategories.length}
+                isExpanded={expandedSections.categories}
+                searchValue={searchTerms.categories}
+                onSearchChange={handleSearch}
+                onToggleSection={toggleSection}
               >
                 {displayedCategories.map(cat => {
                   const isLocked = lockedCategoryId === cat._id;
@@ -1046,6 +1125,8 @@ const ProductListingLayout = ({
                       type="categoryId"
                       count={cat.count}
                       isLocked={isLocked}
+                      isChecked={isItemChecked('categoryId', cat._id)}
+                      onToggle={handleCheckboxChange}
                     />
                   );
                 })}
@@ -1112,6 +1193,10 @@ const ProductListingLayout = ({
                 hasSearch={regions.length > 5}
                 itemCount={checkboxFilters.region?.length || 0}
                 totalItems={filteredRegions.length}
+                isExpanded={expandedSections.regions}
+                searchValue={searchTerms.regions}
+                onSearchChange={handleSearch}
+                onToggleSection={toggleSection}
               >
                 {displayedRegions.map(region => (
                   <CheckboxItem
@@ -1120,6 +1205,8 @@ const ProductListingLayout = ({
                     title={region.title}
                     type="region"
                     count={region.count}
+                    isChecked={isItemChecked('region', region._id)}
+                    onToggle={handleCheckboxChange}
                   />
                 ))}
               </FilterSection>
@@ -1130,6 +1217,10 @@ const ProductListingLayout = ({
                 hasSearch={platforms.length > 5}
                 itemCount={checkboxFilters.platform?.length || 0}
                 totalItems={filteredPlatforms.length}
+                isExpanded={expandedSections.platforms}
+                searchValue={searchTerms.platforms}
+                onSearchChange={handleSearch}
+                onToggleSection={toggleSection}
               >
                 {displayedPlatforms.map(platform => {
                   const isLocked = lockedPlatformId === platform._id;
@@ -1141,6 +1232,8 @@ const ProductListingLayout = ({
                       type="platform"
                       count={platform.count}
                       isLocked={isLocked}
+                      isChecked={isItemChecked('platform', platform._id)}
+                      onToggle={handleCheckboxChange}
                     />
                   );
                 })}

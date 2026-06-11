@@ -30,7 +30,7 @@ const UserWishlist = () => {
   const removeMutation = useMutation({
     mutationFn: (productId) => userAPI.removeFromWishlist({ productId }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['wishlist']);
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
       showSuccess('Item removed from wishlist');
     },
     onError: (error) => {
@@ -41,7 +41,7 @@ const UserWishlist = () => {
   const clearMutation = useMutation({
     mutationFn: () => userAPI.clearWishlist(),
     onSuccess: () => {
-      queryClient.invalidateQueries(['wishlist']);
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
       setShowClearModal(false);
       showSuccess('Wishlist cleared successfully');
     },

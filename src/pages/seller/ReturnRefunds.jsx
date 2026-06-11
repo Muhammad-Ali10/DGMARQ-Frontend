@@ -64,7 +64,7 @@ const SellerReturnRefunds = () => {
   const feedbackMutation = useMutation({
     mutationFn: ({ refundId, feedback }) => returnRefundAPI.sellerSubmitFeedback(refundId, feedback),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-refunds']);
+      queryClient.invalidateQueries({ queryKey: ['seller-refunds'] });
       toast.success('Feedback submitted. Admin has full authority over this refund.');
       setFeedbackText('');
     },

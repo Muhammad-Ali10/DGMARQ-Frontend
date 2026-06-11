@@ -77,8 +77,8 @@ const SellerLicenseKeys = () => {
   const deleteKeyMutation = useMutation({
     mutationFn: (keyId) => sellerAPI.deleteLicenseKey(keyId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-license-keys', selectedProduct]);
-      queryClient.invalidateQueries(['seller-products']);
+      queryClient.invalidateQueries({ queryKey: ['seller-license-keys', selectedProduct] });
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
       setDeleteDialogOpen(false);
       setKeyToDelete(null);
       toast.success('License key deleted successfully');
@@ -91,8 +91,8 @@ const SellerLicenseKeys = () => {
   const syncStockMutation = useMutation({
     mutationFn: (productId) => productAPI.syncStock(productId),
     onSuccess: (_, productId) => {
-      queryClient.invalidateQueries(['seller-license-keys', productId]);
-      queryClient.invalidateQueries(['seller-products']);
+      queryClient.invalidateQueries({ queryKey: ['seller-license-keys', productId] });
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
       toast.success('Stock synced successfully');
     },
     onError: (error) => {
@@ -516,8 +516,8 @@ const SellerLicenseKeys = () => {
           setIsUploadOpen(open);
           // Refresh keys when modal closes after successful upload
           if (!open && selectedProduct) {
-            queryClient.invalidateQueries(['seller-license-keys', selectedProduct]);
-            queryClient.invalidateQueries(['seller-products']);
+            queryClient.invalidateQueries({ queryKey: ['seller-license-keys', selectedProduct] });
+            queryClient.invalidateQueries({ queryKey: ['seller-products'] });
             setKeysPage(1); // Reset to first page
           }
         }}

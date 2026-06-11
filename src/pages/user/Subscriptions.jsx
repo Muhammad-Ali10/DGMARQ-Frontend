@@ -27,7 +27,7 @@ const UserSubscriptions = () => {
   const cancelMutation = useMutation({
     mutationFn: () => subscriptionAPI.cancelSubscription(),
     onSuccess: () => {
-      queryClient.invalidateQueries(['my-subscription']);
+      queryClient.invalidateQueries({ queryKey: ['my-subscription'] });
     },
   });
 
@@ -53,7 +53,7 @@ const UserSubscriptions = () => {
       } else {
         toast.success(message || 'Subscription updated.');
       }
-      queryClient.invalidateQueries(['my-subscription']);
+      queryClient.invalidateQueries({ queryKey: ['my-subscription'] });
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Unable to process subscription renewal request.');

@@ -42,7 +42,7 @@ const SellerProducts = () => {
   const deleteMutation = useMutation({
     mutationFn: (productId) => productAPI.deleteProduct(productId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-products']);
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
       toast.success('Product deleted successfully');
     },
     onError: (error) => {
@@ -53,7 +53,7 @@ const SellerProducts = () => {
   const duplicateMutation = useMutation({
     mutationFn: (productId) => productAPI.duplicateProduct(productId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-products']);
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
       toast.success('Product duplicated successfully');
     },
     onError: (error) => {
@@ -64,7 +64,7 @@ const SellerProducts = () => {
   const updateImagesMutation = useMutation({
     mutationFn: ({ productId, formData }) => productAPI.updateProductImages(productId, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-products']);
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
       setImages(null);
       setSelectedProduct(null);
       toast.success('Product images updated successfully');
@@ -77,7 +77,7 @@ const SellerProducts = () => {
   const syncStockMutation = useMutation({
     mutationFn: (productId) => productAPI.syncStock(productId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['seller-products']);
+      queryClient.invalidateQueries({ queryKey: ['seller-products'] });
       toast.success('Stock synced successfully');
     },
     onError: (error) => {

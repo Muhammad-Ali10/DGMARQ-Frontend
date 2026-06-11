@@ -90,7 +90,7 @@ const ModesManagement = () => {
   const createMutation = useMutation({
     mutationFn: (data) => modeAPI.createMode(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["modes"]);
+      queryClient.invalidateQueries({ queryKey: ["modes"] });
       setIsCreateOpen(false);
       setFormData({ name: "" });
       setPage(1);
@@ -104,7 +104,7 @@ const ModesManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ modeId, data }) => modeAPI.updateMode(modeId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(["modes"]);
+      queryClient.invalidateQueries({ queryKey: ["modes"] });
       setIsEditOpen(false);
       setSelectedMode(null);
       toast.success("Mode updated successfully");
@@ -117,7 +117,7 @@ const ModesManagement = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: (modeId) => modeAPI.toggleModeStatus(modeId),
     onSuccess: () => {
-      queryClient.invalidateQueries(["modes"]);
+      queryClient.invalidateQueries({ queryKey: ["modes"] });
       toast.success("Mode status updated successfully");
     },
     onError: (error) => {
@@ -128,7 +128,7 @@ const ModesManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (modeId) => modeAPI.deleteMode(modeId),
     onSuccess: () => {
-      queryClient.invalidateQueries(["modes"]);
+      queryClient.invalidateQueries({ queryKey: ["modes"] });
       if (modes.length === 1 && page > 1) setPage(page - 1);
       toast.success("Mode deleted successfully");
     },

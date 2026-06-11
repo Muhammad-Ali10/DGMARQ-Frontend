@@ -22,21 +22,21 @@ const Cart = () => {
   const removeItemMutation = useMutation({
     mutationFn: (data) => cartAPI.removeItem(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
   });
 
   const updateCartMutation = useMutation({
     mutationFn: (data) => cartAPI.updateCart(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
   });
 
   const clearCartMutation = useMutation({
     mutationFn: () => cartAPI.clearCart(),
     onSuccess: () => {
-      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
     },
   });
 

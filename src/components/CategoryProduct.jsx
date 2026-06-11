@@ -53,8 +53,8 @@ const CategoryProduct = ({ product }) => {
   const addToWishlistMutation = useMutation({
     mutationFn: (productId) => userAPI.addToWishlist({ productId }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['wishlist']);
-      queryClient.invalidateQueries(['wishlist-count']);
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+      queryClient.invalidateQueries({ queryKey: ['wishlist-count'] });
     },
   });
 
@@ -62,8 +62,8 @@ const CategoryProduct = ({ product }) => {
   const removeFromWishlistMutation = useMutation({
     mutationFn: (productId) => userAPI.removeFromWishlist({ productId }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['wishlist']);
-      queryClient.invalidateQueries(['wishlist-count']);
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+      queryClient.invalidateQueries({ queryKey: ['wishlist-count'] });
     },
   });
 

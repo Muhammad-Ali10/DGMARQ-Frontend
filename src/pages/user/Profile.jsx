@@ -92,7 +92,7 @@ const UserProfile = () => {
       if (data?.data?.data) {
         dispatch(updateUser({ ...currentUser, emailVerified: true }));
       }
-      queryClient.invalidateQueries(['user-profile']);
+      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Invalid or expired OTP');
@@ -694,7 +694,7 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
   const revokeSessionMutation = useMutation({
     mutationFn: (sessionId) => authAPI.revokeSession(sessionId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-sessions']);
+      queryClient.invalidateQueries({ queryKey: ['user-sessions'] });
       setShowRevokeSessionModal(false);
       setRevokeSessionId(null);
       showSuccess('Session revoked successfully');
@@ -707,7 +707,7 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
   const revokeAllMutation = useMutation({
     mutationFn: () => authAPI.revokeAllSessions(),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-sessions']);
+      queryClient.invalidateQueries({ queryKey: ['user-sessions'] });
       setShowRevokeAllSessionsModal(false);
       showSuccess('All other sessions revoked');
     },

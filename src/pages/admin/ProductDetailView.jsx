@@ -33,7 +33,7 @@ const ProductDetailView = () => {
   const featuredMutation = useMutation({
     mutationFn: (data) => adminAPI.updateProductFeaturedSettings(productId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin-product-details', productId]);
+      queryClient.invalidateQueries({ queryKey: ['admin-product-details', productId] });
       toast.success('Featured settings updated');
     },
     onError: (err) => {

@@ -144,7 +144,7 @@ const UsersManagement = () => {
   const banMutation = useMutation({
     mutationFn: ({ userId, reason }) => adminAPI.banUser(userId, { action: 'ban', reason }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin-users']);
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setBanDialogOpen(false);
       setBanReason('');
       setSelectedUserId(null);
@@ -158,7 +158,7 @@ const UsersManagement = () => {
   const unbanMutation = useMutation({
     mutationFn: (userId) => adminAPI.banUser(userId, { action: 'unban' }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin-users']);
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setUnbanDialogOpen(false);
       setSelectedUserId(null);
       showSuccess('User unbanned successfully');

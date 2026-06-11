@@ -68,7 +68,7 @@ const BundleDeals = () => {
   const createMutation = useMutation({
     mutationFn: (formData) => adminAPI.createBundleDeal(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['bundle-deals']);
+      queryClient.invalidateQueries({ queryKey: ['bundle-deals'] });
       setIsCreateDialogOpen(false);
       resetForm();
       showSuccess('Bundle deal created successfully');
@@ -81,7 +81,7 @@ const BundleDeals = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, formData }) => adminAPI.updateBundleDeal(id, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['bundle-deals']);
+      queryClient.invalidateQueries({ queryKey: ['bundle-deals'] });
       setIsEditDialogOpen(false);
       setSelectedBundle(null);
       resetForm();
@@ -95,7 +95,7 @@ const BundleDeals = () => {
   const deleteMutation = useMutation({
     mutationFn: (id) => adminAPI.deleteBundleDeal(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['bundle-deals']);
+      queryClient.invalidateQueries({ queryKey: ['bundle-deals'] });
       setShowDeleteModal(false);
       setDeleteId(null);
       showSuccess('Bundle deal deleted successfully');
@@ -108,7 +108,7 @@ const BundleDeals = () => {
   const toggleStatusMutation = useMutation({
     mutationFn: (id) => adminAPI.toggleBundleDealStatus(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['bundle-deals']);
+      queryClient.invalidateQueries({ queryKey: ['bundle-deals'] });
       showSuccess('Bundle deal status updated successfully');
     },
     onError: (err) => {

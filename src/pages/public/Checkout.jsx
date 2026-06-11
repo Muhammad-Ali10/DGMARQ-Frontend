@@ -141,8 +141,8 @@ const Checkout = () => {
     mutationFn: (checkoutId) => checkoutAPI.payWithWallet(checkoutId),
     onSuccess: (data) => {
       const orderData = data.data.data;
-      queryClient.invalidateQueries(['wallet-balance']);
-      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
       toast.success('Payment successful! Order created.');
       navigate(`/checkout?checkoutId=${currentCheckoutId || orderData?.order?._id}&status=success`);
     },
@@ -154,7 +154,7 @@ const Checkout = () => {
   const cancelCheckoutMutation = useMutation({
     mutationFn: () => checkoutAPI.cancelCheckout(checkoutId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['cart']);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
       navigate('/cart');
     },
   });
@@ -593,7 +593,7 @@ const Checkout = () => {
               Unable to load your cart. Please try again.
             </p>
             <Button
-              onClick={() => queryClient.invalidateQueries(['cart'])}
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['cart'] })}
               className="bg-accent hover:bg-accent/90 text-white"
             >
               Try Again
@@ -1156,9 +1156,9 @@ const Checkout = () => {
           const successCheckoutId = data?.checkoutId || data?.order?._id || currentCheckoutId || checkoutId;
           if (successCheckoutId) {
             navigate(`/checkout?checkoutId=${successCheckoutId}&status=success`);
-            queryClient.invalidateQueries(['checkout', successCheckoutId]);
-            queryClient.invalidateQueries(['wallet-balance']);
-            queryClient.invalidateQueries(['cart']);
+            queryClient.invalidateQueries({ queryKey: ['checkout', successCheckoutId] });
+            queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+            queryClient.invalidateQueries({ queryKey: ['cart'] });
           }
         }}
       />

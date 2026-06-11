@@ -89,8 +89,8 @@ const UpcomingReleasesManagement = () => {
   const updateSlotMutation = useMutation({
     mutationFn: ({ slotNumber, productId }) => upcomingReleaseAPI.updateSlot(slotNumber, { productId }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['upcoming-releases-config']);
-      queryClient.invalidateQueries(['upcoming-releases']);
+      queryClient.invalidateQueries({ queryKey: ['upcoming-releases-config'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-releases'] });
       toast.success('Slot updated successfully');
     },
     onError: (error) => {
@@ -101,8 +101,8 @@ const UpcomingReleasesManagement = () => {
   const updateSlotImageMutation = useMutation({
     mutationFn: ({ slotNumber, formData }) => upcomingReleaseAPI.updateSlotImage(slotNumber, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['upcoming-releases-config']);
-      queryClient.invalidateQueries(['upcoming-releases']);
+      queryClient.invalidateQueries({ queryKey: ['upcoming-releases-config'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-releases'] });
       toast.success('Image updated successfully');
       setImageFiles(prev => ({ ...prev, [slotNumber]: null }));
     },

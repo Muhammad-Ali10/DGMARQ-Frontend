@@ -72,7 +72,7 @@ const UserReviews = () => {
   const updateMutation = useMutation({
     mutationFn: ({ reviewId, data }) => userAPI.updateReview(reviewId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-reviews']);
+      queryClient.invalidateQueries({ queryKey: ['user-reviews'] });
       setEditingReview(null);
       setEditRating(5);
       setEditComment('');
@@ -86,7 +86,7 @@ const UserReviews = () => {
   const deleteMutation = useMutation({
     mutationFn: (reviewId) => userAPI.deleteReview(reviewId),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-reviews']);
+      queryClient.invalidateQueries({ queryKey: ['user-reviews'] });
       showSuccess('Review deleted successfully');
     },
     onError: (error) => {
@@ -97,7 +97,7 @@ const UserReviews = () => {
   const addPhotoMutation = useMutation({
     mutationFn: ({ reviewId, formData }) => reviewAPI.addReviewPhoto(reviewId, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries(['user-reviews']);
+      queryClient.invalidateQueries({ queryKey: ['user-reviews'] });
       showSuccess('Photo added successfully');
     },
     onError: (error) => {
