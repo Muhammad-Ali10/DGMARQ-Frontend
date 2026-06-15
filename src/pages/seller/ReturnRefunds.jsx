@@ -54,7 +54,6 @@ const SellerReturnRefunds = () => {
   });
 
   const refunds = data?.refunds || [];
-  const pagination = data?.pagination || {};
   const { data: refundDetails, isLoading: detailsLoading } = useQuery({
     queryKey: ['seller-refund-details', selectedRefund?._id],
     queryFn: () => returnRefundAPI.getRefundById(selectedRefund._id).then((res) => res.data.data),

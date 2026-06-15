@@ -106,8 +106,13 @@ const MobileBottomBar = () => {
     };
   }, [accountMenuOpen]);
 
+  // PERF FIX (FP4): was refetchInterval:30000 — every authenticated user
+  // polled the full cart twice a minute from this always-mounted nav. The key
+  // is now nested under ["cart"], so every existing
+  // invalidateQueries({queryKey:["cart"]}) after add/remove/checkout
+  // prefix-matches it — counts update on mutation instead of on a timer.
   const { data: cartData } = useQuery({
-    queryKey: ["cart-count"],
+    queryKey: ["cart", "count"],
     queryFn: async () => {
       if (!isAuthenticated) return { count: 0 };
       try {
@@ -118,7 +123,7 @@ const MobileBottomBar = () => {
       }
     },
     enabled: isAuthenticated,
-    refetchInterval: 30000,
+    staleTime: 60000,
   });
 
   const [guestCartCount, setGuestCartCount] = useState(() =>
@@ -136,8 +141,10 @@ const MobileBottomBar = () => {
 
   const cartCount = isAuthenticated ? cartData?.count || 0 : guestCartCount;
 
+  // PERF FIX (FP4): same as the cart count above — mutation-driven via the
+  // ["wishlist"] prefix instead of 30s polling.
   const { data: wishlistData } = useQuery({
-    queryKey: ["wishlist-count"],
+    queryKey: ["wishlist", "count"],
     queryFn: async () => {
       if (!isAuthenticated) return { count: 0 };
       try {
@@ -152,7 +159,7 @@ const MobileBottomBar = () => {
       }
     },
     enabled: isAuthenticated,
-    refetchInterval: 30000,
+    staleTime: 60000,
   });
 
   const wishlistCount = wishlistData?.count || 0;

@@ -105,7 +105,17 @@ const PublicSellerProfile = () => {
   }
 
   const products = productsData?.docs || [];
-  const pagination = productsData?.pagination || {};
+  // FIX: getSellerProducts returns the flat mongoose-aggregate-paginate result
+  // (docs + page/totalPages/hasNextPage at top level), NOT nested under
+  // `pagination` — so the pagination controls below never rendered. Map the
+  // flat fields into the shape this page already consumes.
+  const pagination = {
+    page: productsData?.page,
+    totalPages: productsData?.totalPages,
+    hasNextPage: productsData?.hasNextPage,
+    hasPrevPage: productsData?.hasPrevPage,
+    totalDocs: productsData?.totalDocs,
+  };
   const reviews = reviewsData?.recentReviews || [];
   const reviewSummary = reviewsData?.summary || { averageRating: 0, totalReviews: 0 };
 

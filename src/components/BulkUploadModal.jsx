@@ -68,6 +68,9 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
     } else {
       setValidationErrors([]);
     }
+    // validateData is recreated every render; this effect must re-run only
+    // when the pasted data / detected type change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkData, detectedUploadType]);
 
   const finishSuccess = (uploaded, uploadTypeLabel) => {
@@ -175,7 +178,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
             if (!hasEmail || !hasAnyPassword) {
               errors.push(`Line ${index + 1}: JSON must include email and at least one password (emailPassword or usernamePassword or password)`);
             }
-          } catch (e) {
+          } catch {
             errors.push(`Line ${index + 1}: Invalid JSON format`);
           }
         } else {
@@ -285,7 +288,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
               usernamePassword: finalUsernamePassword,
               notes: account.notes?.trim() || '',
             });
-          } catch (e) {
+          } catch {
             // Skip invalid JSON
             continue;
           }

@@ -126,17 +126,13 @@ const UsersManagement = () => {
   const { data: usersData, isLoading, isError, error } = useQuery({
     queryKey: ['admin-users', page, roleFilter, statusFilter],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getAllUsers({ 
-          page, 
-          limit: 10, 
-          role: roleFilter || undefined,
-          isActive: statusFilter || undefined,
-        });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getAllUsers({ 
+        page, 
+        limit: 10, 
+        role: roleFilter || undefined,
+        isActive: statusFilter || undefined,
+      });
+      return response.data.data;
     },
     retry: 1,
   });

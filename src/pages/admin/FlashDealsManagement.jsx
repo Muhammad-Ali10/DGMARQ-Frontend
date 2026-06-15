@@ -16,7 +16,6 @@ import SafeImage from '../../components/ui/safe-image';
 const FlashDealsManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isImageOpen, setIsImageOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState(null);
   const [formData, setFormData] = useState({
     productId: '',
@@ -26,7 +25,8 @@ const FlashDealsManagement = () => {
     banner: null,
   });
   const [productSearch, setProductSearch] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  // Value intentionally unread — the setter drives dropdown selection state.
+  const [, setSelectedProduct] = useState(null);
   const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
   const productDropdownRef = useRef(null);
   const queryClient = useQueryClient();

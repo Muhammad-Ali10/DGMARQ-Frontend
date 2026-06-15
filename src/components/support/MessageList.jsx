@@ -155,7 +155,7 @@ const MessageList = ({
       }
       // Reacting to an inbound message: stick to bottom if near it, otherwise
       // surface the "new messages" pill.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setShowJump(!stick);
     }
     prevLastKeyRef.current = lastKey;

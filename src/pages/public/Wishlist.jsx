@@ -42,8 +42,8 @@ const Wishlist = () => {
   const removeItemMutation = useMutation({
     mutationFn: (productId) => userAPI.removeFromWishlist({ productId }),
     onSuccess: () => {
+      // PERF FIX (FP4): ['wishlist'] prefix now covers the badge count key.
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-      queryClient.invalidateQueries({ queryKey: ['wishlist-count'] });
       showSuccess('Item removed from wishlist');
     },
     onError: (error) => {
@@ -54,8 +54,8 @@ const Wishlist = () => {
   const clearWishlistMutation = useMutation({
     mutationFn: () => userAPI.clearWishlist(),
     onSuccess: () => {
+      // PERF FIX (FP4): ['wishlist'] prefix now covers the badge count key.
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-      queryClient.invalidateQueries({ queryKey: ['wishlist-count'] });
       showSuccess('Wishlist cleared successfully');
     },
     onError: (error) => {
@@ -66,8 +66,8 @@ const Wishlist = () => {
   const addToCartMutation = useMutation({
     mutationFn: (productId) => cartAPI.addItem({ productId, qty: 1 }),
     onSuccess: () => {
+      // PERF FIX (FP4): ['cart'] prefix now covers the badge count key.
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-      queryClient.invalidateQueries({ queryKey: ['cart-count'] });
       showSuccess('Item added to cart');
     },
     onError: (error) => {

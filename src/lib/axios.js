@@ -42,7 +42,9 @@ if (typeof window !== 'undefined') {
     window.addEventListener('popstate', () => {
       pageLoadTime = Date.now();
     }, { passive: true });
-  } catch (e) {}
+  } catch {
+    /* history API unavailable (non-browser env) — non-fatal */
+  }
 }
 
 // SECURITY FIX (#5): no Authorization header from localStorage. The httpOnly

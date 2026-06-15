@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { reviewAPI, sellerAPI, productAPI } from '../../services/api';
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -13,7 +12,6 @@ import { Star, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
 
 const SellerReviews = () => {
-  const { user } = useSelector((state) => state.auth);
   const [page, setPage] = useState(1);
   const [selectedReview, setSelectedReview] = useState(null);
   const [replyText, setReplyText] = useState('');

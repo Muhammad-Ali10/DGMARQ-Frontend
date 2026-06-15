@@ -19,8 +19,6 @@ const PaymentModal = ({
   currency = 'USD', 
   onSuccess,
   walletBalance = 0,
-  walletAmount = 0,
-  cardAmount = 0,
   paymentMethod = 'PayPal',
 }) => {
   const [selectedMethod, setSelectedMethod] = useState(
@@ -116,23 +114,18 @@ const PaymentModal = ({
                     },
                   },
                   createOrder: async () => {
-                try {
-                  if (!checkoutId) {
-                    const errorMsg = 'Checkout ID is missing. Please try again.';
-                    throw new Error(errorMsg);
-                  }
-                  const response = await paypalAPI.createOrder({ checkoutId });
-                  const orderId = response.data?.orderId || response.data?.data?.orderId;
-                  if (!response.data?.ok && !orderId) {
-                    throw new Error(response.data?.message || 'Failed to create order');
-                  }
-                  if (!orderId) {
-                    throw new Error('Order ID not returned from server');
-                  }
-                  return orderId;
-                } catch (error) {
-                  throw error;
+                if (!checkoutId) {
+                  throw new Error('Checkout ID is missing. Please try again.');
                 }
+                const response = await paypalAPI.createOrder({ checkoutId });
+                const orderId = response.data?.orderId || response.data?.data?.orderId;
+                if (!response.data?.ok && !orderId) {
+                  throw new Error(response.data?.message || 'Failed to create order');
+                }
+                if (!orderId) {
+                  throw new Error('Order ID not returned from server');
+                }
+                return orderId;
               },
               onApprove: async (data) => {
                 const attemptId = paymentAttemptRef.current.id || beginPaymentAttempt();
@@ -142,7 +135,6 @@ const PaymentModal = ({
                   const captureResponse = await paypalAPI.captureOrder(data.orderID, checkoutId);
                   const responseData = captureResponse.data || captureResponse;
                   const captureStatus = responseData?.status || responseData?.data?.status;
-                  const captureId = responseData?.captureId || responseData?.data?.captureId;
                   const isOk = responseData?.ok !== false; // Default to true if not explicitly false
                   
                   if (!isOk || (captureStatus && captureStatus !== 'COMPLETED')) {
@@ -182,7 +174,7 @@ const PaymentModal = ({
             setIsCardFieldsEligible(eligible);
             setCardFields(fields);
             cardFieldsRef.current = fields; // Store in ref for submit()
-          } catch (error) {
+          } catch {
             setIsCardFieldsEligible(false);
             setCardFields(null);
             cardFieldsRef.current = null;
@@ -196,6 +188,9 @@ const PaymentModal = ({
     };
 
     loadPayPalSDK();
+    // resolvePaymentAttempt is recreated every render; adding it would re-run
+    // the whole PayPal SDK load on every render. Intentionally excluded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, checkoutId, onSuccess, onOpenChange]);
 
   useEffect(() => {
@@ -264,7 +259,10 @@ const PaymentModal = ({
         }).render('#card-name');
 
       } catch (renderError) {
-        logger.error('Failed to render card fields', renderError);
+        // FIX (FQ2): was `logger.error` but no logger exists in this file — the
+        // line itself threw a ReferenceError, masking the real PayPal error.
+        // console.* is stripped from production builds by vite config.
+        console.error('Failed to render card fields', renderError);
         // Don't show toast here as it might be noisy during re-renders,
         // instead just allow the user to retry or switch methods.
       }
@@ -284,6 +282,7 @@ const PaymentModal = ({
         try {
           fields.close();
         } catch {
+          /* hosted fields may already be torn down — non-fatal */
         }
         cardFieldsRef.current = null;
       }
@@ -314,8 +313,7 @@ const PaymentModal = ({
             try {
               setIsLoading(true);
               if (!checkoutId) {
-                const errorMsg = 'Checkout ID is missing. Please try again.';
-                throw new Error(errorMsg);
+                throw new Error('Checkout ID is missing. Please try again.');
               }
               const response = await paypalAPI.createOrder({ checkoutId });
               const orderId = response.data?.orderId || response.data?.data?.orderId;
@@ -326,8 +324,6 @@ const PaymentModal = ({
                 throw new Error('Order ID not returned from server');
               }
               return orderId;
-            } catch (error) {
-              throw error;
             } finally {
               setIsLoading(false);
             }
@@ -382,7 +378,7 @@ const PaymentModal = ({
         });
 
         buttons.render(container);
-      } catch (error) {
+      } catch {
         toast.error('Failed to initialize PayPal payment.');
       }
     };
@@ -393,6 +389,9 @@ const PaymentModal = ({
         container.innerHTML = '';
       }
     };
+    // resolvePaymentAttempt/beginPaymentAttempt are recreated every render;
+    // adding them would re-render the PayPal buttons on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paypalSDK, open, selectedMethod, checkoutId, onSuccess, onOpenChange]);
 
   const handleCardSubmit = async (e) => {

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { homepageSliderAPI, productAPI } from '../../services/api';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -28,6 +28,9 @@ const HomepageSlidersManagement = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedSlider, setSelectedSlider] = useState(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  // FIX: the delete flow was half-wired (button set state but no modal was
+  // rendered and no mutation was called — clicking delete did nothing).
+  // Completed with ConfirmationModal + deleteMutation below.
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [formData, setFormData] = useState({
@@ -137,16 +140,6 @@ const HomepageSlidersManagement = () => {
     });
     setProductSearchQuery('');
     setIsEditOpen(true);
-  };
-
-  // Get available positions (exclude already used positions)
-  const getAvailablePositions = () => {
-    const usedPositions = sliders?.sliders
-      ?.filter(s => s._id !== selectedSlider?._id)
-      .map(s => s.slideIndex !== undefined ? s.slideIndex : s.order)
-      .filter(p => p !== undefined) || [];
-    
-    return SLIDE_POSITIONS.filter(pos => !usedPositions.includes(pos.value));
   };
 
   if (isLoading) return <Loading message="Loading homepage sliders..." />;
@@ -532,6 +525,18 @@ const HomepageSlidersManagement = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+        title="Delete Homepage Slider"
+        description="Are you sure you want to delete this slider? This action cannot be undone."
+        confirmText={deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteId) deleteMutation.mutate(deleteId);
+        }}
+      />
     </div>
   );
 };

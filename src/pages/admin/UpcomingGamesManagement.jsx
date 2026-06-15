@@ -58,7 +58,7 @@ const UpcomingGamesManagement = () => {
 
   const addProductsMutation = useMutation({
     mutationFn: (data) => upcomingGamesAPI.addProducts(data),
-    onSuccess: (response) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['upcoming-games-config'] });
       queryClient.invalidateQueries({ queryKey: ['upcoming-games'] });
       toast.success('Products added successfully');

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Button } from "../../components/ui/button";
@@ -25,7 +25,6 @@ import SafeImage from "../../components/ui/safe-image";
 const widths = ["w-1/4", "w-1/4", "w-1/2", "w-1/4", "w-1/4", "w-1/2"];
 
 const Home = () => {
-  const navigate = useNavigate();
   const { data: bestsellersData, isLoading: isLoadingBestsellers } = useQuery({
     queryKey: ["bestsellers", "home"],
     queryFn: async () => {

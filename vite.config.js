@@ -3,6 +3,9 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import fs from "fs"
+// PERF FIX (FP2): bundle attribution, opt-in only — `ANALYZE=1 npm run build`
+// writes dist/stats.html. No effect on normal builds.
+import { visualizer } from "rollup-plugin-visualizer"
 
 // HTTPS configuration for PayPal CardFields (requires secure connection)
 const httpsConfig = (() => {
@@ -22,7 +25,13 @@ const httpsConfig = (() => {
 })();
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    ...(process.env.ANALYZE
+      ? [visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true })]
+      : []),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -66,8 +75,8 @@ export default defineConfig({
           'vendor-state': ['@reduxjs/toolkit', 'react-redux', '@tanstack/react-query'],
           // UI framework
           'vendor-ui': ['lucide-react', 'sonner', 'class-variance-authority', 'clsx', 'tailwind-merge'],
-          // Heavy libraries
-          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          // Heavy libraries (zod removed — dependency was unused and uninstalled)
+          'vendor-forms': ['react-hook-form', '@hookform/resolvers'],
           // Networking
           'vendor-network': ['axios', 'socket.io-client'],
         },

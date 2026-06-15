@@ -49,7 +49,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
     if (chatsList.length > 0 && !selectedChat) {
       const openChat = chatsList.find((c) => c.status === 'open') || chatsList[0];
       // Initialize the selection once the list arrives from the server.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setSelectedChat(openChat._id);
     }
   }, [chatsList, selectedChat]);

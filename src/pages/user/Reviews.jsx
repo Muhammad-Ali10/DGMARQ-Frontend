@@ -55,7 +55,7 @@ const UserReviews = () => {
             total: 0,
           },
         };
-      } catch (error) {
+      } catch {
         return {
           reviews: [],
           pagination: {

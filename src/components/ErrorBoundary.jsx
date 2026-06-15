@@ -19,7 +19,7 @@ export function maybeReloadOnChunkError(error) {
   try {
     if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return false;
     sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
-  } catch (e) {
+  } catch {
     // sessionStorage unavailable — fall back to a single reload attempt anyway.
   }
   window.location.reload();
@@ -40,7 +40,9 @@ class ErrorBoundary extends Component {
     // Stale-chunk recovery: reload once instead of showing the fallback.
     if (maybeReloadOnChunkError(error)) return;
 
-    if (process.env.NODE_ENV === 'development') {
+    // FIX (FQ2): `process` doesn't exist in a Vite browser bundle — use
+    // import.meta.env.DEV, which Vite statically replaces at build time.
+    if (import.meta.env.DEV) {
       console.error('[ErrorBoundary]', error, errorInfo);
     }
   }

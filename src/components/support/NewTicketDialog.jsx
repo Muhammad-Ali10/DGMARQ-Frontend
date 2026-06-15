@@ -38,7 +38,7 @@ const NewTicketDialog = ({ open, onOpenChange, onCreated, prefill = null }) => {
   // Apply prefill whenever the dialog opens (reset/seed the form fields).
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setSubject(prefill?.subject || '');
       setCategory(prefill?.category || 'Other');
       setOrderId(prefill?.orderId || '');

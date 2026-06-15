@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { subscriptionAPI } from '../../services/api';
 import { CheckCircle2, Loader2, Home, CreditCard } from 'lucide-react';
@@ -8,16 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 
 const SubscriptionSuccess = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const subscriptionId = searchParams.get('subscription_id');
-  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState(null);
 
   const confirmMutation = useMutation({
     mutationFn: (id) => subscriptionAPI.confirmSubscription({ subscriptionId: id }),
-    onSuccess: () => {
-      setIsSuccess(true);
-    },
     onError: (err) => {
       setError(err?.response?.data?.message || 'Failed to activate subscription. Please contact support.');
     },
@@ -29,6 +24,9 @@ const SubscriptionSuccess = () => {
     } else {
       setError('Missing subscription ID. Please contact support.');
     }
+    // confirmMutation is a new object every render — including it would
+    // re-fire the confirmation request in a loop. Fire once per subscriptionId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscriptionId]);
 
   if (confirmMutation.isPending) {

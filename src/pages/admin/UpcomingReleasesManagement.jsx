@@ -84,6 +84,8 @@ const UpcomingReleasesManagement = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+    // productDropdownRefs holds stable ref objects — mount-only listener.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateSlotMutation = useMutation({
@@ -100,11 +102,14 @@ const UpcomingReleasesManagement = () => {
 
   const updateSlotImageMutation = useMutation({
     mutationFn: ({ slotNumber, formData }) => upcomingReleaseAPI.updateSlotImage(slotNumber, formData),
-    onSuccess: () => {
+    // FIX (FQ2): `slotNumber` is only in scope inside mutationFn — referencing it
+    // here threw a ReferenceError on every successful upload. Read it from the
+    // mutation `variables` argument instead.
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['upcoming-releases-config'] });
       queryClient.invalidateQueries({ queryKey: ['upcoming-releases'] });
       toast.success('Image updated successfully');
-      setImageFiles(prev => ({ ...prev, [slotNumber]: null }));
+      setImageFiles(prev => ({ ...prev, [variables.slotNumber]: null }));
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Failed to update image');

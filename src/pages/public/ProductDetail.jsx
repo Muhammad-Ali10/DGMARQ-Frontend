@@ -53,12 +53,8 @@ const ProductDetail = () => {
   const { data: product, isLoading, isError, error } = useQuery({
     queryKey: ['product-detail', identifier],
     queryFn: async () => {
-      try {
-        const response = await productAPI.getProductById(identifier);
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await productAPI.getProductById(identifier);
+      return response.data.data;
     },
     retry: 1,
   });
@@ -83,7 +79,7 @@ const ProductDetail = () => {
           order.items?.some(item => item.productId?._id === product._id || item.productId === product._id)
         );
         return ordersWithProduct;
-      } catch (err) {
+      } catch {
         return [];
       }
     },
@@ -102,7 +98,7 @@ const ProductDetail = () => {
           sortBy: 'createdAt',
         });
         return response.data.data;
-      } catch (err) {
+      } catch {
         return { docs: [], totalDocs: 0 };
       }
     },
@@ -134,7 +130,7 @@ const ProductDetail = () => {
           return scoreB - scoreA;
         });
         return { ...response.data.data, docs: prioritized.slice(0, 6) };
-      } catch (err) {
+      } catch {
         return { docs: [] };
       }
     },

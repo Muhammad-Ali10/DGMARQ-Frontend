@@ -12,7 +12,9 @@ export const store = configureStore({
 try {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
-} catch {}
+} catch {
+  /* localStorage unavailable (private mode / SSR) — non-fatal */
+}
 
 // Persist the non-sensitive user profile via a store subscription, keeping the
 // auth reducers pure (no side effects in reducer bodies). The httpOnly auth
@@ -25,5 +27,7 @@ store.subscribe(() => {
     } else {
       localStorage.removeItem('user');
     }
-  } catch {}
+  } catch {
+    /* localStorage unavailable or quota exceeded — profile cache is optional */
+  }
 });

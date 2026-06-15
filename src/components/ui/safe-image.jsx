@@ -59,6 +59,11 @@ const SafeImage = ({
   className = "",
   w,
   width,
+  // PERF FIX (FP3): lazy by default — ~80 of 85 usages never passed
+  // loading="lazy", so below-the-fold images (home sections, tiles,
+  // galleries, review photos) all loaded eagerly. Above-the-fold images
+  // (hero slides, header logo) opt out with loading="eager".
+  loading = "lazy",
   ...props
 }) => {
   const [hasError, setHasError] = useState(false);
@@ -88,6 +93,7 @@ const SafeImage = ({
       alt={alt}
       className={className}
       width={width}
+      loading={loading}
       onError={() => setHasError(true)}
       {...props}
     />

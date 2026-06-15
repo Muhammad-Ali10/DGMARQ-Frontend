@@ -26,6 +26,9 @@ const VirtualizedMessageList = ({ messages, currentUserId, scrollContainerRef, o
         rowVirtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
       });
     }
+    // rowVirtualizer is a new object every render (tanstack-virtual); only the
+    // last-message identity should trigger the scroll-to-bottom.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, lastId]);
 
   useEffect(() => {
@@ -38,6 +41,8 @@ const VirtualizedMessageList = ({ messages, currentUserId, scrollContainerRef, o
     };
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
+    // parentRef is a ref object (stable identity) — not a reactive dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onScrollToTop, hasNextPage, isFetchingNextPage]);
 
   const renderMessage = useCallback((msg) => {

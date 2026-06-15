@@ -222,7 +222,6 @@ const SessionMenu = ({ onItemClick } = {}) => {
                   : [];
                 const hasAdmin = normalizedRoles.includes('admin');
                 const hasSeller = normalizedRoles.includes('seller');
-                const hasCustomer = normalizedRoles.includes('customer');
                 if (hasAdmin || hasSeller) {
                   return (
                     <>

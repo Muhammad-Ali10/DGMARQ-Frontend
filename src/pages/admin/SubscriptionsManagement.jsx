@@ -14,12 +14,8 @@ const SubscriptionsManagement = () => {
   const { data: subsData, isLoading: isLoadingSubs, isError: isErrorSubs, error: errorSubs } = useQuery({
     queryKey: ['admin-subscriptions', page],
     queryFn: async () => {
-      try {
-        const response = await subscriptionAPI.getAllSubscriptions({ page, limit: 10 });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await subscriptionAPI.getAllSubscriptions({ page, limit: 10 });
+      return response.data.data;
     },
     retry: 1,
   });
@@ -33,12 +29,8 @@ const SubscriptionsManagement = () => {
   const { data: stats, isLoading: isLoadingStats, isError: isErrorStats, error: errorStats } = useQuery({
     queryKey: ['subscription-stats'],
     queryFn: async () => {
-      try {
-        const response = await subscriptionAPI.getSubscriptionStats();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await subscriptionAPI.getSubscriptionStats();
+      return response.data.data;
     },
     retry: 1,
   });

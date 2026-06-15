@@ -4,14 +4,12 @@ import { flashDealAPI, cartAPI } from '../services/api';
 import { ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { Loading } from './ui/loading';
-import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { addToGuestCart } from '../utils/guestCart';
 import { getPlatformName, getTypeName } from '../utils/productUtils';
 import SafeImage from './ui/safe-image';
 
 const FlashDeal = () => {
-  const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const queryClient = useQueryClient();
   const [timeLeft, setTimeLeft] = useState({
@@ -110,8 +108,6 @@ const FlashDeal = () => {
     image,
     actualPrice,
     discountPrice,
-    left,
-    sold,
   } = activeDeal;
 
   const handleBuyNow = () => {

@@ -50,9 +50,10 @@ const ProductCreate = () => {
       toast.success('Product created successfully');
       navigate('/seller/products');
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to create product');
-    },
+    // FIX (double toast): the global axios interceptor (lib/axios.js) already
+    // shows the server error message for every failed user-action request, so a
+    // local toast.error here fired the SAME message a second time. Let the
+    // interceptor own error display; no local error toast.
   });
 
   const handleInputChange = (e) => {

@@ -79,7 +79,7 @@ export const useNotifications = () => {
         timestamp: new Date(notif.createdAt),
         isRead: notif.isRead || false,
       }));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setNotifications(formattedNotifications);
     } else if (!notificationsLoading) {
       setNotifications([]);
@@ -89,7 +89,7 @@ export const useNotifications = () => {
   useEffect(() => {
     if (unreadCountData !== undefined) {
       // Sync the authoritative server count into local state.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setUnreadCount(unreadCountData);
     }
   }, [unreadCountData]);

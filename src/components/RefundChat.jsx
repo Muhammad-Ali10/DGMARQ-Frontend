@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { returnRefundAPI } from '../services/api';
@@ -41,7 +41,9 @@ export default function RefundChat({ refundId, canSend }) {
     refetchOnWindowFocus: false,
   });
 
-  const messages = Array.isArray(data) ? data : [];
+  // Memoized so the scroll effect below doesn't see a new array identity on
+  // every render (react-hooks/exhaustive-deps).
+  const messages = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   const addMessageMutation = useMutation({
     mutationFn: (payload) => returnRefundAPI.addRefundMessage(refundId, payload),

@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { MessageCircle, X } from 'lucide-react';
-import SupportChatPopup from './SupportChatPopup';
+// PERF FIX (FP2): the popup is the heavy part (full support-chat UI + hooks)
+// and renders only when an authenticated user opens the widget — lazy-load it
+// so the entire stack leaves the shared entry chunk. The floating icon itself
+// stays eager/instant.
+const SupportChatPopup = lazy(() => import('./SupportChatPopup'));
 
 const SupportChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -43,11 +47,13 @@ const SupportChatWidget = () => {
 
       {/* Support Chat Popup */}
       {isAuthenticated && isOpen && (
-        <SupportChatPopup
-          isOpen={isOpen}
-          onClose={() => setIsOpen(false)}
-          onUnreadCountChange={setUnreadCount}
-        />
+        <Suspense fallback={null}>
+          <SupportChatPopup
+            isOpen={isOpen}
+            onClose={() => setIsOpen(false)}
+            onUnreadCountChange={setUnreadCount}
+          />
+        </Suspense>
       )}
     </>
   );

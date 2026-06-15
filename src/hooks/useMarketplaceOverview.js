@@ -236,6 +236,9 @@ export function useMarketplaceOverview() {
     return () => {
       cancelled = true;
     };
+    // Intentionally mount-only: including `state` (written by load itself)
+    // would refetch in a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return state;

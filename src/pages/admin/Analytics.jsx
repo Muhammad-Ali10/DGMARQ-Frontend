@@ -9,12 +9,8 @@ const Analytics = () => {
   const { data: dashboard, isLoading: isLoadingDashboard, isError: isErrorDashboard, error: dashboardError } = useQuery({
     queryKey: ['admin-analytics-dashboard'],
     queryFn: async () => {
-      try {
-        const response = await analyticsAPI.getDashboard();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await analyticsAPI.getDashboard();
+      return response.data.data;
     },
     retry: 2,
     refetchOnWindowFocus: true,
@@ -23,12 +19,8 @@ const Analytics = () => {
   const { data: topProducts, isLoading: isLoadingTop, isError: isErrorTop, error: topProductsError } = useQuery({
     queryKey: ['top-products'],
     queryFn: async () => {
-      try {
-        const response = await analyticsAPI.getTopProducts({ limit: 10 });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await analyticsAPI.getTopProducts({ limit: 10 });
+      return response.data.data;
     },
     retry: 2,
     refetchOnWindowFocus: true,
@@ -37,12 +29,8 @@ const Analytics = () => {
   const { data: realtime, isLoading: isLoadingRealtime, isError: isErrorRealtime, error: realtimeError } = useQuery({
     queryKey: ['realtime-counters'],
     queryFn: async () => {
-      try {
-        const response = await analyticsAPI.getRealTimeCounters();
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await analyticsAPI.getRealTimeCounters();
+      return response.data.data;
     },
     retry: 2,
     refetchOnWindowFocus: true,

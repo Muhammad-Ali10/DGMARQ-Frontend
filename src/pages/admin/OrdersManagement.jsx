@@ -17,16 +17,12 @@ const OrdersManagement = () => {
   const { data: ordersData, isLoading, isError, error } = useQuery({
     queryKey: ['admin-orders', page, status],
     queryFn: async () => {
-      try {
-        const response = await orderAPI.getAllOrders({ 
-          page, 
-          limit: 10, 
-          status: status || undefined 
-        });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await orderAPI.getAllOrders({ 
+        page, 
+        limit: 10, 
+        status: status || undefined 
+      });
+      return response.data.data;
     },
     retry: 1,
   });
@@ -45,7 +41,6 @@ const OrdersManagement = () => {
   const currentPage = pagination.page ?? page;
   const totalItems = pagination.total ?? orders.length;
   const totalPages = pagination.pages ?? pagination.totalPages ?? 1;
-  const limitVal = pagination.limit ?? 10;
   const showPagination = totalPages > 1;
 
   const getStatusBadge = (status) => {

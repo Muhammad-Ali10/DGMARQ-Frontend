@@ -20,12 +20,8 @@ const ProductDetailView = () => {
   const { data: product, isLoading, isError, error } = useQuery({
     queryKey: ['admin-product-details', productId],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getProductDetails(productId);
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getProductDetails(productId);
+      return response.data.data;
     },
     retry: 1,
   });

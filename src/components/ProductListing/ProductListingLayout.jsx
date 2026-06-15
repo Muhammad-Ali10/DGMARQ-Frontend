@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/static-components */
+ 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { useSEO } from '../../hooks/useSEO';

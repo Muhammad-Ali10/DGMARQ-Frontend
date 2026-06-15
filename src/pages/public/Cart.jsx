@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { cartAPI, checkoutAPI } from "../../services/api";
+import { cartAPI } from "../../services/api";
 import {
   Card,
   CardContent,
@@ -28,11 +28,7 @@ import {
   updateGuestCartQuantity,
   clearGuestCart,
 } from "../../utils/guestCart";
-import {
-  calculateProductPrice,
-  getPlatformName,
-  getTypeName,
-} from "../../utils/productUtils";
+import { calculateProductPrice } from "../../utils/productUtils";
 import SafeImage from "../../components/ui/safe-image";
 
 const Cart = () => {
@@ -159,7 +155,9 @@ const Cart = () => {
         if (!productId) continue;
         try {
           await cartAPI.addItem({ productId, qty: item.qty || 1 });
-        } catch (_) {}
+        } catch {
+          /* item may be out of stock or removed — skip and merge the rest */
+        }
       }
       clearGuestCart();
       setGuestCartItems([]);
@@ -250,10 +248,6 @@ const Cart = () => {
                     const hasDiscount =
                       originalPrice > 0 && originalPrice > price && price >= 0;
                     const totalPrice = qty * price;
-                    const platformName =
-                      item.platformName || getPlatformName(item.productId);
-                    const typeName =
-                      item.typeName || getTypeName(item.productId);
                     return (
                       <div
                         key={productId}
@@ -571,8 +565,6 @@ const Cart = () => {
 
                   // Line total should reflect the discounted unit price.
                   const totalPrice = discountedPriceNum * qty;
-                  const platformName = getPlatformName(product || item);
-                  const typeName = getTypeName(product || item);
                   return (
                     <div
                       key={product?._id || item.productId?._id}

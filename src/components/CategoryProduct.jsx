@@ -31,7 +31,7 @@ const CategoryProduct = ({ product }) => {
       try {
         const response = await userAPI.getWishlist();
         return response.data.data;
-      } catch (error) {
+      } catch {
         // User not logged in or wishlist not available
         return null;
       }
@@ -53,8 +53,9 @@ const CategoryProduct = ({ product }) => {
   const addToWishlistMutation = useMutation({
     mutationFn: (productId) => userAPI.addToWishlist({ productId }),
     onSuccess: () => {
+      // PERF FIX (FP4): the badge count key is now ['wishlist','count'], so
+      // this prefix invalidation covers it — no separate '-count' key needed.
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-      queryClient.invalidateQueries({ queryKey: ['wishlist-count'] });
     },
   });
 
@@ -62,8 +63,9 @@ const CategoryProduct = ({ product }) => {
   const removeFromWishlistMutation = useMutation({
     mutationFn: (productId) => userAPI.removeFromWishlist({ productId }),
     onSuccess: () => {
+      // PERF FIX (FP4): the badge count key is now ['wishlist','count'], so
+      // this prefix invalidation covers it — no separate '-count' key needed.
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-      queryClient.invalidateQueries({ queryKey: ['wishlist-count'] });
     },
   });
 
@@ -81,7 +83,7 @@ const CategoryProduct = ({ product }) => {
       } else {
         await addToWishlistMutation.mutateAsync(product._id);
       }
-    } catch (error) {
+    } catch {
       // Handle error silently (user might not be logged in)
       // Error is already handled by React Query
     } finally {

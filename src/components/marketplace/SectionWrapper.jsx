@@ -8,7 +8,6 @@ export const SectionWrapper = ({
   id,
   className = "",
   children,
-  withTopBorder = false,
 }) => {
   const { ref, isInView } = useInView({ threshold: 0.18, once: true });
 

@@ -20,9 +20,12 @@ const createGlobalSocket = () =>
   io(getSocketUrl(), {
     // Auth travels via the httpOnly accessToken cookie (withCredentials).
     auth: {},
-    transports: ['polling', 'websocket'],
-    upgrade: true,
-    rememberUpgrade: true,
+    // SCALABILITY FIX (A2): websocket-only, matching the server. The polling
+    // transport breaks under the backend's PM2 cluster (no sticky sessions —
+    // each poll request can land on a different worker → "Session ID unknown"
+    // loops). Starting straight on websocket also removes the polling→ws
+    // upgrade round-trips.
+    transports: ['websocket'],
     reconnection: true,
     randomizationFactor: 0.5,
     reconnectionDelay: 1000,

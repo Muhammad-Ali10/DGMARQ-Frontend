@@ -33,12 +33,8 @@ const BundleDeals = () => {
   const { data: bundlesData, isLoading, isError, error } = useQuery({
     queryKey: ['bundle-deals', page],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getAllBundleDeals({ page, limit: 10 });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getAllBundleDeals({ page, limit: 10 });
+      return response.data.data;
     },
     keepPreviousData: true,
   });
@@ -49,7 +45,7 @@ const BundleDeals = () => {
       try {
         const response = await productAPI.getProducts({ search: productSearch, limit: 10, status: 'approved' });
         return response.data.data;
-      } catch (err) {
+      } catch {
         return { products: [] };
       }
     },

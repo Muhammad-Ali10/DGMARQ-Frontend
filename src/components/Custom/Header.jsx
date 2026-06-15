@@ -140,8 +140,10 @@ const Header = () => {
     }
   };
 
+  // PERF FIX (FP4): nested under ["cart"] so cart mutations' invalidations
+  // prefix-match the badge count (shared cache entry with MobileBottomBar).
   const { data: cartData } = useQuery({
-    queryKey: ["cart-count"],
+    queryKey: ["cart", "count"],
     queryFn: async () => {
       if (!isAuthenticated) return { count: 0 };
       try {
@@ -170,7 +172,7 @@ const Header = () => {
   const cartCount = isAuthenticated ? cartData?.count || 0 : guestCartCount;
 
   const { data: wishlistData } = useQuery({
-    queryKey: ["wishlist-count"],
+    queryKey: ["wishlist", "count"],
     queryFn: async () => {
       if (!isAuthenticated) return { count: 0 };
       try {
@@ -330,10 +332,13 @@ const Header = () => {
                 setMobileMenuOpen(false);
               }}
             >
+              {/* PERF FIX (FP3): logo is above the fold on every page — keep
+                  eager now that SafeImage defaults to lazy. */}
               <SafeImage
                 src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
                 alt="logo"
                 className="w-full h-10"
+                loading="eager"
               />
             </Link>
 

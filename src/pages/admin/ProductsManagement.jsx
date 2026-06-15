@@ -30,12 +30,8 @@ const ProductsManagement = () => {
   const { data: pendingProducts, isLoading: isLoadingPending, isError: isErrorPending, error: errorPending } = useQuery({
     queryKey: ['pending-products', page],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getPendingProducts({ page, limit: 10 });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getPendingProducts({ page, limit: 10 });
+      return response.data.data;
     },
     placeholderData: keepPreviousData,
   });
@@ -44,12 +40,8 @@ const ProductsManagement = () => {
   const { data: approvedProducts, isLoading: isLoadingApproved, isError: isErrorApproved, error: errorApproved } = useQuery({
     queryKey: ['approved-products', page],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getAllProducts({ page, limit: 10, status: 'approved' });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getAllProducts({ page, limit: 10, status: 'approved' });
+      return response.data.data;
     },
     placeholderData: keepPreviousData,
   });
@@ -58,12 +50,8 @@ const ProductsManagement = () => {
   const { data: rejectedProducts, isLoading: isLoadingRejected, isError: isErrorRejected, error: errorRejected } = useQuery({
     queryKey: ['rejected-products', page],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getAllProducts({ page, limit: 10, status: 'rejected' });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getAllProducts({ page, limit: 10, status: 'rejected' });
+      return response.data.data;
     },
     placeholderData: keepPreviousData,
   });

@@ -12,6 +12,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
 import BulkUploadModal from '../../components/BulkUploadModal';
+import ConfirmationModal from '../../components/ConfirmationModal';
 import { Plus, Edit, Trash2, Copy, Image as ImageIcon, RefreshCw, ChevronLeft, ChevronRight, Package, Filter, Upload } from 'lucide-react';
 import SafeImage from '../../components/ui/safe-image';
 
@@ -21,6 +22,8 @@ const SellerProducts = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [images, setImages] = useState(null);
   const [bulkUploadModalOpen, setBulkUploadModalOpen] = useState(false);
+  // CLIENT REQ: confirm before deleting a product.
+  const [deleteTarget, setDeleteTarget] = useState(null); // product being confirmed for deletion
   const queryClient = useQueryClient();
 
   const queryParams = useMemo(() => {
@@ -85,8 +88,13 @@ const SellerProducts = () => {
     },
   });
 
-  const handleDelete = (productId) => {
-      deleteMutation.mutate(productId);
+  // Opens the confirmation dialog; actual delete fires on confirm.
+  const handleDelete = (product) => {
+      setDeleteTarget(product);
+  };
+
+  const confirmDelete = () => {
+      if (deleteTarget?._id) deleteMutation.mutate(deleteTarget._id);
   };
 
   const handleDuplicate = (productId) => {
@@ -349,7 +357,7 @@ const SellerProducts = () => {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleDelete(product._id)}
+                            onClick={() => handleDelete(product)}
                             disabled={deleteMutation.isPending}
                           >
                             <Trash2 className="w-3 h-3" />
@@ -398,6 +406,17 @@ const SellerProducts = () => {
       <BulkUploadModal
         open={bulkUploadModalOpen}
         onOpenChange={setBulkUploadModalOpen}
+      />
+
+      {/* CLIENT REQ: product delete confirmation */}
+      <ConfirmationModal
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete Product"
+        description={`Are you sure you want to delete "${deleteTarget?.name || 'this product'}"? This action cannot be undone.`}
+        confirmText={deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+        variant="destructive"
+        onConfirm={confirmDelete}
       />
     </div>
   );

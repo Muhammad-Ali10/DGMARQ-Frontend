@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { setCredentials } from '../../store/slices/authSlice';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -18,7 +17,6 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state) => state.auth);
 
@@ -33,7 +31,7 @@ const Register = () => {
       const response = await authAPI.register(data);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       showSuccess('Account created successfully! Please login to continue.');
       navigate('/login', { replace: true });
     },
@@ -65,7 +63,7 @@ const Register = () => {
         
         setError(errorMessage);
         showApiError(err, 'Registration failed');
-      } catch (error) {
+      } catch {
         setError('Registration failed. Please try again.');
       }
     },
@@ -101,7 +99,7 @@ const Register = () => {
 
     try {
       registerMutation.mutate({ name, email, password });
-    } catch (err) {
+    } catch {
       setError('Registration failed. Please try again.');
     }
   };

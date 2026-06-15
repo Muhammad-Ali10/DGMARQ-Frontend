@@ -49,7 +49,7 @@ const UserDashboard = () => {
           balanceFormatted: data.balanceFormatted || (data.balance ? `$${parseFloat(data.balance).toFixed(2)}` : '$0.00'),
           currency: data.currency || 'USD'
         };
-      } catch (error) {
+      } catch {
         return { balance: 0, balanceFormatted: '$0.00', currency: 'USD' };
       }
     },

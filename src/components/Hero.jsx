@@ -54,10 +54,16 @@ const Hero = () => {
             const slideContent = (
               <div className={`${style.size} rounded-2xl overflow-hidden ${isCenter ? 'shadow-xl' : 'shadow-lg'} relative transition-transform duration-300 ease-out group-hover:scale-105 group-hover:shadow-2xl`}>
                 <div className="relative h-full">
+                  {/* PERF FIX (FP3/FP5): hero slides are above the fold (LCP) —
+                      keep eager now that SafeImage defaults to lazy, and
+                      downscale to the rendered slide width (≤409 CSS px;
+                      srcSet covers 2x displays). */}
                   <SafeImage
                     src={slider.image}
                     alt={slider.title}
                     className="w-full h-full object-cover"
+                    loading="eager"
+                    w={410}
                   />
                   {/* {isCenter && hasProduct && (
                     <div className="absolute bottom-0 left-0 w-full bg-blue-800/95 p-4">

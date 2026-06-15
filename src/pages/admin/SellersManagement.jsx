@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { CheckCircle2, XCircle, Eye, Ban, UserCheck, ChevronLeft, ChevronRight, Search, Store, Users } from 'lucide-react';
+import { CheckCircle2, XCircle, Eye, Ban, UserCheck, ChevronLeft, ChevronRight, Search, Store, Users, PauseCircle, PlayCircle } from 'lucide-react';
 import { showSuccess, showApiError } from '../../utils/toast';
 import SafeImage from '../../components/ui/safe-image';
 
@@ -26,18 +26,18 @@ const SellersManagement = () => {
   const [blockingId, setBlockingId] = useState(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  // CLIENT REQ (seller control): account hold.
+  const [holdReason, setHoldReason] = useState('');
+  const [holdingId, setHoldingId] = useState(null);
+  const [holdDialogOpen, setHoldDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch pending sellers - always fetch to show count in tab
   const { data: pendingSellers, isLoading: isLoadingPending, isError: isErrorPending, error: errorPending } = useQuery({
     queryKey: ['pending-sellers', page],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getPendingSellers({ page, limit: 10 });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getPendingSellers({ page, limit: 10 });
+      return response.data.data;
     },
     retry: 1,
     refetchOnWindowFocus: false,
@@ -47,12 +47,8 @@ const SellersManagement = () => {
   const { data: activeSellers, isLoading: isLoadingActive, isError: isErrorActive, error: errorActive } = useQuery({
     queryKey: ['active-sellers', page],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'active' });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'active' });
+      return response.data.data;
     },
     retry: 1,
     refetchOnWindowFocus: false,
@@ -62,12 +58,8 @@ const SellersManagement = () => {
   const { data: bannedSellers, isLoading: isLoadingBanned, isError: isErrorBanned, error: errorBanned } = useQuery({
     queryKey: ['banned-sellers', page],
     queryFn: async () => {
-      try {
-        const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'banned' });
-        return response.data.data;
-      } catch (err) {
-        throw err;
-      }
+      const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'banned' });
+      return response.data.data;
     },
     retry: 1,
     refetchOnWindowFocus: false,
@@ -161,6 +153,48 @@ const SellersManagement = () => {
 
   const handleUnblock = (sellerId) => {
       unblockMutation.mutate(sellerId);
+  };
+
+  const holdMutation = useMutation({
+    mutationFn: ({ sellerId, reason }) => adminAPI.holdSeller(sellerId, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['active-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+      setHoldingId(null);
+      setHoldReason('');
+      setHoldDialogOpen(false);
+      showSuccess('Seller placed on hold');
+    },
+    onError: (err) => {
+      showApiError(err, 'Failed to hold seller');
+    },
+  });
+
+  const liftHoldMutation = useMutation({
+    mutationFn: (sellerId) => adminAPI.liftSellerHold(sellerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['active-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
+      showSuccess('Seller hold lifted');
+    },
+    onError: (err) => {
+      showApiError(err, 'Failed to lift hold');
+    },
+  });
+
+  const handleHoldClick = (sellerId) => {
+    setHoldingId(sellerId);
+    setHoldDialogOpen(true);
+  };
+
+  const handleHold = () => {
+    if (holdReason.trim() && holdingId) {
+      holdMutation.mutate({ sellerId: holdingId, reason: holdReason });
+    }
+  };
+
+  const handleLiftHold = (sellerId) => {
+      liftHoldMutation.mutate(sellerId);
   };
 
   const handleViewSeller = (sellerId) => {
@@ -358,15 +392,41 @@ const SellersManagement = () => {
                                   </>
                                 )}
                                 {activeTab === 'active' && (
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleBlockClick(seller._id)}
-                                    disabled={blockMutation.isPending}
-                                  >
-                                    <Ban className="h-4 w-4 mr-1" />
-                                    Block
-                                  </Button>
+                                  <>
+                                    {/* CLIENT REQ: reversible hold / lift */}
+                                    {seller.isOnHold ? (
+                                      <Button
+                                        size="sm"
+                                        variant="default"
+                                        onClick={() => handleLiftHold(seller._id)}
+                                        disabled={liftHoldMutation.isPending}
+                                        className="bg-green-600 hover:bg-green-700"
+                                      >
+                                        <PlayCircle className="h-4 w-4 mr-1" />
+                                        Lift Hold
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleHoldClick(seller._id)}
+                                        disabled={holdMutation.isPending}
+                                        className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                                      >
+                                        <PauseCircle className="h-4 w-4 mr-1" />
+                                        Hold
+                                      </Button>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => handleBlockClick(seller._id)}
+                                      disabled={blockMutation.isPending}
+                                    >
+                                      <Ban className="h-4 w-4 mr-1" />
+                                      Block
+                                    </Button>
+                                  </>
                                 )}
                                 {activeTab === 'banned' && (
                                   <Button
@@ -514,6 +574,44 @@ const SellersManagement = () => {
                 disabled={!blockReason.trim() || blockMutation.isPending}
               >
                 {blockMutation.isPending ? 'Blocking...' : 'Confirm Block'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CLIENT REQ: Hold Dialog */}
+      <Dialog open={holdDialogOpen} onOpenChange={setHoldDialogOpen}>
+        <DialogContent size="sm" className="bg-primary border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Put Seller on Hold</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              A hold disables withdrawals, buying, new listings, and hides this
+              seller's products. It is fully reversible — lifting the hold
+              restores everything.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="holdReason" className="text-gray-300">Hold Reason</Label>
+              <Input
+                id="holdReason"
+                value={holdReason}
+                onChange={(e) => setHoldReason(e.target.value)}
+                placeholder="Enter hold reason"
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setHoldDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleHold}
+                disabled={!holdReason.trim() || holdMutation.isPending}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {holdMutation.isPending ? 'Placing on hold...' : 'Confirm Hold'}
               </Button>
             </div>
           </div>
