@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { analyticsAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { analyticsAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Users, ShoppingCart, DollarSign, TrendingUp, Package, Eye, Heart } from 'lucide-react';
-import SafeImage from '../../components/ui/safe-image';
+import SafeImage from '@components/ui/safe-image';
 
 const Analytics = () => {
   const { data: dashboard, isLoading: isLoadingDashboard, isError: isErrorDashboard, error: dashboardError } = useQuery({

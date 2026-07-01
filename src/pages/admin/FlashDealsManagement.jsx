@@ -1,17 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { flashDealAPI, productAPI } from '../../services/api';
+import { flashDealAPI, productAPI } from '@services/api';
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Plus, Edit, Trash2, Image as ImageIcon, Search, X } from 'lucide-react';
-import { showSuccess, showError, showApiError } from '../../utils/toast';
-import SafeImage from '../../components/ui/safe-image';
+import { showSuccess, showError, showApiError } from '@utils/toast';
+import SafeImage from '@components/ui/safe-image';
 
 const FlashDealsManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -44,10 +44,11 @@ const FlashDealsManagement = () => {
   // Fetch products for dropdown
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products-search', debouncedSearch],
-    queryFn: () => productAPI.getProducts({ 
-      search: debouncedSearch, 
+    queryFn: () => productAPI.getProducts({
+      search: debouncedSearch,
       limit: 10,
-      status: 'approved'
+      status: 'approved',
+      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,
   });

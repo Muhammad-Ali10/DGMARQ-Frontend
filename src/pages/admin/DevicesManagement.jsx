@@ -1,4 +1,4 @@
-import { deviceAPI } from "../../services/api";
+import { deviceAPI } from "@services/api";
 import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
 
 const config = {

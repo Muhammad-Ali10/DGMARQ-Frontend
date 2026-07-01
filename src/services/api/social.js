@@ -1,4 +1,4 @@
-import api from '../../lib/axios';
+import api from '@lib/axios';
 
 export const supportAPI = {
   createSupportChat: (data) => api.post('/support', data),

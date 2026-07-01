@@ -55,4 +55,12 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // Node-environment files (build/test config + scripts) use `process`,
+    // `__dirname`, etc. Give them Node globals so `eslint .` stays error-free.
+    files: ['*.config.{js,mjs}', 'scripts/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 ])

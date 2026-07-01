@@ -1,4 +1,4 @@
-import api from '../../lib/axios';
+import api from '@lib/axios';
 
 export const flashDealAPI = {
   getFlashDeals: () => api.get('/flash-deal'),
@@ -24,11 +24,6 @@ export const homepageSliderAPI = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   deleteHomepageSlider: (id) => api.delete(`/homepage-slider/${id}`),
-};
-
-export const bundleDealAPI = {
-  getActiveBundleDeals: () => api.get('/bundle-deal/active'),
-  getBundleDealById: (id) => api.get(`/bundle-deal/${id}`),
 };
 
 export const trendingOfferAPI = {

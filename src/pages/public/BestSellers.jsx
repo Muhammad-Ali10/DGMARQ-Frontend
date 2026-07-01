@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { bestsellerAPI } from "../../services/api";
-import ProductCard from "../../components/ProductCard";
-import { Loading, ErrorMessage } from "../../components/ui/loading";
-import { Button } from "../../components/ui/button";
+import { bestsellerAPI } from "@services/api";
+import { ProductCard } from "@features/catalog";
+import { Loading, ErrorMessage } from "@components/ui/loading";
+import { Button } from "@components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useSEO } from "../../hooks/useSEO";
+import { useSEO } from "@hooks/useSEO";
 
 const PlatformsButton = [
   { name: "steam Games", url: "#" },

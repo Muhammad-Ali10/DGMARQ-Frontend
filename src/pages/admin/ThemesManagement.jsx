@@ -1,4 +1,4 @@
-import { themeAPI } from "../../services/api";
+import { themeAPI } from "@services/api";
 import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
 
 const config = {

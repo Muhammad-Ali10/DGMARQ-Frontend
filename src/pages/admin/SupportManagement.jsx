@@ -1,21 +1,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminAPI } from '../../services/api';
+import { adminAPI } from '@services/api';
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Headphones, MessageSquare, Clock, CheckCircle2, UserPlus, UserMinus, Search, BookText, Star } from 'lucide-react';
-import { showSuccess, showApiError } from '../../utils/toast';
-import MessageList from '../../components/support/MessageList';
-import ChatInput from '../../components/support/ChatInput';
-import PresenceBar from '../../components/support/PresenceBar';
-import CannedResponsesManager from '../../components/support/CannedResponsesManager';
-import { PriorityBadge, StatusBadge } from '../../components/support/badges';
-import { STATUS_FILTERS, PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../utils/supportChat';
-import { useSupportThread } from '../../hooks/useSupportThread';
+import { showSuccess, showApiError } from '@utils/toast';
+import {
+  MessageList,
+  ChatInput,
+  PresenceBar,
+  CannedResponsesManager,
+  PriorityBadge,
+  StatusBadge,
+  STATUS_FILTERS,
+  PRIORITY_OPTIONS,
+  STATUS_OPTIONS,
+  useSupportThread,
+} from '@features/support';
 
 const Avatar = ({ user, fallback }) => {
   const name = user?.name || fallback || 'Guest';

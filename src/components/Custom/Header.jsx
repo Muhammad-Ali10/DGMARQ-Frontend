@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { getGuestCartCount } from "../../utils/guestCart";
+import { getGuestCartCount } from "@features/cart-checkout";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { calculateProductPrice, getProductPath } from "../../utils/productUtils";
+import { calculateProductPrice, getProductPath } from "@features/catalog";
 import {
   Search,
   Heart,
@@ -11,53 +11,46 @@ import {
   Menu,
   X,
   ChevronDown,
-  Globe,
   ChevronRight,
   ArrowRight,
+  Star,
+  Gift,
+  Boxes,
+  MonitorSmartphone,
+  Sparkles,
+  Zap,
 } from "lucide-react";
-
-const USFlag = () => (
-  <svg
-    width="20"
-    height="15"
-    viewBox="0 0 20 15"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className="shrink-0"
-  >
-    <rect width="20" height="15" fill="#B22234" />
-    <path d="M0 0L20 15M20 0L0 15" stroke="#3C3B6E" strokeWidth="0.5" />
-    <rect x="0" y="0" width="20" height="8" fill="#3C3B6E" />
-    <circle cx="3" cy="2" r="0.5" fill="#FFFFFF" />
-    <circle cx="5" cy="2" r="0.5" fill="#FFFFFF" />
-    <circle cx="7" cy="2" r="0.5" fill="#FFFFFF" />
-    <circle cx="9" cy="2" r="0.5" fill="#FFFFFF" />
-    <circle cx="11" cy="2" r="0.5" fill="#FFFFFF" />
-    <circle cx="13" cy="2" r="0.5" fill="#FFFFFF" />
-    <circle cx="15" cy="2" r="0.5" fill="#FFFFFF" />
-    <circle cx="17" cy="2" r="0.5" fill="#FFFFFF" />
-    <circle cx="4" cy="4" r="0.5" fill="#FFFFFF" />
-    <circle cx="6" cy="4" r="0.5" fill="#FFFFFF" />
-    <circle cx="8" cy="4" r="0.5" fill="#FFFFFF" />
-    <circle cx="10" cy="4" r="0.5" fill="#FFFFFF" />
-    <circle cx="12" cy="4" r="0.5" fill="#FFFFFF" />
-    <circle cx="14" cy="4" r="0.5" fill="#FFFFFF" />
-    <circle cx="16" cy="4" r="0.5" fill="#FFFFFF" />
-  </svg>
-);
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { Button } from "@components/ui/button";
 import {
   categoryAPI,
   subcategoryAPI,
   productAPI,
   cartAPI,
   userAPI,
-} from "../../services/api";
-import { cn } from "../../lib/utils";
+} from "@services/api";
+import { cn } from "@lib/utils";
 import SessionMenu from "./SessionMenu";
-import SafeImage from "../ui/safe-image";
-import NotificationBell from "../notifications/NotificationBell";
+import SafeImage from "@components/ui/safe-image";
+import { NotificationBell } from "@features/notifications";
+import "./Header.css";
+
+// Visual-only currency/locale selector (no backend currency switching exists).
+const CURRENCIES = [
+  { code: "AUD", flag: "au", name: "Australian Dollar" },
+  { code: "USD", flag: "us", name: "US Dollar" },
+  { code: "EUR", flag: "eu", name: "Euro" },
+  { code: "GBP", flag: "gb", name: "British Pound" },
+  { code: "CAD", flag: "ca", name: "Canadian Dollar" },
+  { code: "NZD", flag: "nz", name: "New Zealand Dollar" },
+  { code: "SGD", flag: "sg", name: "Singapore Dollar" },
+  { code: "JPY", flag: "jp", name: "Japanese Yen" },
+];
+
+const PROMO_MESSAGES = [
+  { icon: <Zap width={16} height={16} />, node: (<>Instant delivery on <span className="fx-promo-em">game keys</span> &mdash; up to <span className="fx-promo-em">90% off</span></>) },
+  { icon: <Search width={16} height={16} />, node: (<><span className="fx-promo-em">Escrow-protected</span> checkout on every single order</>) },
+  { icon: <Gift width={16} height={16} />, node: (<>Gift cards, top-ups &amp; accounts &mdash; <span className="fx-promo-em">new deals daily</span></>) },
+];
 
 const Header = () => {
   const navigate = useNavigate();
@@ -71,77 +64,58 @@ const Header = () => {
   const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
   const [expandedCategoryId, setExpandedCategoryId] = useState(null);
   const [mobileSubcategories, setMobileSubcategories] = useState({});
-  const [categoriesDropdownTimeout, setCategoriesDropdownTimeout] =
-    useState(null);
+  const [categoriesDropdownTimeout, setCategoriesDropdownTimeout] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  // New futuristic-chrome state
+  const [promoIdx, setPromoIdx] = useState(0);
+  const [promoHidden, setPromoHidden] = useState(false);
+  const [currency, setCurrency] = useState(CURRENCIES[0]);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [spot, setSpot] = useState({ left: 0, width: 0, opacity: 0 });
+
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
   const categoriesDropdownRef = useRef(null);
+  const currencyRef = useRef(null);
 
   const { data: categoriesData } = useQuery({
     queryKey: ["header-categories"],
     queryFn: async () => {
-      const response = await categoryAPI.getCategories({
-        isActive: true,
-        limit: 100,
-      });
+      const response = await categoryAPI.getCategories({ isActive: true, limit: 100 });
       return response.data.data?.docs || [];
     },
     staleTime: 300000,
   });
-
   const categories = categoriesData || [];
 
   const { data: subcategoriesData } = useQuery({
     queryKey: ["subcategories", hoveredCategory?._id],
     queryFn: async () => {
       if (!hoveredCategory?._id) return [];
-      const response = await subcategoryAPI.getSubcategoriesByCategoryId(
-        hoveredCategory._id,
-        {
-          isActive: true,
-          limit: 50,
-        },
-      );
+      const response = await subcategoryAPI.getSubcategoriesByCategoryId(hoveredCategory._id, { isActive: true, limit: 50 });
       return response.data.data?.docs || [];
     },
     enabled: !!hoveredCategory?._id,
   });
-
   const subcategories = subcategoriesData || [];
 
-  const [categoriesWithSubcategories, setCategoriesWithSubcategories] =
-    useState({});
+  const [categoriesWithSubcategories, setCategoriesWithSubcategories] = useState({});
 
   const checkCategoryHasSubcategories = async (categoryId) => {
     if (categoriesWithSubcategories[categoryId] !== undefined) {
       return categoriesWithSubcategories[categoryId];
     }
     try {
-      const response = await subcategoryAPI.getSubcategoriesByCategoryId(
-        categoryId,
-        {
-          isActive: true,
-          limit: 1,
-        },
-      );
+      const response = await subcategoryAPI.getSubcategoriesByCategoryId(categoryId, { isActive: true, limit: 1 });
       const hasSubs = (response.data.data?.docs || []).length > 0;
-      setCategoriesWithSubcategories((prev) => ({
-        ...prev,
-        [categoryId]: hasSubs,
-      }));
+      setCategoriesWithSubcategories((prev) => ({ ...prev, [categoryId]: hasSubs }));
       return hasSubs;
     } catch {
-      setCategoriesWithSubcategories((prev) => ({
-        ...prev,
-        [categoryId]: false,
-      }));
+      setCategoriesWithSubcategories((prev) => ({ ...prev, [categoryId]: false }));
       return false;
     }
   };
 
-  // PERF FIX (FP4): nested under ["cart"] so cart mutations' invalidations
-  // prefix-match the badge count (shared cache entry with MobileBottomBar).
   const { data: cartData } = useQuery({
     queryKey: ["cart", "count"],
     queryFn: async () => {
@@ -164,8 +138,7 @@ const Header = () => {
       setGuestCartCount(getGuestCartCount());
       const onGuestCartChange = () => setGuestCartCount(getGuestCartCount());
       window.addEventListener("guestCartChange", onGuestCartChange);
-      return () =>
-        window.removeEventListener("guestCartChange", onGuestCartChange);
+      return () => window.removeEventListener("guestCartChange", onGuestCartChange);
     }
   }, [isAuthenticated]);
 
@@ -178,9 +151,7 @@ const Header = () => {
       try {
         const response = await userAPI.getWishlist();
         const wishlist = response.data.data;
-        if (Array.isArray(wishlist)) {
-          return { count: wishlist.length };
-        }
+        if (Array.isArray(wishlist)) return { count: wishlist.length };
         return { count: wishlist?.products?.length || 0 };
       } catch {
         return { count: 0 };
@@ -188,16 +159,11 @@ const Header = () => {
     },
     enabled: isAuthenticated,
   });
-
   const wishlistCount = wishlistData?.count || 0;
 
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 300);
-
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -206,17 +172,8 @@ const Header = () => {
     queryFn: async () => {
       if (!debouncedSearchQuery.trim()) return [];
       try {
-        const params = {
-          search: debouncedSearchQuery,
-          limit: 10,
-          status: "active",
-          // Use the index-backed prefix search so partial words ("fortn")
-          // match ("Fortnite") in the suggestions dropdown.
-          searchMode: "prefix",
-        };
-        if (selectedCategory !== "all") {
-          params.categoryId = selectedCategory;
-        }
+        const params = { search: debouncedSearchQuery, limit: 10, status: "active", searchMode: "prefix" };
+        if (selectedCategory !== "all") params.categoryId = selectedCategory;
         const response = await productAPI.getProducts(params);
         return response.data.data?.docs || [];
       } catch {
@@ -228,81 +185,75 @@ const Header = () => {
   });
 
   const shouldShowSuggestions =
-    showSearchSuggestions &&
-    debouncedSearchQuery.trim() &&
-    (searchSuggestions?.length > 0 || searchLoading);
+    showSearchSuggestions && debouncedSearchQuery.trim() && (searchSuggestions?.length > 0 || searchLoading);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target)
-      ) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
         setShowSearchSuggestions(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        categoriesDropdownRef.current &&
-        !categoriesDropdownRef.current.contains(event.target)
-      ) {
+      if (categoriesDropdownRef.current && !categoriesDropdownRef.current.contains(event.target)) {
         setShowCategoriesDropdown(false);
         setHoveredCategory(null);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY;
-      setIsScrolled(scrollPosition > 10);
+    const handleClickOutside = (event) => {
+      if (currencyRef.current && !currencyRef.current.contains(event.target)) {
+        setCurrencyOpen(false);
+      }
     };
-    handleScroll();
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
+    handleScroll();
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleSearchFocus = () => {
-    if (searchQuery.trim()) {
-      setShowSearchSuggestions(true);
-    }
-  };
+  // Rotating promo banner.
+  useEffect(() => {
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || PROMO_MESSAGES.length <= 1) return;
+    const t = setInterval(() => setPromoIdx((i) => (i + 1) % PROMO_MESSAGES.length), 4000);
+    return () => clearInterval(t);
+  }, []);
 
+  const handleSearchFocus = () => {
+    if (searchQuery.trim()) setShowSearchSuggestions(true);
+  };
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
     setShowSearchSuggestions(value.trim().length > 0);
   };
-
   const handleSearch = (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-
     const params = new URLSearchParams({ q: searchQuery });
-    if (selectedCategory !== "all") {
-      params.append("category", selectedCategory);
-    }
-
+    if (selectedCategory !== "all") params.append("category", selectedCategory);
     setShowSearchSuggestions(false);
     navigate(`/search?${params.toString()}`);
   };
-
   const handleSuggestionClick = (product) => {
     setShowSearchSuggestions(false);
     setSearchQuery("");
     navigate(getProductPath(product));
   };
-
   const handleCategoryHover = async (category) => {
     setHoveredCategory(category);
     if (categoriesWithSubcategories[category._id] === undefined) {
@@ -310,30 +261,64 @@ const Header = () => {
     }
   };
 
+  const moveSpot = (e) => {
+    const el = e.currentTarget;
+    setSpot({ left: el.offsetLeft, width: el.offsetWidth, opacity: 1 });
+  };
+  const hideSpot = () => setSpot((s) => ({ ...s, opacity: 0 }));
+
+  const openCategories = () => {
+    if (categoriesDropdownTimeout) {
+      clearTimeout(categoriesDropdownTimeout);
+      setCategoriesDropdownTimeout(null);
+    }
+    setShowCategoriesDropdown(true);
+  };
+  const closeCategoriesDelayed = () => {
+    const timeout = setTimeout(() => {
+      setShowCategoriesDropdown(false);
+      setHoveredCategory(null);
+    }, 200);
+    setCategoriesDropdownTimeout(timeout);
+  };
+
+  const navLinks = [
+    { to: "/bestsellers", label: "Bestsellers", icon: <Star /> },
+    { to: "/gift-cards", label: "Gift Cards", icon: <Gift /> },
+    { to: "/random-keys", label: "Random Keys", icon: <Boxes /> },
+    { to: "/software", label: "Software", icon: <MonitorSmartphone /> },
+  ];
+
   return (
-    <>
+    <div className="hdr-fx">
+      {/* Animated promo banner */}
+      <div className={cn("fx-promo", promoHidden && "is-hidden")} role="region" aria-label="Promotions">
+        <span className="fx-promo-beam" aria-hidden="true" />
+        <div className="fx-promo-row">
+          <span className="fx-promo-live"><span className="dot" />Live</span>
+          <div className="fx-promo-track">
+            {PROMO_MESSAGES.map((m, i) => (
+              <div key={i} className={cn("fx-promo-msg", i === promoIdx && "is-live")} aria-hidden={i !== promoIdx}>
+                <span className="fx-promo-ico">{m.icon}</span>
+                <span>{m.node}</span>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="fx-promo-cta" onClick={() => navigate("/bestsellers")}>
+            Shop Now <ArrowRight width={14} height={14} />
+          </button>
+        </div>
+        <button type="button" className="fx-promo-close" aria-label="Dismiss promotion" onClick={() => setPromoHidden(true)}>
+          <X width={15} height={15} />
+        </button>
+      </div>
+
       {/* Main Header */}
-      <div
-        className={cn(
-          "sticky top-0 z-50 transition-all duration-300",
-          isScrolled
-            ? "bg-[#060318] backdrop-blur-md shadow-lg"
-            : "bg-transparent",
-        )}
-      >
+      <div className={cn("sticky top-0 z-50 transition-all duration-300", isScrolled ? "bg-[#060318] backdrop-blur-md shadow-lg" : "bg-transparent")}>
         <div className="container mx-auto px-4">
-          {/* Main Header Row */}
-          <div className="flex items-center justify-between gap-4 py-4">
+          <div className="flex items-center justify-between gap-4 py-2.5">
             {/* Logo */}
-            <Link
-              to="/"
-              className="flex items-center gap-2 shrink-0"
-              onClick={() => {
-                setMobileMenuOpen(false);
-              }}
-            >
-              {/* PERF FIX (FP3): logo is above the fold on every page — keep
-                  eager now that SafeImage defaults to lazy. */}
+            <Link to="/" className="flex items-center gap-2 shrink-0" onClick={() => setMobileMenuOpen(false)}>
               <SafeImage
                 src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
                 alt="logo"
@@ -342,7 +327,7 @@ const Header = () => {
               />
             </Link>
 
-            {/* Mobile Menu Toggle Button */}
+            {/* Mobile menu toggle */}
             <Button
               variant="outline"
               size="icon"
@@ -350,306 +335,175 @@ const Header = () => {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
             >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>
 
-            {/* Search Bar - Desktop */}
-            <form
-              onSubmit={handleSearch}
-              className="hidden md:flex flex-1 w-full mx-4"
-              ref={searchContainerRef}
-            >
-              <div className="relative w-full">
-                <div className="flex items-center bg-gray-900/50 border border-accent rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-accent/50">
-                  <Input
+            {/* Futuristic search bar — desktop */}
+            <div className="hidden md:flex flex-1 mx-4 relative" ref={searchContainerRef}>
+              <form className="fx-search w-full" role="search" onSubmit={handleSearch}>
+                <span className="fx-corner fx-corner-tl" /><span className="fx-corner fx-corner-tr" /><span className="fx-corner fx-corner-bl" /><span className="fx-corner fx-corner-br" />
+                <div className="fx-search-row">
+                  <span className="fx-search-lead" aria-hidden="true"><Search width={18} height={18} /></span>
+                  <input
                     ref={searchInputRef}
+                    className="fx-search-input"
+                    placeholder="Search games, software, gift cards…"
                     type="text"
-                    placeholder="What are you looking for?"
+                    aria-label="Search products"
+                    autoComplete="off"
                     value={searchQuery}
                     onChange={handleSearchChange}
                     onFocus={handleSearchFocus}
-                    className="border-0 bg-transparent text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1"
                   />
-                  <div className="h-6 w-px bg-gray-700" />
-                  <div className="relative">
-                    <select
-                      value={selectedCategory}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="bg-transparent text-white text-sm px-3 py-2 border-0 outline-none cursor-pointer appearance-none pr-8"
-                    >
-                      <option className="text-white bg-primary" value="all">
-                        All Categories
-                      </option>
-                      {categories.map((category) => (
-                        <option
-                          className="text-white bg-primary"
-                          key={category._id}
-                          value={category._id}
-                        >
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                  </div>
-                  <Button
-                    type="submit"
-                    aria-label="Search"
-                    className="bg-gradient-to-r from-accent to-blue-600 hover:from-accent/90 hover:to-blue-600/90 rounded-lg h-full px-4 shadow-lg"
-                  >
-                    <Search className="h-5 w-5 text-white" />
-                  </Button>
+                  <span className="fx-search-divider" />
+                  <select className="fx-search-select" aria-label="Search category" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                    <option value="all">All Categories</option>
+                    {categories.map((category) => (
+                      <option key={category._id} value={category._id}>{category.name}</option>
+                    ))}
+                  </select>
+                  <button className="fx-search-btn" type="submit" aria-label="Search">
+                    <Search width={16} height={16} stroke="#fff" />
+                    <span className="fx-search-btn-label">Search</span>
+                  </button>
                 </div>
+              </form>
 
-                {/* Search Suggestions Dropdown */}
-                {shouldShowSuggestions && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl max-h-96 overflow-y-auto z-50">
+              {/* Suggestions panel (real data) */}
+              {shouldShowSuggestions && (
+                <div className="fx-search-panel" role="listbox" aria-label="Search results">
+                  <div className="fx-sp-list">
                     {searchLoading ? (
-                      <div className="p-4 text-center text-gray-400">
-                        Searching...
-                      </div>
+                      <div className="fx-sp-empty">Searching…</div>
                     ) : searchSuggestions && searchSuggestions.length > 0 ? (
-                      <div className="py-2">
-                        {searchSuggestions.map((product) => {
-                          const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
-                          return (
-                            <button
-                              key={product._id}
-                              type="button"
-                              onClick={() => handleSuggestionClick(product)}
-                              className="w-full px-4 py-3 hover:bg-gray-800/50 flex items-center gap-3 text-left transition-colors"
-                            >
-                              {product.images?.[0] && (
-                                <SafeImage
-                                  src={product.images[0]}
-                                  alt={product.name}
-                                  className="w-12 h-12 object-cover rounded"
-                                />
+                      searchSuggestions.map((product) => {
+                        const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
+                        return (
+                          <button key={product._id} type="button" className="fx-sp-row" onClick={() => handleSuggestionClick(product)}>
+                            <span className="fx-sp-icon">
+                              {product.images?.[0] ? (
+                                <SafeImage src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <Boxes width={20} height={20} stroke="#7BC5FF" />
                               )}
-                              <div className="flex-1 min-w-0">
-                                <div className="text-white font-medium truncate">
-                                  {product.name}
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  {discountPrice && (
-                                    <div className="text-accent text-sm">
-                                      ${discountPrice.toFixed(2)}
-                                    </div>
-                                  )}
-                                  {discountPercentage > 0 && (
-                                    <h3 className="text-xs md:text-sm font-semibold px-1 py-0.5 rounded-[6px] whitespace-nowrap bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]">
-                                      {`-${discountPercentage.toFixed(0)}%`}
-                                    </h3>
-                                  )} 
-                                  {discountPercentage > 0 && (
-                                    <del className="text-xs md:text-sm font-normal uppercase">${originalPrice.toFixed(2)}</del>
-                                  )}
-                                  {product.stock !== undefined && (
-                                    <span
-                                      className={`text-[11px] px-2 py-0.5 rounded ${
-                                        product.stock > 0
-                                          ? "bg-green-900/30 text-green-400"
-                                          : "bg-red-900/30 text-red-400"
-                                      }`}
-                                    >
-                                      {product.stock > 0
-                                        ? `${product.stock} in stock`
-                                        : "Out of stock"}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                            </span>
+                            <span className="fx-sp-body">
+                              <span className="fx-sp-title">{product.name}</span>
+                              <span className="fx-sp-meta">
+                                {discountPercentage > 0 && (
+                                  <span className="text-white font-semibold px-1 py-0.5 rounded-[6px] bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" style={{ fontSize: 11 }}>-{discountPercentage.toFixed(0)}%</span>
+                                )}
+                                {discountPercentage > 0 && <del style={{ opacity: 0.6 }}>${originalPrice.toFixed(2)}</del>}
+                                {product.stock !== undefined && (
+                                  <span className={cn("fx-sp-stockpill", product.stock > 0 ? "in" : "out")}>
+                                    {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                            <span className="fx-sp-right">
+                              {discountPrice != null && <span className="fx-sp-price">${discountPrice.toFixed(2)}</span>}
+                            </span>
+                          </button>
+                        );
+                      })
                     ) : debouncedSearchQuery.trim() ? (
-                      <div className="p-4 text-center text-gray-400">
-                        No products found
-                      </div>
+                      <div className="fx-sp-empty">No products found. Try a different search.</div>
                     ) : null}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right actions — desktop */}
+            <div className="hidden md:flex items-center gap-3 shrink-0">
+              {/* Currency / locale (visual only) */}
+              <div style={{ position: "relative" }} ref={currencyRef}>
+                <button className="fx-curr-btn" onClick={() => setCurrencyOpen((o) => !o)} type="button">
+                  <img src={`https://flagcdn.com/w20/${currency.flag}.png`} width={22} height={16} alt={currency.code} style={{ borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
+                  <span className="fx-curr-label">English EU&nbsp;&nbsp;|&nbsp;&nbsp;{currency.code}</span>
+                </button>
+                {currencyOpen && (
+                  <div className="fx-curr-dropdown">
+                    {CURRENCIES.map((c) => (
+                      <button key={c.code} type="button" className="fx-curr-item" onClick={() => { setCurrency(c); setCurrencyOpen(false); }}>
+                        <img src={`https://flagcdn.com/w20/${c.flag}.png`} width={20} height={14} alt={c.code} style={{ borderRadius: 2 }} />
+                        <span>{c.code} — {c.name}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
-            </form>
 
-            {/* Right Side Actions - Desktop */}
-            <div className="hidden md:flex items-center gap-3 shrink-0">
-              {/* Language Selector */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-accent text-white hover:bg-accent/10 rounded-lg"
-              >
-                <USFlag />
-                <span className="ml-2">ENG</span>
-              </Button>
-
-              {/* Session Menu - Replaces Register Button */}
+              {/* Session (login / register / account) */}
               <SessionMenu />
 
               {/* Wishlist */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-accent text-white hover:bg-accent/10 relative rounded-lg"
-                onClick={() => navigate("/wishlist")}
-                aria-label="Wishlist"
-              >
+              <button className="fx-iconbtn" onClick={() => navigate("/wishlist")} aria-label="Wishlist" type="button">
                 <Heart className="h-5 w-5" strokeWidth={2} />
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-                    {wishlistCount > 9 ? "9+" : wishlistCount}
-                  </span>
-                )}
-              </Button>
+                {wishlistCount > 0 && <span className="fx-iconbtn-badge">{wishlistCount > 9 ? "9+" : wishlistCount}</span>}
+              </button>
 
               {/* Cart */}
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-accent text-white hover:bg-accent/10 relative rounded-lg"
-                onClick={() => navigate("/cart")}
-                aria-label="Cart"
-              >
+              <button className="fx-iconbtn" onClick={() => navigate("/cart")} aria-label="Cart" type="button">
                 <ShoppingCart className="h-5 w-5" strokeWidth={2} />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-                    {cartCount > 9 ? "9+" : cartCount}
-                  </span>
-                )}
-              </Button>
+                {cartCount > 0 && <span className="fx-iconbtn-badge">{cartCount > 9 ? "9+" : cartCount}</span>}
+              </button>
 
-              {/* Notifications (logged-in users only) */}
               {isAuthenticated && <NotificationBell />}
             </div>
           </div>
         </div>
-        <div
-          className={cn(
-            "transition-all duration-300",
-            isScrolled ? "bg-[#060318]/80 backdrop-blur-sm" : "bg-[#060318]/20",
-          )}
-        >
-          {/* Secondary Navigation Row - Desktop */}
-          <div className="hidden md:flex items-center justify-center gap-2 px-4 py-3 container mx-auto">
-            <div className="flex items-center gap-2 flex-wrap w-full justify-between">
-              {/* Categories with Mega Dropdown */}
+
+        {/* Command strip (sub-nav) — desktop */}
+        <div className="fx-cmdbar container mx-auto" ref={categoriesDropdownRef}>
+          <nav className="fx-cmd" aria-label="Browse the store" onMouseLeave={hideSpot}>
+            <div className="fx-cmd-track">
+              <span className="fx-cmd-spot" aria-hidden="true" style={{ left: spot.left, width: spot.width, opacity: spot.opacity }} />
+
+              {/* Categories — opens mega dropdown */}
               <div
-                className="relative flex grow"
-                ref={categoriesDropdownRef}
-                onMouseEnter={() => {
-                  if (categoriesDropdownTimeout) {
-                    clearTimeout(categoriesDropdownTimeout);
-                    setCategoriesDropdownTimeout(null);
-                  }
-                  setShowCategoriesDropdown(true);
-                }}
-                onMouseLeave={() => {
-                  const timeout = setTimeout(() => {
-                    setShowCategoriesDropdown(false);
-                    setHoveredCategory(null);
-                  }, 200);
-                  setCategoriesDropdownTimeout(timeout);
-                }}
+                className="relative"
+                style={{ flex: "1 1 0", minWidth: 0 }}
+                onMouseEnter={openCategories}
+                onMouseLeave={closeCategoriesDelayed}
               >
-                <button
-                  className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center font-medium gap-3 rounded-lg whitespace-nowrap grow"
-                  type="button"
-                >
-                  <Menu className="h-6 w-6 shrink-0" />
-                  Categories
+                <button type="button" className="fx-cmd-item" style={{ width: "100%" }} onMouseEnter={moveSpot}>
+                  <Menu /> <span className="fx-cmd-label">Categories</span>
                 </button>
 
-                {/* Mega Dropdown - 2 Column Layout (Categories + Subcategories) */}
                 {showCategoriesDropdown && categories.length > 0 && (
                   <div
                     className="absolute top-full left-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50"
-                    style={{
-                      marginTop: "2px",
-                      width:
-                        hoveredCategory && subcategories.length > 0
-                          ? "600px"
-                          : "300px",
-                      transition: "width 0.2s ease-in-out",
-                    }}
-                    onMouseEnter={() => {
-                      if (categoriesDropdownTimeout) {
-                        clearTimeout(categoriesDropdownTimeout);
-                        setCategoriesDropdownTimeout(null);
-                      }
-                      setShowCategoriesDropdown(true);
-                    }}
-                    onMouseLeave={() => {
-                      const timeout = setTimeout(() => {
-                        setShowCategoriesDropdown(false);
-                        setHoveredCategory(null);
-                      }, 200);
-                      setCategoriesDropdownTimeout(timeout);
-                    }}
+                    style={{ marginTop: 2, width: hoveredCategory && subcategories.length > 0 ? 600 : 300, transition: "width 0.2s ease-in-out" }}
+                    onMouseEnter={openCategories}
+                    onMouseLeave={closeCategoriesDelayed}
                   >
                     <div className="flex min-h-[300px]">
-                      {/* Left Column - Main Categories */}
-                      <div
-                        className={cn(
-                          "border-r border-gray-700 max-h-[500px] overflow-y-auto",
-                          hoveredCategory && subcategories.length > 0
-                            ? "w-2/5"
-                            : "w-full",
-                        )}
-                      >
+                      <div className={cn("border-r border-gray-700 max-h-[500px] overflow-y-auto", hoveredCategory && subcategories.length > 0 ? "w-2/5" : "w-full")}>
                         {categories.map((category) => {
-                          const hasSubcategories =
-                            categoriesWithSubcategories[category._id] || false;
+                          const hasSubcategories = categoriesWithSubcategories[category._id] || false;
                           return (
                             <button
                               key={category._id}
                               type="button"
                               onMouseEnter={() => handleCategoryHover(category)}
-                              onClick={() => {
-                                navigate(
-                                  `/category/${category.slug || category._id}`,
-                                );
-                                setShowCategoriesDropdown(false);
-                              }}
-                              className={cn(
-                                "w-full px-4 py-3 text-left text-white hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-gray-800/30 last:border-b-0 ",
-                                hoveredCategory?._id === category._id &&
-                                  "bg-gray-800/50",
-                              )}
+                              onClick={() => { navigate(`/category/${category.slug || category._id}`); setShowCategoriesDropdown(false); }}
+                              className={cn("w-full px-4 py-3 text-left text-white hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-gray-800/30 last:border-b-0", hoveredCategory?._id === category._id && "bg-gray-800/50")}
                             >
-                              {/* Category Image/Icon */}
                               {category.image ? (
-                                <SafeImage
-                                  src={category.image}
-                                  alt={category.name}
-                                  className="w-8 h-8 object-cover rounded shrink-0"
-                                />
+                                <SafeImage src={category.image} alt={category.name} className="w-8 h-8 object-cover rounded shrink-0" />
                               ) : (
                                 <div className="w-8 h-8 bg-gray-700 rounded shrink-0 flex items-center justify-center">
                                   <Menu className="h-4 w-4 text-gray-400" />
                                 </div>
                               )}
-
-                              {/* Category Name */}
-                              <span className="flex-1 text-sm font-medium">
-                                {category.name}
-                              </span>
-
-                              {/* Arrow Icon - Only if has subcategories */}
-                              {hasSubcategories && (
-                                <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />
-                              )}
+                              <span className="flex-1 text-sm font-medium">{category.name}</span>
+                              {hasSubcategories && <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />}
                             </button>
                           );
                         })}
                       </div>
-
-                      {/* Right Column - Subcategories Only (Show only if subcategories exist) */}
                       {hoveredCategory && subcategories.length > 0 && (
                         <div className="w-3/5 max-h-[500px] overflow-y-auto bg-gray-800/10">
                           <div className="py-2">
@@ -660,9 +514,7 @@ const Header = () => {
                                 onClick={() => setShowCategoriesDropdown(false)}
                                 className="flex items-center px-4 py-2.5 hover:bg-gray-800/50 transition-colors group border-b border-gray-800/20 last:border-b-0"
                               >
-                                <span className="text-white text-sm group-hover:text-accent flex-1">
-                                  {subcategory.name}
-                                </span>
+                                <span className="text-white text-sm group-hover:text-accent flex-1">{subcategory.name}</span>
                               </Link>
                             ))}
                           </div>
@@ -673,83 +525,54 @@ const Header = () => {
                 )}
               </div>
 
-              {/* Navigation Links */}
-              <Link
-                to="/bestsellers"
-                className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center rounded-lg whitespace-nowrap grow"
-              >
-                Bestsellers
-              </Link>
-              <Link
-                to="/gift-cards"
-                className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center rounded-lg whitespace-nowrap grow"
-              >
-                Gift Cards
-              </Link>
-              <Link
-                to="/random-keys"
-                className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center rounded-lg whitespace-nowrap grow"
-              >
-                Random Keys
-              </Link>
-              <Link
-                to="/software"
-                className="text-white hover:text-accent transition-colors min-h-[43px] px-5 py-[10px] bg-[#07142E] flex items-center justify-center rounded-lg whitespace-nowrap grow"
-              >
-                Software
-              </Link>
-
-              {/* CTA Button */}
-              <Button
-                onClick={() => navigate("/dgmarq-plus")}
-                className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white rounded-lg font-medium shadow-lg"
-              >
-                Save more with DGMARQ Plus
-              </Button>
+              {/* Other nav links */}
+              {navLinks.map((l) => (
+                <Link key={l.to} to={l.to} className="fx-cmd-item" onMouseEnter={moveSpot}>
+                  {l.icon} <span className="fx-cmd-label">{l.label}</span>
+                </Link>
+              ))}
             </div>
-          </div>
+          </nav>
+
+          {/* Plus capsule */}
+          <button type="button" className="fx-plus" onClick={() => navigate("/dgmarq-plus")}>
+            <span className="fx-plus-spark" aria-hidden="true"><Sparkles width={18} height={18} /></span>
+            <span className="fx-plus-text">Save more with <strong>DGMARQ&nbsp;Plus</strong></span>
+          </button>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-700 max-h-[calc(100vh-80px)] overflow-y-auto">
+          <div className="md:hidden border-t border-gray-700 max-h-[calc(100vh-80px)] overflow-y-auto bg-[#060318]">
             <div className="p-4 space-y-4">
-              {/* Categories with Subcategories */}
+              {/* Mobile search */}
+              <form onSubmit={handleSearch} className="flex items-center gap-2">
+                <input
+                  className="flex-1 bg-gray-900/60 border border-accent rounded-lg px-3 h-10 text-white text-sm outline-none"
+                  placeholder="Search…"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                />
+                <Button type="submit" className="h-10 bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" aria-label="Search"><Search className="h-5 w-5" /></Button>
+              </form>
+
               <div className="space-y-2">
-                <button
-                  className="w-full flex items-center justify-between text-white py-2"
-                  onClick={() => setMobileCategoriesOpen(!mobileCategoriesOpen)}
-                >
-                  <div className="flex items-center gap-2">
-                    <Menu className="h-5 w-5" />
-                    <span className="font-medium">Categories</span>
-                  </div>
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 transition-transform",
-                      mobileCategoriesOpen && "rotate-180",
-                    )}
-                  />
+                <button className="w-full flex items-center justify-between text-white py-2" onClick={() => setMobileCategoriesOpen(!mobileCategoriesOpen)}>
+                  <div className="flex items-center gap-2"><Menu className="h-5 w-5" /><span className="font-medium">Categories</span></div>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", mobileCategoriesOpen && "rotate-180")} />
                 </button>
 
-                {/* Mobile Categories List with Subcategories */}
                 {mobileCategoriesOpen && (
                   <div className="pl-6 space-y-2">
                     {categories.map((category) => {
                       const isExpanded = expandedCategoryId === category._id;
-                      const subcategories =
-                        mobileSubcategories[category._id] || [];
-
+                      const subs = mobileSubcategories[category._id] || [];
                       return (
                         <div key={category._id} className="space-y-1">
                           <div className="flex items-center gap-2">
                             <Link
                               to={`/category/${category.slug || category._id}`}
-                              onClick={() => {
-                                setMobileMenuOpen(false);
-                                setMobileCategoriesOpen(false);
-                                setExpandedCategoryId(null);
-                              }}
+                              onClick={() => { setMobileMenuOpen(false); setMobileCategoriesOpen(false); setExpandedCategoryId(null); }}
                               className="flex-1 text-gray-300 hover:text-accent py-1"
                             >
                               {category.name}
@@ -757,28 +580,14 @@ const Header = () => {
                             <button
                               onClick={async () => {
                                 if (!isExpanded) {
-                                  const hasSubs =
-                                    await checkCategoryHasSubcategories(
-                                      category._id,
-                                    );
+                                  const hasSubs = await checkCategoryHasSubcategories(category._id);
                                   if (hasSubs) {
                                     if (!mobileSubcategories[category._id]) {
                                       try {
-                                        const response =
-                                          await subcategoryAPI.getSubcategoriesByCategoryId(
-                                            category._id,
-                                            { isActive: true, limit: 50 },
-                                          );
-                                        setMobileSubcategories((prev) => ({
-                                          ...prev,
-                                          [category._id]:
-                                            response.data.data?.docs || [],
-                                        }));
+                                        const response = await subcategoryAPI.getSubcategoriesByCategoryId(category._id, { isActive: true, limit: 50 });
+                                        setMobileSubcategories((prev) => ({ ...prev, [category._id]: response.data.data?.docs || [] }));
                                       } catch {
-                                        setMobileSubcategories((prev) => ({
-                                          ...prev,
-                                          [category._id]: [],
-                                        }));
+                                        setMobileSubcategories((prev) => ({ ...prev, [category._id]: [] }));
                                       }
                                     }
                                     setExpandedCategoryId(category._id);
@@ -790,26 +599,16 @@ const Header = () => {
                               className="p-1 text-gray-400 hover:text-accent"
                               aria-label={isExpanded ? "Collapse" : "Expand"}
                             >
-                              <ChevronRight
-                                className={cn(
-                                  "h-4 w-4 transition-transform",
-                                  isExpanded && "rotate-90",
-                                )}
-                              />
+                              <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
                             </button>
                           </div>
-                          {/* Subcategories */}
-                          {isExpanded && subcategories.length > 0 && (
+                          {isExpanded && subs.length > 0 && (
                             <div className="pl-4 space-y-1 border-l-2 border-gray-700 ml-2">
-                              {subcategories.map((subcategory) => (
+                              {subs.map((subcategory) => (
                                 <Link
                                   key={subcategory._id}
                                   to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${category._id}`}
-                                  onClick={() => {
-                                    setMobileMenuOpen(false);
-                                    setMobileCategoriesOpen(false);
-                                    setExpandedCategoryId(null);
-                                  }}
+                                  onClick={() => { setMobileMenuOpen(false); setMobileCategoriesOpen(false); setExpandedCategoryId(null); }}
                                   className="block text-gray-400 hover:text-accent py-1 text-sm"
                                 >
                                   {subcategory.name}
@@ -824,51 +623,20 @@ const Header = () => {
                 )}
               </div>
 
-              {/* Navigation Links */}
-              <Link
-                to="/bestsellers"
-                className="block text-white hover:text-accent py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Bestsellers
-              </Link>
-              <Link
-                to="/gift-cards"
-                className="block text-white hover:text-accent py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Gift Cards
-              </Link>
-              <Link
-                to="/random-keys"
-                className="block text-white hover:text-accent py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Random Keys
-              </Link>
-              <Link
-                to="/software"
-                className="block text-white hover:text-accent py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Software
-              </Link>
+              {navLinks.map((l) => (
+                <Link key={l.to} to={l.to} className="block text-white hover:text-accent py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center" onClick={() => setMobileMenuOpen(false)}>
+                  {l.label}
+                </Link>
+              ))}
 
-              {/* CTA Button */}
-              <Button
-                onClick={() => {
-                  navigate("/dgmarq-plus");
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white"
-              >
+              <Button onClick={() => { navigate("/dgmarq-plus"); setMobileMenuOpen(false); }} className="w-full bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white">
                 Save more with DGMARQ Plus
               </Button>
             </div>
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 };
 

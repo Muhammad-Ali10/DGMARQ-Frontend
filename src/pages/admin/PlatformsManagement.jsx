@@ -1,4 +1,4 @@
-import { platformAPI } from "../../services/api";
+import { platformAPI } from "@services/api";
 import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
 
 const config = {

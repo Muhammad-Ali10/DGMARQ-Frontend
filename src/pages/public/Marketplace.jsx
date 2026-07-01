@@ -7,11 +7,11 @@ import {
   HiGiftTop,
   HiCommandLine,
 } from "react-icons/hi2";
-import SectionWrapper from "@/components/marketplace/SectionWrapper";
-import AnimatedHeading from "@/components/marketplace/AnimatedHeading";
-import GlowCard from "@/components/marketplace/GlowCard";
-import GridContainer from "@/components/marketplace/GridContainer";
-import MetricCounter from "@/components/marketplace/MetricCounter";
+import SectionWrapper from "@features/content/marketing/SectionWrapper";
+import AnimatedHeading from "@features/content/marketing/AnimatedHeading";
+import GlowCard from "@features/content/marketing/GlowCard";
+import GridContainer from "@features/content/marketing/GridContainer";
+import MetricCounter from "@features/content/marketing/MetricCounter";
 import { useInView } from "@/hooks/useInView";
 import { useMarketplaceOverview } from "@/hooks/useMarketplaceOverview";
 import {

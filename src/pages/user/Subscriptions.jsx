@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { subscriptionAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { subscriptionAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { CreditCard, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 

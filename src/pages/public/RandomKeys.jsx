@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { categoryAPI } from '../../services/api';
-import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
+import { categoryAPI } from '@services/api';
+import { ProductListingLayout } from '@features/catalog';
 
 const RandomKeys = () => {
   const { data: categoriesData } = useQuery({

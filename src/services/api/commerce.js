@@ -1,4 +1,4 @@
-import api from '../../lib/axios';
+import api from '@lib/axios';
 
 export const orderAPI = {
   getAllOrders: (params) => api.get('/order/my-orders', { params }),

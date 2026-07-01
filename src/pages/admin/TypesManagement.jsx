@@ -1,4 +1,4 @@
-import { typeAPI } from "../../services/api";
+import { typeAPI } from "@services/api";
 import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
 
 const config = {

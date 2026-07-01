@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { store } from '../store/store';
-import { logout } from '../store/slices/authSlice';
-import { showApiError } from '../utils/toast';
+import { store } from '@store/store';
+import { logout } from '@store/slices/authSlice';
+import { showApiError } from '@utils/toast';
 import { API_BASE_URL } from './config';
 
 const api = axios.create({

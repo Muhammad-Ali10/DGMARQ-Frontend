@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { authAPI } from '../../services/api';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { showSuccess, showApiError } from '../../utils/toast';
+import { authAPI } from '@services/api';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/card';
+import { showSuccess, showApiError } from '@utils/toast';
 import { Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 const ResetPassword = () => {

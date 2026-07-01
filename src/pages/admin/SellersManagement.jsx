@@ -1,19 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { adminAPI } from '../../services/api';
+import { adminAPI } from '@services/api';
 import { useState } from 'react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Button } from '@components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Badge } from '@components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { CheckCircle2, XCircle, Eye, Ban, UserCheck, ChevronLeft, ChevronRight, Search, Store, Users, PauseCircle, PlayCircle } from 'lucide-react';
-import { showSuccess, showApiError } from '../../utils/toast';
-import SafeImage from '../../components/ui/safe-image';
+import { showSuccess, showApiError } from '@utils/toast';
+import SafeImage from '@components/ui/safe-image';
 
 const SellersManagement = () => {
   const navigate = useNavigate();

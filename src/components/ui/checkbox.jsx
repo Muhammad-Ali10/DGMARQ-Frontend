@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Check } from "lucide-react"
-import { cn } from "../../lib/utils"
+import { cn } from "@lib/utils"
 
 const Checkbox = React.forwardRef(({ className, checked, onCheckedChange, ...props }, ref) => {
   const [isChecked, setIsChecked] = React.useState(checked || false);

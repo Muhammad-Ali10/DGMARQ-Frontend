@@ -1,10 +1,10 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { checkoutAPI } from '../../services/api';
+import { checkoutAPI } from '@services/api';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { CheckCircle2, XCircle, Clock } from 'lucide-react';
 
 const Checkout = () => {

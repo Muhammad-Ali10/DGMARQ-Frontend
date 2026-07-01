@@ -2,15 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { cartAPI } from "../../services/api";
+import { cartAPI } from "@services/api";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
+} from "@components/ui/card";
+import { Button } from "@components/ui/button";
+import { Badge } from "@components/ui/badge";
 import {
   ShoppingCart,
   Trash2,
@@ -20,16 +20,16 @@ import {
   Tag,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import ConfirmationModal from "../../components/ConfirmationModal";
-import { showSuccess, showApiError } from "../../utils/toast";
+import ConfirmationModal from "@components/common/ConfirmationModal";
+import { showSuccess, showApiError } from "@utils/toast";
 import {
   getGuestCart,
   removeFromGuestCart,
   updateGuestCartQuantity,
   clearGuestCart,
-} from "../../utils/guestCart";
-import { calculateProductPrice } from "../../utils/productUtils";
-import SafeImage from "../../components/ui/safe-image";
+} from "@features/cart-checkout";
+import { calculateProductPrice } from "@features/catalog";
+import SafeImage from "@components/ui/safe-image";
 
 const Cart = () => {
   const navigate = useNavigate();

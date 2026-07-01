@@ -1,19 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { homepageSliderAPI, productAPI } from '../../services/api';
+import { homepageSliderAPI, productAPI } from '@services/api';
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { SearchableSelect } from '../../components/ui/searchable-select';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { SearchableSelect } from '@components/ui/searchable-select';
 import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
-import ConfirmationModal from '../../components/ConfirmationModal';
-import { showSuccess, showApiError } from '../../utils/toast';
-import SafeImage from '../../components/ui/safe-image';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { showSuccess, showApiError } from '@utils/toast';
+import SafeImage from '@components/ui/safe-image';
 
 const SLIDE_POSITIONS = [
   { value: 0, label: 'Position 1 - Left Small' },
@@ -28,6 +28,10 @@ const HomepageSlidersManagement = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedSlider, setSelectedSlider] = useState(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  // Controls the product-suggestion dropdown so it closes once a product is
+  // picked (selecting sets the query to the product name, which alone is not
+  // enough to hide the list).
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
   // FIX: the delete flow was half-wired (button set state but no modal was
   // rendered and no mutation was called — clicking delete did nothing).
   // Completed with ConfirmationModal + deleteMutation below.
@@ -54,6 +58,7 @@ const HomepageSlidersManagement = () => {
       const response = await productAPI.getProducts({
         search: productSearchQuery,
         status: 'active',
+        adminView: 'true',
         limit: 50,
       });
       return response.data.data || { docs: [] };
@@ -208,10 +213,11 @@ const HomepageSlidersManagement = () => {
                     type="text"
                     placeholder="Search products..."
                     value={productSearchQuery}
-                    onChange={(e) => setProductSearchQuery(e.target.value)}
+                    onChange={(e) => { setProductSearchQuery(e.target.value); setShowProductDropdown(true); }}
+                    onFocus={() => setShowProductDropdown(true)}
                     className="bg-secondary border-gray-700 text-white"
                   />
-                  {productSearchQuery.trim() && (
+                  {showProductDropdown && productSearchQuery.trim() && (
                     <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-md bg-secondary">
                       {productsLoading ? (
                         <div className="p-4 text-center text-gray-400">Loading...</div>
@@ -223,6 +229,7 @@ const HomepageSlidersManagement = () => {
                             onClick={() => {
                               setFormData({ ...formData, productId: product._id });
                               setProductSearchQuery(product.name);
+                              setShowProductDropdown(false);
                             }}
                             className={`w-full text-left px-4 py-2 hover:bg-gray-700 transition-colors ${
                               formData.productId === product._id ? 'bg-accent/20' : ''
@@ -441,10 +448,11 @@ const HomepageSlidersManagement = () => {
                   type="text"
                   placeholder="Search products..."
                   value={productSearchQuery}
-                  onChange={(e) => setProductSearchQuery(e.target.value)}
+                  onChange={(e) => { setProductSearchQuery(e.target.value); setShowProductDropdown(true); }}
+                  onFocus={() => setShowProductDropdown(true)}
                   className="bg-secondary border-gray-700 text-white"
                 />
-                {productSearchQuery.trim() && (
+                {showProductDropdown && productSearchQuery.trim() && (
                   <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-md bg-secondary">
                     {productsLoading ? (
                       <div className="p-4 text-center text-gray-400">Loading...</div>
@@ -456,6 +464,7 @@ const HomepageSlidersManagement = () => {
                           onClick={() => {
                             setFormData({ ...formData, productId: product._id });
                             setProductSearchQuery(product.name);
+                            setShowProductDropdown(false);
                           }}
                           className={`w-full text-left px-4 py-2 hover:bg-gray-700 transition-colors ${
                             formData.productId === product._id ? 'bg-accent/20' : ''

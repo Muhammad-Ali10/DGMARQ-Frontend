@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { SellerSidebar } from '../components/ui/sidebar';
-import TopBar from '../components/ui/TopBar';
+import { SellerSidebar } from '@components/Custom/sidebar';
+import TopBar from '@components/Custom/TopBar';
 import { Menu, X } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { cn } from '../lib/utils';
+import { Button } from '@components/ui/button';
+import { cn } from '@lib/utils';
 
 const SellerLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);

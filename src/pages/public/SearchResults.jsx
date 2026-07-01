@@ -1,5 +1,5 @@
-import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
-import { useSEO } from '../../hooks/useSEO';
+import { ProductListingLayout } from '@features/catalog';
+import { useSEO } from '@hooks/useSEO';
 
 /**
  * Search Results page. Uses the SAME layout as Gift Card page (ProductListingLayout).

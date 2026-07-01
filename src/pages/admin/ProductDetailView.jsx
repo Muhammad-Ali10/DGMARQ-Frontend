@@ -1,15 +1,19 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminAPI } from '../../services/api';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { Label } from '../../components/ui/label';
-import { Input } from '../../components/ui/input';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { ArrowLeft, Package, Store, Tag, DollarSign, Layers, Image as ImageIcon, Calendar, EyeOff } from 'lucide-react';
+import { adminAPI, masterCatalogAPI, offerAPI } from '@services/api';
+import { Button } from '@components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Badge } from '@components/ui/badge';
+import { Label } from '@components/ui/label';
+import { Input } from '@components/ui/input';
+import { Textarea } from '@components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { ArrowLeft, Package, Store, Tag, DollarSign, Layers, Image as ImageIcon, Calendar, EyeOff, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import SafeImage from '../../components/ui/safe-image';
+import SafeImage from '@components/ui/safe-image';
 
 const ProductDetailView = () => {
   const { productId } = useParams();
@@ -26,6 +30,13 @@ const ProductDetailView = () => {
     retry: 1,
   });
 
+  // Seller offers listed against this (master) product.
+  const { data: offers = [], isLoading: offersLoading } = useQuery({
+    queryKey: ['admin-product-offers', productId],
+    queryFn: () => masterCatalogAPI.getProductOffers(productId).then((res) => res.data.data),
+    enabled: !!productId,
+  });
+
   const featuredMutation = useMutation({
     mutationFn: (data) => adminAPI.updateProductFeaturedSettings(productId, data),
     onSuccess: () => {
@@ -36,6 +47,29 @@ const ProductDetailView = () => {
       toast.error(err?.response?.data?.message || 'Failed to update featured settings');
     },
   });
+
+  // Per-offer moderation happens here (the Seller Offers list is just an overview).
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState('');
+
+  const refreshOffers = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-product-offers', productId] });
+    queryClient.invalidateQueries({ queryKey: ['admin-product-details', productId] });
+  };
+
+  const approveOfferMutation = useMutation({
+    mutationFn: (offerId) => offerAPI.adminApproveOffer(offerId),
+    onSuccess: () => { refreshOffers(); toast.success('Offer approved — product is now public'); },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Approve failed'),
+  });
+
+  const rejectOfferMutation = useMutation({
+    mutationFn: ({ offerId, reason }) => offerAPI.adminRejectOffer(offerId, { reason }),
+    onSuccess: () => { refreshOffers(); setRejecting(null); setReason(''); toast.success('Offer rejected'); },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Reject failed'),
+  });
+
+  const offerStatusVariant = (s) => (s === 'approved' || s === 'active' ? 'success' : s === 'rejected' ? 'destructive' : s === 'pending' ? 'warning' : 'default');
 
   if (isLoading) return <Loading message="Loading product details..." />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || "Error loading product details"} />;
@@ -66,11 +100,11 @@ const ProductDetailView = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Button
             variant="outline"
-            onClick={() => navigate('/admin/products')}
+            onClick={() => navigate(-1)}
             className="border-gray-700"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Products
+            Back
           </Button>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Product Details</h1>
@@ -100,6 +134,41 @@ const ProductDetailView = () => {
                 <Label className="text-gray-400">Description</Label>
                 <p className="text-white mt-1 whitespace-pre-wrap">{product?.description || 'No description'}</p>
               </div>
+
+              {(product?.publishers || product?.developers || product?.releaseDate) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {product?.publishers && (
+                    <div>
+                      <Label className="text-gray-400">Publishers</Label>
+                      <p className="text-white mt-1">{product.publishers}</p>
+                    </div>
+                  )}
+                  {product?.developers && (
+                    <div>
+                      <Label className="text-gray-400">Developers</Label>
+                      <p className="text-white mt-1">{product.developers}</p>
+                    </div>
+                  )}
+                  {product?.releaseDate && (
+                    <div>
+                      <Label className="text-gray-400">Release Date</Label>
+                      <p className="text-white mt-1">{new Date(product.releaseDate).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {product?.activationDetails && (
+                <div>
+                  <Label className="text-gray-400">Activation Details</Label>
+                  <p className="text-white mt-1 whitespace-pre-wrap text-sm">{product.activationDetails}</p>
+                </div>
+              )}
+              {product?.systemRequirements && (
+                <div>
+                  <Label className="text-gray-400">System Requirements</Label>
+                  <p className="text-white mt-1 whitespace-pre-wrap text-sm">{product.systemRequirements}</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -355,6 +424,97 @@ const ProductDetailView = () => {
           </Card>
         </div>
       </div>
+
+      {/* Sellers & Offers listed against this master product */}
+      <Card className="bg-primary border-gray-700">
+        <CardHeader className="border-b border-gray-700">
+          <CardTitle className="text-white flex items-center gap-2">
+            <Store className="h-5 w-5" />
+            Sellers &amp; Offers
+            {offers.length > 0 && (
+              <Badge variant="default" className="ml-1">{offers.length}</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {offersLoading ? (
+            <p className="text-gray-400 py-8 text-center">Loading offers…</p>
+          ) : offers.length === 0 ? (
+            <p className="text-gray-400 py-8 text-center">
+              No seller has listed an offer on this product yet. It stays in the catalog
+              (admin-only) and is shown to buyers only once an approved offer has available stock.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
+                    <TableHead className="text-gray-300">Seller</TableHead>
+                    <TableHead className="text-gray-300">Price</TableHead>
+                    <TableHead className="text-gray-300">Discount</TableHead>
+                    <TableHead className="text-gray-300">Region</TableHead>
+                    <TableHead className="text-gray-300">Stock</TableHead>
+                    <TableHead className="text-gray-300">Status</TableHead>
+                    <TableHead className="text-gray-300 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {offers.map((o) => (
+                    <TableRow key={o._id} className="border-gray-700 hover:bg-secondary/20">
+                      <TableCell className="text-white font-medium">{o.sellerId?.shopName || 'N/A'}</TableCell>
+                      <TableCell className="text-white">${Number(o.price || 0).toFixed(2)}</TableCell>
+                      <TableCell className="text-gray-300">{o.discount || 0}%</TableCell>
+                      <TableCell className="text-gray-300">{o.region?.name || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant={o.availableKeysCount > 0 ? 'success' : 'destructive'}>{o.availableKeysCount || 0}</Badge>
+                      </TableCell>
+                      <TableCell><Badge variant={offerStatusVariant(o.status)}>{o.status}</Badge></TableCell>
+                      <TableCell className="text-right">
+                        {o.status === 'pending' ? (
+                          <div className="flex items-center gap-2 justify-end">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={approveOfferMutation.isPending} onClick={() => approveOfferMutation.mutate(o._id)}>
+                              <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
+                            </Button>
+                            <Button size="sm" variant="destructive" className="hover:bg-red-700" onClick={() => { setRejecting(o); setReason(''); }}>
+                              <XCircle className="h-4 w-4 mr-1" /> Reject
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 text-sm">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Reject offer dialog */}
+      <Dialog open={!!rejecting} onOpenChange={(o) => { if (!o) { setRejecting(null); setReason(''); } }}>
+        <DialogContent className="bg-primary border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl font-semibold">Reject Offer</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {rejecting?.sellerId?.shopName ? `Seller: ${rejecting.sellerId.shopName}. ` : ''}Reason will be sent to the seller (in-app + email).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label className="text-gray-300">Rejection Reason *</Label>
+              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is this offer rejected?" className="bg-secondary border-gray-700 text-white min-h-[100px]" />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" className="border-gray-700" onClick={() => { setRejecting(null); setReason(''); }}>Cancel</Button>
+              <Button variant="destructive" className="hover:bg-red-700" disabled={!reason.trim() || rejectOfferMutation.isPending} onClick={() => rejectOfferMutation.mutate({ offerId: rejecting._id, reason: reason.trim() })}>
+                {rejectOfferMutation.isPending ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Rejecting…</> : <><XCircle className="w-4 h-4 mr-2" />Confirm Reject</>}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

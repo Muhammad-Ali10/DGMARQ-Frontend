@@ -2,17 +2,17 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { cartAPI, checkoutAPI, couponAPI, subscriptionAPI, walletAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Badge } from '../../components/ui/badge';
-import PaymentModal from '../../components/PaymentModal';
+import { cartAPI, checkoutAPI, couponAPI, subscriptionAPI, walletAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Badge } from '@components/ui/badge';
+import { PaymentModal } from '@features/cart-checkout';
 import { ShoppingCart, CheckCircle2, XCircle, AlertCircle, Loader2, Tag, X, Sparkles, ArrowRight, CreditCard, Wallet, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getGuestCart, clearGuestCart } from '../../utils/guestCart';
-import SafeImage from '../../components/ui/safe-image';
+import { getGuestCart, clearGuestCart } from '@features/cart-checkout';
+import SafeImage from '@components/ui/safe-image';
 
 const Checkout = () => {
   const navigate = useNavigate();

@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { subcategoryAPI, categoryAPI } from '../../services/api';
+import { subcategoryAPI, categoryAPI } from '@services/api';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Plus, Edit, Trash2, Power, ChevronLeft, ChevronRight, Search, X, Layers, Filter, RefreshCw } from 'lucide-react';
 
 const SubcategoriesManagement = () => {

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { UserSidebar } from '../components/ui/sidebar';
-import TopBar from '../components/ui/TopBar';
+import { UserSidebar } from '@components/Custom/sidebar';
+import TopBar from '@components/Custom/TopBar';
 import { Menu, X } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { cn } from '../lib/utils';
+import { Button } from '@components/ui/button';
+import { cn } from '@lib/utils';
 
 const UserLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);

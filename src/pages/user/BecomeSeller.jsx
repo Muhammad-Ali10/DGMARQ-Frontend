@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import api from '../../lib/axios';
-import { setCredentials } from '../../store/slices/authSlice';
+import api from '@lib/axios';
+import { setCredentials } from '@store/slices/authSlice';
 import { GetCountries, GetState, GetCity } from 'react-country-state-city';
 import 'react-country-state-city/dist/react-country-state-city.css';
 import {
@@ -12,17 +12,15 @@ import {
   XCircle, CreditCard,
 } from 'lucide-react';
 
-import { sellerAPI } from '../../services/api';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Checkbox } from '../../components/ui/checkbox';
-import { Loading } from '../../components/ui/loading';
+import { sellerAPI } from '@services/api';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Checkbox } from '@components/ui/checkbox';
+import { Loading } from '@components/ui/loading';
 import { cn } from '@/lib/utils';
-import { showApiError } from '../../utils/toast';
+import { showApiError } from '@utils/toast';
 
-import StepProgress from '../../components/seller/StepProgress';
-import FileDropzone from '../../components/seller/FileDropzone';
-import LocationSelect from '../../components/seller/LocationSelect';
+import { StepProgress, FileDropzone, LocationSelect } from '@features/seller';
 
 const TAX_ID_TYPES = ['ABN', 'VAT', 'EIN', 'GST', 'TIN', 'OTHER'];
 

@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { categoryAPI } from '../../services/api';
-import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
-import { useSEO } from '../../hooks/useSEO';
+import { categoryAPI } from '@services/api';
+import { ProductListingLayout } from '@features/catalog';
+import { useSEO } from '@hooks/useSEO';
 
 const Software = () => {
   useSEO({

@@ -1,4 +1,4 @@
-import { modeAPI } from "../../services/api";
+import { modeAPI } from "@services/api";
 import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
 
 const config = {

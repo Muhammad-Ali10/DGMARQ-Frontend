@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { sellerAPI } from "../../services/api";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { Badge } from "../../components/ui/badge";
-import { Loading } from "../../components/ui/loading";
+import { sellerAPI } from "@services/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { Button } from "@components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
+import { Badge } from "@components/ui/badge";
+import { Loading } from "@components/ui/loading";
 import { DollarSign, FileText, Settings, History, Eye, ArrowUpRight, AlertCircle, Snowflake } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { WithdrawalRequestModal } from "../../components/WithdrawalRequestModal";
-import { useSocket } from "../../hooks/useSocket";
+import { WithdrawalRequestModal } from "@features/wallet-payout";
+import { useSocket } from "@hooks/useSocket";
 
 // ============================================================================
 // Phase 5 - Seller Earnings page rewritten to drive the new withdrawal flow.

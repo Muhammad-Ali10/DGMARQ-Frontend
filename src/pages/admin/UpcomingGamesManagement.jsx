@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { upcomingGamesAPI, productAPI } from '../../services/api';
+import { upcomingGamesAPI, productAPI } from '@services/api';
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Badge } from '../../components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { Badge } from '@components/ui/badge';
 import { toast } from 'sonner';
 import { Search, Check, X, Plus, Trash2, ArrowUp, ArrowDown, Save } from 'lucide-react';
-import SafeImage from '../../components/ui/safe-image';
+import SafeImage from '@components/ui/safe-image';
 
 const UpcomingGamesManagement = () => {
   const queryClient = useQueryClient();
@@ -38,9 +38,10 @@ const UpcomingGamesManagement = () => {
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products-search-upcoming', debouncedSearch],
     queryFn: () => productAPI.getProducts({ 
-      search: debouncedSearch, 
+      search: debouncedSearch,
       limit: 10,
-      status: 'active'
+      status: 'active',
+      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,
   });

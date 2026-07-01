@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { adminAPI } from "../../services/api";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { adminAPI } from "@services/api";
+import { Button } from "@components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import {
   Table,
   TableBody,
@@ -10,16 +10,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../../components/ui/table";
-import { Badge } from "../../components/ui/badge";
+} from "@components/ui/table";
+import { Badge } from "@components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+} from "@components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -27,10 +27,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../../components/ui/dialog";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
-import { Loading, ErrorMessage } from "../../components/ui/loading";
+} from "@components/ui/dialog";
+import { Input } from "@components/ui/input";
+import { Label } from "@components/ui/label";
+import { Loading, ErrorMessage } from "@components/ui/loading";
 import {
   DollarSign,
   ChevronLeft,
@@ -43,8 +43,8 @@ import {
   Eye,
   Snowflake,
 } from "lucide-react";
-import { showApiError, showSuccess } from "../../utils/toast";
-import { useSocket } from "../../hooks/useSocket";
+import { showApiError, showSuccess } from "@utils/toast";
+import { useSocket } from "@hooks/useSocket";
 import { Link } from "react-router-dom";
 
 // ============================================================================

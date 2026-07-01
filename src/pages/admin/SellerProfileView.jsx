@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
-import { adminAPI } from '../../services/api';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { Label } from '../../components/ui/label';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { adminAPI } from '@services/api';
+import { Button } from '@components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Badge } from '@components/ui/badge';
+import { Label } from '@components/ui/label';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { ArrowLeft, Store, Mail, MapPin, Calendar, DollarSign, Package, ShoppingCart, FileText, Image as ImageIcon } from 'lucide-react';
-import SafeImage from '../../components/ui/safe-image';
+import SafeImage from '@components/ui/safe-image';
 
 // Renders a verification document tile. Image documents show a clickable
 // thumbnail; PDFs/other show an icon. Clicking opens the file full-size.

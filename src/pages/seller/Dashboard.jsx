@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { sellerAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { Button } from '../../components/ui/button';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { sellerAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Badge } from '@components/ui/badge';
+import { Button } from '@components/ui/button';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { DollarSign, Package, ShoppingCart, TrendingUp, User, RefreshCw, AlertCircle } from 'lucide-react';
 
 const SellerDashboard = () => {

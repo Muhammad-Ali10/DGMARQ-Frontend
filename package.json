@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview",
     "generate-certs": "node scripts/generate-certs.js",
     "sitemap": "node scripts/generate-sitemap.js"

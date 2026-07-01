@@ -1,15 +1,15 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { licenseKeyAPI } from '../../services/api';
+import { licenseKeyAPI } from '@services/api';
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import LicenseKeysModal from '../../components/LicenseKeysModal';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { LicenseKeysModal } from '@features/seller';
 import { Key, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
-import SafeImage from '../../components/ui/safe-image';
+import SafeImage from '@components/ui/safe-image';
 
 const buildLicenseDetailsFromReveal = (data) => {
   if (!data) return [];

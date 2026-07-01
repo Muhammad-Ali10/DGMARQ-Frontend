@@ -40,8 +40,3 @@ export const getPayPalSDK = async () => {
   return paypalSDKPromise;
 };
 
-export const resetPayPalSDK = () => {
-  paypalSDKInstance = null;
-  paypalSDKPromise = null;
-};
-

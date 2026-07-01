@@ -1,54 +1,62 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { productAPI, cartAPI, reviewAPI, userAPI } from '../../services/api';
-import { useSEO, generateProductSEO } from '../../hooks/useSEO';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { Input } from '../../components/ui/input';
-import { Textarea } from '../../components/ui/textarea';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import ProductCard from '../../components/ProductCard';
-import { 
-  ShoppingCart, 
-  Eye, 
-  Star, 
-  Package, 
-  Store, 
-  Tag,
+import { productAPI, cartAPI, reviewAPI, userAPI } from '@services/api';
+import { useSEO, generateProductSEO } from '@hooks/useSEO';
+import { Textarea } from '@components/ui/textarea';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { ProductCard } from '@features/catalog';
+import {
+  ShoppingCart,
+  Eye,
+  Star,
+  Package,
+  Store,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   CheckCircle,
   XCircle,
-  Monitor,
-  Gamepad2,
-  Palette,
   MapPin,
   Verified,
   User,
   Send,
-  MessageSquare
+  MessageSquare,
+  Heart,
+  Zap,
+  ShieldCheck,
+  Sparkles,
+  FileText,
+  Cpu,
+  FileKey,
+  HelpCircle,
+  Grid3x3,
+  Lock,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
-import { addToGuestCart } from '../../utils/guestCart';
-import { calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, PRODUCT_IMAGE_PLACEHOLDER } from '../../utils/productUtils';
-import SafeImage from '../../components/ui/safe-image';
+import { addToGuestCart } from '@features/cart-checkout';
+import { calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
+import SafeImage from '@components/ui/safe-image';
+import './ProductDetail.css';
 
 const ProductDetail = () => {
   const { identifier } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-  
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [imgFading, setImgFading] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [offerSort, setOfferSort] = useState('price'); // 'price' | 'rating'
   const [reviewsPage, setReviewsPage] = useState(1);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [openAcc, setOpenAcc] = useState({ description: true, sysreq: false, activation: false, faq: false });
+  const [openFaq, setOpenFaq] = useState(null);
 
   const { data: product, isLoading, isError, error } = useQuery({
     queryKey: ['product-detail', identifier],
@@ -66,17 +74,53 @@ const ProductDetail = () => {
     }
   }, [product, identifier, navigate]);
 
+  // Wishlist state (real) — only fetched when logged in.
+  const { data: wishlist } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: async () => {
+      const response = await userAPI.getWishlist();
+      return response.data.data;
+    },
+    enabled: isAuthenticated,
+  });
+
+  const wishlistIds = useMemo(() => {
+    const list = wishlist?.products || [];
+    return new Set(
+      list
+        .map((item) => {
+          const p = item?.productId || item;
+          return (typeof p === 'object' ? p?._id : p)?.toString();
+        })
+        .filter(Boolean)
+    );
+  }, [wishlist]);
+
+  const isWishlisted = !!(product?._id && wishlistIds.has(product._id.toString()));
+
+  const wishlistMutation = useMutation({
+    mutationFn: async ({ productId, add }) =>
+      add ? userAPI.addToWishlist({ productId }) : userAPI.removeFromWishlist({ productId }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+      toast.success(variables.add ? 'Added to wishlist' : 'Removed from wishlist');
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || 'Failed to update wishlist');
+    },
+  });
+
   const { data: userOrders } = useQuery({
     queryKey: ['user-orders-for-review', product?._id],
     queryFn: async () => {
       if (!isAuthenticated || !product?._id) return [];
       try {
-        const response = await userAPI.getMyOrders({ 
+        const response = await userAPI.getMyOrders({
           status: 'completed,PARTIALLY_REFUNDED,partially_completed',
-          limit: 50 
+          limit: 50,
         });
-        const ordersWithProduct = response.data.data.orders.filter(order => 
-          order.items?.some(item => item.productId?._id === product._id || item.productId === product._id)
+        const ordersWithProduct = response.data.data.orders.filter((order) =>
+          order.items?.some((item) => item.productId?._id === product._id || item.productId === product._id)
         );
         return ordersWithProduct;
       } catch {
@@ -117,9 +161,7 @@ const ProductDetail = () => {
           limit: 12,
           page: 1,
         });
-        const filtered = response.data.data.docs.filter(
-          (p) => p._id !== product._id && p.stock > 0
-        );
+        const filtered = response.data.data.docs.filter((p) => p._id !== product._id && p.stock > 0);
         const prioritized = filtered.sort((a, b) => {
           let scoreA = 0;
           let scoreB = 0;
@@ -138,8 +180,8 @@ const ProductDetail = () => {
   });
 
   const addToCartMutation = useMutation({
-    mutationFn: async ({ productId, qty }) => {
-      return await cartAPI.addItem({ productId, qty });
+    mutationFn: async ({ productId, qty, sellerId }) => {
+      return await cartAPI.addItem({ productId, qty, sellerId });
     },
     onSuccess: () => {
       toast.success('Product added to cart!');
@@ -180,12 +222,10 @@ const ProductDetail = () => {
       addToGuestCart({
         productId: product._id,
         qty: quantity,
-        // For guest users, store the discounted unit price so Cart can show it.
-        // (Guest Cart UI does not re-fetch product pricing.)
         price: safeDiscountedPrice,
         originalPrice: safeOriginalPrice,
         discountPercentage: displayDiscountPercent,
-        sellerId: product.sellerId,
+        sellerId: product.bestOffer?.sellerId || product.sellerId,
         name: product.name,
         slug: product.slug,
         image: product.images?.[0],
@@ -199,7 +239,42 @@ const ProductDetail = () => {
     addToCartMutation.mutate({
       productId: product._id,
       qty: quantity,
+      sellerId: product.bestOffer?.sellerId || product.sellerId,
     });
+  };
+
+  const addOfferToCart = (offer) => {
+    if (!offer?.inStock) {
+      toast.error('This seller is out of stock');
+      return;
+    }
+    if (!isAuthenticated) {
+      addToGuestCart({
+        productId: product._id,
+        qty: 1,
+        price: offer.price,
+        originalPrice: offer.price,
+        discountPercentage: offer.discount || 0,
+        sellerId: offer.sellerId,
+        name: product.name,
+        slug: product.slug,
+        image: product.images?.[0],
+        platformName: getPlatformName(product),
+        typeName: getTypeName(product),
+      });
+      toast.success('Added to cart');
+      return;
+    }
+    addToCartMutation.mutate({ productId: product._id, qty: 1, sellerId: offer.sellerId });
+  };
+
+  const handleToggleWishlist = () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to use your wishlist');
+      navigate('/login');
+      return;
+    }
+    wishlistMutation.mutate({ productId: product._id, add: !isWishlisted });
   };
 
   const handleSubmitReview = () => {
@@ -208,17 +283,14 @@ const ProductDetail = () => {
       navigate('/login');
       return;
     }
-
     if (!selectedOrderId) {
       toast.error('Please select an order');
       return;
     }
-
     if (!reviewRating || reviewRating < 1 || reviewRating > 5) {
       toast.error('Please select a rating between 1 and 5 stars');
       return;
     }
-
     const trimmedComment = (reviewComment || '').trim();
     if (!trimmedComment) {
       toast.error('Please enter a comment');
@@ -228,7 +300,6 @@ const ProductDetail = () => {
       toast.error('Comment must be at least 10 characters');
       return;
     }
-
     submitReviewMutation.mutate({
       productId: String(product._id),
       orderId: String(selectedOrderId),
@@ -240,26 +311,12 @@ const ProductDetail = () => {
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
-  const truncateDescription = (text, maxLength = 150) => {
-    if (!text) return '';
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength).trim() + '...';
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   const productSEO = product ? generateProductSEO(product) : null;
-
   const productPath = product ? getProductPath(product) : undefined;
-  const productImage =
-    Array.isArray(product?.images) && product.images[0]
-      ? product.images[0]
-      : undefined;
+  const productImage = Array.isArray(product?.images) && product.images[0] ? product.images[0] : undefined;
 
   useSEO({
     title: productSEO?.title,
@@ -272,15 +329,9 @@ const ProductDetail = () => {
   if (isLoading) {
     return <Loading message="Loading product details..." />;
   }
-
   if (isError) {
-    return (
-      <ErrorMessage 
-        message={error?.response?.data?.message || "Product not found"} 
-      />
-    );
+    return <ErrorMessage message={error?.response?.data?.message || 'Product not found'} />;
   }
-
   if (!product) {
     return <ErrorMessage message="Product not found" />;
   }
@@ -295,78 +346,127 @@ const ProductDetail = () => {
   const images = Array.isArray(product.images)
     ? product.images.filter((image) => typeof image === 'string' && image.trim())
     : [];
+  const galleryImages = images.length > 0 ? images : [PRODUCT_IMAGE_PLACEHOLDER];
+
+  const goToImage = (idx) => {
+    const total = galleryImages.length;
+    if (total <= 1) return;
+    const next = ((idx % total) + total) % total;
+    setImgFading(true);
+    setTimeout(() => {
+      setSelectedImageIndex(next);
+      setImgFading(false);
+    }, 130);
+  };
+
   const reviews = reviewsData?.docs || [];
-  
+
   const seller = product?.sellerId || product?.seller || null;
-  const shortDescription = truncateDescription(product.description, 150);
+
+  const sortedOffers = (() => {
+    const list = [...(product?.offers || [])];
+    if (offerSort === 'rating') {
+      list.sort((a, b) => (b.rating || 0) - (a.rating || 0) || (a.price || 0) - (b.price || 0));
+    } else {
+      list.sort((a, b) => (a.inStock === b.inStock ? 0 : a.inStock ? -1 : 1) || (a.price || 0) - (b.price || 0));
+    }
+    return list;
+  })();
+
   const hasUserPurchased = userOrders && userOrders.length > 0;
-  const userHasReviewed = reviews.some(r => r.userId === user?._id || r.user?._id === user?._id);
-  
+  const userHasReviewed = reviews.some((r) => r.userId === user?._id || r.user?._id === user?._id);
+
   const hasSellerInfo = !!(
-    seller && 
-    seller !== null &&
-    seller !== undefined &&
-    (
-      (typeof seller === 'object' && !Array.isArray(seller) && seller !== null && (seller.shopName || seller._id)) ||
-      (typeof seller === 'string' && seller.length > 0)
-    )
+    seller &&
+    typeof seller === 'object' &&
+    !Array.isArray(seller) &&
+    (seller.shopName || seller._id)
   );
 
   const getSellerId = () => {
     if (!seller) return null;
-    
-    if (typeof seller === 'object' && seller !== null && seller._id) {
-      return seller._id.toString();
-    }
-    
-    if (typeof seller === 'string') {
-      return seller;
-    }
-    
-    if (product?.sellerId) {
-      if (typeof product.sellerId === 'object' && product.sellerId._id) {
-        return product.sellerId._id.toString();
-      }
-      if (typeof product.sellerId === 'string') {
-        return product.sellerId;
-      }
-    }
-    
+    if (typeof seller === 'object' && seller._id) return seller._id.toString();
+    if (typeof seller === 'string') return seller;
     return null;
   };
-
   const sellerId = getSellerId();
   const canNavigateToSeller = !!sellerId;
 
-  const attributes = [];
-  if (product.categoryId) attributes.push({ label: 'Category', value: product.categoryId.name, icon: Tag });
-  if (product.subCategoryId) attributes.push({ label: 'Subcategory', value: product.subCategoryId.name, icon: Tag });
   const platformDisplay = getPlatformName(product);
   const typeDisplay = getTypeName(product);
-  if (platformDisplay) attributes.push({ label: 'Platform', value: platformDisplay, icon: Package });
-  if (product.region?.name) attributes.push({ label: 'Region', value: product.region.name, icon: MapPin });
-  if (typeDisplay) attributes.push({ label: 'Type', value: typeDisplay, icon: Tag });
-  if (product.genre?.name) attributes.push({ label: 'Genre', value: product.genre.name, icon: Tag });
-  if (product.mode?.name) attributes.push({ label: 'Mode', value: product.mode.name, icon: Gamepad2 });
-  if (product.device?.name) attributes.push({ label: 'Device', value: product.device.name, icon: Monitor });
-  if (product.theme?.name) attributes.push({ label: 'Theme', value: product.theme.name, icon: Palette });
+  const regionName = product.region?.name || null;
+
+  // Product Details — split into two balanced columns.
+  const detailItems = [];
+  if (product.categoryId?.name) detailItems.push({ label: 'Category', value: product.categoryId.name });
+  if (platformDisplay) detailItems.push({ label: 'Platform', value: platformDisplay });
+  if (typeDisplay) detailItems.push({ label: 'Type', value: typeDisplay });
+  if (product.mode?.name) detailItems.push({ label: 'Mode', value: product.mode.name });
+  if (product.publishers) detailItems.push({ label: 'Publisher', value: product.publishers });
+  if (product.releaseDate) detailItems.push({ label: 'Released', value: formatDate(product.releaseDate) });
+  if (product.subCategoryId?.name) detailItems.push({ label: 'Subcategory', value: product.subCategoryId.name });
+  if (regionName) detailItems.push({ label: 'Region', value: regionName, isRegion: true });
+  if (product.genre?.name) detailItems.push({ label: 'Genre', value: product.genre.name });
+  if (product.device?.name) detailItems.push({ label: 'Device', value: product.device.name });
+  if (product.developers) detailItems.push({ label: 'Developer', value: product.developers });
+  if (product.theme?.name) detailItems.push({ label: 'Theme', value: product.theme.name });
+  const midpoint = Math.ceil(detailItems.length / 2);
+  const detailLeft = detailItems.slice(0, midpoint);
+  const detailRight = detailItems.slice(midpoint);
+
+  // Review distribution from the currently-loaded reviews (best-effort).
+  const ratingDist = [5, 4, 3, 2, 1].map((star) => ({
+    star,
+    count: reviews.filter((r) => Math.round(r.rating) === star).length,
+  }));
+  const distTotal = reviews.length || 1;
+
+  const otherOffersCount = Math.max((product.offers?.length || 0) - 1, 0);
+
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const toggleAcc = (key) => setOpenAcc((s) => ({ ...s, [key]: !s[key] }));
+
+  const isKeyType = /key|gift|activation/i.test(typeDisplay || product.productType || '');
+
+  const faqs = [
+    {
+      q: 'Where do products on DGMARQ come from?',
+      a: 'Products on DGMARQ are sold by verified third-party sellers from around the world. All sellers go through a full KYC verification process before they can list. Keys are sourced through legitimate retail and wholesale channels.',
+    },
+    {
+      q: 'Is it safe to buy products on DGMARQ?',
+      a: "Yes. DGMARQ uses a secure escrow system — your payment is held until you confirm the key works. Every seller is identity-verified and all transactions are protected by our Buyer Protection policy.",
+    },
+    {
+      q: "How do I verify a seller's reliability?",
+      a: "Each seller profile displays their rating, completed sales, and buyer reviews. Higher-rated sellers with more completed transactions are generally a safer choice.",
+    },
+    {
+      q: 'Can I get a refund for a product I purchased?',
+      a: "Eligible purchases can be refunded within the refund window. If the key you received is invalid, already used, or doesn't work as described, you can open a dispute through your order page.",
+    },
+  ];
 
   return (
-    <div className="space-y-6 pb-8 container mx-auto">
+    <div className="pd-fx space-y-6 pb-8 container mx-auto">
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-400">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => navigate(-1)} className="hover:text-white transition-colors">
             <ChevronLeft className="h-4 w-4" />
           </button>
           <span>Products</span>
-          {product.categoryId && (
+          {product.categoryId?.name && (
             <>
               <span>/</span>
               <span>{product.categoryId.name}</span>
             </>
           )}
-          {product.subCategoryId && (
+          {product.subCategoryId?.name && (
             <>
               <span>/</span>
               <span>{product.subCategoryId.name}</span>
@@ -377,401 +477,658 @@ const ProductDetail = () => {
         </div>
       </nav>
 
+      {/* Product Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column - Media */}
+        {/* Left: Images */}
         <div className="space-y-4">
-          <Card className="bg-card border-gray-700 overflow-hidden">
-            <CardContent className="p-0">
-              <div className="relative aspect-video bg-gray-900">
-                {images.length > 0 ? (
-                  <SafeImage
-                    src={images[selectedImageIndex]}
-                    alt={product.name}
-                    className="w-full h-full object-contain"
-                    fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500">
-                    <Package className="h-24 w-24" />
+          <div className="rounded-xl border border-gray-700 bg-card overflow-hidden">
+            <div className="relative aspect-video bg-gray-900 product-gallery">
+              <SafeImage
+                src={galleryImages[selectedImageIndex]}
+                alt={product.name}
+                className={`w-full h-full object-contain product-gallery-main-image ${imgFading ? 'fading' : ''}`}
+                fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
+              />
+              {galleryImages.length > 1 && (
+                <>
+                  <button type="button" className="product-gallery-arrow prev" aria-label="Previous image" onClick={() => goToImage(selectedImageIndex - 1)}>
+                    <ChevronLeft />
+                  </button>
+                  <button type="button" className="product-gallery-arrow next" aria-label="Next image" onClick={() => goToImage(selectedImageIndex + 1)}>
+                    <ChevronRight />
+                  </button>
+                  <div className="product-gallery-counter">
+                    {selectedImageIndex + 1} / {galleryImages.length}
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                </>
+              )}
+            </div>
+          </div>
 
           {images.length > 1 && (
-            <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               {images.map((image, index) => (
                 <button
                   key={`${image}-${index}`}
-                  onClick={() => setSelectedImageIndex(index)}
+                  onClick={() => goToImage(index)}
                   className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-all ${
-                    selectedImageIndex === index
-                      ? 'border-accent ring-2 ring-accent/50'
-                      : 'border-gray-700 hover:border-gray-600'
+                    selectedImageIndex === index ? 'border-accent ring-2 ring-accent/50' : 'border-gray-700 hover:border-gray-600'
                   }`}
                 >
-                  <SafeImage
-                    src={image}
-                    alt={`${product.name} - ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
-                  />
+                  <SafeImage src={image} alt={`${product.name} - ${index + 1}`} className="w-full h-full object-cover" fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER} />
                 </button>
               ))}
             </div>
           )}
+
+          {/* Trust Badges (static) */}
+          <div style={{ background: 'linear-gradient(135deg,rgba(23,42,164,0.18),rgba(14,159,226,0.08))', border: '1px solid rgba(14,159,226,0.2)', borderRadius: 14, padding: 16, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg,transparent,rgba(14,159,226,0.5),transparent)' }} />
+            <div style={{ marginBottom: 14 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Trusted &amp; Secure</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[
+                { c: '46,207,176', t: 'Buyer Protection', s: 'Every purchase covered by DGMARQ', icon: <ShieldCheck width={18} height={18} stroke="#2ecfb0" /> },
+                { c: '123,159,255', t: 'Secure Checkout', s: 'SSL encrypted & safe payments', icon: <Lock width={18} height={18} stroke="#7B9FFF" /> },
+                { c: '14,159,226', t: 'Authentic Products', s: 'Every listing verified for legitimacy', icon: <CheckCircle width={18} height={18} stroke="#0E9FE2" /> },
+                { c: '249,115,22', t: '24/7 Support', s: "We're here whenever you need us", icon: <MessageSquare width={18} height={18} stroke="#f97316" /> },
+              ].map((b) => (
+                <div key={b.t} style={{ background: `rgba(${b.c},0.06)`, border: `1px solid rgba(${b.c},0.18)`, borderRadius: 10, padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ width: 34, height: 34, background: `rgba(${b.c},0.12)`, border: `1px solid rgba(${b.c},0.25)`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{b.icon}</div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{b.t}</div>
+                    <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.42)', lineHeight: 1.45 }}>{b.s}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Right Column - Product Info */}
-        <div className="space-y-5">
-          {/* Title and Status */}
+        {/* Right: Product Info */}
+        <div className="space-y-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">
-              {product.name}
-            </h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">{product.name}</h1>
             <div className="flex items-center gap-2 flex-wrap mb-3">
-              {product.status === 'active' && (
-                <Badge variant="success" className="text-sm">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Available
-                </Badge>
+              {product.status === 'active' && product.stock > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium bg-green-600 text-white text-sm">
+                  <CheckCircle className="h-3 w-3" /> Available
+                </span>
               )}
-              {product.isFeatured && (
-                <Badge variant="default" className="bg-accent text-sm">
-                  Featured
-                </Badge>
-              )}
-              {typeDisplay && (
-                <Badge variant="outline" className="text-sm">
-                  {typeDisplay}
-                </Badge>
-              )}
+              {product.isFeatured && <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-accent text-white text-sm">Featured</span>}
+              {typeDisplay && <span className="inline-flex items-center rounded-full border border-gray-600 px-2 py-0.5 font-medium text-white text-sm">{typeDisplay}</span>}
+
+              {/* Trustpilot pill (static) */}
+              <span className="tp-pill" aria-label="Rated Excellent on Trustpilot">
+                <span className="tp-label">Excellent</span>
+                <span className="tp-stars" aria-hidden="true">
+                  {[0, 1, 2, 3].map((i) => (
+                    <span key={i} className="tp-star">
+                      <svg viewBox="0 0 24 24" width="11" height="11" fill="#fff"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" /></svg>
+                    </span>
+                  ))}
+                  <span className="tp-star tp-star-half">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="#fff"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" /></svg>
+                  </span>
+                </span>
+                <span className="tp-brand">
+                  <svg viewBox="0 0 24 24" width="11" height="11" fill="#00B67A"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" /></svg>
+                  <span>Trustpilot</span>
+                </span>
+              </span>
             </div>
-            
-            {/* Short Description */}
-            {shortDescription && (
+
+            {product.description && (
               <p className="text-gray-300 text-sm leading-relaxed mb-3 line-clamp-3">
-                {shortDescription}
+                {product.description}{' '}
+                <button
+                  className="text-accent text-xs font-medium hover:underline"
+                  onClick={() => {
+                    setOpenAcc((s) => ({ ...s, description: true }));
+                    scrollTo('pd-description');
+                  }}
+                >
+                  Read more
+                </button>
               </p>
             )}
           </div>
 
-          {/* Rating and Views */}
-          <div className="flex items-center gap-6 text-sm">
+          {/* Rating + views */}
+          <div className="flex items-center gap-4 text-gray-400 text-sm flex-wrap">
             {product.averageRating > 0 && (
               <div className="flex items-center gap-2">
-                <div className="flex items-center">
+                <span className="flex items-center gap-0.5">
                   {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${
-                        i < Math.floor(product.averageRating)
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : i < product.averageRating
-                          ? 'fill-yellow-200 text-yellow-200'
-                          : 'text-gray-600'
-                      }`}
-                    />
+                    <Star key={i} className={`h-4 w-4 ${i < Math.round(product.averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
                   ))}
-                </div>
-                <span className="text-white font-medium">
-                  {product.averageRating.toFixed(1)}
                 </span>
+                <span className="text-white font-bold">{product.averageRating.toFixed(1)}</span>
                 {product.reviewCount > 0 && (
-                  <span className="text-gray-400">
-                    ({product.reviewCount} {product.reviewCount === 1 ? 'review' : 'reviews'})
-                  </span>
+                  <button className="text-[#7fb0ff] hover:underline" onClick={() => scrollTo('pd-reviews')}>
+                    {product.reviewCount} {product.reviewCount === 1 ? 'review' : 'reviews'}
+                  </button>
                 )}
               </div>
             )}
             {product.viewCount !== undefined && (
-              <div className="flex items-center gap-2 text-gray-400">
+              <div className="flex items-center gap-2">
                 <Eye className="h-4 w-4" />
-                <span>{product.viewCount || 0} {product.viewCount === 1 ? 'view' : 'views'}</span>
+                <span>{product.viewCount || 0} views</span>
               </div>
             )}
           </div>
 
-          {/* Price */}
-          <div className="flex flex-col gap-1">
-            {hasDiscount ? (
-              <>
-                <div className="flex items-baseline gap-3 flex-wrap">
-                  <span className="text-2xl text-gray-500 line-through">
-                    ${safeOriginalPrice.toFixed(2)}
-                  </span>
-                  {displayDiscountPercent > 0 && (
-                    <Badge className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-lg px-3 py-1">
-                      {`-${displayDiscountPercent}%`}
-                    </Badge>
-                  )}
+          {/* Trust HUD 2x2 */}
+          <div className="grid grid-cols-2 gap-2" style={{ alignItems: 'stretch' }}>
+            <div className="trust-card" style={{ '--tc-grad': 'linear-gradient(135deg,#2ecfb0,#0e9fe2,transparent 70%)' }}>
+              <div className="trust-glow" style={{ top: -30, right: -20, background: '#2ecfb0' }} />
+              <div className="trust-card-inner">
+                <div className="trust-icon" style={{ background: 'radial-gradient(circle at 30% 30%,rgba(46,207,176,0.35),rgba(46,207,176,0.08))', border: '1px solid rgba(94,240,212,0.5)' }}>
+                  <MapPin width={17} height={17} stroke="#7dd3fc" />
                 </div>
-                <div className="flex items-baseline gap-3 flex-wrap">
-                  <span className="text-4xl font-bold text-accent">
-                    ${safeDiscountedPrice.toFixed(2)}
-                  </span>
+                <div className="flex-1 min-w-0">
+                  <div className="mb-1.5">
+                    <span style={{ background: 'linear-gradient(90deg,rgba(46,207,176,0.25),rgba(14,159,226,0.15))', color: '#5af0d4', fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(94,240,212,0.4)', letterSpacing: '0.08em' }}>{regionName || 'GLOBAL'}</span>
+                  </div>
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.68)', margin: 0, lineHeight: 1.55 }}>Region of activation for this product.</p>
                 </div>
-              </>
-            ) : (
-              <span className="text-4xl font-bold text-accent">
-                ${safeOriginalPrice.toFixed(2)}
-              </span>
-            )}
-          </div>
-
-          {/* Stock Status */}
-          <div className="flex items-center gap-2">
-            {product.stock > 0 ? (
-              <>
-                <CheckCircle className="h-5 w-5 text-green-400" />
-                <span className="text-green-400 font-medium">
-                  {product.stock} in stock
-                </span>
-              </>
-            ) : (
-              <>
-                <XCircle className="h-5 w-5 text-red-400" />
-                <span className="text-red-400 font-medium">Out of stock</span>
-              </>
-            )}
-          </div>
-
-          {/* Quantity and Add to Cart */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <label className="text-white font-medium">Quantity:</label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-white font-semibold w-12 text-center">
-                  {quantity}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setQuantity(Math.min(product.stock || 1, quantity + 1))}
-                  disabled={quantity >= (product.stock || 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
               </div>
             </div>
-
-            <Button
-              onClick={handleAddToCart}
-              disabled={!product.stock || product.stock === 0 || addToCartMutation.isPending}
-              className="w-full h-12 text-lg"
-              size="lg"
-            >
-              <ShoppingCart className="h-5 w-5 mr-2" />
-              {addToCartMutation.isPending ? 'Adding...' : 'Add to Cart'}
-            </Button>
-            {!isAuthenticated && product.stock > 0 && (
-              <Button
-                onClick={() =>
-                  navigate('/checkout', {
-                    state: {
-                      guestItems: [
-                        {
-                          productId: product._id,
-                          productName: product.name,
-                          name: product.name,
-                          slug: product.slug,
-                          image: product.images?.[0],
-                          qty: quantity,
-                        },
-                      ],
-                    },
-                  })
-                }
-                variant="outline"
-                className="w-full h-12 text-lg border-gray-600 text-gray-300 hover:bg-gray-800"
-                size="lg"
-              >
-                Purchase as guest
-              </Button>
-            )}
+            <div className="trust-card" style={{ '--tc-grad': 'linear-gradient(135deg,#c6d4df,#7B9FFF,transparent 70%)' }}>
+              <div className="trust-glow" style={{ top: -30, right: -20, background: '#c6d4df' }} />
+              <div className="trust-card-inner">
+                <div className="trust-icon" style={{ background: 'radial-gradient(circle at 30% 30%,rgba(198,212,223,0.3),rgba(139,175,196,0.08))', border: '1px solid rgba(198,212,223,0.45)' }}>
+                  <Package width={17} height={17} stroke="#c6d4df" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span style={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 4, fontWeight: 700 }}>Platform</span>
+                  <span className="text-white font-extrabold block" style={{ fontSize: 14.5 }}>{platformDisplay || 'Multi'}</span>
+                </div>
+              </div>
+            </div>
+            <div className="trust-card" style={{ '--tc-grad': 'linear-gradient(135deg,#0E9FE2,#172AA4,transparent 70%)' }}>
+              <div className="trust-glow" style={{ bottom: -30, left: -20, background: '#0E9FE2' }} />
+              <div className="trust-card-inner">
+                <div className="trust-icon" style={{ background: 'radial-gradient(circle at 30% 30%,rgba(14,159,226,0.32),rgba(14,159,226,0.06))', border: '1px solid rgba(108,200,245,0.45)' }}>
+                  <ShieldCheck width={17} height={17} stroke="#6cc8f5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="font-bold text-xs block mb-1" style={{ color: '#6cc8f5' }}>Dispute Protection</span>
+                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>Every purchase is protected by escrow &amp; dispute resolution.</p>
+                </div>
+              </div>
+            </div>
+            <div className="trust-card" style={{ '--tc-grad': 'linear-gradient(135deg,#7B9FFF,#a855f7,transparent 70%)' }}>
+              <div className="trust-glow" style={{ bottom: -30, left: -20, background: '#7B9FFF' }} />
+              <div className="trust-card-inner">
+                <div className="trust-icon" style={{ background: 'radial-gradient(circle at 30% 30%,rgba(123,159,255,0.32),rgba(123,159,255,0.06))', border: '1px solid rgba(174,189,255,0.45)' }}>
+                  <Zap width={17} height={17} stroke="#aebdff" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="font-bold text-xs block mb-1" style={{ color: '#aebdff' }}>Instant Delivery</span>
+                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>Orders are delivered instantly &amp; automatically, 24/7.</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Product Attributes - Compact Layout */}
-          {attributes.length > 0 && (
-            <Card className="bg-card border-gray-700">
-              <CardHeader className="border-b border-gray-700 pb-3">
-                <CardTitle className="text-white text-base">Product Details</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {attributes.map((attr, index) => {
-                    const Icon = attr.icon;
-                    return (
-                      <div key={`${attr.label}-${attr.value}-${index}`} className="flex items-center gap-2 text-sm">
-                        <Icon className="h-4 w-4 text-gray-400 shrink-0" />
-                        <span className="text-gray-400">{attr.label}:</span>
-                        <span className="text-white font-medium">{attr.value}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-
-      {/* Seller Information Section */}
-      {hasSellerInfo && seller && typeof seller === 'object' && (
-        <Card className="bg-card border-gray-700">
-          <CardHeader className="border-b border-gray-700">
-            <CardTitle className="text-white text-lg flex items-center gap-2">
-              <Store className="h-5 w-5" />
-              Seller Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-6">
-              {seller?.shopLogo && (
-                <div 
-                  className={`shrink-0 ${canNavigateToSeller ? 'cursor-pointer transition-transform hover:scale-105' : ''}`}
-                  onClick={canNavigateToSeller ? () => navigate(`/seller/${sellerId}`) : undefined}
-                >
-                  <SafeImage
-                    src={seller.shopLogo}
-                    alt={seller.shopName || 'Seller'}
-                    className="w-20 h-20 rounded-lg object-cover border border-gray-700"
-                    hideOnError={true}
-                  />
-                </div>
-              )}
-              <div className="flex-1 space-y-3">
-                <div>
-                  <h3 
-                    className={`text-xl font-semibold text-white mb-1 ${canNavigateToSeller ? 'cursor-pointer hover:text-accent transition-colors' : ''}`}
-                    onClick={canNavigateToSeller ? () => navigate(`/seller/${sellerId}`) : undefined}
-                  >
-                    {seller?.shopName || 'Seller'}
-                  </h3>
-                  {seller?.rating > 0 && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-4 w-4 ${
-                              i < Math.floor(seller.rating)
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-gray-600'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-gray-400 text-sm">
-                        {seller.rating.toFixed(1)} Seller Rating
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {seller?.description && (
-                  <p className="text-gray-300 text-sm leading-relaxed">
-                    {seller.description}
-                  </p>
+          {/* Price + side cards */}
+          <div className="fx-price-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'stretch' }}>
+            {/* LEFT: price card */}
+            <div className="fx-price-card">
+              <span className="fx-corner fx-corner-tl" /><span className="fx-corner fx-corner-tr" /><span className="fx-corner fx-corner-bl" /><span className="fx-corner fx-corner-br" />
+              <span className="fx-scanline" />
+              <div className="fx-price-top" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, position: 'relative', flexWrap: 'wrap' }}>
+                <span className="fx-price text-3xl font-bold">${safeDiscountedPrice.toFixed(2)}</span>
+                {hasDiscount && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span className="text-sm text-gray-500 line-through" style={{ lineHeight: 1 }}>${safeOriginalPrice.toFixed(2)}</span>
+                    {displayDiscountPercent > 0 && (
+                      <span className="inline-flex items-center rounded-full text-white text-xs font-medium px-2 py-0.5 bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" style={{ width: 'fit-content' }}>-{displayDiscountPercent}%</span>
+                    )}
+                  </div>
                 )}
-                {(seller?.country || seller?.state || seller?.city) && (
-                  <div className="flex items-center gap-2 text-gray-400 text-sm">
-                    <MapPin className="h-4 w-4" />
-                    <span>
-                      {[seller.city, seller.state, seller.country].filter(Boolean).join(', ')}
+                <span className={`fx-stock-top ${product.stock > 0 ? '' : 'oos'}`}>
+                  {product.stock > 0 ? <CheckCircle width={11} height={11} /> : <XCircle width={11} height={11} />}
+                  <span className="fx-stock-num">{product.stock > 0 ? product.stock : 0}</span>
+                  <span className="fx-stock-label">{product.stock > 0 ? 'in stock' : 'out'}</span>
+                </span>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '8px 0' }} />
+
+              {/* Plus row (real subscription) */}
+              <a
+                href="/dgmarq-plus"
+                className="plus-price-row"
+                style={{ marginBottom: 8 }}
+                onClick={(e) => { e.preventDefault(); navigate('/dgmarq-plus'); }}
+              >
+                <div className="plus-price-icon">
+                  <Sparkles stroke="#fff" />
+                </div>
+                <div className="plus-price-text">
+                  <span className="plus-price-save">{product.hasSubscriptionDiscount ? 'DGMARQ Plus discount applied' : 'Save more with DGMARQ Plus'}</span>
+                  <div className="plus-price-amount">
+                    {product.hasSubscriptionDiscount ? (
+                      <>Active <em>on all products</em></>
+                    ) : (
+                      <>Members save on every order <em>· join now</em></>
+                    )}
+                  </div>
+                </div>
+                <div className="plus-price-arrow"><ChevronRight width={14} height={14} /></div>
+              </a>
+
+              {/* Quantity + more offers */}
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, flexShrink: 0 }}>
+                  <button className="flex items-center justify-center text-white hover:text-accent transition-colors disabled:opacity-40" style={{ width: 32, height: 34 }} disabled={quantity <= 1} onClick={() => setQuantity(Math.max(1, quantity - 1))}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14" /></svg>
+                  </button>
+                  <span className="text-white font-semibold text-sm" style={{ width: 26, textAlign: 'center', borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)', height: 34, lineHeight: '34px' }}>{quantity}</span>
+                  <button className="flex items-center justify-center text-white hover:text-accent transition-colors disabled:opacity-40" style={{ width: 32, height: 34 }} disabled={quantity >= (product.stock || 1)} onClick={() => setQuantity(Math.min(product.stock || 1, quantity + 1))}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                  </button>
+                </div>
+                {otherOffersCount > 0 ? (
+                  <button className="fx-offers-cta" onClick={() => scrollTo('pd-offers')}>
+                    <span className="fx-offers-left">
+                      <Grid3x3 width={13} height={13} />
+                      <span className="fx-offers-count">+{otherOffersCount} more {otherOffersCount === 1 ? 'offer' : 'offers'}</span>
+                    </span>
+                    <span className="fx-offers-arrow"><ChevronRight width={14} height={14} /></span>
+                  </button>
+                ) : (
+                  <div className="fx-offers-cta" style={{ cursor: 'default', opacity: 0.7 }}>
+                    <span className="fx-offers-left">
+                      <Store width={13} height={13} />
+                      <span className="fx-offers-count">Sold by {product.sellerCount || 1} seller{(product.sellerCount || 1) > 1 ? 's' : ''}</span>
                     </span>
                   </div>
                 )}
-                <div className="flex items-center gap-3 flex-wrap">
-                  {seller?.status === 'approved' && (
-                    <Badge variant="default" className="bg-green-600 text-white w-fit">
-                      <Verified className="h-3 w-3 mr-1" />
-                      Verified Seller
-                    </Badge>
+              </div>
+            </div>
+
+            {/* RIGHT: wishlist + payments stacked */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignSelf: 'stretch' }}>
+              <div className="rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <button onClick={handleToggleWishlist} disabled={wishlistMutation.isPending} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                  <Heart width={24} height={24} style={{ fill: isWishlisted ? '#f472b6' : 'none', stroke: isWishlisted ? '#f472b6' : 'rgba(255,255,255,0.5)', transition: 'all 0.2s' }} />
+                  <span className="text-xs" style={{ color: isWishlisted ? '#f472b6' : 'rgba(255,255,255,0.4)', fontSize: 10, whiteSpace: 'nowrap' }}>{isWishlisted ? 'Wishlisted' : 'Wishlist'}</span>
+                </button>
+                <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
+                <div className="flex items-start gap-2">
+                  <ShieldCheck width={12} height={12} style={{ marginTop: 1, flexShrink: 0, stroke: 'rgba(255,255,255,0.3)' }} />
+                  <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.3)', margin: 0 }}>Product not working? Refund window applies.</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '12px 14px' }}>
+                <p className="text-xs font-medium mb-2" style={{ color: 'rgba(255,255,255,0.35)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Accepted payments</p>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'stretch', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', borderRadius: 6, height: 30, padding: '0 10px', flex: 1, gap: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#3c4043' }}>GPay</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1A1F71', borderRadius: 6, height: 30, padding: '0 10px', flex: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 900, color: '#fff', fontStyle: 'italic' }}>VISA</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#252525', borderRadius: 6, height: 30, padding: '0 10px', flex: 1, gap: 3 }}>
+                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#EB001B' }} />
+                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#F79E1B', marginLeft: -6 }} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', borderRadius: 6, height: 30, padding: '0 10px', flex: 1 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#003087' }}>Pay</span><span style={{ fontSize: 11, fontWeight: 800, color: '#009cde' }}>Pal</span>
+                  </div>
+                </div>
+                <p className="text-xs flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.25)', margin: 0 }}>
+                  <Lock width={10} height={10} /> SSL encrypted &amp; secure
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="space-y-3">
+            <button
+              onClick={handleAddToCart}
+              disabled={!product.stock || product.stock === 0 || addToCartMutation.isPending}
+              className="inline-flex items-center justify-center gap-2 font-medium bg-primary text-white hover:opacity-90 rounded-md px-6 w-full h-12 text-lg disabled:opacity-50"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {addToCartMutation.isPending ? 'Adding...' : 'Add to Cart'}
+            </button>
+            {!isAuthenticated && product.stock > 0 && (
+              <button
+                onClick={() =>
+                  navigate('/checkout', {
+                    state: {
+                      guestItems: [{ productId: product._id, productName: product.name, name: product.name, slug: product.slug, image: product.images?.[0], qty: quantity }],
+                    },
+                  })
+                }
+                className="inline-flex items-center justify-center gap-2 font-medium bg-transparent text-white border border-gray-600 hover:border-gray-400 hover:bg-white/5 transition-colors rounded-md px-4 w-full h-12 text-sm"
+              >
+                <User className="h-4 w-4" /> Purchase as guest
+              </button>
+            )}
+
+            {/* Important Notice */}
+            {isKeyType && (
+              <div style={{ background: '#07142E', border: '1.5px solid #0e51e2', borderRadius: 12, padding: '14px 16px', position: 'relative', overflow: 'hidden', boxShadow: '0 0 18px rgba(14,81,226,0.25)' }}>
+                <p style={{ color: '#5b8fff', fontWeight: 700, fontSize: 12, margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <HelpCircle width={13} height={13} /> Important Notice
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, lineHeight: 1.6, margin: 0 }}>
+                  This is a digital edition of the product <span style={{ color: '#fff', fontWeight: 600 }}>(CD-KEY)</span>. You will receive an activation key to redeem on the relevant platform. No physical item is shipped. Ensure this key is compatible with your region before purchasing.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Product Details table */}
+      {detailItems.length > 0 && (
+        <div className="fx-pd4">
+          <div className="fx-pd4-head">
+            <FileText width={13} height={13} stroke="#0E9FE2" /> Product Details
+          </div>
+          <div className="fx-pd4-body">
+            <div className="fx-pd4-col has-border">
+              {detailLeft.map((d) => (
+                <div key={d.label} className="fx-pd4-item">
+                  <span className="fx-pd4-lbl">{d.label}</span>
+                  {d.isRegion ? <span className="fx-pd4-region">{d.value}</span> : <span className="fx-pd4-val">{d.value}</span>}
+                </div>
+              ))}
+            </div>
+            <div className="fx-pd4-col">
+              {detailRight.map((d) => (
+                <div key={d.label} className="fx-pd4-item">
+                  <span className="fx-pd4-lbl">{d.label}</span>
+                  {d.isRegion ? <span className="fx-pd4-region">{d.value}</span> : <span className="fx-pd4-val">{d.value}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seller Info (single-seller / legacy products) */}
+      {hasSellerInfo && (
+        <div className="fx-seller-card">
+          <div className="fx-seller-beam" />
+          <div className="fx-seller-header">
+            <div className="fx-seller-header-title">
+              <Store width={14} height={14} stroke="#0E9FE2" /> Seller Information
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', color: 'rgba(34,197,94,0.7)', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e', display: 'inline-block' }} /> Verified
+            </span>
+          </div>
+          <div className="fx-seller-body">
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
+              <div className="fx-seller-avatar-wrap">
+                <div className="fx-seller-avatar-ring" />
+                {seller.shopLogo ? (
+                  <SafeImage alt={seller.shopName || 'Seller'} className="fx-seller-avatar-img" src={seller.shopLogo} hideOnError />
+                ) : (
+                  <div className="fx-seller-avatar-fallback">{(seller.shopName || 'S').charAt(0).toUpperCase()}</div>
+                )}
+                <div className="fx-seller-avatar-dot" />
+              </div>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+                  <button className="fx-seller-name" onClick={canNavigateToSeller ? () => navigate(`/seller/${sellerId}`) : undefined}>{seller.shopName || 'Seller'}</button>
+                  {seller.status === 'approved' && (
+                    <span className="fx-seller-badge fx-seller-badge-verified">
+                      <Verified width={11} height={11} /> Verified Seller
+                    </span>
                   )}
-                  {canNavigateToSeller && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/seller/${sellerId}`)}
-                      className="hover:bg-accent hover:text-white transition-colors"
-                    >
-                      <Store className="h-4 w-4 mr-2" />
-                      View Seller Profile
-                    </Button>
+                </div>
+                <div className="fx-seller-stats">
+                  <div className="fx-seller-stat" style={{ '--sc': 'rgba(245,142,42,0.6)' }}>
+                    <span className="fx-seller-stat-num" style={{ color: '#F58E2A' }}>{(seller.rating || 0).toFixed(1)}</span>
+                    <span className="fx-seller-stat-label">Rating</span>
+                  </div>
+                  {product.reviewCount > 0 && (
+                    <div className="fx-seller-stat" style={{ '--sc': 'rgba(46,207,176,0.6)' }}>
+                      <span className="fx-seller-stat-num" style={{ color: '#2ecfb0' }}>{product.reviewCount}</span>
+                      <span className="fx-seller-stat-label">Reviews</span>
+                    </div>
+                  )}
+                  {seller.status === 'approved' && (
+                    <div className="fx-seller-stat" style={{ '--sc': 'rgba(123,159,255,0.6)' }}>
+                      <span className="fx-seller-stat-num" style={{ color: '#7B9FFF' }}>KYC</span>
+                      <span className="fx-seller-stat-label">Verified</span>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Description */}
-      {product.description && (
-        <Card className="bg-card border-gray-700">
-          <CardHeader className="border-b border-gray-700">
-            <CardTitle className="text-white">Description</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="text-gray-300 whitespace-pre-wrap leading-relaxed">
-              {product.description}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Reviews Section */}
-      <Card className="bg-card border-gray-700">
-        <CardHeader className="border-b border-gray-700">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-white text-lg flex items-center gap-2">
-              <Star className="h-5 w-5" />
-              Reviews
-              {product.reviewCount > 0 && (
-                <span className="text-gray-400 font-normal text-base">
-                  ({product.reviewCount})
-                </span>
+            {seller.description && <p className="fx-seller-bio">{seller.description}</p>}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              {(seller.country || seller.state || seller.city) && (
+                <div className="fx-seller-location">
+                  <MapPin width={13} height={13} stroke="rgba(123,159,255,0.6)" />
+                  {[seller.city, seller.state, seller.country].filter(Boolean).join(', ')}
+                </div>
               )}
-            </CardTitle>
-            {isAuthenticated && hasUserPurchased && !userHasReviewed && !showReviewForm && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowReviewForm(true)}
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Write a Review
-              </Button>
-            )}
+              {canNavigateToSeller && (
+                <button className="fx-seller-cta" onClick={() => navigate(`/seller/${sellerId}`)}>
+                  <Store width={14} height={14} /> View Seller Profile
+                </button>
+              )}
+            </div>
           </div>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {/* Review Submission Form */}
+        </div>
+      )}
+
+      {/* Offers from other sellers */}
+      {product.offers && product.offers.length > 0 && (
+        <div id="pd-offers" className="of-shell">
+          <div className="of-topline" />
+          <div className="of-grid" />
+          <div className="of-head">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+              <div className="of-head-icon"><Store width={18} height={18} stroke="#0E9FE2" /></div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#fff' }}>Offers from Other Sellers</h3>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.45)' }}>{product.offers.length} {product.offers.length === 1 ? 'offer' : 'offers'}</span>
+                </div>
+                <p style={{ margin: '3px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Compare prices, regions and seller ratings across the marketplace</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase' }}>Sort</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setOfferSort('price')} className={`of-sort-btn ${offerSort === 'price' ? 'active' : ''}`}>Best Price</button>
+                <button onClick={() => setOfferSort('rating')} className={`of-sort-btn ${offerSort === 'rating' ? 'active' : ''}`}>Best Rating</button>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ position: 'relative', padding: 8 }}>
+            {sortedOffers.map((o, idx) => {
+              const isBest = idx === 0 && offerSort === 'price';
+              const rankClass = idx === 0 ? 'of-rank-1' : idx === 1 ? 'of-rank-2' : 'of-rank-3';
+              return (
+                <div key={o._id} className={`of-row ${isBest ? 'of-row-best' : ''}`}>
+                  {isBest && <div className="of-scan" />}
+                  <span className="of-corner2 tl" /><span className="of-corner2 tr" /><span className="of-corner2 bl" /><span className="of-corner2 br" />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14, padding: '13px 14px', zIndex: 1, flexWrap: 'wrap' }}>
+                    <div className={`of-rank ${rankClass}`}>{String(idx + 1).padStart(2, '0')}</div>
+                    {o.shopLogo ? (
+                      <SafeImage src={o.shopLogo} alt={o.shopName || 'Seller'} style={{ width: 44, height: 44, borderRadius: 9, flexShrink: 0, objectFit: 'cover' }} hideOnError />
+                    ) : (
+                      <div style={{ width: 44, height: 44, borderRadius: 9, flexShrink: 0, background: 'linear-gradient(135deg,#172AA4,#0e51e2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Store width={18} height={18} stroke="#fff" />
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => o.sellerId && navigate(`/seller/${o.sellerId}`)}
+                          style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#fff', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+                        >
+                          {o.shopName || 'Seller'}
+                        </button>
+                        {isBest && <span className="of-best-badge">★ BEST PRICE</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        {o.region ? <span className="of-region-active">{o.region}</span> : <span className="of-region-pill">GLOBAL</span>}
+                        <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10 }}>/</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <Star width={11} height={11} className="fill-yellow-400 text-yellow-400" />
+                          <span style={{ fontSize: 11, color: '#e2a931', fontWeight: 700 }}>{(o.rating || 0).toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+                      <p className={`of-price ${isBest ? 'of-price-best' : ''}`} style={{ margin: 0 }}>${Number(o.price || 0).toFixed(2)}</p>
+                      {o.inStock ? (
+                        <span className="of-stock"><span className="of-dot of-dot-green" style={{ width: 5, height: 5 }} />{o.availableKeysCount || 1} in stock</span>
+                      ) : (
+                        <span className="of-stock oos">Out of stock</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+                      <button className="of-cart" title="Add to cart" disabled={!o.inStock || addToCartMutation.isPending} onClick={() => addOfferToCart(o)}>
+                        <ShoppingCart width={15} height={15} />
+                      </button>
+                      <button className="of-buy" disabled={!o.inStock || addToCartMutation.isPending} onClick={() => addOfferToCart(o)}>Buy now</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Description accordion */}
+      {product.description && (
+        <div id="pd-description" className="fx-acc">
+          <button className="fx-acc-head" onClick={() => toggleAcc('description')}>
+            <span className="fx-acc-title"><FileText width={18} height={18} /> Description</span>
+            <ChevronDown className={`fx-acc-chevron ${openAcc.description ? 'open' : ''}`} width={18} height={18} />
+          </button>
+          {openAcc.description && (
+            <div className="fx-acc-body">
+              <div className="text-gray-300 whitespace-pre-wrap leading-relaxed text-sm">{product.description}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* System Requirements accordion */}
+      {product.systemRequirements && (
+        <div className="fx-acc">
+          <button className="fx-acc-head" onClick={() => toggleAcc('sysreq')}>
+            <span className="fx-acc-title"><Cpu width={18} height={18} /> System Requirements</span>
+            <ChevronDown className={`fx-acc-chevron ${openAcc.sysreq ? 'open' : ''}`} width={18} height={18} />
+          </button>
+          {openAcc.sysreq && (
+            <div className="fx-acc-body">
+              <div className="text-gray-300 whitespace-pre-wrap leading-relaxed text-sm">{product.systemRequirements}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Activation Details accordion */}
+      {product.activationDetails && (
+        <div className="fx-acc">
+          <button className="fx-acc-head" onClick={() => toggleAcc('activation')}>
+            <span className="fx-acc-title"><FileKey width={18} height={18} /> Activation Details</span>
+            <ChevronDown className={`fx-acc-chevron ${openAcc.activation ? 'open' : ''}`} width={18} height={18} />
+          </button>
+          {openAcc.activation && (
+            <div className="fx-acc-body">
+              <div className="text-gray-300 whitespace-pre-wrap leading-relaxed text-sm">{product.activationDetails}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* FAQ accordion (static, platform-level) */}
+      <div className="fx-acc">
+        <button className="fx-acc-head" onClick={() => toggleAcc('faq')}>
+          <span className="fx-acc-title"><HelpCircle width={18} height={18} /> FAQ</span>
+          <ChevronDown className={`fx-acc-chevron ${openAcc.faq ? 'open' : ''}`} width={18} height={18} />
+        </button>
+        {openAcc.faq && (
+          <div className="fx-acc-body">
+            <div className="space-y-2">
+              {faqs.map((f, i) => (
+                <div key={i} className="rounded-lg border border-gray-700 overflow-hidden">
+                  <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="flex items-center justify-between w-full px-5 py-4 text-left text-sm font-semibold text-white hover:bg-white/5 transition-colors">
+                    {f.q}
+                    <ChevronDown className={`fx-acc-chevron ${openFaq === i ? 'open' : ''}`} width={16} height={16} />
+                  </button>
+                  {openFaq === i && <div className="px-5 pb-4 text-sm text-gray-300 leading-relaxed">{f.a}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Reviews */}
+      <div id="pd-reviews" className="rounded-xl border border-gray-700 bg-card" style={{ scrollMarginTop: 90 }}>
+        <div className="flex items-center justify-between gap-2 px-6 border-b border-gray-700 py-4">
+          <span className="font-semibold text-white text-lg flex items-center gap-2">
+            <Star className="h-5 w-5" /> Reviews
+            {product.reviewCount > 0 && <span className="text-gray-400 font-normal text-base">({product.reviewCount})</span>}
+          </span>
+          {isAuthenticated && hasUserPurchased && !userHasReviewed && !showReviewForm && (
+            <button onClick={() => setShowReviewForm(true)} className="inline-flex items-center gap-2 text-sm border border-gray-600 rounded-md px-3 py-1.5 text-white hover:bg-white/5">
+              <MessageSquare className="h-4 w-4" /> Write a Review
+            </button>
+          )}
+        </div>
+
+        <div className="px-6 py-6">
+          {/* Aggregate summary */}
+          {product.reviewCount > 0 && (
+            <div className="flex items-center gap-5 pb-5 mb-5 border-b border-gray-700 flex-wrap">
+              <div style={{ textAlign: 'center', minWidth: 78 }}>
+                <div style={{ fontSize: 38, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{product.averageRating.toFixed(1)}</div>
+                <div style={{ display: 'inline-flex', gap: 1, marginTop: 6 }}>
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className={`h-4 w-4 ${i < Math.round(product.averageRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 5 }}>{product.reviewCount} {product.reviewCount === 1 ? 'review' : 'reviews'}</div>
+              </div>
+              <div className="flex-1" style={{ minWidth: 200 }}>
+                {ratingDist.map((d) => (
+                  <div key={d.star} className="flex items-center gap-2" style={{ marginBottom: 5 }}>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', width: 30 }}>{d.star}★</span>
+                    <div className="fx-rev-bar"><span style={{ width: `${(d.count / distTotal) * 100}%` }} /></div>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', width: 18, textAlign: 'right' }}>{d.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Review form */}
           {showReviewForm && isAuthenticated && hasUserPurchased && (
             <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
               <h3 className="text-white font-semibold mb-4">Write a Review</h3>
               <div className="space-y-4">
                 <div>
                   <label className="text-white text-sm mb-2 block">Select Order</label>
-                  <select
-                    value={selectedOrderId}
-                    onChange={(e) => setSelectedOrderId(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white"
-                  >
+                  <select value={selectedOrderId} onChange={(e) => setSelectedOrderId(e.target.value)} className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white">
                     <option value="">Select an order...</option>
                     {userOrders.map((order) => (
-                      <option key={order._id} value={order._id}>
-                        Order #{order._id.toString().slice(-8)} - {formatDate(order.createdAt)}
-                      </option>
+                      <option key={order._id} value={order._id}>Order #{order._id.toString().slice(-8)} - {formatDate(order.createdAt)}</option>
                     ))}
                   </select>
                 </div>
@@ -779,142 +1136,66 @@ const ProductDetail = () => {
                   <label className="text-white text-sm mb-2 block">Rating</label>
                   <div className="flex items-center gap-2">
                     {[1, 2, 3, 4, 5].map((rating) => (
-                      <button
-                        key={rating}
-                        type="button"
-                        onClick={() => setReviewRating(rating)}
-                        className="focus:outline-none"
-                      >
-                        <Star
-                          className={`h-6 w-6 ${
-                            rating <= reviewRating
-                              ? 'fill-yellow-400 text-yellow-400'
-                              : 'text-gray-600'
-                          }`}
-                        />
+                      <button key={rating} type="button" onClick={() => setReviewRating(rating)} className="focus:outline-none">
+                        <Star className={`h-6 w-6 ${rating <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
                       </button>
                     ))}
-                    {reviewRating > 0 && (
-                      <span className="text-gray-400 text-sm ml-2">
-                        {reviewRating} {reviewRating === 1 ? 'star' : 'stars'}
-                      </span>
-                    )}
+                    {reviewRating > 0 && <span className="text-gray-400 text-sm ml-2">{reviewRating} {reviewRating === 1 ? 'star' : 'stars'}</span>}
                   </div>
                 </div>
                 <div>
                   <label className="text-white text-sm mb-2 block">Comment</label>
-                  <Textarea
-                    value={reviewComment}
-                    onChange={(e) => setReviewComment(e.target.value)}
-                    placeholder="Share your experience with this product..."
-                    className="min-h-[100px] bg-gray-900 border-gray-700 text-white"
-                    maxLength={1000}
-                  />
-                  <p className="text-gray-500 text-xs mt-1">
-                    {reviewComment.length}/1000 characters {reviewComment.trim().length > 0 && reviewComment.trim().length < 10 && '(min 10 required)'}
-                  </p>
+                  <Textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} placeholder="Share your experience with this product..." className="min-h-[100px] bg-gray-900 border-gray-700 text-white" maxLength={1000} />
+                  <p className="text-gray-500 text-xs mt-1">{reviewComment.length}/1000 characters {reviewComment.trim().length > 0 && reviewComment.trim().length < 10 && '(min 10 required)'}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    onClick={handleSubmitReview}
-                    disabled={submitReviewMutation.isPending || !selectedOrderId || reviewRating === 0 || !reviewComment.trim() || reviewComment.trim().length < 10}
-                    className="flex-1"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowReviewForm(false);
-                      setReviewRating(0);
-                      setReviewComment('');
-                      setSelectedOrderId('');
-                    }}
-                  >
-                    Cancel
-                  </Button>
+                  <button onClick={handleSubmitReview} disabled={submitReviewMutation.isPending || !selectedOrderId || reviewRating === 0 || !reviewComment.trim() || reviewComment.trim().length < 10} className="inline-flex items-center justify-center gap-2 flex-1 bg-primary text-white rounded-md h-10 disabled:opacity-50">
+                    <Send className="h-4 w-4" /> {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                  <button onClick={() => { setShowReviewForm(false); setReviewRating(0); setReviewComment(''); setSelectedOrderId(''); }} className="border border-gray-600 rounded-md px-4 text-white hover:bg-white/5">Cancel</button>
                 </div>
               </div>
             </div>
           )}
 
           {reviewsLoading ? (
-            <div className="text-center py-8">
-              <Loading message="Loading reviews..." />
-            </div>
+            <div className="text-center py-8"><Loading message="Loading reviews..." /></div>
           ) : reviews.length > 0 ? (
             <div className="space-y-6">
-              {reviewsFetching && (
-                <p className="text-sm text-gray-400">Updating reviews...</p>
-              )}
+              {reviewsFetching && <p className="text-sm text-gray-400">Updating reviews...</p>}
               {reviews.map((review) => (
-                <div
-                  key={review._id}
-                  className="border-b border-gray-700 pb-6 last:border-b-0 last:pb-0"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="shrink-0">
-                      {review.user?.profileImage ? (
-                        <SafeImage
-                          src={review.user.profileImage}
-                          alt={review.user.name}
-                          className="w-12 h-12 rounded-full object-cover"
-                          hideOnError={true}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center">
-                          <User className="h-6 w-6 text-gray-400" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h4 className="text-white font-semibold">
-                          {review.user?.name || 'Anonymous'}
-                        </h4>
-                        {review.isVerifiedPurchase && (
-                          <Badge variant="default" className="bg-green-600 text-white text-xs">
-                            <Verified className="h-3 w-3 mr-1" />
-                            Verified Purchase
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-4 w-4 ${
-                                i < review.rating
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-gray-600'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-gray-400 text-sm">
-                          {formatDate(review.createdAt)}
+                <div key={review._id} className="flex gap-3">
+                  <div style={{ flexShrink: 0, width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg,#172AA4,#0e51e2 55%,#650EB3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 15, overflow: 'hidden' }}>
+                    {review.user?.profileImage ? (
+                      <SafeImage src={review.user.profileImage} alt={review.user.name} className="w-full h-full object-cover" hideOnError />
+                    ) : (
+                      (review.user?.name || 'A').charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1" style={{ minWidth: 0 }}>
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1" style={{ marginBottom: 3 }}>
+                      <span style={{ color: '#fff', fontWeight: 600, fontSize: 14 }}>{review.user?.name || 'Anonymous'}</span>
+                      {review.isVerifiedPurchase && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#4ade80', fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>
+                          <CheckCircle width={10} height={10} /> Verified purchase
                         </span>
-                      </div>
-                      {review.comment && (
-                        <p className="text-gray-300 leading-relaxed">
-                          {review.comment}
-                        </p>
                       )}
                     </div>
+                    <div className="flex items-center gap-2" style={{ marginBottom: 7 }}>
+                      <span className="flex items-center gap-0.5">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className={`h-3.5 w-3.5 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
+                        ))}
+                      </span>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{formatDate(review.createdAt)}</span>
+                    </div>
+                    {review.comment && <p className="text-gray-300 text-sm leading-relaxed">{review.comment}</p>}
                   </div>
                 </div>
               ))}
               {reviewsData?.totalDocs > reviews.length && (
                 <div className="flex justify-center pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setReviewsPage((prev) => prev + 1)}
-                    disabled={reviewsLoading}
-                  >
-                    Load More Reviews
-                  </Button>
+                  <button onClick={() => setReviewsPage((prev) => prev + 1)} disabled={reviewsLoading} className="border border-gray-600 rounded-md px-4 py-2 text-white hover:bg-white/5">Load More Reviews</button>
                 </div>
               )}
             </div>
@@ -922,20 +1203,19 @@ const ProductDetail = () => {
             <div className="text-center py-12">
               <Star className="h-16 w-16 text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 text-lg mb-2">No reviews yet</p>
-              <p className="text-gray-500 text-sm">
-                {isAuthenticated && hasUserPurchased
-                  ? 'Be the first to review this product!'
-                  : 'Be the first to review this product after purchase!'}
-              </p>
+              <p className="text-gray-500 text-sm">{isAuthenticated && hasUserPurchased ? 'Be the first to review this product!' : 'Be the first to review this product after purchase!'}</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Related Products */}
       {relatedProducts?.docs && relatedProducts.docs.length > 0 && (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-white">Related Products</h2>
+          <div className="flex items-center gap-2.5">
+            <Grid3x3 width={20} height={20} stroke="#1a8fff" />
+            <h2 className="text-lg font-bold text-white m-0">Related <span style={{ color: '#1a8fff' }}>Products</span></h2>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
             {relatedProducts.docs.map((relatedProduct) => (
               <ProductCard

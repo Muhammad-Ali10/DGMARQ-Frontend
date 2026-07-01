@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { subscriptionAPI } from '../../services/api';
+import { subscriptionAPI } from '@services/api';
 import { CheckCircle2, Loader2, Home, CreditCard } from 'lucide-react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '@components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 
 const SubscriptionSuccess = () => {
   const [searchParams] = useSearchParams();

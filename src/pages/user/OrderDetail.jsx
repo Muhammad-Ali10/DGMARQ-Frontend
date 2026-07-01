@@ -2,16 +2,16 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { userAPI, chatAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import LicenseKeysModal from '../../components/LicenseKeysModal';
-import SafeImage from '../../components/ui/safe-image';
-import { getOrderItemProductName } from '../../utils/orderItem';
+import { userAPI, chatAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { LicenseKeysModal } from '@features/seller';
+import SafeImage from '@components/ui/safe-image';
+import { getOrderItemProductName } from '@utils/orderItem';
 import { ArrowLeft, Package, CreditCard, MapPin, Calendar, MessageSquare, ExternalLink } from 'lucide-react';
-import { showApiError } from '../../utils/toast';
+import { showApiError } from '@utils/toast';
 import { toast } from 'sonner';
 
 const OrderDetail = () => {

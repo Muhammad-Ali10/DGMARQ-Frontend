@@ -16,15 +16,15 @@ import {
   Key,
   Info,
 } from "lucide-react";
-import { calculateProductPrice, getProductPath } from "../../utils/productUtils";
-import { cartAPI, userAPI, productAPI, authAPI } from "../../services/api";
-import { logout } from "../../store/slices/authSlice";
-import { cn } from "../../lib/utils";
-import { API_ORIGIN } from "../../lib/config";
-import { getGuestCartCount } from "../../utils/guestCart";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import SafeImage from "../ui/safe-image";
+import { calculateProductPrice, getProductPath } from "@features/catalog";
+import { cartAPI, userAPI, productAPI, authAPI } from "@services/api";
+import { logout } from "@store/slices/authSlice";
+import { cn } from "@lib/utils";
+import { API_ORIGIN } from "@lib/config";
+import { getGuestCartCount } from "@features/cart-checkout";
+import { Button } from "@components/ui/button";
+import { Input } from "@components/ui/input";
+import SafeImage from "@components/ui/safe-image";
 
 const MobileBottomBar = () => {
   const navigate = useNavigate();

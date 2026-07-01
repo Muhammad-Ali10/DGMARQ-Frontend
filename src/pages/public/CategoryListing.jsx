@@ -1,10 +1,10 @@
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useEffect } from 'react';
-import { categoryAPI } from '../../services/api';
-import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { useSEO } from '../../hooks/useSEO';
+import { categoryAPI } from '@services/api';
+import { ProductListingLayout } from '@features/catalog';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { useSEO } from '@hooks/useSEO';
 
 // Helper to check if string is a valid MongoDB ObjectId
 const isValidObjectId = (str) => {

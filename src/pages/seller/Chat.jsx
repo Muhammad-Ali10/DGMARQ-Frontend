@@ -1,4 +1,4 @@
-import ChatPage from '../../components/chat/ChatPage';
+import { ChatPage } from '@features/chat';
 
 // Thin wrapper: all seller-chat behavior lives in the shared ChatPage component,
 // parameterized by role. Kept at this path with a default export so the lazy

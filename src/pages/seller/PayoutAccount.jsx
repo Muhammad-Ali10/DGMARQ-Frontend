@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { sellerAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { sellerAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import {
   CheckCircle2,
   CreditCard,
@@ -13,8 +13,8 @@ import {
   ShieldAlert,
   Trash2,
 } from 'lucide-react';
-import { showSuccess, showError, showApiError } from '../../utils/toast';
-import { useSocket } from '../../hooks/useSocket';
+import { showSuccess, showError, showApiError } from '@utils/toast';
+import { useSocket } from '@hooks/useSocket';
 
 const METHODS = [
   {

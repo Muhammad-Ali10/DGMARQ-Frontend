@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { cartAPI, checkoutAPI } from '../../services/api';
+import { cartAPI, checkoutAPI } from '@services/api';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Trash2, ShoppingCart, Plus, Minus, Tag } from 'lucide-react';
-import { getPlatformName, getTypeName } from '../../utils/productUtils';
-import SafeImage from '../../components/ui/safe-image';
+import { getPlatformName, getTypeName } from '@features/catalog';
+import SafeImage from '@components/ui/safe-image';
 
 const Cart = () => {
   const navigate = useNavigate();

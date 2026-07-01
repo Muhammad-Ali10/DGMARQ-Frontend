@@ -1,18 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { userAPI } from '../../services/api';
+import { userAPI } from '@services/api';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Loading } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
+import { Loading } from '@components/ui/loading';
 import { ShoppingCart, RotateCcw, Eye, RefreshCw } from 'lucide-react';
-import ConfirmationModal from '../../components/ConfirmationModal';
-import RefundRequestModal from '../../components/RefundRequestModal';
-import { showSuccess, showApiError } from '../../utils/toast';
-import { useSocket } from '../../hooks/useSocket';
-import { getOrderItemProductName } from '../../utils/orderItem';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { RefundRequestModal } from '@features/wallet-payout';
+import { showSuccess, showApiError } from '@utils/toast';
+import { useSocket } from '@hooks/useSocket';
+import { getOrderItemProductName } from '@utils/orderItem';
 
 const UserOrders = () => {
   const [page, setPage] = useState(1);

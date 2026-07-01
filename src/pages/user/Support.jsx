@@ -1,4 +1,4 @@
-import SupportPage from '../../components/support/SupportPage';
+import { SupportPage } from '@features/support';
 
 const UserSupport = () => <SupportPage chatsQueryKey="user-support-chats" enableRoutePrefill />;
 

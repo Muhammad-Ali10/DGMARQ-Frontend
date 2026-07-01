@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
-import SectionWrapper from "@/components/marketplace/SectionWrapper";
-import AnimatedHeading from "@/components/marketplace/AnimatedHeading";
-import GlowCard from "@/components/marketplace/GlowCard";
-import FAQAccordion from "@/components/marketplace/FAQAccordion";
+import SectionWrapper from "@features/content/marketing/SectionWrapper";
+import AnimatedHeading from "@features/content/marketing/AnimatedHeading";
+import GlowCard from "@features/content/marketing/GlowCard";
+import FAQAccordion from "@features/content/marketing/FAQAccordion";
 import { ContactPageData } from "@/lib/data";
 import { useSEO } from "@/hooks/useSEO";
 

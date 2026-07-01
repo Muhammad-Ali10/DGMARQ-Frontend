@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useInView } from '../../hooks/useInView';
+import { useInView } from '@hooks/useInView';
 import {
   SectionWrapper,
   AnimatedHeading,
@@ -8,7 +8,7 @@ import {
   MetricCounter,
   TechCard,
   RoadmapTimeline,
-} from '../../components/about';
+} from '@features/content';
 import {
   AboutHero,
   AboutEcosystem,
@@ -18,8 +18,8 @@ import {
   AboutRoadmapDetailed,
   AboutPhilosophy,
   AboutFinalCta,
-} from '../../lib/data';
-import { useSEO } from '../../hooks/useSEO';
+} from '@lib/data';
+import { useSEO } from '@hooks/useSEO';
 
 // HUD-style corner bracket (CSS-only)
 function CornerBrackets({ className = '' }) {

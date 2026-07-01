@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { userAPI, notificationAPI, walletAPI } from '../../services/api';
+import { userAPI, notificationAPI, walletAPI } from '@services/api';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { Button } from '../../components/ui/button';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Badge } from '@components/ui/badge';
+import { Button } from '@components/ui/button';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store, Wallet } from 'lucide-react';
-import { getOrderItemProductName } from '../../utils/orderItem';
+import { getOrderItemProductName } from '@utils/orderItem';
 
 const UserDashboard = () => {
   const { roles } = useSelector((state) => state.auth);

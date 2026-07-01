@@ -1,11 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation } from '@tanstack/react-query';
-import { sellerAPI, chatAPI } from '../../services/api';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import ProductCard from '../../components/ProductCard';
+import { sellerAPI, chatAPI } from '@services/api';
+import { Button } from '@components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { ProductCard } from '@features/catalog';
 import { 
   Store, 
   Star, 
@@ -24,8 +24,8 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { useState } from 'react';
-import SafeImage from '../../components/ui/safe-image';
-import { useSEO } from '../../hooks/useSEO';
+import SafeImage from '@components/ui/safe-image';
+import { useSEO } from '@hooks/useSEO';
 
 const PublicSellerProfile = () => {
   const { sellerId } = useParams();

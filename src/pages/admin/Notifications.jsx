@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useSocket } from '../../hooks/useSocket';
-import { invalidateAllNotificationQueries } from '../../utils/notificationQueries';
-import NotificationsPage from '../../components/notifications/NotificationsPage';
+import { useSocket } from '@hooks/useSocket';
+import { invalidateAllNotificationQueries, NotificationsPage } from '@features/notifications';
 
 const AdminNotifications = () => {
   const queryClient = useQueryClient();

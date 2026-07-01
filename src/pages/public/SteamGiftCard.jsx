@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { platformAPI, categoryAPI } from '../../services/api';
-import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
+import { platformAPI, categoryAPI } from '@services/api';
+import { ProductListingLayout } from '@features/catalog';
 
 const SteamGiftCard = () => {
   // Fetch Steam platform ID

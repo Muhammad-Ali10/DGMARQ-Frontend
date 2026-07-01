@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminAPI } from '../../services/api';
+import { adminAPI } from '@services/api';
 import { useState } from 'react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Button } from '@components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Textarea } from '@components/ui/textarea';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight, Search, DollarSign, Wallet } from 'lucide-react';
-import { showSuccess, showError, showApiError } from '../../utils/toast';
+import { showSuccess, showError, showApiError } from '@utils/toast';
 
 const Settings = () => {
   // Each setting input keeps a local "draft" overlay. `null` means "no edit yet"; the rendered

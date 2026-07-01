@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useEffect } from "react";
-import { adminAPI } from "../../services/api";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
-import { Loading, ErrorMessage } from "../../components/ui/loading";
+import { adminAPI } from "@services/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { Button } from "@components/ui/button";
+import { Badge } from "@components/ui/badge";
+import { Loading, ErrorMessage } from "@components/ui/loading";
 import {
   Table,
   TableBody,
@@ -13,9 +13,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../../components/ui/table";
-import { payoutBadgeProps, getRefundStatusDisplay } from "../../utils/statusTaxonomy";
-import SafeImage from "../../components/ui/safe-image";
+} from "@components/ui/table";
+import { payoutBadgeProps, getRefundStatusDisplay } from "@features/wallet-payout";
+import SafeImage from "@components/ui/safe-image";
 import {
   ArrowLeft,
   Package,
@@ -31,7 +31,7 @@ import {
   User,
   ExternalLink,
 } from "lucide-react";
-import { showApiError } from "../../utils/toast";
+import { showApiError } from "@utils/toast";
 
 const formatUsd = (n) => `$${Number(n || 0).toFixed(2)}`;
 

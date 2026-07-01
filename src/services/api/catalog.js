@@ -1,4 +1,4 @@
-import api from '../../lib/axios';
+import api from '@lib/axios';
 
 export const productAPI = {
   getProducts: (params) => api.get('/product/get-products', { params }),
@@ -98,6 +98,41 @@ export const typeAPI = {
   updateType: (id, data) => api.patch(`/type/update-product-type/${id}`, data),
   toggleTypeStatus: (id) => api.patch(`/type/toggle-product-type-status/${id}`),
   deleteType: (id) => api.delete(`/type/delete-product-type/${id}`),
+};
+
+// Master Product Catalog (ADMIN). Admin creates/imports the master products
+// that sellers then list Offers against.
+export const masterCatalogAPI = {
+  importCatalog: (formData) => api.post('/catalog/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000, // batches do many DB writes; allow well past the 20s default
+  }),
+  listProducts: (params) => api.get('/catalog/products', { params }),
+  createProduct: (formData) => api.post('/catalog/products', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  updateProduct: (id, data) => api.patch(`/catalog/products/${id}`, data),
+  deleteProduct: (id) => api.delete(`/catalog/products/${id}`),
+  getProductOffers: (id) => api.get(`/catalog/products/${id}/offers`),
+};
+
+// Seller Offers (seller listings against master products) + admin approval.
+export const offerAPI = {
+  // Seller
+  browseCatalog: (params) => api.get('/offer/catalog', { params }),
+  getMyOffers: (params) => api.get('/offer/mine', { params }),
+  createOffer: (data) => api.post('/offer', data),
+  updateOffer: (id, data) => api.patch(`/offer/${id}`, data),
+  deleteOffer: (id) => api.delete(`/offer/${id}`),
+  uploadOfferKeys: (id, keys) => api.post(`/offer/${id}/keys`, { keys }),
+  getOfferKeys: (id, params) => api.get(`/offer/${id}/keys`, { params }),
+  revealOfferKey: (id, keyId) => api.get(`/offer/${id}/keys/${keyId}/reveal`),
+  deleteOfferKey: (id, keyId) => api.delete(`/offer/${id}/keys/${keyId}`),
+  syncOfferStock: (id) => api.post(`/offer/${id}/sync-stock`),
+  // Admin
+  adminGetOffers: (params) => api.get('/offer/admin', { params }),
+  adminApproveOffer: (id) => api.post(`/offer/admin/${id}/approve`),
+  adminRejectOffer: (id, data) => api.post(`/offer/admin/${id}/reject`, data),
 };
 
 export const bestsellerAPI = {

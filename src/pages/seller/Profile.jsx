@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { sellerAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { Badge } from '../../components/ui/badge';
+import { sellerAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { Badge } from '@components/ui/badge';
 import { User, Image, Shield, CheckCircle, XCircle, Camera, Upload } from 'lucide-react';
-import { showSuccess, showError, showApiError } from '../../utils/toast';
-import SafeImage from '../../components/ui/safe-image';
+import { showSuccess, showError, showApiError } from '@utils/toast';
+import SafeImage from '@components/ui/safe-image';
 
 const SellerProfile = () => {
   const queryClient = useQueryClient();

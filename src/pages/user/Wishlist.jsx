@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { userAPI } from '../../services/api';
-import { Card, CardContent } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
+import { userAPI } from '@services/api';
+import { Card, CardContent } from '@components/ui/card';
+import { Button } from '@components/ui/button';
 import { Heart, Trash2, ShoppingCart, Eye } from 'lucide-react';
-import ConfirmationModal from '../../components/ConfirmationModal';
-import { showSuccess, showApiError } from '../../utils/toast';
-import { Loading } from '../../components/ui/loading';
-import SafeImage from '../../components/ui/safe-image';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { showSuccess, showApiError } from '@utils/toast';
+import { Loading } from '@components/ui/loading';
+import SafeImage from '@components/ui/safe-image';
 
 const UserWishlist = () => {
   const queryClient = useQueryClient();

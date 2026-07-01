@@ -8,8 +8,8 @@ import { Toaster } from './components/ui/sonner';
 import { store } from './store/store';
 import { setOnLogoutCallback } from './store/slices/authSlice';
 import App from './App';
-import { SEOProvider } from './components/SEOProvider';
-import ErrorBoundary, { maybeReloadOnChunkError } from './components/ErrorBoundary';
+import { SEOProvider } from '@components/common/SEOProvider';
+import ErrorBoundary, { maybeReloadOnChunkError } from '@components/common/ErrorBoundary';
 import './index.css';
 
 // Global safety net for dynamic-import/chunk load failures that occur outside

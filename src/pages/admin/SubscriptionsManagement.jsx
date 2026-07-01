@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { subscriptionAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
-import { Button } from '../../components/ui/button';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { subscriptionAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Badge } from '@components/ui/badge';
+import { Button } from '@components/ui/button';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Users, DollarSign, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const SubscriptionsManagement = () => {

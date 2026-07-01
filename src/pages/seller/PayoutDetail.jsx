@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect } from "react";
-import { sellerAPI } from "../../services/api";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
-import { Loading, ErrorMessage } from "../../components/ui/loading";
+import { sellerAPI } from "@services/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
+import { Button } from "@components/ui/button";
+import { Badge } from "@components/ui/badge";
+import { Loading, ErrorMessage } from "@components/ui/loading";
 import {
   Table,
   TableBody,
@@ -13,9 +13,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../../components/ui/table";
-import SafeImage from "../../components/ui/safe-image";
-import { payoutBadgeProps, getRefundStatusDisplay } from "../../utils/statusTaxonomy";
+} from "@components/ui/table";
+import SafeImage from "@components/ui/safe-image";
+import { payoutBadgeProps, getRefundStatusDisplay } from "@features/wallet-payout";
 import {
   ArrowLeft,
   ExternalLink,
@@ -30,7 +30,7 @@ import {
   DollarSign,
   Hash,
 } from "lucide-react";
-import { showApiError } from "../../utils/toast";
+import { showApiError } from "@utils/toast";
 
 // =============================================================================
 // Seller payout detail page (full route at /seller/earnings/:payoutId).

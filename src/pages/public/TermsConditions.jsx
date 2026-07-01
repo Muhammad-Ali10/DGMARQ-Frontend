@@ -1,5 +1,5 @@
-import SectionWrapper from "@/components/marketplace/SectionWrapper";
-import GlowCard from "@/components/marketplace/GlowCard";
+import SectionWrapper from "@features/content/marketing/SectionWrapper";
+import GlowCard from "@features/content/marketing/GlowCard";
 import { TermsConditionsPageData } from "@/lib/data";
 import { useSEO } from "@/hooks/useSEO";
 

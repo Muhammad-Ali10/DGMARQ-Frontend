@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { upcomingReleaseAPI, productAPI } from '../../services/api';
+import { upcomingReleaseAPI, productAPI } from '@services/api';
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { toast } from 'sonner';
 import { Search, Check, Upload, Image as ImageIcon, Save } from 'lucide-react';
-import SafeImage from '../../components/ui/safe-image';
+import SafeImage from '@components/ui/safe-image';
 
 const UpcomingReleasesManagement = () => {
   const queryClient = useQueryClient();
@@ -56,9 +56,10 @@ const UpcomingReleasesManagement = () => {
   const { data: productsData1, isLoading: isLoadingProducts1 } = useQuery({
     queryKey: ['products-search', debouncedSearch[1]],
     queryFn: () => productAPI.getProducts({ 
-      search: debouncedSearch[1], 
+      search: debouncedSearch[1],
       limit: 10,
-      status: 'active'
+      status: 'active',
+      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen[1] || debouncedSearch[1].length > 0,
   });
@@ -66,9 +67,10 @@ const UpcomingReleasesManagement = () => {
   const { data: productsData2, isLoading: isLoadingProducts2 } = useQuery({
     queryKey: ['products-search', debouncedSearch[2]],
     queryFn: () => productAPI.getProducts({ 
-      search: debouncedSearch[2], 
+      search: debouncedSearch[2],
       limit: 10,
-      status: 'active'
+      status: 'active',
+      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen[2] || debouncedSearch[2].length > 0,
   });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PRODUCT_IMAGE_PLACEHOLDER } from "../../utils/productUtils";
+import { PRODUCT_IMAGE_PLACEHOLDER } from "@lib/placeholders";
 
 const CLOUDINARY_UPLOAD_MARKER = "/image/upload/";
 

@@ -1,14 +1,8 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { Button } from "../../components/ui/button";
-import Hero from "../../components/Hero";
-import CategoryNavigation from "../../components/CategoryNavigation";
-import ProductCard from "../../components/ProductCard";
-import ProductVerticalCard from "../../components/ProductVerticalCard";
-import FlashDeal from "../../components/FlashDeal";
-import CategoryProductSection from "../../components/CategoryProductSection";
-import MicrosoftCard from "../../components/MicrosoftCard";
+import { Button } from "@components/ui/button";
+import { Hero, CategoryNavigation, ProductCard, ProductVerticalCard, FlashDeal, CategoryProductSection, MicrosoftCard } from "@features/catalog";
 import {
   bestsellerAPI,
   trendingOfferAPI,
@@ -16,11 +10,11 @@ import {
   upcomingGamesAPI,
   softwareAPI,
   seoAPI,
-} from "../../services/api";
-import { productAPI } from "../../services/api";
-import { Loading } from "../../components/ui/loading";
-import { useSEO } from "../../hooks/useSEO";
-import SafeImage from "../../components/ui/safe-image";
+} from "@services/api";
+import { productAPI } from "@services/api";
+import { Loading } from "@components/ui/loading";
+import { useSEO } from "@hooks/useSEO";
+import SafeImage from "@components/ui/safe-image";
 
 const widths = ["w-1/4", "w-1/4", "w-1/2", "w-1/4", "w-1/4", "w-1/2"];
 

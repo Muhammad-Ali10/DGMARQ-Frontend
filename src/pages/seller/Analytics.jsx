@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { analyticsAPI, sellerAPI } from '../../services/api';
+import { analyticsAPI, sellerAPI } from '@services/api';
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Package, Users, Calendar } from 'lucide-react';
-import SafeImage from '../../components/ui/safe-image';
+import SafeImage from '@components/ui/safe-image';
 
 const SellerAnalytics = () => {
   const [startDate, setStartDate] = useState('');

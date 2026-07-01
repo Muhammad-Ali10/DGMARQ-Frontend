@@ -22,7 +22,7 @@ const certPath = path.join(projectRoot, 'localhost.pem');
 // Check if OpenSSL is available
 try {
   execSync('openssl version', { stdio: 'ignore' });
-} catch (error) {
+} catch {
   console.error('❌ OpenSSL is not installed or not in PATH.');
   console.error('   Please install OpenSSL to generate certificates.');
   console.error('   Windows: Download from https://slproweb.com/products/Win32OpenSSL.html');

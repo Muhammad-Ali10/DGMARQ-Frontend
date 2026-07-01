@@ -1,4 +1,4 @@
-import { regionAPI } from "../../services/api";
+import { regionAPI } from "@services/api";
 import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
 
 const config = {

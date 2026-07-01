@@ -1,4 +1,4 @@
-import { genreAPI } from "../../services/api";
+import { genreAPI } from "@services/api";
 import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
 
 const config = {

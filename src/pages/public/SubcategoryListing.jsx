@@ -1,10 +1,10 @@
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { subcategoryAPI } from '../../services/api';
-import ProductListingLayout from '../../components/ProductListing/ProductListingLayout';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import { useSEO } from '../../hooks/useSEO';
+import { subcategoryAPI } from '@services/api';
+import { ProductListingLayout } from '@features/catalog';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import { useSEO } from '@hooks/useSEO';
 
 const SubcategoryListing = () => {
   const {

@@ -2,13 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { logout } from '../../store/slices/authSlice';
-import { authAPI } from '../../services/api';
-import { Button } from '../ui/button';
+import { logout } from '@store/slices/authSlice';
+import { authAPI } from '@services/api';
+import { Button } from '@components/ui/button';
 import { User, LogIn, UserPlus, LogOut, LayoutDashboard, ShoppingBag, Key, Info } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { API_ORIGIN } from '../../lib/config';
-import SafeImage from '../ui/safe-image';
+import { cn } from '@lib/utils';
+import { API_ORIGIN } from '@lib/config';
+import SafeImage from '@components/ui/safe-image';
 
 const SessionMenu = ({ onItemClick } = {}) => {
   const navigate = useNavigate();

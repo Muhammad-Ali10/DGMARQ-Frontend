@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "@components/common/ProtectedRoute";
 import { Loading } from "./components/ui/loading";
 
 // Layouts — loaded eagerly since they wrap all routes
@@ -49,7 +49,9 @@ const SubscriptionCancel = lazy(() => import("./pages/public/SubscriptionCancel"
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const SellersManagement = lazy(() => import("./pages/admin/SellersManagement"));
 const SellerProfileView = lazy(() => import("./pages/admin/SellerProfileView"));
-const ProductsManagement = lazy(() => import("./pages/admin/ProductsManagement"));
+const MasterCatalogManagement = lazy(() => import("./pages/admin/MasterCatalogManagement"));
+const MasterProductEdit = lazy(() => import("./pages/admin/MasterProductEdit"));
+const SellerOffersManagement = lazy(() => import("./pages/admin/SellerOffersManagement"));
 const ProductDetailView = lazy(() => import("./pages/admin/ProductDetailView"));
 const OrdersManagement = lazy(() => import("./pages/admin/OrdersManagement"));
 const AdminOrderDetail = lazy(() => import("./pages/admin/AdminOrderDetail"));
@@ -84,7 +86,6 @@ const AdminPayoutDetail = lazy(() => import("./pages/admin/AdminPayoutDetail"));
 const SellerDashboard = lazy(() => import("./pages/seller/Dashboard"));
 const SellerOrders = lazy(() => import("./pages/seller/Orders"));
 const SellerOrderDetail = lazy(() => import("./pages/seller/SellerOrderDetail"));
-const SellerProducts = lazy(() => import("./pages/seller/Products"));
 const SellerEarnings = lazy(() => import("./pages/seller/Earnings"));
 const SellerPayoutDetail = lazy(() => import("./pages/seller/PayoutDetail"));
 const SellerPerformance = lazy(() => import("./pages/seller/Performance"));
@@ -98,8 +99,8 @@ const SellerLicenseKeys = lazy(() => import("./pages/seller/LicenseKeys"));
 const SellerProfile = lazy(() => import("./pages/seller/Profile"));
 const SellerAnalytics = lazy(() => import("./pages/seller/Analytics"));
 const SellerReviews = lazy(() => import("./pages/seller/Reviews"));
-const ProductCreate = lazy(() => import("./pages/seller/ProductCreate"));
-const ProductEdit = lazy(() => import("./pages/seller/ProductEdit"));
+const SellerCatalog = lazy(() => import("./pages/seller/SellerCatalog"));
+const SellerOffers = lazy(() => import("./pages/seller/SellerOffers"));
 
 // Lazy-loaded user pages
 const UserDashboard = lazy(() => import("./pages/user/Dashboard"));
@@ -176,7 +177,9 @@ function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="sellers" element={<SellersManagement />} />
           <Route path="sellers/:sellerId" element={<SellerProfileView />} />
-          <Route path="products" element={<ProductsManagement />} />
+          <Route path="catalog" element={<MasterCatalogManagement />} />
+          <Route path="catalog/:id/edit" element={<MasterProductEdit />} />
+          <Route path="offers" element={<SellerOffersManagement />} />
           <Route path="products/:productId" element={<ProductDetailView />} />
           <Route path="orders" element={<OrdersManagement />} />
           <Route path="orders/:orderId" element={<AdminOrderDetail />} />
@@ -217,7 +220,8 @@ function App() {
           <Route path="dashboard" element={<SellerDashboard />} />
           <Route path="orders" element={<SellerOrders />} />
           <Route path="orders/:orderId" element={<SellerOrderDetail />} />
-          <Route path="products" element={<SellerProducts />} />
+          <Route path="catalog" element={<SellerCatalog />} />
+          <Route path="offers" element={<SellerOffers />} />
           <Route path="earnings" element={<SellerEarnings />} />
           <Route path="earnings/:payoutId" element={<SellerPayoutDetail />} />
           <Route path="payout-account" element={<PayoutAccount />} />
@@ -232,8 +236,6 @@ function App() {
           <Route path="profile" element={<SellerProfile />} />
           <Route path="analytics" element={<SellerAnalytics />} />
           <Route path="reviews" element={<SellerReviews />} />
-          <Route path="products/create" element={<ProductCreate />} />
-          <Route path="products/:id/edit" element={<ProductEdit />} />
           <Route path="" element={<Navigate to="/seller/dashboard" replace />} />
         </Route>
 

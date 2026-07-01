@@ -1,17 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { userAPI, reviewAPI } from '../../services/api';
+import { userAPI, reviewAPI } from '@services/api';
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Star, Edit, Trash2, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { showSuccess, showApiError } from '../../utils/toast';
-import SafeImage from '../../components/ui/safe-image';
+import { showSuccess, showApiError } from '@utils/toast';
+import SafeImage from '@components/ui/safe-image';
 
 const UserReviews = () => {
   const { user } = useSelector((state) => state.auth);

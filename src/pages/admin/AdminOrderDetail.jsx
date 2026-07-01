@@ -1,15 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { orderAPI, adminAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
-import SafeImage from '../../components/ui/safe-image';
+import { orderAPI, adminAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
+import SafeImage from '@components/ui/safe-image';
 import { ArrowLeft, Package, CreditCard, MapPin, Calendar, ExternalLink, DollarSign } from 'lucide-react';
-import { showApiError } from '../../utils/toast';
-import { payoutBadgeProps } from '../../utils/statusTaxonomy';
+import { showApiError } from '@utils/toast';
+import { payoutBadgeProps } from '@features/wallet-payout';
 
 const AdminOrderDetail = () => {
   const { orderId } = useParams();

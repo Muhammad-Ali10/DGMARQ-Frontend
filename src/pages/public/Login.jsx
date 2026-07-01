@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { setCredentials } from '../../store/slices/authSlice';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import api from '../../lib/axios';
-import { API_ORIGIN } from '../../lib/config';
+import { setCredentials } from '@store/slices/authSlice';
+import { Button } from '@components/ui/button';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/card';
+import api from '@lib/axios';
+import { API_ORIGIN } from '@lib/config';
 import { Chrome } from 'lucide-react';
 
 const Login = () => {

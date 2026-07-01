@@ -1,4 +1,4 @@
-import NotificationsPage from '../../components/notifications/NotificationsPage';
+import { NotificationsPage } from '@features/notifications';
 
 const UserNotifications = () => <NotificationsPage queryKeyBase="notifications" />;
 

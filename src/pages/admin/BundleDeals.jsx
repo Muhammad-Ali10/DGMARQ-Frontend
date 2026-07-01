@@ -1,18 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminAPI, productAPI } from '../../services/api';
+import { adminAPI, productAPI } from '@services/api';
 import { useState } from 'react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Badge } from '../../components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { Button } from '@components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { Badge } from '@components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@components/ui/dialog';
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Plus, Edit, X, Trash2, Package, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
-import ConfirmationModal from '../../components/ConfirmationModal';
-import { showSuccess, showApiError, showError, showWarning } from '../../utils/toast';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { showSuccess, showApiError, showError, showWarning } from '@utils/toast';
 
 const BundleDeals = () => {
   const [page, setPage] = useState(1);
@@ -43,7 +43,7 @@ const BundleDeals = () => {
     queryKey: ['products-search', productSearch],
     queryFn: async () => {
       try {
-        const response = await productAPI.getProducts({ search: productSearch, limit: 10, status: 'approved' });
+        const response = await productAPI.getProducts({ search: productSearch, limit: 10, status: 'approved', adminView: 'true' });
         return response.data.data;
       } catch {
         return { products: [] };

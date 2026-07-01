@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { adminAPI } from '../../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { adminAPI } from '@services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Users, Store, ShoppingCart, DollarSign, AlertCircle, Package, Headphones, RefreshCw, TrendingDown, Receipt } from 'lucide-react';
 
 const AdminDashboard = () => {

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { subscriptionAPI } from '../../services/api';
-import { showApiError } from '../../utils/toast';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import { Loading, ErrorMessage } from '../../components/ui/loading';
+import { subscriptionAPI } from '@services/api';
+import { showApiError } from '@utils/toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Button } from '@components/ui/button';
+import { Badge } from '@components/ui/badge';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import {
   CheckCircle2,
   Sparkles,
@@ -20,8 +20,8 @@ import {
   Star,
   TrendingUp,
 } from 'lucide-react';
-import FAQAccordion from '@/components/marketplace/FAQAccordion';
-import { useSEO } from '../../hooks/useSEO';
+import FAQAccordion from '@features/content/marketing/FAQAccordion';
+import { useSEO } from '@hooks/useSEO';
 
 const DGMarketPlus = () => {
   const navigate = useNavigate();

@@ -1,19 +1,19 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
-import { userAPI, sellerAPI } from "../../services/api";
-import { payoutBadgeProps } from "../../utils/statusTaxonomy";
+import { userAPI, sellerAPI } from "@services/api";
+import { payoutBadgeProps } from "@features/wallet-payout";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
-import { Loading, ErrorMessage } from "../../components/ui/loading";
-import LicenseKeysModal from "../../components/LicenseKeysModal";
-import SafeImage from "../../components/ui/safe-image";
+} from "@components/ui/card";
+import { Button } from "@components/ui/button";
+import { Badge } from "@components/ui/badge";
+import { Loading, ErrorMessage } from "@components/ui/loading";
+import { LicenseKeysModal } from "@features/seller";
+import SafeImage from "@components/ui/safe-image";
 import {
   ArrowLeft,
   Package,
@@ -21,7 +21,7 @@ import {
   MapPin,
   Calendar,
 } from "lucide-react";
-import { showApiError } from "../../utils/toast";
+import { showApiError } from "@utils/toast";
 
 const SellerOrderDetail = () => {
   const { orderId } = useParams();

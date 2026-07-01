@@ -1,5 +1,5 @@
-import { DEFAULT_SEO, useSEO } from '../components/SEOProvider';
-import { truncateMetaDescription } from '../utils/meta';
+import { DEFAULT_SEO, useSEO } from '@components/common/SEOProvider';
+import { truncateMetaDescription } from '@utils/meta';
 
 export { DEFAULT_SEO, useSEO };
 

@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setCredentials } from '../store/slices/authSlice';
+import { setCredentials } from '@store/slices/authSlice';
 import { useQuery } from '@tanstack/react-query';
-import { authAPI } from '../services/api';
+import { authAPI } from '@services/api';
 import { Loader2 } from 'lucide-react';
 
 // SECURITY FIX (#5): OAuth now redirects here WITHOUT tokens in the URL. The
