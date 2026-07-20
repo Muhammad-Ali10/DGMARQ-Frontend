@@ -11,7 +11,7 @@ import { Button } from '@components/ui/button';
 import { Label } from '@components/ui/label';
 import { Textarea } from '@components/ui/textarea';
 import { toast } from 'sonner';
-import { RefundChat } from '@features/wallet-payout';
+import { RefundChat, isRefundChatLocked } from '@features/wallet-payout';
 import SafeImage from '@components/ui/safe-image';
 
 const STATUS_BADGES = {
@@ -415,7 +415,7 @@ const SellerReturnRefunds = () => {
                   </Button>
                 </div>
               )}
-              <RefundChat refundId={selectedRefund._id} canSend={!!selectedRefund.adminRequestedSellerInput} />
+              <RefundChat refundId={selectedRefund._id} canSend={!!selectedRefund.adminRequestedSellerInput} locked={isRefundChatLocked(selectedRefund.status)} />
             </div>
           )}
         </DialogContent>

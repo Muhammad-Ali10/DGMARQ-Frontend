@@ -26,6 +26,15 @@ export const homepageSliderAPI = {
   deleteHomepageSlider: (id) => api.delete(`/homepage-slider/${id}`),
 };
 
+// M15: admin custom homepage heading-sections (heading + product row → search).
+export const homepageSectionAPI = {
+  getHomepageSections: () => api.get('/homepage-section'),
+  getAllHomepageSections: () => api.get('/homepage-section/admin/all'),
+  createHomepageSection: (data) => api.post('/homepage-section', data),
+  updateHomepageSection: (id, data) => api.patch(`/homepage-section/${id}`, data),
+  deleteHomepageSection: (id) => api.delete(`/homepage-section/${id}`),
+};
+
 export const trendingOfferAPI = {
   getTrendingOffers: () => api.get('/trending-offer'),
   getTrendingOfferById: (id) => api.get(`/trending-offer/${id}`),

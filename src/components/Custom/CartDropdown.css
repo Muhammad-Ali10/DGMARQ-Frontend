@@ -1,0 +1,171 @@
+/* ── Mini-cart flyout (dropdown) — ported from the v74 mockup HUD design ── */
+
+.dgc-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+  background: transparent;
+}
+
+.dgc-panel {
+  position: fixed;
+  top: 70px;
+  right: 12px;
+  bottom: 12px;
+  width: 384px;
+  max-width: calc(100vw - 24px);
+  max-height: 720px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #0c1430, #070b18);
+  border: 1px solid rgba(58, 116, 240, 0.3);
+  border-radius: 18px;
+  z-index: 2000;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.66), 0 0 60px rgba(14, 81, 226, 0.18);
+  overflow: hidden;
+  isolation: isolate;
+  animation: dgcOpen 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: top right;
+}
+
+/* animated gradient hairline border */
+.dgc-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.3px;
+  background: linear-gradient(120deg, rgba(14, 81, 226, 0.9), rgba(58, 155, 245, 0.35), rgba(123, 47, 247, 0.85), rgba(58, 155, 245, 0.35), rgba(14, 81, 226, 0.9));
+  background-size: 300% 300%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: dgcBorder 6s ease infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.dgc-topline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #0e51e2, #3a9bf5, #7b2ff7, transparent);
+  background-size: 200% 100%;
+  animation: dgcSlide 3.5s linear infinite;
+  z-index: 6;
+}
+
+.dgc-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(44px);
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+.dgc-orb1 {
+  width: 170px;
+  height: 170px;
+  background: radial-gradient(circle, #0e51e2, transparent 70%);
+  top: -50px;
+  right: -40px;
+  animation: dgcFloat 8s ease-in-out infinite;
+}
+.dgc-orb2 {
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, #7b2ff7, transparent 70%);
+  bottom: -40px;
+  left: -40px;
+  animation: dgcFloat 9s ease-in-out infinite reverse;
+}
+
+.dgc-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(58, 116, 240, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(58, 116, 240, 0.06) 1px, transparent 1px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(circle at 50% 0%, #000, transparent 78%);
+  mask-image: radial-gradient(circle at 50% 0%, #000, transparent 78%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dgc-title {
+  background: linear-gradient(90deg, #ffffff, #9fc6ff, #ffffff);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: dgcSlide 6s linear infinite;
+}
+
+.dgc-item {
+  animation: dgcItemIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.dgc-item:hover {
+  border-color: rgba(58, 155, 245, 0.65);
+  box-shadow: 0 0 0 1px rgba(58, 155, 245, 0.28), 0 8px 24px rgba(14, 81, 226, 0.22);
+  transform: translateY(-1px);
+}
+.dgc-item:nth-child(1) { animation-delay: 0.08s; }
+.dgc-item:nth-child(2) { animation-delay: 0.15s; }
+.dgc-item:nth-child(3) { animation-delay: 0.22s; }
+.dgc-item:nth-child(n + 4) { animation-delay: 0.28s; }
+
+.dgc-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.dgc-scroll::-webkit-scrollbar { width: 6px; }
+.dgc-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(#0e51e2, #7b2ff7);
+  border-radius: 6px;
+}
+.dgc-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.dgc-checkout {
+  transition: filter 0.18s, box-shadow 0.2s;
+}
+.dgc-checkout:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 12px 40px rgba(123, 47, 247, 0.6), 0 0 26px rgba(168, 85, 247, 0.4);
+}
+
+.dgc-qty button:hover { background: rgba(58, 155, 245, 0.15); }
+
+@keyframes dgcSlide { to { background-position: 200% 50%; } }
+@keyframes dgcBorder {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes dgcFloat {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-12px, 14px); }
+}
+@keyframes dgcOpen {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dgcItemIn {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dgc-panel,
+  .dgc-item,
+  .dgc-topline,
+  .dgc-panel::before,
+  .dgc-orb,
+  .dgc-title,
+  .dgc-checkout {
+    animation: none;
+  }
+}

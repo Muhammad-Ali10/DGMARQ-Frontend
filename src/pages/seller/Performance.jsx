@@ -6,7 +6,7 @@ import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { TrendingUp, DollarSign, ShoppingCart, Package, Star, Users } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingCart, Package, Star, Users, AlertTriangle } from 'lucide-react';
 
 const SellerPerformance = () => {
   const [startDate, setStartDate] = useState('');
@@ -83,7 +83,7 @@ const SellerPerformance = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              {metrics?.salesMetrics?.[0]?.totalSales || 0}
+              {metrics?.sales?.totalSales || 0}
             </div>
             <p className="text-xs text-gray-400 mt-1">Units sold</p>
           </CardContent>
@@ -96,7 +96,7 @@ const SellerPerformance = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              ${metrics?.salesMetrics?.[0]?.totalRevenue?.toFixed(2) || '0.00'}
+              ${metrics?.sales?.totalRevenue?.toFixed(2) || '0.00'}
             </div>
             <p className="text-xs text-gray-400 mt-1">Gross revenue</p>
           </CardContent>
@@ -109,7 +109,7 @@ const SellerPerformance = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              ${metrics?.salesMetrics?.[0]?.netEarnings?.toFixed(2) || '0.00'}
+              ${metrics?.sales?.netEarnings?.toFixed(2) || '0.00'}
             </div>
             <p className="text-xs text-gray-400 mt-1">After commission</p>
           </CardContent>
@@ -122,7 +122,7 @@ const SellerPerformance = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              ${metrics?.salesMetrics?.[0]?.totalCommission?.toFixed(2) || '0.00'}
+              ${metrics?.sales?.totalCommission?.toFixed(2) || '0.00'}
             </div>
             <p className="text-xs text-gray-400 mt-1">Platform fee</p>
           </CardContent>
@@ -135,7 +135,7 @@ const SellerPerformance = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              {metrics?.productCount || 0}
+              {metrics?.products?.total || 0}
             </div>
             <p className="text-xs text-gray-400 mt-1">All products</p>
           </CardContent>
@@ -148,7 +148,7 @@ const SellerPerformance = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              {metrics?.activeProductCount || 0}
+              {metrics?.products?.active || 0}
             </div>
             <p className="text-xs text-gray-400 mt-1">Published products</p>
           </CardContent>
@@ -161,7 +161,7 @@ const SellerPerformance = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              {metrics?.reviewMetrics?.[0]?.totalReviews || 0}
+              {metrics?.reviews?.totalReviews || 0}
             </div>
             <p className="text-xs text-gray-400 mt-1">Customer reviews</p>
           </CardContent>
@@ -174,9 +174,24 @@ const SellerPerformance = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white">
-              {metrics?.reviewMetrics?.[0]?.averageRating?.toFixed(1) || '0.0'} ⭐
+              {metrics?.reviews?.averageRating?.toFixed(1) || '0.0'} ⭐
             </div>
             <p className="text-xs text-gray-400 mt-1">Out of 5.0</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-primary border-gray-700">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-gray-300">Dispute Rate</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">
+              {metrics?.disputes?.rate ?? 0}%
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              {metrics?.disputes?.count ?? 0} disputes / {metrics?.disputes?.orders ?? 0} orders
+            </p>
           </CardContent>
         </Card>
       </div>

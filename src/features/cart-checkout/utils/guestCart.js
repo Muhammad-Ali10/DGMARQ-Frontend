@@ -34,6 +34,7 @@ export function addToGuestCart({
   originalPrice,
   discountPercentage,
   sellerId,
+  shopName,
   name,
   slug,
   image,
@@ -58,6 +59,7 @@ export function addToGuestCart({
       discountPercentage:
         discountPercentage != null ? Number(discountPercentage) : undefined,
       sellerId: sellerId != null ? (sellerId._id || sellerId).toString() : undefined,
+      shopName: shopName || undefined,
       name: name || undefined,
       slug: slug || undefined,
       image: image || undefined,

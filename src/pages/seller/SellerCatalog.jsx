@@ -1,32 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { offerAPI, regionAPI } from '@services/api';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { offerAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Input } from '@components/ui/input';
-import { Label } from '@components/ui/label';
 import { Badge } from '@components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
-import { Package, Search, Plus, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Package, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import '../dashboard-fx.css';
-
-const selectCls = 'w-full bg-secondary border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent';
-
-const extractList = (res) => {
-  const d = res?.data?.data;
-  if (Array.isArray(d)) return d;
-  if (Array.isArray(d?.docs)) return d.docs;
-  if (d && typeof d === 'object') {
-    const arr = Object.values(d).find((v) => Array.isArray(v));
-    if (arr) return arr;
-  }
-  return [];
-};
 
 const STATUS_LABEL = {
   pending: { variant: 'warning', label: 'Pending' },
@@ -36,13 +20,10 @@ const STATUS_LABEL = {
 };
 
 const SellerCatalog = () => {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [listing, setListing] = useState(null); // master being listed
-  const [form, setForm] = useState({ price: '', discount: '', region: '', isFeatured: false, accountEmail: '', accountWebsite: '' });
 
   useEffect(() => {
     const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 400);
@@ -55,51 +36,11 @@ const SellerCatalog = () => {
     placeholderData: keepPreviousData,
   });
 
-  const { data: regions = [] } = useQuery({
-    queryKey: ['regions-all'],
-    queryFn: () => regionAPI.getRegions({ limit: 1000 }).then(extractList),
-    staleTime: 5 * 60 * 1000,
-    enabled: !!listing,
-  });
-
   const products = data?.products || [];
   const pagination = data?.pagination || { page: 1, pages: 1, total: 0 };
 
-  const createMutation = useMutation({
-    mutationFn: (payload) => offerAPI.createOffer(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['seller-catalog'] });
-      toast.success('Offer submitted for approval');
-      setListing(null);
-      navigate('/seller/offers');
-    },
-    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to create offer'),
-  });
-
-  const openListing = (p) => {
-    setForm({ price: '', discount: '', region: '', isFeatured: false, accountEmail: '', accountWebsite: '' });
-    setListing(p);
-  };
-
-  const submit = () => {
-    if (form.price === '' || Number(form.price) < 0 || Number.isNaN(Number(form.price))) {
-      toast.warning('Enter a valid price'); return;
-    }
-    createMutation.mutate({
-      productId: listing._id,
-      price: Number(form.price),
-      discount: Number(form.discount) || 0,
-      region: form.region || undefined,
-      isFeatured: form.isFeatured,
-      accountEmail: form.accountEmail || undefined,
-      accountWebsite: form.accountWebsite || undefined,
-    });
-  };
-
   if (isLoading && !products.length) return <Loading message="Loading catalog..." />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Error loading catalog'} />;
-
-  const isAccount = listing?.productType === 'ACCOUNT_BASED';
 
   return (
     <div className="dash-fx space-y-6 px-4 sm:px-0">
@@ -162,7 +103,7 @@ const SellerCatalog = () => {
                               {STATUS_LABEL[p.myOfferStatus]?.label || p.myOfferStatus}
                             </Badge>
                           ) : (
-                            <Button size="sm" className="bg-accent hover:bg-blue-700" onClick={() => openListing(p)}>
+                            <Button size="sm" className="bg-accent hover:bg-blue-700" onClick={() => navigate(`/seller/catalog/${p._id}/list`)}>
                               <Plus className="h-4 w-4 mr-1" /> List
                             </Button>
                           )}
@@ -189,58 +130,6 @@ const SellerCatalog = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Create offer modal */}
-      <Dialog open={!!listing} onOpenChange={(o) => !o && setListing(null)}>
-        <DialogContent className="bg-primary border-gray-700 max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-white text-xl font-semibold">List your offer</DialogTitle>
-            <DialogDescription className="text-gray-400 truncate">{listing?.name}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-gray-300 text-sm">Price (USD) *</Label>
-                <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} className="bg-secondary border-gray-700 text-white" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-gray-300 text-sm">Discount (%)</Label>
-                <Input type="number" min="0" max="100" value={form.discount} onChange={(e) => setForm((f) => ({ ...f, discount: e.target.value }))} className="bg-secondary border-gray-700 text-white" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-gray-300 text-sm">Region</Label>
-              <select value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} className={selectCls}>
-                <option value="">Global / Not specified</option>
-                {regions.map((r) => <option key={r._id} value={r._id}>{r.name}</option>)}
-              </select>
-            </div>
-            {isAccount && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-gray-300 text-sm">Account Email</Label>
-                  <Input value={form.accountEmail} onChange={(e) => setForm((f) => ({ ...f, accountEmail: e.target.value }))} className="bg-secondary border-gray-700 text-white" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-gray-300 text-sm">Website</Label>
-                  <Input value={form.accountWebsite} onChange={(e) => setForm((f) => ({ ...f, accountWebsite: e.target.value }))} className="bg-secondary border-gray-700 text-white" />
-                </div>
-              </div>
-            )}
-            <label className="flex items-center gap-2 text-sm text-gray-300">
-              <input type="checkbox" aria-label="Feature this offer" checked={form.isFeatured} onChange={(e) => setForm((f) => ({ ...f, isFeatured: e.target.checked }))} className="accent-blue-600" />
-              Feature this offer (higher commission applies)
-            </label>
-            <p className="text-xs text-gray-500">After approval you can add inventory (keys/accounts) from “My Offers”. Stock is taken from your uploaded inventory.</p>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" className="border-gray-700" onClick={() => setListing(null)}>Cancel</Button>
-              <Button className="bg-accent hover:bg-blue-700" disabled={createMutation.isPending} onClick={submit}>
-                {createMutation.isPending ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Submitting…</> : 'Submit for approval'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

@@ -15,15 +15,20 @@ const Settings = () => {
   // <Input> value falls back to the server snapshot from the query, so we never need to call
   // setState inside an effect when the server data first arrives.
   const [commissionRateDraft, setCommissionRateDraft] = useState(null);
+  const [plusDiscountDraft, setPlusDiscountDraft] = useState(null);
+  const [featuredCommissionDraft, setFeaturedCommissionDraft] = useState(null);
   const [seoMetaTitleDraft, setSeoMetaTitleDraft] = useState(null);
   const [seoMetaDescriptionDraft, setSeoMetaDescriptionDraft] = useState(null);
   const [handlingFeeEnabledDraft, setHandlingFeeEnabledDraft] = useState(null);
   const [handlingFeeTypeDraft, setHandlingFeeTypeDraft] = useState(null);
   const [handlingFeePercentageDraft, setHandlingFeePercentageDraft] = useState(null);
   const [handlingFeeFixedDraft, setHandlingFeeFixedDraft] = useState(null);
+  const [protectionFeeEnabledDraft, setProtectionFeeEnabledDraft] = useState(null);
+  const [protectionFeePercentageDraft, setProtectionFeePercentageDraft] = useState(null);
   const [payoutHoldDaysDraft, setPayoutHoldDaysDraft] = useState(null);
   const [minimumWithdrawalUsdDraft, setMinimumWithdrawalUsdDraft] = useState(null);
   const [refundWindowDaysDraft, setRefundWindowDaysDraft] = useState(null);
+  const [chargebackFeePercentDraft, setChargebackFeePercentDraft] = useState(null);
   const queryClient = useQueryClient();
 
   // Commission Rate Query
@@ -33,6 +38,18 @@ const Settings = () => {
       const response = await adminAPI.getCommissionRate();
       return response.data.data;
     },
+    retry: 1,
+  });
+
+  // DGMARQ Plus discount + Featured commission queries
+  const { data: plusDiscountSettings } = useQuery({
+    queryKey: ['plus-discount'],
+    queryFn: async () => (await adminAPI.getPlusDiscount()).data.data,
+    retry: 1,
+  });
+  const { data: featuredCommissionSettings } = useQuery({
+    queryKey: ['featured-commission'],
+    queryFn: async () => (await adminAPI.getFeaturedCommission()).data.data,
     retry: 1,
   });
 
@@ -56,11 +73,21 @@ const Settings = () => {
     retry: 1,
   });
 
-    // Buyer Protection Fee Query
+    // Payment Processing Fee Query (fixed) — key 'buyer_handling_fee'
   const { data: handlingFeeSettings, isLoading: isLoadingHandlingFee } = useQuery({
     queryKey: ['buyer-handling-fee'],
     queryFn: async () => {
       const response = await adminAPI.getBuyerHandlingFeeSetting();
+      return response.data.data;
+    },
+    retry: 1,
+  });
+
+  // Buyer Protection Fee Query (percentage) — key 'buyer_protection_fee'
+  const { data: protectionFeeSettings } = useQuery({
+    queryKey: ['buyer-protection-fee'],
+    queryFn: async () => {
+      const response = await adminAPI.getBuyerProtectionFeeSetting();
       return response.data.data;
     },
     retry: 1,
@@ -95,12 +122,19 @@ const Settings = () => {
   const handlingFeeFixed = handlingFeeFixedDraft
     ?? String(handlingFeeSettings?.fixedAmount ?? 0);
 
+  const protectionFeeEnabled = protectionFeeEnabledDraft
+    ?? !!protectionFeeSettings?.enabled;
+  const protectionFeePercentage = protectionFeePercentageDraft
+    ?? String(protectionFeeSettings?.percentageValue ?? 8);
+
   const payoutHoldDaysValue = payoutHoldDaysDraft
     ?? (typeof payoutSettings?.payoutHoldDays === 'number' ? String(payoutSettings.payoutHoldDays) : '15');
   const minimumWithdrawalUsdValue = minimumWithdrawalUsdDraft
     ?? (typeof payoutSettings?.minimumWithdrawalUsd === 'number' ? String(payoutSettings.minimumWithdrawalUsd) : '50');
   const refundWindowDaysValue = refundWindowDaysDraft
     ?? (typeof payoutSettings?.refundWindowDays === 'number' ? String(payoutSettings.refundWindowDays) : '10');
+  const chargebackFeePercentValue = chargebackFeePercentDraft
+    ?? (typeof payoutSettings?.chargebackFeePercent === 'number' ? String(payoutSettings.chargebackFeePercent) : '1.5');
 
   const updateMutation = useMutation({
     mutationFn: (rate) => adminAPI.updateCommissionRate({ commissionRate: rate }),
@@ -135,6 +169,42 @@ const Settings = () => {
     updateMutation.mutate(rate);
   };
 
+  // DGMARQ Plus discount + Featured commission (percent 0–100)
+  const plusDiscount = plusDiscountDraft
+    ?? (plusDiscountSettings?.plusDiscountPercent !== undefined ? String(plusDiscountSettings.plusDiscountPercent) : '');
+  const featuredCommission = featuredCommissionDraft
+    ?? (featuredCommissionSettings?.featuredCommissionPercent !== undefined ? String(featuredCommissionSettings.featuredCommissionPercent) : '');
+
+  const plusDiscountMutation = useMutation({
+    mutationFn: (percent) => adminAPI.updatePlusDiscount({ plusDiscountPercent: percent }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plus-discount'] });
+      setPlusDiscountDraft(null);
+      showSuccess('DGMARQ Plus discount updated');
+    },
+    onError: (error) => showApiError(error, 'Failed to update Plus discount'),
+  });
+  const featuredCommissionMutation = useMutation({
+    mutationFn: (percent) => adminAPI.updateFeaturedCommission({ featuredCommissionPercent: percent }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['featured-commission'] });
+      setFeaturedCommissionDraft(null);
+      showSuccess('Featured commission updated');
+    },
+    onError: (error) => showApiError(error, 'Failed to update featured commission'),
+  });
+
+  const handlePlusDiscountUpdate = () => {
+    const pct = parseFloat(plusDiscount);
+    if (isNaN(pct) || pct < 0 || pct > 100) { showError('Enter a percentage between 0 and 100'); return; }
+    plusDiscountMutation.mutate(pct);
+  };
+  const handleFeaturedCommissionUpdate = () => {
+    const pct = parseFloat(featuredCommission);
+    if (isNaN(pct) || pct < 0 || pct > 100) { showError('Enter a percentage between 0 and 100'); return; }
+    featuredCommissionMutation.mutate(pct);
+  };
+
   const handleAutoApproveToggle = () => {
     const newValue = !autoApproveSettings?.autoApprove;
     autoApproveMutation.mutate(newValue);
@@ -154,7 +224,7 @@ const Settings = () => {
     },
   });
 
-  // Buyer Protection Fee Update Mutation
+  // Payment Processing Fee Update Mutation
   const handlingFeeUpdateMutation = useMutation({
     mutationFn: (data) => adminAPI.updateBuyerHandlingFeeSetting(data),
     onSuccess: () => {
@@ -163,6 +233,20 @@ const Settings = () => {
       setHandlingFeeTypeDraft(null);
       setHandlingFeePercentageDraft(null);
       setHandlingFeeFixedDraft(null);
+      showSuccess('Payment Processing Fee settings updated successfully');
+    },
+    onError: (error) => {
+      showApiError(error, 'Failed to update Payment Processing Fee');
+    },
+  });
+
+  // Buyer Protection Fee Update Mutation
+  const protectionFeeUpdateMutation = useMutation({
+    mutationFn: (data) => adminAPI.updateBuyerProtectionFeeSetting(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['buyer-protection-fee'] });
+      setProtectionFeeEnabledDraft(null);
+      setProtectionFeePercentageDraft(null);
       showSuccess('Buyer Protection Fee settings updated successfully');
     },
     onError: (error) => {
@@ -187,6 +271,7 @@ const Settings = () => {
       payoutHoldDays: { min: 0, max: 180 },
       minimumWithdrawalUsd: { min: 0, max: 10000 },
       refundWindowDays: { min: 1, max: 170 },
+      chargebackFeePercent: { min: 0, max: 100 },
       combinedRefundWindowMax: 170,
     };
     const combinedMax = bounds.combinedRefundWindowMax ?? 170;
@@ -212,11 +297,18 @@ const Settings = () => {
       );
       return;
     }
+    const chargebackBounds = bounds.chargebackFeePercent || { min: 0, max: 100 };
+    const chargeback = Number(chargebackFeePercentValue);
+    if (!Number.isFinite(chargeback) || chargeback < chargebackBounds.min || chargeback > chargebackBounds.max) {
+      showError(`Chargeback absorption fee must be between ${chargebackBounds.min}% and ${chargebackBounds.max}%`);
+      return;
+    }
     payoutSettingsMutation.mutate(
       {
         payoutHoldDays: hold,
         minimumWithdrawalUsd: min,
         refundWindowDays: refundWin,
+        chargebackFeePercent: chargeback,
       },
       {
         onSuccess: () => {
@@ -225,6 +317,7 @@ const Settings = () => {
           setPayoutHoldDaysDraft(null);
           setMinimumWithdrawalUsdDraft(null);
           setRefundWindowDaysDraft(null);
+          setChargebackFeePercentDraft(null);
         },
       }
     );
@@ -250,6 +343,19 @@ const Settings = () => {
     } else {
       handlingFeeUpdateMutation.mutate({ enabled: false });
     }
+  };
+
+  const handleProtectionFeeUpdate = () => {
+    if (!protectionFeeEnabled) {
+      protectionFeeUpdateMutation.mutate({ enabled: false });
+      return;
+    }
+    const pct = parseFloat(protectionFeePercentage);
+    if (Number.isNaN(pct) || pct < 0 || pct > 100) {
+      showError('Percentage must be between 0 and 100');
+      return;
+    }
+    protectionFeeUpdateMutation.mutate({ enabled: true, feeType: 'percentage', percentageValue: pct });
   };
 
   const handleSEOUpdate = () => {
@@ -343,17 +449,17 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Buyer Protection Fee Setting */}
+      {/* Payment Processing Fee Setting (fixed) */}
       <Card className="bg-primary border-gray-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
-            Buyer Protection Fee
+            Payment Processing Fee
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <p className="text-sm text-gray-400">
-            Fee charged only to the buyer at checkout. 100% goes to admin. Separate from seller commission.
+            Flat fee charged once per order by the payment provider. Charged to the buyer at checkout; 100% goes to admin.
           </p>
           <div className="flex items-center justify-between">
             <Label className="text-gray-300">Enable / Disable</Label>
@@ -432,7 +538,56 @@ const Settings = () => {
             <p className="text-xs text-gray-500">Last updated: {new Date(handlingFeeSettings.lastUpdated).toLocaleDateString()}</p>
           )}
           <Button onClick={handleHandlingFeeUpdate} disabled={handlingFeeUpdateMutation.isPending}>
-            {handlingFeeUpdateMutation.isPending ? 'Updating...' : 'Update Buyer Protection Fee'}
+            {handlingFeeUpdateMutation.isPending ? 'Updating...' : 'Update Payment Processing Fee'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Buyer Protection Fee Setting (percentage) */}
+      <Card className="bg-primary border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Buyer Protection Fee
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <p className="text-sm text-gray-400">
+            Percentage of the order covering escrow, refunds and dispute protection. Charged to the buyer at checkout; 100% goes to admin.
+          </p>
+          <div className="flex items-center justify-between">
+            <Label className="text-gray-300">Enable / Disable</Label>
+            <button
+              onClick={() => setProtectionFeeEnabledDraft(!protectionFeeEnabled)}
+              disabled={protectionFeeUpdateMutation.isPending}
+              className={`p-2 rounded-lg transition-all ${protectionFeeEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+            >
+              {protectionFeeEnabled ? <ToggleRight className="h-8 w-8 text-white" /> : <ToggleLeft className="h-8 w-8 text-white" />}
+            </button>
+          </div>
+          {protectionFeeEnabled && (
+            <div className="space-y-2">
+              <Label htmlFor="protectionFeePct" className="text-gray-300">Percentage (0–100)</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="protectionFeePct"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={protectionFeePercentage}
+                  onChange={(e) => setProtectionFeePercentageDraft(e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white w-32"
+                />
+                <span className="text-gray-400">%</span>
+              </div>
+            </div>
+          )}
+          {protectionFeeSettings?.lastUpdated && (
+            <p className="text-xs text-gray-500">Last updated: {new Date(protectionFeeSettings.lastUpdated).toLocaleDateString()}</p>
+          )}
+          <Button onClick={handleProtectionFeeUpdate} disabled={protectionFeeUpdateMutation.isPending}>
+            {protectionFeeUpdateMutation.isPending ? 'Updating...' : 'Update Buyer Protection Fee'}
           </Button>
         </CardContent>
       </Card>
@@ -486,6 +641,86 @@ const Settings = () => {
             <p className="text-xs text-gray-400">
               Enter a value between 0 and 1 (e.g., 0.1 = 10%, 0.15 = 15%)
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* DGMARQ Plus Discount */}
+      <Card className="bg-primary border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            DGMARQ Plus Discount
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <Label className="text-gray-300">Current Plus Discount</Label>
+            <p className="text-2xl sm:text-3xl font-bold text-white mt-2">
+              {plusDiscountSettings?.plusDiscountPercent !== undefined
+                ? `${plusDiscountSettings.plusDiscountPercent}%`
+                : '5%'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Applied only to active DGMARQ Plus subscribers. Not deducted from seller earnings.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="plusDiscount" className="text-gray-300">New Plus Discount (%)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="plusDiscount"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={plusDiscount}
+                onChange={(e) => setPlusDiscountDraft(e.target.value)}
+                placeholder="e.g., 5"
+                className="bg-gray-800 border-gray-700 text-white flex-1"
+              />
+              <Button onClick={handlePlusDiscountUpdate} disabled={plusDiscountMutation.isPending}>
+                {plusDiscountMutation.isPending ? 'Updating...' : 'Update'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Featured Product Commission */}
+      <Card className="bg-primary border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Featured Product Commission
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <Label className="text-gray-300">Current Featured Commission</Label>
+            <p className="text-2xl sm:text-3xl font-bold text-white mt-2">
+              {featuredCommissionSettings?.featuredCommissionPercent !== undefined
+                ? `${featuredCommissionSettings.featuredCommissionPercent}%`
+                : '10%'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">Extra commission charged to sellers on admin-featured products, on top of the base commission rate.</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="featuredCommission" className="text-gray-300">New Featured Commission (%)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="featuredCommission"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                value={featuredCommission}
+                onChange={(e) => setFeaturedCommissionDraft(e.target.value)}
+                placeholder="e.g., 10"
+                className="bg-gray-800 border-gray-700 text-white flex-1"
+              />
+              <Button onClick={handleFeaturedCommissionUpdate} disabled={featuredCommissionMutation.isPending}>
+                {featuredCommissionMutation.isPending ? 'Updating...' : 'Update'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -642,6 +877,25 @@ const Settings = () => {
               />
               <p className="text-xs text-gray-400">
                 Range: ${payoutSettings?.bounds?.minimumWithdrawalUsd?.min ?? 0} - ${payoutSettings?.bounds?.minimumWithdrawalUsd?.max ?? 10000}. Default: $50.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="chargebackFeePercent" className="text-gray-300">
+                Chargeback Absorption Fee (%)
+              </Label>
+              <Input
+                id="chargebackFeePercent"
+                type="number"
+                min={payoutSettings?.bounds?.chargebackFeePercent?.min ?? 0}
+                max={payoutSettings?.bounds?.chargebackFeePercent?.max ?? 100}
+                step="0.1"
+                value={chargebackFeePercentValue}
+                onChange={(e) => setChargebackFeePercentDraft(e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+              <p className="text-xs text-gray-400">
+                Deducted from every seller withdrawal (% of the requested amount), on top of the provider fee. Default: 1.5%. Set 0 to disable.
               </p>
             </div>
 

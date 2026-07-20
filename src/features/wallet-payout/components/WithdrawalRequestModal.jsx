@@ -277,11 +277,20 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
           </div>
         )}
         {quoteQuery.data && (
-          <div className="grid grid-cols-3 gap-3 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
               <p className="text-gray-400">Provider fee</p>
               <p className="text-white font-medium">{formatUsd(quoteQuery.data.fee)}</p>
             </div>
+            {quoteQuery.data.chargebackFee > 0 && (
+              <div>
+                <p className="text-gray-400">
+                  Chargeback fee
+                  {quoteQuery.data.chargebackFeePercent ? ` (${quoteQuery.data.chargebackFeePercent}%)` : ""}
+                </p>
+                <p className="text-white font-medium">{formatUsd(quoteQuery.data.chargebackFee)}</p>
+              </div>
+            )}
             <div>
               <p className="text-gray-400">You will receive</p>
               <p className="text-green-400 font-semibold">{formatUsd(quoteQuery.data.net)}</p>

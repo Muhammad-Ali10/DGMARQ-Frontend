@@ -22,10 +22,13 @@ export const getPayPalSDK = async () => {
       }
       const sdk = await loadScript({
         clientId,
-        components: 'buttons,card-fields',
+        // `googlepay` powers paypal.Googlepay() (config/confirmOrder) — Google Pay
+        // is a PayPal COMPONENT, not a Buttons funding source.
+        components: 'buttons,card-fields,googlepay',
         currency: 'USD',
         intent: 'capture',
-        'disable-funding': 'paylater',
+        // Apple Pay is intentionally OFF (product decision: PayPal + Google Pay + card only).
+        'disable-funding': 'paylater,applepay',
         'data-namespace': 'paypal_sdk',
       });
       paypalSDKInstance = sdk;

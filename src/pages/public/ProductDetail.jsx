@@ -6,6 +6,12 @@ import { useSEO, generateProductSEO } from '@hooks/useSEO';
 import { Textarea } from '@components/ui/textarea';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { ProductCard } from '@features/catalog';
+import RegionBadges from '@features/catalog/components/RegionBadges';
+import RegionRestrictionModal from '@features/catalog/components/RegionRestrictionModal';
+import ProductTypeNotice, { ProductTypeBadge } from '@features/catalog/components/ProductTypeNotice';
+import useCurrency from '@hooks/useCurrency';
+import useBuyerCountry from '@hooks/useBuyerCountry';
+import { resolveOfferAvailability, isBuyerCompatible, describeOfferAvailability, countryName } from '@lib/regionCompat';
 import {
   ShoppingCart,
   Eye,
@@ -32,6 +38,7 @@ import {
   HelpCircle,
   Grid3x3,
   Lock,
+  Clock,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
@@ -45,6 +52,7 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { format: formatPrice } = useCurrency();
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [imgFading, setImgFading] = useState(false);
@@ -57,6 +65,7 @@ const ProductDetail = () => {
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [openAcc, setOpenAcc] = useState({ description: true, sysreq: false, activation: false, faq: false });
   const [openFaq, setOpenFaq] = useState(null);
+  const [regionModalOpen, setRegionModalOpen] = useState(false);
 
   const { data: product, isLoading, isError, error } = useQuery({
     queryKey: ['product-detail', identifier],
@@ -66,6 +75,10 @@ const ProductDetail = () => {
     },
     retry: 1,
   });
+
+  // Buyer country → picks the region-compatible featured offer + drives the
+  // trust card / restrictions modal (computed once product + offers are loaded).
+  const { country: buyerCountry } = useBuyerCountry();
 
   useEffect(() => {
     if (!product?.slug || !identifier) return;
@@ -212,10 +225,17 @@ const ProductDetail = () => {
     },
   });
 
+  // Returns false when a guard rejected the add, so "Purchase as guest" knows
+  // not to send the buyer on to checkout.
   const handleAddToCart = () => {
-    if (!product.stock || product.stock < quantity) {
+    if (!featuredStock || featuredStock < quantity) {
       toast.error('Insufficient stock');
-      return;
+      return false;
+    }
+    // No seller covers the buyer's region — warn, but still allow (region info is
+    // advisory, purchase is never hard-blocked).
+    if (boVerdict === false) {
+      toast.warning(`This key cannot be activated in ${boCountryName || 'your region'} — adding anyway.`);
     }
 
     if (!isAuthenticated) {
@@ -225,7 +245,8 @@ const ProductDetail = () => {
         price: safeDiscountedPrice,
         originalPrice: safeOriginalPrice,
         discountPercentage: displayDiscountPercent,
-        sellerId: product.bestOffer?.sellerId || product.sellerId,
+        sellerId: featuredOffer?.sellerId || product.sellerId,
+        shopName: featuredOffer?.shopName || null,
         name: product.name,
         slug: product.slug,
         image: product.images?.[0],
@@ -233,14 +254,37 @@ const ProductDetail = () => {
         typeName: getTypeName(product),
       });
       toast.success('Added to cart');
-      return;
+      return true;
     }
 
     addToCartMutation.mutate({
       productId: product._id,
       qty: quantity,
-      sellerId: product.bestOffer?.sellerId || product.sellerId,
+      sellerId: featuredOffer?.sellerId || product.sellerId,
     });
+    return true;
+  };
+
+  // Buy Now (logged-in): add this item to the cart, then go straight to
+  // checkout. Checkout defaults to PayPal, so the PayPal button lands there too.
+  const handleBuyNow = async () => {
+    if (!featuredStock || featuredStock < quantity) {
+      toast.error('Insufficient stock');
+      return;
+    }
+    if (boVerdict === false) {
+      toast.warning(`This key cannot be activated in ${boCountryName || 'your region'} — continuing anyway.`);
+    }
+    try {
+      await addToCartMutation.mutateAsync({
+        productId: product._id,
+        qty: quantity,
+        sellerId: featuredOffer?.sellerId || product.sellerId,
+      });
+      navigate('/checkout');
+    } catch {
+      // addToCartMutation surfaces its own error toast
+    }
   };
 
   const addOfferToCart = (offer) => {
@@ -256,6 +300,7 @@ const ProductDetail = () => {
         originalPrice: offer.price,
         discountPercentage: offer.discount || 0,
         sellerId: offer.sellerId,
+        shopName: offer.shopName || null,
         name: product.name,
         slug: product.slug,
         image: product.images?.[0],
@@ -336,11 +381,24 @@ const ProductDetail = () => {
     return <ErrorMessage message="Product not found" />;
   }
 
+  // Featured offer = the cheapest in-stock offer the BUYER CAN ACTIVATE; falls
+  // back to the cheapest overall when no seller covers the buyer's region. It
+  // drives the whole buy box (price, stock, seller, qty cap, region), so the
+  // buyer never adds an un-activatable key by default and never hits a
+  // product-total qty cap the chosen seller can't fill.
+  const inStockOffers = (product.offers || []).filter((o) => o.inStock);
+  const featuredOffer = (() => {
+    if (!inStockOffers.length) return product.bestOffer || null;
+    const byPrice = [...inStockOffers].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+    return byPrice.find((o) => isBuyerCompatible(resolveOfferAvailability(o), buyerCountry) !== false) || byPrice[0];
+  })();
+  const featuredStock = featuredOffer?.availableKeysCount ?? (product.stock || 0);
+
   const {
     originalPrice: safeOriginalPrice,
     discountPrice: safeDiscountedPrice,
     discountPercentage: displayDiscountPercent,
-  } = calculateProductPrice(product);
+  } = calculateProductPrice(featuredOffer || product);
   const hasDiscount = safeDiscountedPrice < safeOriginalPrice;
 
   const images = Array.isArray(product.images)
@@ -394,7 +452,26 @@ const ProductDetail = () => {
 
   const platformDisplay = getPlatformName(product);
   const typeDisplay = getTypeName(product);
+  // M21: unreleased pre-order — buyable without stock, delivered at release.
+  const isActivePreorder = product.isPreorder && !product.preorderReleasedAt;
   const regionName = product.region?.name || null;
+
+  // Featured-offer ACTIVATION region (real) → trust card + restrictions modal.
+  // Falls back to the product taxonomy tag only when there's no live offer yet.
+  const bo = featuredOffer;
+  const boAvail = bo ? resolveOfferAvailability(bo) : null;
+  const boVerdict = bo ? isBuyerCompatible(boAvail, buyerCountry) : null;
+  const boCountryName = buyerCountry ? countryName(buyerCountry) : null;
+  const boDetail = bo ? describeOfferAvailability(bo) : null;
+  const boRegionLabel = !bo
+    ? (regionName || 'GLOBAL')
+    : boAvail?.global
+      ? 'GLOBAL'
+      : boDetail?.regionNames.length
+        ? boDetail.regionNames.join(', ')
+        : boAvail?.unrestricted
+          ? 'GLOBAL'
+          : `${boAvail?.allowed.size || 0} countries`;
 
   // Product Details — split into two balanced columns.
   const detailItems = [];
@@ -429,8 +506,6 @@ const ProductDetail = () => {
   };
 
   const toggleAcc = (key) => setOpenAcc((s) => ({ ...s, [key]: !s[key] }));
-
-  const isKeyType = /key|gift|activation/i.test(typeDisplay || product.productType || '');
 
   const faqs = [
     {
@@ -630,9 +705,29 @@ const ProductDetail = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="mb-1.5">
-                    <span style={{ background: 'linear-gradient(90deg,rgba(46,207,176,0.25),rgba(14,159,226,0.15))', color: '#5af0d4', fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(94,240,212,0.4)', letterSpacing: '0.08em' }}>{regionName || 'GLOBAL'}</span>
+                    <span style={{ background: 'linear-gradient(90deg,rgba(46,207,176,0.25),rgba(14,159,226,0.15))', color: '#5af0d4', fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(94,240,212,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{boRegionLabel}</span>
                   </div>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.68)', margin: 0, lineHeight: 1.55 }}>Region of activation for this product.</p>
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.68)', margin: '0 0 6px', lineHeight: 1.55 }}>
+                    {boVerdict === false ? (
+                      <>Cannot be activated in <span style={{ color: '#f87171', fontWeight: 700 }}>{boCountryName}</span></>
+                    ) : boCountryName ? (
+                      <>Can be activated in <span style={{ color: '#5af0d4', fontWeight: 700 }}>{boCountryName}</span></>
+                    ) : (boAvail?.global || boAvail?.unrestricted) ? (
+                      <>Can be activated <span style={{ color: '#5af0d4', fontWeight: 700 }}>worldwide</span></>
+                    ) : (
+                      <>Region of activation for this product.</>
+                    )}
+                  </p>
+                  {bo && (
+                    <span
+                      className="trust-link"
+                      onClick={() => setRegionModalOpen(true)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, borderRadius: 999, padding: '3px 9px', color: '#ffd166', border: '1px solid rgba(255,209,102,0.35)', background: 'rgba(255,209,102,0.06)', cursor: 'pointer' }}
+                    >
+                      Check region restrictions
+                      <ChevronRight width={10} height={10} />
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -681,20 +776,22 @@ const ProductDetail = () => {
               <span className="fx-corner fx-corner-tl" /><span className="fx-corner fx-corner-tr" /><span className="fx-corner fx-corner-bl" /><span className="fx-corner fx-corner-br" />
               <span className="fx-scanline" />
               <div className="fx-price-top" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, position: 'relative', flexWrap: 'wrap' }}>
-                <span className="fx-price text-3xl font-bold">${safeDiscountedPrice.toFixed(2)}</span>
+                <span className="fx-price text-3xl font-bold">{formatPrice(safeDiscountedPrice)}</span>
                 {hasDiscount && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span className="text-sm text-gray-500 line-through" style={{ lineHeight: 1 }}>${safeOriginalPrice.toFixed(2)}</span>
+                    <span className="text-sm text-gray-500 line-through" style={{ lineHeight: 1 }}>{formatPrice(safeOriginalPrice)}</span>
                     {displayDiscountPercent > 0 && (
                       <span className="inline-flex items-center rounded-full text-white text-xs font-medium px-2 py-0.5 bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" style={{ width: 'fit-content' }}>-{displayDiscountPercent}%</span>
                     )}
                   </div>
                 )}
-                <span className={`fx-stock-top ${product.stock > 0 ? '' : 'oos'}`}>
-                  {product.stock > 0 ? <CheckCircle width={11} height={11} /> : <XCircle width={11} height={11} />}
-                  <span className="fx-stock-num">{product.stock > 0 ? product.stock : 0}</span>
-                  <span className="fx-stock-label">{product.stock > 0 ? 'in stock' : 'out'}</span>
+                <span className={`fx-stock-top ${featuredStock > 0 ? '' : 'oos'}`}>
+                  {featuredStock > 0 ? <CheckCircle width={11} height={11} /> : <XCircle width={11} height={11} />}
+                  <span className="fx-stock-num">{featuredStock > 0 ? featuredStock : 0}</span>
+                  <span className="fx-stock-label">{featuredStock > 0 ? 'in stock' : 'out'}</span>
                 </span>
+                {/* M17: prominent per-type badge — what the buyer receives */}
+                <ProductTypeBadge type={product.productType} />
               </div>
 
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', margin: '8px 0' }} />
@@ -729,7 +826,7 @@ const ProductDetail = () => {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14" /></svg>
                   </button>
                   <span className="text-white font-semibold text-sm" style={{ width: 26, textAlign: 'center', borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)', height: 34, lineHeight: '34px' }}>{quantity}</span>
-                  <button className="flex items-center justify-center text-white hover:text-accent transition-colors disabled:opacity-40" style={{ width: 32, height: 34 }} disabled={quantity >= (product.stock || 1)} onClick={() => setQuantity(Math.min(product.stock || 1, quantity + 1))}>
+                  <button className="flex items-center justify-center text-white hover:text-accent transition-colors disabled:opacity-40" style={{ width: 32, height: 34 }} disabled={quantity >= (featuredStock || 1)} onClick={() => setQuantity(Math.min(featuredStock || 1, quantity + 1))}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                   </button>
                 </div>
@@ -792,40 +889,76 @@ const ProductDetail = () => {
 
           {/* Action buttons */}
           <div className="space-y-3">
+            {boVerdict === false && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300">
+                <XCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>Cannot be activated in {boCountryName || 'your region'} — no seller covers your region. You can still buy, but may be unable to activate this key.</span>
+              </div>
+            )}
+            {/* M21: pre-order notice — pay now, key delivered on release */}
+            {isActivePreorder && (
+              <div className="flex items-center justify-between rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2">
+                <span className="flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                  <Clock className="h-4 w-4" /> PRE-ORDER
+                </span>
+                <span className="text-xs text-amber-200/80">
+                  {product.preorderReleaseDate
+                    ? `Releases ${new Date(product.preorderReleaseDate).toLocaleDateString()} — key delivered on release`
+                    : 'Key delivered on release'}
+                </span>
+              </div>
+            )}
             <button
               onClick={handleAddToCart}
-              disabled={!product.stock || product.stock === 0 || addToCartMutation.isPending}
+              disabled={(!isActivePreorder && (!featuredStock || featuredStock === 0)) || addToCartMutation.isPending}
               className="inline-flex items-center justify-center gap-2 font-medium bg-primary text-white hover:opacity-90 rounded-md px-6 w-full h-12 text-lg disabled:opacity-50"
             >
               <ShoppingCart className="h-5 w-5" />
-              {addToCartMutation.isPending ? 'Adding...' : 'Add to Cart'}
+              {addToCartMutation.isPending ? 'Adding...' : isActivePreorder ? 'Pre-order — Add to Cart' : 'Add to Cart'}
             </button>
-            {!isAuthenticated && product.stock > 0 && (
+            {isAuthenticated && (product.stock > 0 || isActivePreorder) && (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleBuyNow}
+                  disabled={addToCartMutation.isPending}
+                  className="inline-flex items-center justify-center gap-2 font-semibold bg-accent text-white hover:opacity-90 rounded-md px-4 w-full h-12 text-base disabled:opacity-50"
+                >
+                  {isActivePreorder ? 'Pre-order Now' : 'Buy Now'}
+                </button>
+                <button
+                  onClick={handleBuyNow}
+                  disabled={addToCartMutation.isPending}
+                  className="inline-flex items-center justify-center gap-2 font-semibold rounded-md px-4 w-full h-12 text-base disabled:opacity-50"
+                  style={{ background: '#ffc439', color: '#003087' }}
+                >
+                  PayPal
+                </button>
+              </div>
+            )}
+            {/* M21 login-gate: guests cannot pre-order — send them to login */}
+            {!isAuthenticated && isActivePreorder && (
               <button
-                onClick={() =>
-                  navigate('/checkout', {
-                    state: {
-                      guestItems: [{ productId: product._id, productName: product.name, name: product.name, slug: product.slug, image: product.images?.[0], qty: quantity }],
-                    },
-                  })
-                }
+                onClick={() => navigate('/login')}
+                className="inline-flex items-center justify-center gap-2 font-medium bg-transparent text-amber-300 border border-amber-500/50 hover:bg-amber-500/10 transition-colors rounded-md px-4 w-full h-12 text-sm"
+              >
+                <User className="h-4 w-4" /> Log in to pre-order
+              </button>
+            )}
+            {!isAuthenticated && !isActivePreorder && product.stock > 0 && (
+              <button
+                onClick={() => {
+                  // Route guest buy-now through the guest cart: checkout renders
+                  // real prices/fees, which the old nav-state payload couldn't carry.
+                  if (handleAddToCart()) navigate('/checkout');
+                }}
                 className="inline-flex items-center justify-center gap-2 font-medium bg-transparent text-white border border-gray-600 hover:border-gray-400 hover:bg-white/5 transition-colors rounded-md px-4 w-full h-12 text-sm"
               >
                 <User className="h-4 w-4" /> Purchase as guest
               </button>
             )}
 
-            {/* Important Notice */}
-            {isKeyType && (
-              <div style={{ background: '#07142E', border: '1.5px solid #0e51e2', borderRadius: 12, padding: '14px 16px', position: 'relative', overflow: 'hidden', boxShadow: '0 0 18px rgba(14,81,226,0.25)' }}>
-                <p style={{ color: '#5b8fff', fontWeight: 700, fontSize: 12, margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <HelpCircle width={13} height={13} /> Important Notice
-                </p>
-                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, lineHeight: 1.6, margin: 0 }}>
-                  This is a digital edition of the product <span style={{ color: '#fff', fontWeight: 600 }}>(CD-KEY)</span>. You will receive an activation key to redeem on the relevant platform. No physical item is shipped. Ensure this key is compatible with your region before purchasing.
-                </p>
-              </div>
-            )}
+            {/* M17: Important Notice — per product type (all types, not just keys) */}
+            <ProductTypeNotice type={product.productType} />
           </div>
         </div>
       </div>
@@ -981,7 +1114,7 @@ const ProductDetail = () => {
                         {isBest && <span className="of-best-badge">★ BEST PRICE</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        {o.region ? <span className="of-region-active">{o.region}</span> : <span className="of-region-pill">GLOBAL</span>}
+                        <RegionBadges offer={o} showWarning />
                         <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10 }}>/</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                           <Star width={11} height={11} className="fill-yellow-400 text-yellow-400" />
@@ -990,7 +1123,7 @@ const ProductDetail = () => {
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
-                      <p className={`of-price ${isBest ? 'of-price-best' : ''}`} style={{ margin: 0 }}>${Number(o.price || 0).toFixed(2)}</p>
+                      <p className={`of-price ${isBest ? 'of-price-best' : ''}`} style={{ margin: 0 }}>{formatPrice(Number(o.price || 0))}</p>
                       {o.inStock ? (
                         <span className="of-stock"><span className="of-dot of-dot-green" style={{ width: 5, height: 5 }} />{o.availableKeysCount || 1} in stock</span>
                       ) : (
@@ -1234,6 +1367,12 @@ const ProductDetail = () => {
           </div>
         </div>
       )}
+
+      <RegionRestrictionModal
+        offer={featuredOffer}
+        open={regionModalOpen}
+        onClose={() => setRegionModalOpen(false)}
+      />
     </div>
   );
 };

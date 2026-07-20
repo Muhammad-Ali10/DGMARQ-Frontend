@@ -10,6 +10,7 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import { LicenseKeysModal } from '@features/seller';
 import SafeImage from '@components/ui/safe-image';
 import { getOrderItemProductName } from '@utils/orderItem';
+import useCurrency from '@hooks/useCurrency';
 import { ArrowLeft, Package, CreditCard, MapPin, Calendar, MessageSquare, ExternalLink } from 'lucide-react';
 import { showApiError } from '@utils/toast';
 import { toast } from 'sonner';
@@ -18,6 +19,7 @@ const OrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const { format } = useCurrency();
   const [licenseKeysModalOpen, setLicenseKeysModalOpen] = useState(false);
 
   const { data: order, isLoading, isError, error } = useQuery({
@@ -176,21 +178,21 @@ const OrderDetail = () => {
                           )}
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                             <span>Quantity: {item.qty}</span>
-                            <span>Unit price: ${item.unitPrice?.toFixed(2)}</span>
+                            <span>Unit price: {format(item.unitPrice)}</span>
                             {(item.refundedKeysCount > 0 || item.refundedAmount > 0) && (
                               <span className="text-amber-400/90">
-                                Refunded: {item.refundedKeysCount || 0} key(s) · -${(Number(item.refundedAmount) || 0).toFixed(2)}
+                                Refunded: {item.refundedKeysCount || 0} key(s) · -{format(Number(item.refundedAmount) || 0)}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-white text-lg">
-                            ${(item.lineTotal ?? item.qty * item.unitPrice).toFixed(2)}
+                            {format(item.lineTotal ?? item.qty * item.unitPrice)}
                           </p>
                           {(item.refundedAmount > 0) && (
                             <p className="text-sm text-amber-400/90 mt-0.5">
-                              After refund: ${((item.lineTotal ?? item.qty * item.unitPrice) - (Number(item.refundedAmount) || 0)).toFixed(2)}
+                              After refund: {format((item.lineTotal ?? item.qty * item.unitPrice) - (Number(item.refundedAmount) || 0))}
                             </p>
                           )}
                         </div>
@@ -313,44 +315,44 @@ const OrderDetail = () => {
               <div className="border-t border-gray-700 pt-4 space-y-2">
                 <div className="flex justify-between text-gray-400">
                   <span>Subtotal:</span>
-                  <span>${order.subtotal?.toFixed(2) || order.totalAmount?.toFixed(2)}</span>
+                  <span>{format(order.subtotal || order.totalAmount)}</span>
                 </div>
                 {order.shippingCost && order.shippingCost > 0 && (
                   <div className="flex justify-between text-gray-400">
                     <span>Shipping:</span>
-                    <span>${order.shippingCost.toFixed(2)}</span>
+                    <span>{format(order.shippingCost)}</span>
                   </div>
                 )}
                 {order.tax && order.tax > 0 && (
                   <div className="flex justify-between text-gray-400">
                     <span>Tax:</span>
-                    <span>${order.tax.toFixed(2)}</span>
+                    <span>{format(order.tax)}</span>
                   </div>
                 )}
                 {order.discount && order.discount > 0 && (
                   <div className="flex justify-between text-green-400">
                     <span>Discount:</span>
-                    <span>-${order.discount.toFixed(2)}</span>
+                    <span>-{format(order.discount)}</span>
                   </div>
                 )}
                 {order.buyerHandlingFee > 0 && (
                   <div className="flex justify-between text-gray-400">
                     <span>Buyer Protection Fee:</span>
-                    <span>${order.buyerHandlingFee.toFixed(2)}</span>
+                    <span>{format(order.buyerHandlingFee)}</span>
                   </div>
-                )}  
+                )}
                 {(() => {
                   const totalRefunded = (order.items || []).reduce((sum, item) => sum + (Number(item.refundedAmount) || 0), 0);
                   return totalRefunded > 0 ? (
                     <div className="flex justify-between text-amber-400/90">
                       <span>Refunded:</span>
-                      <span>-${totalRefunded.toFixed(2)}</span>
+                      <span>-{format(totalRefunded)}</span>
                     </div>
                   ) : null;
                 })()}
                 <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-gray-700">
                   <span>{order.grandTotal != null ? 'Grand Total:' : 'Total:'}</span>
-                  <span>${(order.grandTotal ?? order.totalAmount)?.toFixed(2)}</span>
+                  <span>{format(order.grandTotal ?? order.totalAmount)}</span>
                 </div>
                 {(() => {
                   const totalRefunded = (order.items || []).reduce((sum, item) => sum + (Number(item.refundedAmount) || 0), 0);
@@ -359,7 +361,7 @@ const OrderDetail = () => {
                   return (
                     <div className="flex justify-between text-gray-400 text-sm pt-1">
                       <span>Amount after refunds:</span>
-                      <span>${paidAfterRefunds.toFixed(2)}</span>
+                      <span>{format(paidAfterRefunds)}</span>
                     </div>
                   );
                 })()}

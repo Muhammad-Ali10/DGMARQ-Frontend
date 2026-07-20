@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Badge } from '@components/ui/badge';
 import { Label } from '@components/ui/label';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { ArrowLeft, Store, Mail, MapPin, Calendar, DollarSign, Package, ShoppingCart, FileText, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Store, Mail, MapPin, Calendar, DollarSign, Package, ShoppingCart, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
 
 // Renders a verification document tile. Image documents show a clickable
@@ -176,6 +176,19 @@ const SellerProfileView = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="bg-primary border-gray-700">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-400 text-sm">Dispute Rate</p>
+                <p className="text-2xl sm:text-3xl font-bold text-white mt-2">{stats.disputeRate ?? 0}%</p>
+                <p className="text-xs text-gray-400 mt-1">{stats.disputeCount ?? 0} disputes / {stats.totalOrders ?? 0} orders</p>
+              </div>
+              <AlertTriangle className="h-10 w-10 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Details Grid */}
@@ -310,6 +323,10 @@ const SellerProfileView = () => {
             <div>
               <Label className="text-gray-400 text-sm">Business Name</Label>
               <p className="text-white mt-1">{seller?.businessName || 'N/A'}</p>
+            </div>
+            <div>
+              <Label className="text-gray-400 text-sm">Additional Notes</Label>
+              <p className="text-white mt-1 whitespace-pre-wrap">{seller?.additionalNotes || 'N/A'}</p>
             </div>
             <div>
               <Label className="text-gray-400 text-sm">Tax ID</Label>

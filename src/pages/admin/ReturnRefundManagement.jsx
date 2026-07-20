@@ -12,7 +12,7 @@ import { Badge } from '@components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Eye, CheckCircle2, XCircle, AlertCircle, Package, User, Store, FileText, Key, EyeOff } from 'lucide-react';
-import { RefundChat } from '@features/wallet-payout';
+import { RefundChat, isRefundChatLocked } from '@features/wallet-payout';
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
 
@@ -836,7 +836,7 @@ const ReturnRefundManagement = () => {
               </>
               )}
 
-              <RefundChat refundId={selectedRefund._id} canSend={true} />
+              <RefundChat refundId={selectedRefund._id} canSend={true} locked={isRefundChatLocked(selectedRefund.status)} />
             </div>
           )}
         </DialogContent>

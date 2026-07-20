@@ -55,10 +55,12 @@ const HomepageSlidersManagement = () => {
     queryKey: ['products-search', productSearchQuery],
     queryFn: async () => {
       if (!productSearchQuery.trim()) return { docs: [] };
+      // No adminView: the buyer-visibility gate applies, so only products a
+      // buyer can actually purchase (approved offer with stock / live
+      // pre-order) can go on a slide.
       const response = await productAPI.getProducts({
         search: productSearchQuery,
         status: 'active',
-        adminView: 'true',
         limit: 50,
       });
       return response.data.data || { docs: [] };
@@ -245,9 +247,9 @@ const HomepageSlidersManagement = () => {
                               )}
                               <div className="flex-1">
                                 <div className="text-white font-medium">{product.name}</div>
-                                {product.price && (
-                                  <div className="text-sm text-gray-400">${product.price.toFixed(2)}</div>
-                                )}
+                                <div className="text-sm text-gray-400">
+                                  {product.price ? `$${product.price.toFixed(2)} · ` : ''}{product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
+                                </div>
                               </div>
                             </div>
                           </button>
@@ -480,9 +482,9 @@ const HomepageSlidersManagement = () => {
                             )}
                             <div className="flex-1">
                               <div className="text-white font-medium">{product.name}</div>
-                              {product.price && (
-                                <div className="text-sm text-gray-400">${product.price.toFixed(2)}</div>
-                              )}
+                              <div className="text-sm text-gray-400">
+                                {product.price ? `$${product.price.toFixed(2)} · ` : ''}{product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
+                              </div>
                             </div>
                           </div>
                         </button>

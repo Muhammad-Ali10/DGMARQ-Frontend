@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import api from '@lib/axios';
+import { updateUser } from '@store/slices/authSlice';
 import { Loading } from '@components/ui/loading';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -10,8 +12,9 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   // isAuthenticated flag for UX, then confirm the session by calling the API
   // (the cookie authenticates it). A failed verification forces logout.
   const { isAuthenticated, roles } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
 
-  const { isPending: isVerifyingToken, isError } = useQuery({
+  const { data, isPending: isVerifyingToken, isError } = useQuery({
     queryKey: ['verify-token'],
     queryFn: () => api.get('/user/profile'),
     enabled: isAuthenticated,
@@ -19,6 +22,17 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     retry: false,
     meta: { skipErrorToast: true },
   });
+
+  // F31: the cached profile (and therefore `roles`) is hydrated from
+  // localStorage, which the user can edit. This request already proves the
+  // session — reconcile the cached profile with what the SERVER says rather
+  // than throwing the response away, so every consumer of `state.auth.roles`
+  // sees the authoritative value.
+  const serverUser = data?.data?.data ?? null;
+
+  useEffect(() => {
+    if (serverUser) dispatch(updateUser(serverUser));
+  }, [serverUser, dispatch]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -35,8 +49,16 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (allowedRoles.length > 0) {
-    const normalizedRoles = Array.isArray(roles) && roles.length > 0
-      ? roles.map(r => String(r).toLowerCase())
+    // Gate on the server's roles. `roles` (localStorage-backed) is only a
+    // fallback for the theoretical case of a resolved query with no body — by
+    // this line the verification has already succeeded.
+    const authoritativeRoles = Array.isArray(serverUser?.roles)
+      ? serverUser.roles
+      : serverUser?.role
+        ? [serverUser.role]
+        : roles;
+    const normalizedRoles = Array.isArray(authoritativeRoles) && authoritativeRoles.length > 0
+      ? authoritativeRoles.map(r => String(r).toLowerCase())
       : [];
     const normalizedAllowedRoles = allowedRoles.map(r => String(r).toLowerCase());
     if (normalizedRoles.includes('admin')) {

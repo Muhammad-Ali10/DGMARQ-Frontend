@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@comp
 import { authAPI } from '@services/api';
 import { API_ORIGIN } from '@lib/config';
 import { showSuccess, showApiError } from '@utils/toast';
-import { Chrome } from 'lucide-react';
+import { Chrome, Gamepad2, MessagesSquare, Wallet } from 'lucide-react';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -106,6 +106,10 @@ const Register = () => {
 
   const handleGoogleLogin = () => {
     window.location.href = `${API_ORIGIN}/api/v1/user/auth/google`;
+  };
+
+  const socialLogin = (provider) => {
+    window.location.href = `${API_ORIGIN}/api/v1/user/auth/${provider}`;
   };
 
   return (
@@ -218,6 +222,18 @@ const Register = () => {
               <Chrome className="mr-2 h-5 w-5" />
               Continue with Google
             </Button>
+
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('steam')} title="Continue with Steam">
+                <Gamepad2 className="h-5 w-5" />
+              </Button>
+              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('discord')} title="Continue with Discord">
+                <MessagesSquare className="h-5 w-5" />
+              </Button>
+              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('paypal')} title="Continue with PayPal">
+                <Wallet className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">

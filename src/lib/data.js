@@ -1191,3 +1191,246 @@ export const AboutFinalCta = {
     ctaSecondaryUrl: "/marketplace",
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// M16 — Legal pages (data-driven, same shape as TermsConditionsPageData).
+// NOTE FOR OWNER: this is professional PLACEHOLDER copy reflecting how the
+// platform actually behaves; replace/adjust wording (and bracketed values)
+// with the client's final legal text before launch.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const RefundPolicyPageData = {
+  hero: {
+    headline: "Refund Policy",
+    subtext: "How refunds, returns and disputes work on the DGMARQ marketplace.",
+    effectiveDate: "Effective Date: [2026-07-03]",
+  },
+  sections: [
+    {
+      num: 1,
+      title: "Scope",
+      content: [
+        "This policy applies to all digital products purchased on DGMARQ, including license keys, game accounts, gift codes and activation links.",
+        "Because products are digital and delivered instantly, refunds follow the rules below rather than general consumer return rules for physical goods.",
+      ],
+    },
+    {
+      num: 2,
+      title: "When You Can Request a Refund",
+      content: [
+        "You may open a refund request when:",
+        [
+          "The delivered key or code is invalid, already used, or does not activate",
+          "The delivered product materially differs from its listing",
+          "The product was not delivered after successful payment",
+          "The key cannot be activated in your region despite the listing marking your region as supported",
+        ],
+        "Refund requests must be opened within the refund window shown on your order. Requests outside the window may be declined.",
+      ],
+    },
+    {
+      num: 3,
+      title: "What Is Not Refundable",
+      content: [
+        "Refunds are generally not available when:",
+        [
+          "The key has been successfully activated or redeemed",
+          "You purchased for the wrong platform or region despite it being clearly stated on the listing",
+          "You changed your mind after the key was revealed or delivered",
+        ],
+      ],
+    },
+    {
+      num: 4,
+      title: "How the Process Works",
+      content: [
+        "Refunds follow a staged review:",
+        [
+          "You open a request from your order with the reason and any evidence (screenshots, error messages)",
+          "The seller reviews it first and may approve or reject",
+          "If the seller rejects, you can escalate to DGMARQ for an impartial final decision",
+          "A refund chat keeps you, the seller and our team in one thread until the case closes",
+        ],
+        "Once a case is completed or finally rejected, the case and its chat are closed.",
+      ],
+    },
+    {
+      num: 5,
+      title: "How You Receive Your Money",
+      content: [
+        "Approved refunds are issued to your DGMARQ wallet or back to your original payment method, depending on the case and your selection.",
+        "Wallet refunds are typically instant; original-payment refunds depend on your payment provider's processing times.",
+      ],
+    },
+    {
+      num: 6,
+      title: "Fraud & Abuse",
+      content: [
+        "Fraudulent or abusive refund claims (e.g. claiming a working key is invalid) lead to account suspension and may be reported to payment providers.",
+      ],
+    },
+  ],
+  finalCta: {
+    headline: "Need Help With an Order?",
+    ctaPrimary: "Contact Support",
+    ctaPrimaryUrl: "/buyer-support",
+  },
+};
+
+export const FeeSchedulePageData = {
+  hero: {
+    headline: "Fee Schedule",
+    subtext: "A transparent overview of the fees that apply when buying and selling on DGMARQ.",
+    effectiveDate: "Effective Date: [2026-07-03]",
+  },
+  sections: [
+    {
+      num: 1,
+      title: "Buyer Fees",
+      content: [
+        "A small order processing fee applies at checkout (shown before you pay).",
+        [
+          "Payment processing fee: displayed at checkout ([currently $1.05 per order])",
+          "No hidden charges — the grand total you see is the amount charged",
+          "All charges are processed in USD; prices shown in other currencies are approximate conversions",
+        ],
+      ],
+    },
+    {
+      num: 2,
+      title: "Seller Commission",
+      content: [
+        "DGMARQ charges sellers a commission per completed sale:",
+        [
+          "Base marketplace commission: [see your seller dashboard for the current rate]",
+          "Featured listings carry an additional commission ([currently +10%]) in exchange for extra visibility",
+        ],
+        "Commissions are deducted automatically before payout — sellers never receive an invoice.",
+      ],
+    },
+    {
+      num: 3,
+      title: "DGMARQ Plus",
+      content: [
+        "DGMARQ Plus subscribers receive an automatic member discount on purchases ([currently 5%]).",
+        "The discount is funded by the platform — it is not deducted from seller earnings.",
+      ],
+    },
+    {
+      num: 4,
+      title: "Payout & Withdrawal",
+      content: [
+        "Seller earnings are held in escrow and released after the payout hold period ([currently 15 days] after order completion).",
+        "Payouts are processed via PayPal. Provider transfer fees, where applicable, are shown before you confirm a withdrawal.",
+      ],
+    },
+    {
+      num: 5,
+      title: "Changes to Fees",
+      content: [
+        "Fee rates may change over time. The values on this page and in your dashboard always reflect the currently effective rates; changes never apply retroactively to completed orders.",
+      ],
+    },
+  ],
+  finalCta: {
+    headline: "Questions About Fees?",
+    ctaPrimary: "Contact Support",
+    ctaPrimaryUrl: "/buyer-support",
+  },
+};
+
+export const VendorTermsPageData = {
+  hero: {
+    headline: "Vendor Terms of Service",
+    subtext: "Commission, payouts and platform fees — the terms that govern selling on DGMARQ.",
+    effectiveDate: "Effective Date: [2026-07-03]",
+  },
+  sections: [
+    {
+      num: 1,
+      title: "Becoming a Vendor",
+      content: [
+        "To sell on DGMARQ you must:",
+        [
+          "Complete the seller application including identity (KYC) verification",
+          "Provide accurate business and contact information",
+          "Be approved by the DGMARQ team before listing",
+        ],
+      ],
+    },
+    {
+      num: 2,
+      title: "Listings & Catalog",
+      content: [
+        "The product catalog is curated by DGMARQ. Vendors list offers (price, stock, regions) against catalog products.",
+        [
+          "You may only sell keys and accounts you are legally entitled to distribute",
+          "Region availability you declare must be accurate — misdeclared regions are a policy violation",
+          "Listings are subject to review and approval",
+        ],
+      ],
+    },
+    {
+      num: 3,
+      title: "Commission & Platform Fees",
+      content: [
+        "A commission is charged on every completed sale and deducted automatically:",
+        [
+          "Base marketplace commission: [see seller dashboard for the current rate]",
+          "Featured-listing surcharge: [currently +10%] while a listing is featured",
+        ],
+        "The full breakdown of every deduction is visible per order in your earnings dashboard.",
+      ],
+    },
+    {
+      num: 4,
+      title: "Escrow & Payouts",
+      content: [
+        "Buyer payments are held in escrow. Your earning for an order is scheduled for payout after the hold period ([currently 15 days]) provided no refund or dispute is open on it.",
+        [
+          "Open refunds freeze only the affected order line, not your whole balance",
+          "Payouts are made via PayPal to your verified payout account",
+          "DGMARQ may delay a payout for security or fraud review",
+        ],
+      ],
+    },
+    {
+      num: 5,
+      title: "Refunds & Disputes",
+      content: [
+        "Vendors participate in the refund process:",
+        [
+          "You review buyer refund requests first and may approve or reject with a reason",
+          "Rejected requests can be escalated to DGMARQ, whose decision is final within the platform",
+          "Approved refunds are deducted from your escrowed earnings for that order",
+        ],
+        "A consistently high dispute rate may lead to account review, delisting or suspension.",
+      ],
+    },
+    {
+      num: 6,
+      title: "Prohibited Conduct",
+      content: [
+        "The following lead to immediate action against your account:",
+        [
+          "Selling stolen, fraudulent or region-misdeclared keys",
+          "Directing buyers off-platform to avoid fees",
+          "Manipulating reviews or ratings",
+        ],
+      ],
+    },
+    {
+      num: 7,
+      title: "Termination",
+      content: [
+        "You may stop selling at any time; pending orders and open refunds must still be honored.",
+        "DGMARQ may suspend or terminate vendor accounts for policy violations. Escrowed funds for legitimate completed orders are paid out per the normal schedule after review.",
+      ],
+    },
+  ],
+  finalCta: {
+    headline: "Questions About Selling?",
+    ctaPrimary: "Contact Seller Support",
+    ctaPrimaryUrl: "/seller-support",
+  },
+};
+

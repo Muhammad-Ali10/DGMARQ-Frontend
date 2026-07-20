@@ -31,5 +31,8 @@ export default defineConfig({
     // Co-located tests live next to the code they cover (feature-first).
     include: ['src/**/*.{test,spec}.{js,jsx}'],
     css: false,
+    // The default forks pool intermittently fails to spawn workers on Windows
+    // under load ("Timeout waiting for worker to respond"); threads is reliable.
+    pool: 'threads',
   },
 });

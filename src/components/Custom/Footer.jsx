@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -15,18 +15,11 @@ import {
   Rss,
 } from "lucide-react";
 import SafeImage from "@components/ui/safe-image";
+import useCurrency from "@hooks/useCurrency";
+import useLanguage from "@hooks/useLanguage";
+import useBuyerCountry from "@hooks/useBuyerCountry";
+import CurrencyLanguageModal from "./CurrencyLanguageModal";
 import "./Footer.css";
-
-const CURRENCIES = [
-  { code: "AUD", flag: "au", name: "Australian Dollar" },
-  { code: "USD", flag: "us", name: "US Dollar" },
-  { code: "EUR", flag: "eu", name: "Euro" },
-  { code: "GBP", flag: "gb", name: "British Pound" },
-  { code: "CAD", flag: "ca", name: "Canadian Dollar" },
-  { code: "NZD", flag: "nz", name: "New Zealand Dollar" },
-  { code: "SGD", flag: "sg", name: "Singapore Dollar" },
-  { code: "JPY", flag: "jp", name: "Japanese Yen" },
-];
 
 const WHY = [
   { cls: "wdb-blue", icon: <Boxes />, title: "Massive digital catalogue", sub: (<>Thousands of <strong className="hl">game keys</strong> &amp; digital products</>) },
@@ -47,21 +40,16 @@ const SOCIALS = [
   { name: "Instagram", href: "https://instagram.com/dgmarq", svg: <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" stroke="rgba(255,255,255,0.7)" strokeWidth="2" /><circle cx="12" cy="12" r="5" stroke="rgba(255,255,255,0.7)" strokeWidth="2" /><circle cx="17.5" cy="6.5" r="1" fill="rgba(255,255,255,0.7)" /></svg> },
   { name: "Facebook", href: "https://facebook.com/dgmarq", svg: <svg width="13" height="13" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg> },
   { name: "LinkedIn", href: "https://linkedin.com/company/dgmarq", svg: <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><rect x="2" y="9" width="4" height="12" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><circle cx="4" cy="4" r="2" stroke="rgba(255,255,255,0.7)" strokeWidth="2" /></svg> },
+  // M16: Discord community link. OWNER: replace with the real invite URL.
+  { name: "Discord", href: "https://discord.gg/dgmarq", svg: <svg width="13" height="13" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><path d="M20.32 4.37a19.8 19.8 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.363 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" /></svg> },
 ];
 
 const Footer = () => {
-  const [currency, setCurrency] = useState(CURRENCIES[0]);
-  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const { currency: currencyCode } = useCurrency();
+  const { language } = useLanguage();
+  const { country } = useBuyerCountry();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const currencyRef = useRef(null);
-
-  useEffect(() => {
-    const onClick = (e) => {
-      if (currencyRef.current && !currencyRef.current.contains(e.target)) setCurrencyOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
 
   // Visual-only: no newsletter endpoint exists yet. Acknowledge the submit.
   const handleNewsletter = (e) => {
@@ -161,11 +149,14 @@ const Footer = () => {
           <h3 className="text-base font-semibold uppercase pb-4">For Seller</h3>
           <Link className="text-sm leading-7 underline" to="/seller-support">Seller support</Link>
           <Link className="text-sm leading-7 underline" to="/how-to-sell">How to Sell</Link>
+          <Link className="text-sm leading-7 underline" to="/vendor-terms">Vendor Terms</Link>
         </div>
         <div className="flex flex-col">
           <h3 className="text-base font-semibold uppercase pb-4">Support</h3>
           <Link className="text-sm leading-7 underline" to="/terms-conditions">Terms and conditions</Link>
           <Link className="text-sm leading-7 underline" to="/privacy-policy">Privacy and cookie Policy</Link>
+          <Link className="text-sm leading-7 underline" to="/refund-policy">Refund Policy</Link>
+          <Link className="text-sm leading-7 underline" to="/fee-schedule">Fee Schedule</Link>
           <Link className="text-sm leading-7 underline" to="/security">Stay Safe</Link>
         </div>
         <div className="flex flex-col">
@@ -207,24 +198,14 @@ const Footer = () => {
             <Link to="/terms-conditions" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "underline", textUnderlineOffset: 2 }}>DGMARQ Terms and Conditions</Link>. Information on how we process your personal data can be found in the{" "}
             <Link to="/privacy-policy" style={{ color: "rgba(255,255,255,0.5)", textDecoration: "underline", textUnderlineOffset: 2 }}>Privacy and Cookie Policy</Link>. Copyright © DGMARQ. All rights reserved.
           </p>
-          <div style={{ position: "relative", flexShrink: 0 }} ref={currencyRef}>
-            <button className="ftr-curr-btn" type="button" onClick={() => setCurrencyOpen((o) => !o)}>
-              <img src={`https://flagcdn.com/w20/${currency.flag}.png`} width={22} height={16} alt={currency.code} style={{ borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>English EU&nbsp;&nbsp;|&nbsp;&nbsp;{currency.code}</span>
-            </button>
-            {currencyOpen && (
-              <div className="ftr-curr-dropdown">
-                {CURRENCIES.map((c) => (
-                  <button key={c.code} type="button" className="ftr-curr-item" onClick={() => { setCurrency(c); setCurrencyOpen(false); }}>
-                    <img src={`https://flagcdn.com/w20/${c.flag}.png`} width={20} height={14} alt={c.code} style={{ borderRadius: 2 }} />
-                    <span>{c.code} — {c.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <button className="ftr-curr-btn" type="button" onClick={() => setSettingsOpen(true)} style={{ flexShrink: 0 }}>
+            <img src={`https://flagcdn.com/w20/${String(country || "us").toLowerCase()}.png`} width={22} height={16} alt={country || ""} style={{ borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" }}>{language}&nbsp;&nbsp;|&nbsp;&nbsp;{currencyCode}</span>
+          </button>
         </div>
       </div>
+
+      <CurrencyLanguageModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 };

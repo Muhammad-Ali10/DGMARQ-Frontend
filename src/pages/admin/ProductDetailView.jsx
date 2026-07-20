@@ -11,9 +11,10 @@ import { Input } from '@components/ui/input';
 import { Textarea } from '@components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { ArrowLeft, Package, Store, Tag, DollarSign, Layers, Image as ImageIcon, Calendar, EyeOff, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Package, Store, Tag, Image as ImageIcon, Calendar, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
+import { REGION_PRESET_MAP } from '@lib/regionPresets';
 
 const ProductDetailView = () => {
   const { productId } = useParams();
@@ -82,11 +83,12 @@ const ProductDetailView = () => {
       active: 'success',
       draft: 'default',
     };
-    // Map status to user-friendly labels
+    // Catalog status of the MASTER itself — buyer visibility is separate
+    // (hasStock: ≥1 approved offer with available stock) and shown next to it.
     const statusLabels = {
       pending: 'Pending Approval',
-      active: 'Approved / Published',
-      approved: 'Approved / Published',
+      active: 'Active (Catalog)',
+      approved: 'Active (Catalog)',
       rejected: 'Rejected',
       draft: 'Draft',
     };
@@ -108,7 +110,7 @@ const ProductDetailView = () => {
           </Button>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Product Details</h1>
-            <p className="text-sm sm:text-base text-gray-400 mt-1">View product information (Read-Only)</p>
+            <p className="text-sm sm:text-base text-gray-400 mt-1">Master catalog product — review info &amp; moderate seller offers</p>
           </div>
         </div>
       </div>
@@ -170,15 +172,13 @@ const ProductDetailView = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-gray-400">Price</Label>
-                  <p className="text-white font-medium mt-1">${product?.price?.toFixed(2) || '0.00'}</p>
-                </div>
-                <div>
-                  <Label className="text-gray-400">Discount</Label>
-                  <p className="text-white font-medium mt-1">{product?.discount || 0}%</p>
-                </div>
+              <div>
+                <Label className="text-gray-400">Lowest Offer Price</Label>
+                <p className="text-white font-medium mt-1">
+                  {product?.lowestPrice != null
+                    ? `$${Number(product.lowestPrice).toFixed(2)}`
+                    : 'No live offers yet'}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 items-end">
@@ -267,9 +267,23 @@ const ProductDetailView = () => {
                 </div>
               </div>
 
-              <div>
-                <Label className="text-gray-400">Status</Label>
-                <div className="mt-1">{getStatusBadge(product?.status)}</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-400">Catalog Status</Label>
+                  <div className="mt-1">{getStatusBadge(product?.status)}</div>
+                </div>
+                <div>
+                  <Label className="text-gray-400">Buyer Visibility</Label>
+                  <div className="mt-1">
+                    {product?.hasStock ? (
+                      <Badge variant="success" className="text-sm px-3 py-1">Live — visible to buyers</Badge>
+                    ) : product?.isPreorder && !product?.preorderReleasedAt && product?.offersCount > 0 ? (
+                      <Badge variant="success" className="text-sm px-3 py-1">Live — pre-order (no stock needed)</Badge>
+                    ) : (
+                      <Badge variant="warning" className="text-sm px-3 py-1">Hidden — needs an approved offer with stock</Badge>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {product?.rejectionReason && (
@@ -306,45 +320,9 @@ const ProductDetailView = () => {
           )}
         </div>
 
-        {/* Sidebar Info */}
+        {/* Sidebar Info — sellers appear per-offer below; masters are admin-owned,
+            so there is no product-level "Seller Information" card. */}
         <div className="space-y-6">
-          {/* Seller Information */}
-          <Card className="bg-primary border-gray-700">
-            <CardHeader className="border-b border-gray-700">
-              <CardTitle className="text-white flex items-center gap-2">
-                <Store className="h-5 w-5" />
-                Seller Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div>
-                <Label className="text-gray-400">Shop Name</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-white font-medium">{product?.sellerId?.shopName || 'N/A'}</p>
-                  {product?.sellerId?._id && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => navigate(`/admin/sellers/${product.sellerId._id}`)}
-                      className="text-accent p-0 h-auto"
-                    >
-                      View Seller
-                    </Button>
-                  )}
-                </div>
-              </div>
-              {product?.sellerId?.shopLogo && (
-                <div>
-                  <SafeImage
-                    src={product.sellerId.shopLogo}
-                    alt={product.sellerId.shopName}
-                    className="w-24 h-24 object-cover rounded-lg border border-gray-700"
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Category & Attributes */}
           <Card className="bg-primary border-gray-700">
             <CardHeader className="border-b border-gray-700">
@@ -461,10 +439,37 @@ const ProductDetailView = () => {
                 <TableBody>
                   {offers.map((o) => (
                     <TableRow key={o._id} className="border-gray-700 hover:bg-secondary/20">
-                      <TableCell className="text-white font-medium">{o.sellerId?.shopName || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {o.sellerId?.shopLogo && (
+                            <SafeImage src={o.sellerId.shopLogo} alt={o.sellerId?.shopName || 'Seller'} className="w-8 h-8 rounded object-cover border border-gray-700" hideOnError />
+                          )}
+                          <span className="text-white font-medium">{o.sellerId?.shopName || 'N/A'}</span>
+                          {o.sellerId?._id && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              onClick={() => navigate(`/admin/sellers/${o.sellerId._id}`)}
+                              className="text-accent p-0 h-auto text-xs"
+                            >
+                              View
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-white">${Number(o.price || 0).toFixed(2)}</TableCell>
                       <TableCell className="text-gray-300">{o.discount || 0}%</TableCell>
-                      <TableCell className="text-gray-300">{o.region?.name || '—'}</TableCell>
+                      <TableCell className="text-gray-300">
+                        {o.regionCodes?.length
+                          ? o.regionCodes.map((c) => REGION_PRESET_MAP.get(c)?.name || c).join(', ')
+                          : 'All regions'}
+                        {o.countries?.length > 0 && (
+                          <span className="ml-1 text-xs text-sky-400">(+{o.countries.length} extra)</span>
+                        )}
+                        {o.excludedCountries?.length > 0 && (
+                          <span className="ml-1 text-xs text-red-400">(−{o.excludedCountries.length} excl.)</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={o.availableKeysCount > 0 ? 'success' : 'destructive'}>{o.availableKeysCount || 0}</Badge>
                       </TableCell>

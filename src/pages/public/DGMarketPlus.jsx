@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { subscriptionAPI } from '@services/api';
-import { showApiError } from '@utils/toast';
+import { showApiError, showSuccess } from '@utils/toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
@@ -41,6 +41,26 @@ const DGMarketPlus = () => {
     queryFn: () => subscriptionAPI.getMySubscription().then(res => res.data.data),
     enabled: isAuthenticated,
     retry: false,
+  });
+
+  // M20: Plus points balance + redemption.
+  const queryClient = useQueryClient();
+  const [redeemAmount, setRedeemAmount] = useState('');
+  const { data: pointsData } = useQuery({
+    queryKey: ['plus-points'],
+    queryFn: () => subscriptionAPI.getMyPoints().then((r) => r.data?.data || null).catch(() => null),
+    enabled: isAuthenticated,
+    staleTime: 60000,
+  });
+  const redeemMutation = useMutation({
+    mutationFn: (points) => subscriptionAPI.redeemPoints(points),
+    onSuccess: (res) => {
+      showSuccess(res.data?.message || 'Points redeemed to your wallet');
+      setRedeemAmount('');
+      queryClient.invalidateQueries({ queryKey: ['plus-points'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+    },
+    onError: (error) => showApiError(error, 'Failed to redeem points'),
   });
 
   // Subscribe mutation
@@ -169,6 +189,67 @@ const DGMarketPlus = () => {
             </Button>
           </div>
         </section>
+
+        {/* M20: Plus Points — balance + redemption (members) */}
+        {isAuthenticated && pointsData && (
+          <section className="mb-20">
+            <Card className="bg-primary border-accent/30 overflow-hidden">
+              <CardHeader className="border-b border-gray-700">
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Star className="w-5 h-5 text-amber-400" />
+                  Your Plus Points
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                  <div>
+                    <p className="text-4xl font-bold text-white">{pointsData.balance}<span className="ml-2 text-base font-medium text-gray-400">pts</span></p>
+                    <p className="mt-1 text-sm text-gray-400">≈ ${pointsData.walletValue.toFixed(2)} wallet value</p>
+                  </div>
+                  <div className="text-sm text-gray-300 space-y-1">
+                    <p>• Earn <span className="font-semibold text-accent">{pointsData.pointsPerDollar} points per $1</span> spent</p>
+                    <p>• <span className="font-semibold text-accent">{pointsData.pointsPerWalletDollar} points = $1</span> wallet credit</p>
+                    <p>• Redeem anytime — spend via wallet at checkout</p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="redeem-points" className="text-xs text-gray-400">
+                      Points to redeem (multiples of {pointsData.pointsPerWalletDollar})
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        id="redeem-points"
+                        type="number"
+                        aria-label={`Points to redeem (multiples of ${pointsData.pointsPerWalletDollar})`}
+                        min={pointsData.minRedeemPoints}
+                        step={pointsData.pointsPerWalletDollar}
+                        value={redeemAmount}
+                        onChange={(e) => setRedeemAmount(e.target.value)}
+                        placeholder={`${pointsData.minRedeemPoints}`}
+                        className="w-full rounded-md border border-gray-700 bg-secondary px-3 py-2 text-sm text-white outline-none focus:border-accent"
+                      />
+                      <Button
+                        onClick={() => redeemMutation.mutate(parseInt(redeemAmount, 10))}
+                        disabled={redeemMutation.isPending || !redeemAmount || parseInt(redeemAmount, 10) > pointsData.balance}
+                        className="bg-accent hover:bg-accent/90 shrink-0"
+                      >
+                        {redeemMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Redeem'}
+                      </Button>
+                    </div>
+                    {pointsData.balance >= pointsData.minRedeemPoints && (
+                      <button
+                        type="button"
+                        onClick={() => setRedeemAmount(String(Math.floor(pointsData.balance / pointsData.pointsPerWalletDollar) * pointsData.pointsPerWalletDollar))}
+                        className="self-start text-xs text-accent hover:underline"
+                      >
+                        Redeem maximum
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
         {/* How It Works Section */}
         <section className="mb-20">

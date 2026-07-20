@@ -1,44 +1,381 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { regionAPI } from "@services/api";
-import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@components/ui/card";
+import { Button } from "@components/ui/button";
+import { Input } from "@components/ui/input";
+import { Label } from "@components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@components/ui/dialog";
+import { Loading, ErrorMessage } from "@components/ui/loading";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  X,
+  RefreshCw,
+} from "lucide-react";
 
-const config = {
-  queryKey: "regions",
-  itemsKey: "regions",
-  hasSearch: true,
-  hasStatusFilter: false,
-  api: {
-    list: (params) => regionAPI.getRegions(params),
-    create: (data) => regionAPI.createRegion(data),
-    update: (id, data) => regionAPI.updateRegion(id, data),
-    remove: (id) => regionAPI.deleteRegion(id),
-  },
-  labels: {
-    pageTitle: "Regions Management",
-    pageSubtitle: "Manage game regions",
-    createButton: "Create Region",
-    createDialogTitle: "Create New Region",
-    createDialogDescription: "Add a new game region",
-    listTitle: "All Regions",
-    countNoun: "regions",
-    noneFound: "No regions found",
-    emptyHint: "Get started by creating your first region",
-    nameRequired: "Region name is required",
-    toastCreated: "Region created successfully",
-    toastCreateFailed: "Failed to create region",
-    toastUpdated: "Region updated successfully",
-    toastUpdateFailed: "Failed to update region",
-    toastDeleted: "Region deleted successfully",
-    toastDeleteFailed: "Failed to delete region",
-    loadingMessage: "Loading regions...",
-    errorLoading: "Error loading regions",
-    editDialogTitle: "Edit Region",
-    editDialogDescription: "Update region information",
-    updateButton: "Update Region",
-    editActionTitle: "Edit Region",
-    deleteActionTitle: "Delete Region",
-  },
+const EMPTY_FORM = { name: "" };
+
+// ── Create / Edit form body (shared) ─────────────────────────────────────────
+// A Region is a name-only product taxonomy tag (like Platform/Type/Genre). The
+// seller ACTIVATION region system is separate and uses fixed presets.
+const RegionForm = ({ formData, setFormData, onSubmit, onCancel, submitting, submitLabel, submitIcon }) => (
+  <form onSubmit={onSubmit} className="space-y-4 mt-4">
+    <div className="space-y-2">
+      <Label htmlFor="region-name" className="text-gray-300">
+        Name *
+      </Label>
+      <Input
+        id="region-name"
+        value={formData.name}
+        onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
+        className="bg-secondary border-gray-700 text-white"
+        required
+      />
+    </div>
+
+    <div className="flex gap-3 pt-2">
+      <Button type="button" variant="outline" onClick={onCancel} className="flex-1 border-gray-700">
+        Cancel
+      </Button>
+      <Button type="submit" disabled={submitting} className="flex-1 bg-accent hover:bg-blue-700">
+        {submitting ? (
+          <>
+            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            Saving...
+          </>
+        ) : (
+          <>
+            {submitIcon}
+            {submitLabel}
+          </>
+        )}
+      </Button>
+    </div>
+  </form>
+);
+
+const RegionsManagement = () => {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const queryClient = useQueryClient();
+
+  const { data: itemsData, isLoading, isError, error } = useQuery({
+    queryKey: ["regions", page, search],
+    queryFn: () => {
+      const params = { page, limit: 10 };
+      if (search.trim()) params.search = search.trim();
+      return regionAPI.getRegions(params).then((res) => res.data.data);
+    },
+    keepPreviousData: true,
+  });
+
+  const regions = itemsData?.docs || [];
+  const pagination = {
+    page: itemsData?.page || 1,
+    totalPages: itemsData?.totalPages || 1,
+    totalDocs: itemsData?.totalDocs || 0,
+    limit: itemsData?.limit || 10,
+    hasNextPage: itemsData?.hasNextPage || false,
+    hasPrevPage: itemsData?.hasPrevPage || false,
+  };
+
+  const createMutation = useMutation({
+    mutationFn: (data) => regionAPI.createRegion(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regions"] });
+      setIsCreateOpen(false);
+      setFormData(EMPTY_FORM);
+      setPage(1);
+      toast.success("Region created successfully");
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || "Failed to create region"),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => regionAPI.updateRegion(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regions"] });
+      setIsEditOpen(false);
+      setSelectedItem(null);
+      toast.success("Region updated successfully");
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || "Failed to update region"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => regionAPI.deleteRegion(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regions"] });
+      if (regions.length === 1 && page > 1) setPage(page - 1);
+      toast.success("Region deleted successfully");
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || "Failed to delete region"),
+  });
+
+  const handleCreate = (e) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return toast.warning("Region name is required");
+    createMutation.mutate({ name: formData.name.trim() });
+  };
+
+  const handleUpdate = (e) => {
+    e.preventDefault();
+    if (!formData.name.trim()) return toast.warning("Region name is required");
+    updateMutation.mutate({ id: selectedItem._id, data: { name: formData.name.trim() } });
+  };
+
+  const openEdit = (item) => {
+    setSelectedItem(item);
+    setFormData({ name: item.name });
+    setIsEditOpen(true);
+  };
+
+  const renderPageNumbers = () => {
+    const pages = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, pagination.page - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(pagination.totalPages, startPage + maxPagesToShow - 1);
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <Button
+          key={i}
+          size="sm"
+          variant={i === pagination.page ? "default" : "outline"}
+          onClick={() => setPage(i)}
+          className={i === pagination.page ? "bg-accent hover:bg-blue-700" : ""}
+        >
+          {i}
+        </Button>
+      );
+    }
+    return pages;
+  };
+
+  if (isLoading && !itemsData) return <Loading message="Loading regions..." />;
+  if (isError) return <ErrorMessage message={error?.response?.data?.message || "Error loading regions"} />;
+
+  return (
+    <div className="space-y-6 px-4 sm:px-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Regions Management</h1>
+          <p className="text-sm sm:text-base text-gray-400 mt-1">
+            Product region tags (name-only taxonomy)
+          </p>
+        </div>
+        <Dialog open={isCreateOpen} onOpenChange={(o) => { setIsCreateOpen(o); if (o) setFormData(EMPTY_FORM); }}>
+          <DialogTrigger asChild>
+            <Button className="bg-accent hover:bg-blue-700 shadow-lg shadow-accent/20">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Region
+            </Button>
+          </DialogTrigger>
+          <DialogContent size="sm" className="bg-primary border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white text-xl font-semibold">Create New Region</DialogTitle>
+              <DialogDescription className="text-gray-400">
+                Add a product region tag
+              </DialogDescription>
+            </DialogHeader>
+            <RegionForm
+              formData={formData}
+              setFormData={setFormData}
+              onSubmit={handleCreate}
+              onCancel={() => setIsCreateOpen(false)}
+              submitting={createMutation.isPending}
+              submitLabel="Create Region"
+              submitIcon={<Plus className="mr-2 h-4 w-4" />}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card className="bg-primary border-gray-700 shadow-xl">
+        <CardHeader className="border-b border-gray-700">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle className="text-white text-xl font-semibold">All Regions</CardTitle>
+              <p className="text-sm text-gray-400 mt-1">
+                {pagination.totalDocs > 0
+                  ? `${pagination.totalDocs} region(s)`
+                  : "No regions found"}
+              </p>
+            </div>
+            <div className="px-3 py-1.5 bg-secondary/50 rounded-lg border border-gray-700 text-sm">
+              <span className="text-gray-400">Page </span>
+              <span className="text-white font-semibold">{pagination.page}</span>
+              <span className="text-gray-400"> of </span>
+              <span className="text-white font-semibold">{pagination.totalPages}</span>
+            </div>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); setPage(1); }} className="flex gap-2 mt-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+              <Input
+                type="text"
+                placeholder="Search by name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="bg-secondary border-gray-700 text-white pl-10 pr-10"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => { setSearch(""); setPage(1); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <Button type="submit" variant="outline" size="sm" className="border-gray-700">
+              <Search className="w-4 h-4 mr-2" />
+              Search
+            </Button>
+          </form>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
+                  <TableHead className="text-gray-300 font-semibold">Name</TableHead>
+                  <TableHead className="text-gray-300 font-semibold">Created Date</TableHead>
+                  <TableHead className="text-gray-300 font-semibold text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {regions.length > 0 ? (
+                  regions.map((item) => (
+                    <TableRow key={item._id} className="border-gray-700 hover:bg-secondary/20">
+                      <TableCell className="font-semibold text-white">{item.name}</TableCell>
+                      <TableCell className="text-gray-400">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEdit(item)}
+                            className="border-gray-700 hover:bg-blue-600/20"
+                            title="Edit Region"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteMutation.mutate(item._id)}
+                            className="hover:bg-red-700"
+                            title="Delete Region"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-12">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <p className="text-gray-400 font-medium">No regions found</p>
+                        <p className="text-gray-500 text-sm">
+                          {search ? "Try adjusting your search" : "Get started by creating your first region"}
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {pagination.totalDocs > 0 && (
+            <div className="flex items-center justify-center gap-2 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(pagination.page - 1)}
+                disabled={!pagination.hasPrevPage || isLoading}
+                className="border-gray-700"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              <div className="flex gap-1">{renderPageNumbers()}</div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(pagination.page + 1)}
+                disabled={!pagination.hasNextPage || isLoading}
+                className="border-gray-700"
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent size="sm" className="bg-primary border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl font-semibold">Edit Region</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Update the region name
+            </DialogDescription>
+          </DialogHeader>
+          <RegionForm
+            formData={formData}
+            setFormData={setFormData}
+            onSubmit={handleUpdate}
+            onCancel={() => setIsEditOpen(false)}
+            submitting={updateMutation.isPending}
+            submitLabel="Update Region"
+            submitIcon={<Edit className="mr-2 h-4 w-4" />}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 };
-
-const RegionsManagement = () => <TaxonomyManagementPage config={config} />;
 
 export default RegionsManagement;

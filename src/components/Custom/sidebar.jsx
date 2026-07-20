@@ -56,6 +56,7 @@ import {
   Clock,
   Library,
   ClipboardList,
+  LayoutList,
 } from "lucide-react";
 
 const SidebarLogo = () => {
@@ -240,6 +241,9 @@ export const AdminSidebar = () => {
           <SidebarItem to="/admin/homepage-sliders" icon={Image}>
             Homepage Sliders
           </SidebarItem>
+          <SidebarItem to="/admin/homepage-sections" icon={LayoutList}>
+            Homepage Sections
+          </SidebarItem>
           <SidebarItem to="/admin/upcoming-releases" icon={Calendar}>
             Upcoming Releases
           </SidebarItem>
@@ -399,7 +403,7 @@ export const UserSidebar = () => {
         <SidebarItem to="/user/support" icon={Headphones} badge={supportUnread}>
           Support
         </SidebarItem>
-        <SidebarItem to="/user/cart" icon={ShoppingCart}>
+        <SidebarItem to="/cart" icon={ShoppingCart}>
           Cart
         </SidebarItem>
         <SidebarItem to="/user/license-keys" icon={Key}>

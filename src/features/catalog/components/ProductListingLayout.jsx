@@ -3,7 +3,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { useSEO } from '@hooks/useSEO';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { productAPI, platformAPI, categoryAPI, subcategoryAPI, regionAPI, deviceAPI, typeAPI, genreAPI, themeAPI, modeAPI } from '@services/api';
+import { productAPI, platformAPI, categoryAPI, subcategoryAPI, deviceAPI, typeAPI, genreAPI, themeAPI, modeAPI } from '@services/api';
+import { REGION_PRESETS } from '@lib/regionPresets';
 import ProductCard from './ProductCard';
 import ProductVerticalCard from './ProductVerticalCard';
 import CategoryProduct from './CategoryProduct';
@@ -192,7 +193,7 @@ const ProductListingLayout = ({
     const initial = {
       categoryId,
       subCategoryId: searchParams.get('subCategoryId')?.split(',').filter(Boolean) || [],
-      region: searchParams.get('region')?.split(',').filter(Boolean) || [],
+      region: searchParams.get('regionCode')?.split(',').filter(Boolean) || [],
       platform: lockedPlatformId 
         ? [lockedPlatformId]
         : (searchParams.get('platform')?.split(',').filter(Boolean) || []),
@@ -307,15 +308,6 @@ const ProductListingLayout = ({
     enabled: !!(lockedCategoryId || effectiveCategoryIds.length > 0),
   });
 
-  const { data: regionsData } = useQuery({
-    queryKey: ['regions'],
-    queryFn: async () => {
-      const response = await regionAPI.getRegions({ limit: 100 });
-      return response.data.data;
-    },
-    ...STATIC_FILTER_QUERY_OPTIONS,
-  });
-
   const { data: devicesData } = useQuery({
     queryKey: ['devices'],
     queryFn: async () => {
@@ -379,14 +371,13 @@ const ProductListingLayout = ({
     }));
   }, [subcategoriesData]);
 
-  const regions = useMemo(() => {
-    if (!regionsData?.docs) return [];
-    return regionsData.docs.map(region => ({
-      _id: region._id,
-      title: `For ${region.name} Currency Only`,
-      count: null,
-    }));
-  }, [regionsData]);
+  // Activation-region presets (Europe, Asia, Global, …) — a buyer filters to
+  // products whose offers can be activated in that region. The `_id` is the
+  // preset CODE the backend filters on (offerRegionCodes), not a Mongo id.
+  const regions = useMemo(
+    () => REGION_PRESETS.map((r) => ({ _id: r.code, title: r.name, count: null })),
+    []
+  );
 
   const platforms = useMemo(() => {
     if (!platformsData?.platforms) return [];
@@ -482,7 +473,7 @@ const ProductListingLayout = ({
     }
 
     if (checkboxFilters.region.length > 0) {
-      params.region = checkboxFilters.region.join(',');
+      params.regionCode = checkboxFilters.region.join(',');
     }
 
     if (checkboxFilters.device.length > 0) {
@@ -559,7 +550,7 @@ const ProductListingLayout = ({
     
     if (effectiveSubCategoryIds.length > 0) params.set('subCategoryId', effectiveSubCategoryIds.join(','));
     if (!lockedPlatformId && checkboxFilters.platform.length > 0) params.set('platform', checkboxFilters.platform.join(','));
-    if (checkboxFilters.region.length > 0) params.set('region', checkboxFilters.region.join(','));
+    if (checkboxFilters.region.length > 0) params.set('regionCode', checkboxFilters.region.join(','));
     if (checkboxFilters.device.length > 0) params.set('device', checkboxFilters.device.join(','));
     if (checkboxFilters.type.length > 0) params.set('type', checkboxFilters.type.join(','));
     if (checkboxFilters.genre.length > 0) params.set('genre', checkboxFilters.genre.join(','));
@@ -1296,7 +1287,7 @@ const ProductListingLayout = ({
 
             {/* Products List */}
             {initialLoading ? (
-              <div className={layout === 'listing' ? 'space-y-4' : 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'}>
+              <div className={layout === 'listing' ? 'space-y-4' : 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6'}>
                 {skeletonKeys.map((skeletonKey) => (
                   <Card key={skeletonKey} className="p-4 space-y-3 bg-[#041536]">
                     <Skeleton className="h-40 w-full rounded-md" />
@@ -1321,7 +1312,7 @@ const ProductListingLayout = ({
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 items-stretch">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 items-stretch">
                     {products.map((product) => (
                       <ProductCard key={product._id} product={product} />
                     ))}

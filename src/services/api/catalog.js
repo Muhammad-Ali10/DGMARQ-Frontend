@@ -61,6 +61,16 @@ export const deviceAPI = {
   deleteDevice: (id) => api.delete(`/device/delete-device/${id}`),
 };
 
+// Buyer-country auto-detect (M9 region compatibility).
+export const geoAPI = {
+  getCountry: () => api.get('/geo/country'),
+};
+
+// Display exchange rates (M10) — base USD, refreshed server-side ~daily.
+export const currencyAPI = {
+  getRates: () => api.get('/currency/rates'),
+};
+
 export const regionAPI = {
   getRegions: (params) => api.get('/region/get-regions', { params }),
   getRegionById: (regionId) => api.get(`/region/get-region/${regionId}`),
@@ -121,6 +131,7 @@ export const offerAPI = {
   // Seller
   browseCatalog: (params) => api.get('/offer/catalog', { params }),
   getMyOffers: (params) => api.get('/offer/mine', { params }),
+  getOffer: (id) => api.get(`/offer/${id}`),
   createOffer: (data) => api.post('/offer', data),
   updateOffer: (id, data) => api.patch(`/offer/${id}`, data),
   deleteOffer: (id) => api.delete(`/offer/${id}`),

@@ -142,6 +142,7 @@ const BecomeSeller = () => {
     businessName: '',
     taxIdType: '',
     taxId: '',
+    additionalNotes: '',
   });
 
   // Location: keep ids (for fetching children) + names (for submit).
@@ -298,6 +299,7 @@ const BecomeSeller = () => {
     fd.append('dateOfBirth', form.dateOfBirth);
     fd.append('idType', form.idType);
     if (form.businessName.trim()) fd.append('businessName', form.businessName.trim());
+    if (form.additionalNotes.trim()) fd.append('additionalNotes', form.additionalNotes.trim());
     if (form.taxId.trim()) fd.append('taxId', form.taxId.trim());
     if (form.taxIdType) fd.append('taxIdType', form.taxIdType);
     fd.append('idFront', idFront);
@@ -529,6 +531,16 @@ const BecomeSeller = () => {
                 />
               </Field>
 
+              <Field label="Additional Notes" hint="Anything else you'd like the review team to know (optional).">
+                <textarea
+                  value={form.additionalNotes}
+                  onChange={setField('additionalNotes')}
+                  rows={3}
+                  placeholder="e.g. supported email host for account-type products, sourcing details, or any other notes"
+                  className="w-full rounded-lg border border-gray-600 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-gray-500 outline-none transition-colors hover:border-gray-500 focus:border-accent focus:ring-2 focus:ring-accent/40"
+                />
+              </Field>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Tax ID Type">
                   <div className="relative">
@@ -609,6 +621,7 @@ const BecomeSeller = () => {
                 <SummaryRow label="Store Name" value={form.shopName} />
                 {form.description && <SummaryRow label="Description" value={form.description} />}
                 {form.businessName && <SummaryRow label="Business Name" value={form.businessName} />}
+                {form.additionalNotes && <SummaryRow label="Additional Notes" value={form.additionalNotes} />}
                 {form.taxIdType && <SummaryRow label="Tax ID" value={`${form.taxId} (${form.taxIdType})`} />}
                 {(proofOfAddress || certificate) && (
                   <div className="mt-3 flex flex-wrap gap-4">

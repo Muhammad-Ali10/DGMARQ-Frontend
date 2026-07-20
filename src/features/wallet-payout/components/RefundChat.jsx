@@ -7,12 +7,19 @@ import { Send, Loader2, ImagePlus, X, CheckCheck, MessageSquare } from 'lucide-r
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
 
+// M12: a refund in a FINAL state has a hard-locked chat (matches the backend
+// guard in addRefundMessage). SELLER_REJECTED stays open — buyer can escalate.
+export const isRefundChatLocked = (status) =>
+  ['COMPLETED', 'ADMIN_REJECTED', 'completed', 'rejected'].includes(status);
+
 /**
  * WhatsApp-style refund chat with optimistic updates.
  * - Customer and Admin can always send.
  * - Seller can only send when admin requests input (pass canSend accordingly).
+ * - Pass `locked` when the refund is in a final state: input is hidden and a
+ *   "chat closed" notice is shown regardless of role.
  */
-export default function RefundChat({ refundId, canSend }) {
+export default function RefundChat({ refundId, canSend, locked = false }) {
   const queryClient = useQueryClient();
   const { user } = useSelector((state) => state.auth);
   const currentUserId = user?._id;
@@ -194,7 +201,7 @@ export default function RefundChat({ refundId, canSend }) {
   function handleSend(e) {
     e?.preventDefault();
     const msg = (localMessage || '').trim();
-    if ((!msg && selectedImages.length === 0) || !canSend) return;
+    if ((!msg && selectedImages.length === 0) || !canSend || locked) return;
     if (addMessageMutation.isPending) return;
 
     if (selectedImages.length > 0) {
@@ -397,7 +404,13 @@ export default function RefundChat({ refundId, canSend }) {
       </div>
 
       {/* Input area */}
-      {canSend ? (
+      {locked ? (
+        <div className="border-t border-white/[0.06] px-4 py-3 text-center">
+          <p className="text-xs text-gray-500">
+            This refund request is closed — the chat is locked.
+          </p>
+        </div>
+      ) : canSend ? (
         <div className="border-t border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
           {selectedImages.length > 0 && (
             <div className="flex gap-2 mb-2 overflow-x-auto pb-2">

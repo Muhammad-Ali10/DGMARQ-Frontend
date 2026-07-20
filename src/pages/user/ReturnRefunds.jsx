@@ -11,7 +11,7 @@ import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Plus, Eye, DollarSign, X, ArrowUpCircle } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
-import { RefundChat, RefundRequestModal } from '@features/wallet-payout';
+import { RefundChat, RefundRequestModal, isRefundChatLocked } from '@features/wallet-payout';
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
 
@@ -345,7 +345,7 @@ const UserReturnRefunds = () => {
                   )}
                 </>
               )}
-              <RefundChat refundId={selectedRefund._id} canSend={true} />
+              <RefundChat refundId={selectedRefund._id} canSend={true} locked={isRefundChatLocked(selectedRefund.status)} />
             </div>
           )}
         </DialogContent>

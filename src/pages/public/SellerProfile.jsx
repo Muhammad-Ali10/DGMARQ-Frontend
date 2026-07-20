@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SafeImage from '@components/ui/safe-image';
 import { useSEO } from '@hooks/useSEO';
 
@@ -32,6 +32,17 @@ const PublicSellerProfile = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const [productsPage, setProductsPage] = useState(1);
+  const [productSearch, setProductSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce the seller-product search; reset to page 1 on a new query.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(productSearch.trim());
+      setProductsPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [productSearch]);
 
   const { data: sellerProfile, isLoading: profileLoading, isError: profileError } = useQuery({
     queryKey: ['seller-profile', sellerId],
@@ -39,8 +50,8 @@ const PublicSellerProfile = () => {
   });
 
   const { data: productsData, isLoading: productsLoading, isFetching: productsFetching } = useQuery({
-    queryKey: ['seller-products', sellerId, productsPage],
-    queryFn: () => sellerAPI.getSellerProducts(sellerId, { page: productsPage, limit: 10 }).then(res => res.data.data),
+    queryKey: ['seller-products', sellerId, productsPage, debouncedSearch],
+    queryFn: () => sellerAPI.getSellerProducts(sellerId, { page: productsPage, limit: 10, search: debouncedSearch || undefined }).then(res => res.data.data),
     enabled: !!sellerId,
     placeholderData: keepPreviousData,
   });
@@ -253,11 +264,18 @@ const PublicSellerProfile = () => {
           {/* Products Section */}
           <div className="lg:col-span-2">
             <Card className="bg-[#0a1f3d] border-gray-700 mb-6">
-              <CardHeader>
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <CardTitle className="text-white flex items-center gap-2">
                   <Package className="h-5 w-5" />
                   Products ({sellerProfile.stats.totalProducts})
                 </CardTitle>
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Search this seller's products..."
+                  className="w-full sm:w-64 rounded-lg border border-gray-700 bg-secondary px-3 py-2 text-sm text-white placeholder:text-gray-500 outline-none focus:border-accent"
+                />
               </CardHeader>
               <CardContent>
                 {productsLoading ? (

@@ -106,10 +106,6 @@
 /* ===== Bottom bar currency ===== */
 .ftr-fx .ftr-curr-btn { display: flex; align-items: center; gap: 10px; background: transparent; border: 1.5px solid rgba(255,255,255,0.35); border-radius: 8px; padding: 9px 16px; cursor: pointer; font-family: inherit; transition: border-color 0.2s; }
 .ftr-fx .ftr-curr-btn:hover { border-color: rgba(255,255,255,0.6); }
-.ftr-fx .ftr-curr-dropdown { position: absolute; bottom: calc(100% + 8px); right: 0; background: #0d1e40; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 6px; min-width: 190px; z-index: 999; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
-.ftr-fx .ftr-curr-item { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; border: none; padding: 8px 10px; cursor: pointer; border-radius: 6px; font-family: inherit; }
-.ftr-fx .ftr-curr-item:hover { background: rgba(255,255,255,0.08); }
-.ftr-fx .ftr-curr-item span { font-size: 13px; color: #fff; }
 
 @media (prefers-reduced-motion: reduce) {
   .ftr-fx .wdb::before, .ftr-fx .fx-news-btn::after { animation: none; }

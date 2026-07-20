@@ -44,11 +44,12 @@ const TrendingOffersManagement = () => {
   // Fetch products for dropdown
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products-search', debouncedSearch],
+    // No adminView: the buyer-visibility gate applies, so only products a buyer
+    // can actually purchase (approved offer with stock / live pre-order) show.
     queryFn: () => productAPI.getProducts({
       search: debouncedSearch,
       limit: 10,
       status: 'approved',
-      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,
   });
@@ -264,7 +265,7 @@ const TrendingOffersManagement = () => {
                                   )}
                                   <div>
                                     <p className="text-white text-sm font-medium">{product.name}</p>
-                                    <p className="text-gray-400 text-xs">${product.price}</p>
+                                    <p className="text-gray-400 text-xs">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</p>
                                   </div>
                                 </div>
                                 {isSelected && <Check className="w-4 h-4 text-accent" />}
@@ -480,7 +481,7 @@ const TrendingOffersManagement = () => {
                                 )}
                                 <div>
                                   <p className="text-white text-sm font-medium">{product.name}</p>
-                                  <p className="text-gray-400 text-xs">${product.price}</p>
+                                  <p className="text-gray-400 text-xs">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</p>
                                 </div>
                               </div>
                               {isSelected && <Check className="w-4 h-4 text-accent" />}

@@ -1,68 +1,70 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { cartAPI, checkoutAPI, couponAPI, subscriptionAPI, walletAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
-import { Input } from '@components/ui/input';
-import { Badge } from '@components/ui/badge';
-import { PaymentModal } from '@features/cart-checkout';
-import { ShoppingCart, CheckCircle2, XCircle, AlertCircle, Loader2, Tag, X, Sparkles, ArrowRight, CreditCard, Wallet, Mail } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import {
+  PaymentModal, CheckoutSteps, SellerAvatar, PaymentLogos, toCartItems, DELIVERY_LABEL,
+  getGuestCart, clearGuestCart, removeFromGuestCart, updateGuestCartQuantity, useGuestCart,
+} from '@features/cart-checkout';
+import {
+  ShoppingCart, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles, CreditCard,
+  ChevronLeft, ChevronDown, Trash2, Check, ShieldCheck, Lock, Zap, Tag,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { getGuestCart, clearGuestCart } from '@features/cart-checkout';
 import SafeImage from '@components/ui/safe-image';
+import RegionBadges from '@features/catalog/components/RegionBadges';
+import useCurrency from '@hooks/useCurrency';
+import useBuyerCountry from '@hooks/useBuyerCountry';
+import './Checkout.css';
+
+const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+
+// Mirrors the backend's SUBSCRIPTION_DISCOUNT_RATE (constants.js). Preview only —
+// the server recomputes the real discount when the checkout session is created.
+const SUBSCRIPTION_DISCOUNT_RATE = 0.02;
+const SUBSCRIPTION_PRICE_LABEL = 'US$9.99/mo';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Checkout = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const { format: formatPrice, currency: displayCurrency } = useCurrency();
+  const { country } = useBuyerCountry();
+
   const checkoutId = searchParams.get('checkoutId');
   const paymentStatus = searchParams.get('status');
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponError, setCouponError] = useState('');
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [currentCheckoutId, setCurrentCheckoutId] = useState(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('paypal');
-  const [walletBalance, setWalletBalance] = useState(0);
   const [guestEmail, setGuestEmail] = useState('');
   const [guestEmailError, setGuestEmailError] = useState('');
   const [guestOrderSuccess, setGuestOrderSuccess] = useState(null);
   const [guestLicenseDetails, setGuestLicenseDetails] = useState(null);
   const [guestGrandTotal, setGuestGrandTotal] = useState(0);
+  const [guestCartItems, setGuestCartItems] = useGuestCart(isAuthenticated);
 
+  // ONE shared ["cart"] query — same key/shape the Header + mini-cart use, so
+  // react-query serves all of them from a single fetch.
   const { data: cart, isLoading: cartLoading, isError: cartError } = useQuery({
     queryKey: ['cart'],
     queryFn: () => cartAPI.getCart().then(res => res.data.data),
     enabled: isAuthenticated && !checkoutId,
+    staleTime: 30_000,
     retry: false,
   });
-
-  const guestItemsFromState = location.state?.guestItems || null;
-  const guestItemsFromStorage = (() => {
-    try {
-      const { items } = getGuestCart();
-      return Array.isArray(items) && items.length > 0 ? items : null;
-    } catch {
-      return null;
-    }
-  })();
-  const guestItemsRaw = guestItemsFromState || guestItemsFromStorage;
-  const guestItems = Array.isArray(guestItemsRaw)
-    ? guestItemsRaw
-        .map((item) => ({
-          productId: item.productId || item.productId?._id,
-          productName: item.productName || item.name || item.productId?.name || 'Product',
-          qty: Math.max(1, Number(item.qty) || 1),
-        }))
-        .filter((item) => item.productId)
-    : [];
 
   useEffect(() => {
     if (paymentStatus === 'success' && location.state?.guestOrder) {
@@ -87,37 +89,41 @@ const Checkout = () => {
     retry: false,
   });
 
+  // Feeds <PaymentModal>'s wallet tile — the modal owns the wallet flow itself
+  // (it calls payWithWallet, which promotes the session to Wallet server-side).
   const { data: walletData } = useQuery({
     queryKey: ['wallet-balance'],
     queryFn: () => walletAPI.getBalance().then(res => res.data.data),
     enabled: isAuthenticated,
     retry: false,
   });
+  const walletBalance = walletData?.balance ?? 0;
 
-  useEffect(() => {
-    if (walletData?.balance !== undefined) {
-      setWalletBalance(walletData.balance);
-    }
-  }, [walletData]);
+  const removeItemMutation = useMutation({
+    mutationFn: (data) => cartAPI.removeItem(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      toast.success('Item removed from cart');
+    },
+    onError: (error) => toast.error(error.response?.data?.message || 'Failed to remove item'),
+  });
+
+  const updateCartMutation = useMutation({
+    mutationFn: (data) => cartAPI.updateCart(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
+    onError: (error) => toast.error(error.response?.data?.message || 'Failed to update cart'),
+  });
 
   const createCheckoutMutation = useMutation({
     mutationFn: (data) => checkoutAPI.createCheckoutSession(data),
     onSuccess: (data) => {
-      const checkoutId = data.data.data?.checkoutId;
-      const checkoutData = data.data.data;
-      if (checkoutData?.walletBalance !== undefined) {
-        setWalletBalance(checkoutData.walletBalance);
-      }
-      
-      if (checkoutId) {
-        setCurrentCheckoutId(checkoutId);
-        if (selectedPaymentMethod === 'wallet' && checkoutData?.paymentMethod === 'Wallet') {
-          processWalletPaymentMutation.mutate(checkoutId);
-        } else {
-          setPaymentModalOpen(true);
-        }
+      const newCheckoutId = data.data.data?.checkoutId;
+      if (newCheckoutId) {
+        setCurrentCheckoutId(newCheckoutId);
+        setPaymentModalOpen(true);
       }
     },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not start checkout'),
   });
 
   const createGuestCheckoutMutation = useMutation({
@@ -125,30 +131,14 @@ const Checkout = () => {
     onSuccess: (data) => {
       const resData = data.data?.data || data.data;
       const id = resData?.checkoutId;
-      const grandTotal = resData?.grandTotal ?? resData?.totalAmount ?? 0;
+      const total = resData?.grandTotal ?? resData?.totalAmount ?? 0;
       if (id) {
         setCurrentCheckoutId(id);
-        setGuestGrandTotal(grandTotal);
+        setGuestGrandTotal(total);
         setPaymentModalOpen(true);
       }
     },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || 'Could not start checkout');
-    },
-  });
-
-  const processWalletPaymentMutation = useMutation({
-    mutationFn: (checkoutId) => checkoutAPI.payWithWallet(checkoutId),
-    onSuccess: (data) => {
-      const orderData = data.data.data;
-      queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      toast.success('Payment successful! Order created.');
-      navigate(`/checkout?checkoutId=${currentCheckoutId || orderData?.order?._id}&status=success`);
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || 'Wallet payment failed');
-    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not start checkout'),
   });
 
   const cancelCheckoutMutation = useMutation({
@@ -159,62 +149,83 @@ const Checkout = () => {
     },
   });
 
-  const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
+  // ── one render model for both auth (server) and guest (localStorage) lines ──
+  const items = toCartItems(isAuthenticated ? cart?.items : guestCartItems, isAuthenticated);
 
-  const subtotal = cart?.subtotal ?? cart?.items?.reduce((sum, item) => {
-    const product = item.product || item.productId;
-    const price = product?.price || item.unitPrice || 0;
-    const qty = item.qty || item.quantity || 0;
-    return sum + (price * qty);
-  }, 0) ?? 0;
-  const bundleDiscount = cart?.bundleDiscount ?? 0;
+  const remove = (productId, sellerId) => {
+    if (isAuthenticated) removeItemMutation.mutate({ productId, sellerId });
+    else {
+      removeFromGuestCart(productId);
+      setGuestCartItems(getGuestCart().items);
+      toast.success('Item removed from cart');
+    }
+  };
+  const setQty = (productId, sellerId, qty) => {
+    if (qty <= 0) return remove(productId, sellerId);
+    if (isAuthenticated) updateCartMutation.mutate({ productId, sellerId, qty });
+    else {
+      updateGuestCartQuantity(productId, qty);
+      setGuestCartItems(getGuestCart().items);
+    }
+  };
+
+  // ── summary (mirrors the mockup's recalc(): protection is a % of the amount
+  //    AFTER discounts, the processing fee is flat once per order) ──
+  const totalQty = items.reduce((s, i) => s + i.qty, 0);
+  const subtotal = isAuthenticated
+    ? cart?.subtotal ?? items.reduce((s, i) => s + i.price * i.qty, 0)
+    : items.reduce((s, i) => s + i.price * i.qty, 0);
+  const youSave = round2(
+    items.reduce((s, i) => s + (i.original && i.original > i.price ? (i.original - i.price) * i.qty : 0), 0)
+  );
+  const bundleDiscount = isAuthenticated ? cart?.bundleDiscount || 0 : 0;
   const couponBase = round2(Math.max(0, subtotal - bundleDiscount));
   const couponDiscount = appliedCoupon
     ? (appliedCoupon.discountType === 'percentage'
       ? round2((couponBase * (appliedCoupon.discountValue || 0)) / 100)
       : Math.min(appliedCoupon.discountAmount || appliedCoupon.discountValue || 0, couponBase))
-    : (checkout?.couponDiscount ?? 0);
+    : 0;
   const previewAfterCoupon = round2(Math.max(0, couponBase - couponDiscount));
-  const subscriptionDiscount = checkout?.subscriptionDiscount
-    ?? (userSubscription?.hasSubscription ? round2(previewAfterCoupon * 0.02) : 0);
+  const subscriptionDiscount = userSubscription?.hasSubscription
+    ? round2(previewAfterCoupon * SUBSCRIPTION_DISCOUNT_RATE)
+    : 0;
   const totalDiscount = bundleDiscount + subscriptionDiscount + couponDiscount;
   const totalBeforeFee = round2(Math.max(0, subtotal - totalDiscount));
 
+  // Public endpoint — guests see the same fees as members.
   const { data: handlingFeeEstimate } = useQuery({
     queryKey: ['handling-fee-estimate', totalBeforeFee],
     queryFn: () => checkoutAPI.getHandlingFeeEstimate(totalBeforeFee).then(res => res.data.data),
-    enabled: isAuthenticated && totalBeforeFee > 0,
+    enabled: totalBeforeFee > 0,
     retry: false,
   });
-  const buyerHandlingFee = handlingFeeEstimate?.buyerHandlingFee ?? 0;
+  const protectionFee = handlingFeeEstimate?.protectionFee ?? 0;
+  const processingFee = handlingFeeEstimate?.processingFee ?? 0;
+  const protectionLabel = handlingFeeEstimate?.protectionLabel ?? null;
   const grandTotal = handlingFeeEstimate?.grandTotal ?? totalBeforeFee;
-  const handlingFeeEnabled = handlingFeeEstimate?.enabled ?? false;
-  const feeLabel = handlingFeeEstimate?.feeLabel ?? null;
+  const serviceFee = round2(protectionFee + processingFee);
 
   const validateCouponMutation = useMutation({
     mutationFn: ({ code, orderAmount }) => couponAPI.validateCoupon({ code, orderAmount }),
     onSuccess: (response) => {
       const couponData = response.data?.data?.coupon || response.data?.data;
-      if (couponData) {
-        const appliedCouponData = {
-          code: couponData.code,
-          discountType: couponData.discountType,
-          discountValue: couponData.discountValue,
-          discountAmount: couponData.discountAmount || 0,
-          discountPercent: couponData.discountType === 'percentage' ? couponData.discountValue : null,
-        };
-        setAppliedCoupon(appliedCouponData);
-        setCouponError('');
-        toast.success('Coupon applied successfully!');
-      } else {
-        throw new Error('Invalid response format');
+      if (!couponData) {
+        setCouponError('Invalid coupon code');
+        return;
       }
+      setAppliedCoupon({
+        code: couponData.code,
+        discountType: couponData.discountType,
+        discountValue: couponData.discountValue,
+        discountAmount: couponData.discountAmount || 0,
+      });
+      setCouponError('');
+      toast.success('Coupon applied successfully!');
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.message || 'Invalid coupon code';
-      setCouponError(errorMessage);
+      const message = error.response?.data?.message || 'Invalid or expired code';
+      setCouponError(message);
       setAppliedCoupon(null);
-      toast.error(errorMessage);
     },
   });
 
@@ -222,48 +233,54 @@ const Checkout = () => {
     const trimmedCode = couponCode.trim();
     if (!trimmedCode) {
       setCouponError('Please enter a coupon code');
-      toast.error('Please enter a coupon code');
       return;
     }
-    
-    // Coupon must be validated before subscription discount is applied.
-    const subtotalAfterDiscounts = Math.max(0, subtotal - bundleDiscount);
-    
-    validateCouponMutation.mutate({ 
-      code: trimmedCode, 
-      orderAmount: subtotalAfterDiscounts 
-    });
+    // Coupon must be validated before the subscription discount is applied.
+    validateCouponMutation.mutate({ code: trimmedCode, orderAmount: couponBase });
   };
 
   const handleRemoveCoupon = () => {
     setCouponCode('');
     setAppliedCoupon(null);
     setCouponError('');
-    toast.success('Coupon removed');
   };
 
   const handleProceedToPayment = () => {
-    if (!cart?.items || cart.items.length === 0) {
+    if (items.length === 0) return;
+
+    if (!termsAccepted) {
+      setTermsError(true);
+      toast.error('Please accept the Terms of Service to continue');
       return;
     }
-    
-    if (selectedPaymentMethod === 'wallet') {
-      if (walletBalance <= 0) {
-        toast.error('Insufficient wallet balance. Please add funds or choose another payment method.');
+
+    if (!isAuthenticated) {
+      const email = guestEmail.trim();
+      if (!email || !EMAIL_RE.test(email)) {
+        setGuestEmailError(email ? 'Please enter a valid email address' : 'Email is required for guest checkout');
+        toast.error('Please enter a valid email');
         return;
       }
-      if (walletBalance < grandTotal) {
-        toast.error(`Insufficient wallet balance. Your balance is $${walletBalance.toFixed(2)}, but the total is $${grandTotal.toFixed(2)}.`);
-        return;
-      }
+      setGuestEmailError('');
+      createGuestCheckoutMutation.mutate({
+        guestEmail: email,
+        // sellerId identifies which offer the guest picked — master products are
+        // admin-owned, so the server can't infer the seller from the product.
+        items: items.map((i) => ({
+          productId: i.productId,
+          productName: i.name,
+          qty: i.qty,
+          sellerId: i.sellerId || undefined,
+        })),
+        couponCode: appliedCoupon?.code || undefined,
+      });
+      return;
     }
-    
-    createCheckoutMutation.mutate({
-      couponCode: appliedCoupon?.code || couponCode || undefined,
-      preferredPaymentMethod: selectedPaymentMethod === 'wallet' ? 'Wallet' : 
-                              selectedPaymentMethod === 'card' ? 'Card' : 'PayPal',
-    });
+
+    createCheckoutMutation.mutate({ couponCode: appliedCoupon?.code || undefined });
   };
+
+  const isStarting = createCheckoutMutation.isPending || createGuestCheckoutMutation.isPending;
 
   const showGuestSuccess = !isAuthenticated && (guestOrderSuccess || location.state?.guestOrder) && (checkoutId && paymentStatus === 'success');
   const guestOrder = guestOrderSuccess || location.state?.guestOrder;
@@ -426,150 +443,7 @@ const Checkout = () => {
     );
   }
 
-  if (!isAuthenticated && (!guestItems || guestItems.length === 0) && !checkoutId) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center py-12">
-        <Card className="bg-[#041536] border-gray-700 max-w-md w-full mx-4">
-          <CardContent className="py-12 px-6 text-center">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-800 flex items-center justify-center">
-              <ShoppingCart className="w-10 h-10 text-gray-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-3">Checkout</h2>
-            <p className="text-gray-400 mb-6">
-              Sign in to use your cart, or buy as guest from a product page.
-            </p>
-            <Button onClick={() => navigate('/login')} className="bg-accent hover:bg-accent/90 text-white mb-3" size="lg">
-              Sign In
-            </Button>
-            <Button onClick={() => navigate('/search')} variant="outline" className="w-full border-gray-600 text-gray-300 hover:bg-gray-800">
-              Browse Products
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated && guestItems.length > 0 && !showGuestSuccess) {
-    const handleGuestProceed = () => {
-      const email = (guestEmail || '').trim();
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!email) {
-        setGuestEmailError('Email is required for guest checkout');
-        toast.error('Please enter your email');
-        return;
-      }
-      if (!emailRegex.test(email)) {
-        setGuestEmailError('Please enter a valid email address');
-        toast.error('Please enter a valid email address');
-        return;
-      }
-      setGuestEmailError('');
-      createGuestCheckoutMutation.mutate({
-        guestEmail: email,
-        items: guestItems,
-        couponCode: appliedCoupon?.code || couponCode || undefined,
-      });
-    };
-    return (
-      <div className="min-h-[60vh] py-8">
-        <div className="max-w-2xl mx-auto px-4">
-          <h1 className="text-2xl font-bold text-white mb-2">Guest Checkout</h1>
-          <p className="text-gray-400 mb-6">Enter your email to receive your order and license details.</p>
-          <Card className="bg-[#041536] border-gray-700 mb-6">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Mail className="w-5 h-5" />
-                Email address
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="email"
-                placeholder="your@email.com"
-                value={guestEmail}
-                onChange={(e) => {
-                  setGuestEmail(e.target.value);
-                  setGuestEmailError('');
-                }}
-                className="bg-gray-800 border-gray-600 text-white"
-              />
-              {guestEmailError && <p className="text-red-400 text-sm mt-2">{guestEmailError}</p>}
-            </CardContent>
-          </Card>
-          <Card className="bg-[#041536] border-gray-700 mb-6">
-            <CardHeader>
-              <CardTitle className="text-white">Order summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-400 text-sm mb-4">Items: {guestItems.length} product(s). Total will be shown after you proceed.</p>
-              <ul className="space-y-2">
-                {guestItems.map((item, i) => (
-                  <li key={i} className="text-gray-300">
-                    {item.productName} × {item.qty}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-          <Button
-            onClick={handleGuestProceed}
-            disabled={createGuestCheckoutMutation.isPending}
-            className="w-full bg-accent hover:bg-accent/90 text-white"
-            size="lg"
-          >
-            {createGuestCheckoutMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Preparing checkout...
-              </>
-            ) : (
-              'Proceed to payment'
-            )}
-          </Button>
-          <Button
-            onClick={() => navigate('/search')}
-            variant="outline"
-            className="w-full mt-3 border-gray-600 text-gray-300 hover:bg-gray-800"
-          >
-            Continue shopping
-          </Button>
-        </div>
-        <PaymentModal
-          open={paymentModalOpen}
-          onOpenChange={setPaymentModalOpen}
-          checkoutId={currentCheckoutId}
-          totalAmount={guestGrandTotal || (checkout?.grandTotal ?? checkout?.totalAmount ?? 0)}
-          currency="USD"
-          walletBalance={0}
-          walletAmount={0}
-          cardAmount={guestGrandTotal || (checkout?.grandTotal ?? checkout?.cardAmount ?? checkout?.totalAmount ?? 0)}
-          paymentMethod="PayPal"
-        onSuccess={(data) => {
-          const order = data?.order || data?.data?.order;
-          const licenseDetails = data?.licenseDetails || data?.data?.licenseDetails;
-          setGuestOrderSuccess(order || null);
-          setGuestLicenseDetails(licenseDetails || null);
-          if (order) {
-            navigate(`/checkout?checkoutId=${currentCheckoutId}&status=success`, {
-              state: { guestOrder: order, licenseDetails: licenseDetails || null },
-            });
-          } else {
-            navigate(`/checkout?checkoutId=${currentCheckoutId}&status=success`);
-          }
-          setPaymentModalOpen(false);
-          try {
-            clearGuestCart();
-          } catch {
-            // Non-fatal: failing to clear guest cart should not break checkout flow
-          }
-        }}
-        />
-      </div>
-    );
-  }
-
-  if (cartLoading || checkoutLoading) {
+  if ((isAuthenticated && cartLoading) || checkoutLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
         <div className="text-center">
@@ -606,7 +480,7 @@ const Checkout = () => {
 
   if (checkoutId && paymentStatus) {
     const isSuccess = paymentStatus === 'success' || paymentStatus === 'approved';
-    
+
     return (
       <div className="min-h-[60vh] py-12">
         <div className="max-w-2xl mx-auto px-4">
@@ -730,7 +604,7 @@ const Checkout = () => {
               {checkout.totalAmount && (
                 <div className="bg-gray-800/50 p-4 rounded-lg">
                   <p className="text-sm text-gray-400 mb-1">Total Amount</p>
-                  <p className="text-white text-2xl font-bold">${checkout.totalAmount.toFixed(2)}</p>
+                  <p className="text-white text-2xl font-bold">{formatPrice(checkout.totalAmount)}</p>
                 </div>
               )}
 
@@ -759,400 +633,389 @@ const Checkout = () => {
     );
   }
 
-  if (!cart?.items || cart.items.length === 0) {
+  if (items.length === 0) {
     return (
-      <div className="min-h-[60vh] py-12">
-        <div className="max-w-2xl mx-auto px-4">
-          <Card className="bg-[#041536] border-gray-700">
-            <CardContent className="py-16 text-center">
-              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-800 flex items-center justify-center">
-                <ShoppingCart className="w-12 h-12 text-gray-500" />
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-3">Your cart is empty</h2>
-              <p className="text-gray-400 mb-6">Add items to your cart to proceed with checkout.</p>
-              <Button
-                onClick={() => navigate('/search')}
-                className="bg-accent hover:bg-accent/90 text-white"
-              >
-                Browse Products
+      <div className="co-wrap">
+        <div className="co-empty" style={{ padding: '80px 20px' }}>
+          <ShoppingCart className="mx-auto mb-4 h-16 w-16 text-[rgba(58,116,240,0.5)]" strokeWidth={1.5} />
+          <h2 className="mb-2 text-[22px] font-bold text-white">Your cart is empty</h2>
+          <p className="mb-6">Add items to your cart to proceed with checkout.</p>
+          <div className="flex flex-col justify-center gap-3 sm:flex-row">
+            <Button onClick={() => navigate('/search')} className="bg-accent hover:bg-accent/90 text-white">
+              Browse Products
+            </Button>
+            {!isAuthenticated && (
+              <Button onClick={() => navigate('/login')} variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-800">
+                Sign In
               </Button>
-            </CardContent>
-          </Card>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[60vh] py-8">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Checkout</h1>
-          <p className="text-gray-400">Review your order and complete your purchase</p>
-        </div>
+    <div className="co-wrap">
+      <button type="button" className="co-back" onClick={() => navigate('/cart')}>
+        <ChevronLeft className="h-[15px] w-[15px]" /> Back to cart
+      </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Order Details */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Cart Items Summary */}
-            <Card className="bg-[#041536] border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {cart.items.map((item) => {
-                  const product = item.product || item.productId;
-                  const qty = item.qty || item.quantity || 0;
-                  const unitPrice = item.unitPrice || product?.price || 0;
-                  const lineTotal = qty * unitPrice;
+      <div className="co-head">
+        <h1>
+          <CreditCard className="h-[26px] w-[26px]" strokeWidth={2} />
+          Checkout
+        </h1>
+      </div>
 
-                  return (
-                    <div
-                      key={product?._id || item.productId?._id}
-                      className="flex gap-4 p-4 bg-gray-800/30 rounded-lg border border-gray-700/50"
-                    >
-                      <Link
-                        to={`/product/${product?.slug || product?._id}`}
-                        className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-700"
-                      >
-                        {product?.images?.[0] ? (
-                          <SafeImage
-                            src={product.images[0]}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ShoppingCart className="w-8 h-8 text-gray-500" />
-                          </div>
-                        )}
-                      </Link>
-                      <div className="flex-1 min-w-0">
-                        <Link
-                          to={`/product/${product?.slug || product?._id}`}
-                          className="block mb-1"
-                        >
-                          <h3 className="font-semibold text-white hover:text-accent transition-colors line-clamp-2">
-                            {product?.name || 'Product'}
-                          </h3>
-                        </Link>
-                        <p className="text-sm text-gray-400 mb-2">Quantity: {qty}</p>
-                        <p className="text-lg font-bold text-accent">${lineTotal.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
+      <CheckoutSteps current="checkout" />
 
-            {/* Coupon Code */}
-            <Card className="bg-[#041536] border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Tag className="w-5 h-5" />
-                  Coupon Code
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!appliedCoupon ? (
-                  <div className="flex gap-2">
-                    <Input
-                      type="text"
-                      placeholder="Enter coupon code"
-                      value={couponCode}
-                      onChange={(e) => {
-                        setCouponCode(e.target.value);
-                        setCouponError('');
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !validateCouponMutation.isPending) {
-                          e.preventDefault();
-                          handleApplyCoupon();
-                        }
-                      }}
-                      className="flex-1 bg-gray-800 border-gray-600 text-white"
-                      disabled={validateCouponMutation.isPending}
-                    />
-                    <Button
-                      onClick={handleApplyCoupon}
-                      disabled={validateCouponMutation.isPending}
-                      className="bg-accent hover:bg-accent/90 text-white"
-                    >
-                      {validateCouponMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                            'Apply'
+      <div className="co-eneba">
+        {/* ── LEFT: cart items ── */}
+        <div className="co-left">
+          <div className="co-panel">
+            <h2 className="co-panel-h">My cart</h2>
+            {items.map((it) => (
+              <div key={it.key} className="co-citem">
+                <Link to={`/product/${it.slug}`} className="co-cthumb">
+                  {it.image ? (
+                    <SafeImage src={it.image} alt={it.name} />
+                  ) : (
+                    <ShoppingCart className="h-8 w-8 text-white/20" />
+                  )}
+                </Link>
+
+                <div className="co-cbody">
+                  <Link to={`/product/${it.slug}`} className="co-ctitle">{it.name}</Link>
+
+                  <div className="co-cspecs">
+                    {it.platform && (<><span className="k">Platform:</span><span className="v">{it.platform}</span></>)}
+                    {it.productType && (<><span className="k">Type:</span><span className="v">{it.productType.replace(/_/g, ' ')}</span></>)}
+                    {it.region && (
+                      <>
+                        <span className="k">Region:</span>
+                        <span className="v"><RegionBadges  compact maxChips={3} showLabel={false}  /></span>
+                      </>
+                    )}
+                    {it.device && (<><span className="k">Device:</span><span className="v">{it.device}</span></>)}
+                    <span className="k">Delivery:</span>
+                    <span className="v">
+                      <span className="co-dbadge"><Zap className="h-[11px] w-[11px]" fill="currentColor" />{DELIVERY_LABEL}</span>
+                    </span>
+                    {it.stock != null && (
+                      <>
+                        <span className="k">Stock:</span>
+                        <span className="v">
+                          <span className={`co-stockval ${it.stock === 0 ? 'out' : ''}`}>
+                            <CheckCircle2 className="h-[13px] w-[13px]" />
+                            {it.stock} in stock
+                          </span>
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="co-cmeta">
+                    {it.region && country && (
+                      <>
+                        <RegionBadges offer={it.region} compact maxChips={0} showLabel={false} interactive={false} showWarning />
+                        <span className="co-dot">·</span>
+                      </>
+                    )}
+                    {it.seller && (
+                      <span className="co-csold">
+                        <SellerAvatar name={it.seller} size={20} />
+                        <span>
+                          Sold by{' '}
+                          {it.sellerId
+                            ? <Link to={`/seller/${it.sellerId}`} className="hover:underline"><strong>{it.seller}</strong></Link>
+                            : <strong>{it.seller}</strong>}
+                          {it.sellerRating > 0 && (
+                            <span className="srate">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="#F58E2A" aria-hidden="true">
+                                <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                              </svg>
+                              {Number(it.sellerRating).toFixed(1)}<em>/5</em>
+                            </span>
                           )}
-                    </Button>
+                        </span>
+                      </span>
+                    )}
+                    {it.isPreorder && (
+                      <span className="rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                        PRE-ORDER
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
-                    <div>
-                      <p className="text-green-400 font-medium">{appliedCoupon.code}</p>
-                      <p className="text-sm text-gray-400">
-                        {appliedCoupon.discountType === 'percentage'
-                          ? `${appliedCoupon.discountValue}% off`
-                          : `$${appliedCoupon.discountAmount?.toFixed(2) || appliedCoupon.discountValue?.toFixed(2) || '0.00'} off`}
-                      </p>
+
+                  <div className="co-crow">
+                    <div className="co-cqty">
+                      <button type="button" onClick={() => setQty(it.productId, it.sellerId, it.qty - 1)} disabled={it.qty <= 1} aria-label="Decrease quantity">−</button>
+                      <span>{it.qty}</span>
+                      <button type="button" onClick={() => setQty(it.productId, it.sellerId, it.qty + 1)} aria-label="Increase quantity">+</button>
                     </div>
-                    <Button
-                      onClick={handleRemoveCoupon}
-                      variant="ghost"
-                      size="sm"
-                      className="text-gray-400 hover:text-red-400"
-                      title="Remove coupon"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+                    <div className="co-cprice">
+                      {formatPrice(it.price * it.qty)}
+                      {it.hasDiscount && it.original != null && it.original > it.price && (
+                        <span className="was">{formatPrice(it.original * it.qty)}</span>
+                      )}
+                    </div>
                   </div>
-                )}
-                {couponError && (
-                  <p className="text-red-400 text-sm mt-2">{couponError}</p>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+
+                <button type="button" className="co-cdel" onClick={() => remove(it.productId, it.sellerId)} aria-label="Remove">
+                  <Trash2 className="h-[18px] w-[18px]" />
+                </button>
+              </div>
+            ))}
           </div>
 
-          {/* Right Column - Order Total & Payment */}
-          <div className="lg:col-span-1">
-            <Card className="bg-[#041536] border-gray-700 sticky top-4">
-              <CardHeader>
-                <CardTitle className="text-white">Order Total</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {(subscriptionDiscount > 0) && (
-                  <Badge className="bg-green-600 text-white">✅ 2% Subscription Discount Applied</Badge>
-                )}
-                <div className="space-y-3">
-                  <div className="flex justify-between text-gray-300">
-                    <span>Subtotal</span>
-                    <span className="text-white">${subtotal.toFixed(2)}</span>
-                  </div>
+          {cart?.bundleDeal && (
+            <div className="co-panel" style={{ padding: '16px 18px' }}>
+              <p className="text-sm font-medium text-accent">🎉 Bundle Deal Applied!</p>
+              <p className="mt-1 text-xs text-gray-400">{cart.bundleDeal.title}</p>
+            </div>
+          )}
+        </div>
 
-                  {bundleDiscount > 0 && (
-                    <div className="flex justify-between text-green-400">
-                      <span>Bundle Discount</span>
-                      <span className="font-semibold">-${bundleDiscount.toFixed(2)}</span>
-                    </div>
-                  )}
+        {/* ── RIGHT: email + Plus + summary ── */}
+        <div className="co-right">
+          <div className="co-panel">
+            <h2 className="co-panel-h sm" style={{ marginBottom: 6 }}>Enter your email</h2>
+            <p className="m-0 mb-4 text-[13px] leading-[1.5] text-white/55">
+              {isAuthenticated
+                ? 'We’ll send the order to your account email.'
+                : 'We need it to send you the order.'}
+            </p>
+            <div className={`co-field ${guestEmailError ? 'err' : ''}`}>
+              <label htmlFor="co-email">Email {!isAuthenticated && <span className="co-req">*</span>}</label>
+              <input
+                id="co-email"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={isAuthenticated ? (user?.email || '') : guestEmail}
+                disabled={isAuthenticated}
+                onChange={(e) => {
+                  setGuestEmail(e.target.value);
+                  setGuestEmailError('');
+                }}
+              />
+              {guestEmailError && <p className="co-fielderr">{guestEmailError}</p>}
+            </div>
+          </div>
 
-                  {/* Save with DGMARQ Plus CTA */}
-                  {!userSubscription?.hasSubscription && (
-                    <div className="p-4 bg-gradient-to-r from-accent/10 to-accent/5 border border-accent/30 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <Sparkles className="w-5 h-5 text-accent shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-white mb-1">
-                            Save with DGMARQ Plus
-                          </p>
-                          <p className="text-xs text-gray-400 mb-3">
-                            Get 2% off all purchases. Subscribe now and save on this order!
-                          </p>
-                          <Button
-                            onClick={() => navigate('/dgmarq-plus')}
-                            size="sm"
-                            className="bg-accent hover:bg-accent/90 text-white text-xs"
-                          >
-                            Learn More
-                            <ArrowRight className="w-3 h-3 ml-1" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {couponDiscount > 0 && (
-                    <div className="flex justify-between text-green-400">
-                      <span>Coupon Discount</span>
-                      <span className="font-semibold">-${couponDiscount.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  {subscriptionDiscount > 0 && (
-                    <div className="flex justify-between text-green-400">
-                      <span>Sub Discount (2%)</span>
-                      <span className="font-semibold">-${subscriptionDiscount.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  {/* Buyer Protection Fee (read-only; from server) */}
-                  {handlingFeeEnabled && buyerHandlingFee > 0 && (
-                    <div className="flex justify-between text-gray-300">
-                      <span>Buyer Protection Fee{feeLabel ? ` (${feeLabel})` : ''}</span>
-                      <span className="text-white">${buyerHandlingFee.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  {cart?.bundleDeal && (
-                    <div className="p-3 bg-accent/10 border border-accent/30 rounded-lg">
-                      <p className="text-sm text-accent font-medium">
-                        🎉 Bundle Deal Applied!
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">{cart.bundleDeal.title}</p>
-                    </div>
-                  )}
+          {!userSubscription?.hasSubscription && (
+            <Link to="/dgmarq-plus" className="co-plus" aria-label="Join DGMARQ Plus">
+              <div className="co-plus-in">
+                <span className="co-plus-spark">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z" />
+                  </svg>
+                </span>
+                <div className="co-plus-txt">
+                  <span className="co-plus-kicker"><span className="dot"></span>Members save more</span>
+                  <h3 className="co-plus-h">Join <em>DGMARQ Plus</em> — save 2% on this order</h3>
+                  <p className="co-plus-sub">
+                    2% off all products applied automatically at checkout, plus access to DGMARQ Points.
+                    {' '}{SUBSCRIPTION_PRICE_LABEL}, cancel anytime.
+                  </p>
                 </div>
+                <span className="co-plus-cta">
+                  Join Plus
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </span>
+              </div>
+            </Link>
+          )}
 
-                {/* Wallet Balance Display */}
-                {isAuthenticated && (
-                  <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700 mb-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Wallet className="w-5 h-5 text-accent" />
-                        <span className="text-sm font-medium text-gray-300">Wallet Balance</span>
-                      </div>
-                      <span className="text-lg font-bold text-white">${walletBalance.toFixed(2)}</span>
-                    </div>
-                    {walletBalance >= grandTotal && (
-                      <p className="text-xs text-green-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Sufficient balance for this order
-                      </p>
-                    )}
-                    {walletBalance > 0 && walletBalance < grandTotal && (
-                      <p className="text-xs text-yellow-400 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" />
-                        Partial balance available (${(grandTotal - walletBalance).toFixed(2)} remaining)
-                      </p>
-                    )}
-                    {walletBalance === 0 && (
-                      <p className="text-xs text-gray-500">Add funds to your wallet to pay faster</p>
-                    )}
-                  </div>
-                )}
+          <div className="co-panel">
+            <h2 className="co-panel-h sm">Summary</h2>
 
-                {/* Payment Method Selection */}
-                {isAuthenticated && (
-                  <div className="mb-4">
-                    <label className="text-sm font-medium text-gray-300 mb-2 block">Payment Method</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {walletBalance >= grandTotal && (
-                        <Button
-                          type="button"
-                          onClick={() => setSelectedPaymentMethod('wallet')}
-                          variant={selectedPaymentMethod === 'wallet' ? 'default' : 'outline'}
-                          className={`h-auto py-3 ${
-                            selectedPaymentMethod === 'wallet'
-                              ? 'bg-accent hover:bg-accent/90 text-white'
-                              : 'border-gray-600 text-gray-300 hover:bg-gray-800'
-                          }`}
-                          disabled={createCheckoutMutation.isPending}
-                        >
-                          <div className="flex flex-col items-center gap-1">
-                            <Wallet className="w-5 h-5" />
-                            <span className="text-xs font-medium">Wallet</span>
-                          </div>
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        onClick={() => setSelectedPaymentMethod('paypal')}
-                        variant={selectedPaymentMethod === 'paypal' ? 'default' : 'outline'}
-                        className={`h-auto py-3 ${
-                          selectedPaymentMethod === 'paypal'
-                            ? 'bg-accent hover:bg-accent/90 text-white'
-                            : 'border-gray-600 text-gray-300 hover:bg-gray-800'
-                        }`}
-                        disabled={createCheckoutMutation.isPending}
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <SafeImage
-                            src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg"
-                            alt="PayPal"
-                            className="h-6 w-auto"
-                          />
-                          <span className="text-xs font-medium">PayPal</span>
-                        </div>
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => setSelectedPaymentMethod('card')}
-                        variant={selectedPaymentMethod === 'card' ? 'default' : 'outline'}
-                        className={`h-auto py-3 ${
-                          selectedPaymentMethod === 'card'
-                            ? 'bg-accent hover:bg-accent/90 text-white'
-                            : 'border-gray-600 text-gray-300 hover:bg-gray-800'
-                        }`}
-                        disabled={createCheckoutMutation.isPending}
-                      >
-                        <div className="flex flex-col items-center gap-1">
-                          <CreditCard className="w-5 h-5" />
-                          <span className="text-xs font-medium">Card</span>
-                        </div>
-                      </Button>
-                    </div>
-                  </div>
-                )}
+            <button type="button" className="co-proceed" onClick={handleProceedToPayment} disabled={isStarting}>
+              {isStarting ? (
+                <><Loader2 className="h-[17px] w-[17px] animate-spin" /> Preparing checkout…</>
+              ) : (
+                <><CreditCard className="h-[17px] w-[17px]" /> Proceed to Payment</>
+              )}
+            </button>
 
-                <div className="border-t border-gray-700 pt-4">
-                  <div className="flex justify-between items-center mb-6">
-                    <span className="text-lg font-semibold text-white">{handlingFeeEnabled && buyerHandlingFee > 0 ? 'Grand Total' : 'Total'}</span>
-                    <span className="text-2xl font-bold text-accent">${grandTotal.toFixed(2)}</span>
-                  </div>
+            <div className="co-sumlines">
+              <div className="co-line">
+                <span>{totalQty} {totalQty === 1 ? 'product' : 'products'}</span>
+                <span className="v">{formatPrice(subtotal)}</span>
+              </div>
+              {youSave > 0 && (
+                <div className="co-line save">
+                  <span>You save</span>
+                  <span className="v">−{formatPrice(youSave)}</span>
                 </div>
+              )}
+              {bundleDiscount > 0 && (
+                <div className="co-line save">
+                  <span>Bundle deal</span>
+                  <span className="v">−{formatPrice(bundleDiscount)}</span>
+                </div>
+              )}
+              {couponDiscount > 0 && (
+                <div className="co-line save">
+                  <span>Promo discount</span>
+                  <span className="v">−{formatPrice(couponDiscount)}</span>
+                </div>
+              )}
+              {subscriptionDiscount > 0 && (
+                <div className="co-line save">
+                  <span>DGMARQ Plus discount</span>
+                  <span className="v">−{formatPrice(subscriptionDiscount)}</span>
+                </div>
+              )}
+              {serviceFee > 0 && (
+                <div className="co-line">
+                  <span className="lbl">
+                    Service fee
+                    <span
+                      className="info"
+                      title={`Buyer Protection${protectionLabel ? ` (${protectionLabel})` : ''} + ${formatPrice(processingFee)} checkout fee — covers escrow, refunds and dispute protection.`}
+                    >
+                      i
+                    </span>
+                  </span>
+                  <span className="v">{formatPrice(serviceFee)}</span>
+                </div>
+              )}
+            </div>
 
-                <Button
-                  onClick={handleProceedToPayment}
-                  disabled={createCheckoutMutation.isPending || cart.items.length === 0}
-                  className="w-full bg-accent hover:bg-accent/90 text-white"
-                  size="lg"
-                >
-                  {createCheckoutMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      {selectedPaymentMethod === 'wallet' ? (
-                        <>
-                          <Wallet className="w-4 h-4 mr-2" />
-                          Pay with Wallet
-                        </>
-                      ) : selectedPaymentMethod === 'card' ? (
-                        <>
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          Pay with Card
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart className="w-4 h-4 mr-2" />
-                          Proceed to Pay
-                        </>
-                      )}
-                    </>
-                  )}
-                </Button>
+            <div className="co-totalrow">
+              <span className="lbl">Total:</span>
+              <span className="amt">{formatPrice(grandTotal)}</span>
+            </div>
+            <div className="co-tax">
+              {displayCurrency === 'USD'
+                ? 'Billed in USD. Taxes included where applicable.'
+                : `Prices shown in ${displayCurrency} are approximate — you'll be charged $${grandTotal.toFixed(2)} USD.`}
+            </div>
 
-                <Button
-                  onClick={() => navigate('/cart')}
-                  variant="outline"
-                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-800"
-                >
-                  Return to Cart
-                </Button>
+            {userSubscription?.hasSubscription && Math.floor(totalBeforeFee * 3) > 0 && (
+              <div className="mb-4 flex items-center justify-between rounded-lg border border-accent/30 bg-accent/10 px-3 py-2">
+                <span className="flex items-center gap-1.5 text-sm text-accent">
+                  <Sparkles className="h-4 w-4" />
+                  DGMARQ Plus reward
+                </span>
+                <span className="text-sm font-semibold text-white">
+                  You&apos;ll earn {Math.floor(totalBeforeFee * 3)} points
+                </span>
+              </div>
+            )}
 
-                <p className="text-xs text-gray-500 text-center mt-4">
-                  By proceeding, you agree to our terms and conditions
-                </p>
-              </CardContent>
-            </Card>
+            <label className={`co-consent ${termsError ? 'err' : ''}`}>
+              <input
+                type="checkbox"
+                aria-label="Agree to the Terms of Service and Refund Policy"
+                checked={termsAccepted}
+                onChange={(e) => {
+                  setTermsAccepted(e.target.checked);
+                  setTermsError(false);
+                }}
+              />
+              <span className="box">
+                <Check className="h-3 w-3" stroke="#0a1428" strokeWidth={3.2} />
+              </span>
+              <span className="t">
+                I agree to DGMARQ&apos;s <Link to="/terms">Terms of Service</Link> &amp;{' '}
+                <Link to="/refund-policy">Refund Policy</Link>, and confirm I&apos;m buying for personal use.{' '}
+                <span className="co-req">*</span>
+              </span>
+            </label>
+
+            <div className={`co-promoacc ${promoOpen ? 'open' : ''}`}>
+              <button type="button" className="co-promoacc-h" onClick={() => setPromoOpen((v) => !v)}>
+                <span><Tag className="h-4 w-4" /> Got a discount code?</span>
+                <ChevronDown className="chev h-4 w-4" />
+              </button>
+              <div className="co-promoacc-body">
+                <div className="co-promo-in">
+                  <input
+                    type="text"
+                    aria-label="Discount code"
+                    placeholder="Enter code"
+                    value={couponCode}
+                    disabled={!!appliedCoupon}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value);
+                      setCouponError('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !validateCouponMutation.isPending && !appliedCoupon) {
+                        e.preventDefault();
+                        handleApplyCoupon();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={validateCouponMutation.isPending || !!appliedCoupon}
+                  >
+                    {validateCouponMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                  </button>
+                </div>
+                {appliedCoupon && (
+                  <div className="co-promo-msg ok">
+                    <span>✓ Code {appliedCoupon.code} applied</span>
+                    <button type="button" className="co-promo-clear" onClick={handleRemoveCoupon}>Remove</button>
+                  </div>
+                )}
+                {couponError && <div className="co-promo-msg err">{couponError}</div>}
+              </div>
+            </div>
+
+            <div className="co-trust">
+              <div className="tr">
+                <ShieldCheck className="h-[15px] w-[15px] text-[#34d399]" />
+                Escrow-protected · money-back guarantee
+              </div>
+              <div className="tr">
+                <Lock className="h-[15px] w-[15px] text-[#3a9bf5]" />
+                256-bit SSL encrypted checkout
+              </div>
+            </div>
+            <div className="co-paychips">
+              <PaymentLogos />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Payment Modal */}
       <PaymentModal
         open={paymentModalOpen}
         onOpenChange={setPaymentModalOpen}
         checkoutId={currentCheckoutId || checkoutId}
-        totalAmount={grandTotal}
+        totalAmount={isAuthenticated ? grandTotal : (guestGrandTotal || grandTotal)}
         currency="USD"
-        walletBalance={walletBalance}
-        walletAmount={checkout?.walletAmount || 0}
-        cardAmount={checkout?.cardAmount || grandTotal}
-        paymentMethod={checkout?.paymentMethod || 'PayPal'}
+        walletBalance={isAuthenticated ? walletBalance : 0}
+        walletAmount={0}
+        cardAmount={isAuthenticated ? grandTotal : (guestGrandTotal || grandTotal)}
+        paymentMethod="PayPal"
         onSuccess={(data) => {
+          if (!isAuthenticated) {
+            const order = data?.order || data?.data?.order;
+            const licenseDetails = data?.licenseDetails || data?.data?.licenseDetails;
+            setGuestOrderSuccess(order || null);
+            setGuestLicenseDetails(licenseDetails || null);
+            setPaymentModalOpen(false);
+            navigate(`/checkout?checkoutId=${currentCheckoutId}&status=success`, {
+              state: order ? { guestOrder: order, licenseDetails: licenseDetails || null } : undefined,
+            });
+            try {
+              clearGuestCart();
+            } catch {
+              // Non-fatal: failing to clear the guest cart should not break checkout.
+            }
+            return;
+          }
+
           const successCheckoutId = data?.checkoutId || data?.order?._id || currentCheckoutId || checkoutId;
           if (successCheckoutId) {
             navigate(`/checkout?checkoutId=${successCheckoutId}&status=success`);
@@ -1167,4 +1030,3 @@ const Checkout = () => {
 };
 
 export default Checkout;
-

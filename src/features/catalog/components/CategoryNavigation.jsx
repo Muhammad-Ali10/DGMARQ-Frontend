@@ -127,6 +127,52 @@ const CategoryNavigation = ({ scrollOffset = 140 }) => {
     };
   }, [headerHeight, isScrolling]);
 
+  // M15: gentle auto-scroll (marquee) of the subcategory bar when it overflows.
+  // Ping-pongs left↔right, pauses on hover/touch/focus so the user can read and
+  // click, and respects prefers-reduced-motion.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return undefined;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return undefined;
+
+    let raf;
+    let dir = 1;
+    let paused = false;
+    const SPEED = 0.4; // px per frame ≈ 24px/s at 60fps
+
+    const tick = () => {
+      if (!paused) {
+        const max = nav.scrollWidth - nav.clientWidth;
+        if (max > 4) {
+          nav.scrollLeft += dir * SPEED;
+          if (nav.scrollLeft >= max - 1) dir = -1;
+          else if (nav.scrollLeft <= 1) dir = 1;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
+    const pause = () => { paused = true; };
+    const resume = () => { paused = false; };
+    nav.addEventListener('mouseenter', pause);
+    nav.addEventListener('mouseleave', resume);
+    nav.addEventListener('touchstart', pause, { passive: true });
+    nav.addEventListener('touchend', resume, { passive: true });
+    nav.addEventListener('focusin', pause);
+    nav.addEventListener('focusout', resume);
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      nav.removeEventListener('mouseenter', pause);
+      nav.removeEventListener('mouseleave', resume);
+      nav.removeEventListener('touchstart', pause);
+      nav.removeEventListener('touchend', resume);
+      nav.removeEventListener('focusin', pause);
+      nav.removeEventListener('focusout', resume);
+    };
+  }, []);
+
   return (
     <div className="w-full border-gray-700">
       <div className="container mx-auto px-3 py-2.5">

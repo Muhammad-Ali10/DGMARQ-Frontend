@@ -37,11 +37,12 @@ const UpcomingGamesManagement = () => {
   // Fetch products for dropdown
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products-search-upcoming', debouncedSearch],
-    queryFn: () => productAPI.getProducts({ 
+    // No adminView: only buyer-purchasable products (approved offer with stock
+    // / live pre-order — pre-orders are exactly what this section curates).
+    queryFn: () => productAPI.getProducts({
       search: debouncedSearch,
       limit: 10,
       status: 'active',
-      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,
   });
@@ -239,7 +240,7 @@ const UpcomingGamesManagement = () => {
                             <div>
                               <p className="text-white text-sm font-medium">{product.name}</p>
                               <p className="text-gray-400 text-xs">
-                                ${product.price} • {product.platform?.name || 'Digital Product'}
+                                ${product.price} • {product.platform?.name || 'Digital Product'} • {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
                               </p>
                             </div>
                           </div>

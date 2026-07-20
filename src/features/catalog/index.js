@@ -8,4 +8,8 @@ export { default as CategoryNavigation } from './components/CategoryNavigation';
 export { default as Hero } from './components/Hero';
 export { default as FlashDeal } from './components/FlashDeal';
 export { default as ProductListingLayout } from './components/ProductListingLayout';
+export { default as PlatformTrustGrid } from './components/PlatformTrustGrid';
+export { default as PlusPromoSection } from './components/PlusPromoSection';
+export { default as CustomHomepageSections } from './components/CustomHomepageSections';
+export { default as ProductTypeNotice, ProductTypeBadge } from './components/ProductTypeNotice';
 export * from './utils/productUtils';

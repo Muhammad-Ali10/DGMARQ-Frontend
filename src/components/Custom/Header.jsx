@@ -3,7 +3,8 @@ import { getGuestCartCount } from "@features/cart-checkout";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { calculateProductPrice, getProductPath } from "@features/catalog";
+import { calculateProductPrice, getProductPath, getPlatformName, getTypeName } from "@features/catalog";
+import RegionBadges from "@features/catalog/components/RegionBadges";
 import {
   Search,
   Heart,
@@ -32,19 +33,12 @@ import { cn } from "@lib/utils";
 import SessionMenu from "./SessionMenu";
 import SafeImage from "@components/ui/safe-image";
 import { NotificationBell } from "@features/notifications";
+import useCurrency from "@hooks/useCurrency";
+import useLanguage from "@hooks/useLanguage";
+import useBuyerCountry from "@hooks/useBuyerCountry";
+import CurrencyLanguageModal from "./CurrencyLanguageModal";
+import CartDropdown from "./CartDropdown";
 import "./Header.css";
-
-// Visual-only currency/locale selector (no backend currency switching exists).
-const CURRENCIES = [
-  { code: "AUD", flag: "au", name: "Australian Dollar" },
-  { code: "USD", flag: "us", name: "US Dollar" },
-  { code: "EUR", flag: "eu", name: "Euro" },
-  { code: "GBP", flag: "gb", name: "British Pound" },
-  { code: "CAD", flag: "ca", name: "Canadian Dollar" },
-  { code: "NZD", flag: "nz", name: "New Zealand Dollar" },
-  { code: "SGD", flag: "sg", name: "Singapore Dollar" },
-  { code: "JPY", flag: "jp", name: "Japanese Yen" },
-];
 
 const PROMO_MESSAGES = [
   { icon: <Zap width={16} height={16} />, node: (<>Instant delivery on <span className="fx-promo-em">game keys</span> &mdash; up to <span className="fx-promo-em">90% off</span></>) },
@@ -69,14 +63,16 @@ const Header = () => {
   // New futuristic-chrome state
   const [promoIdx, setPromoIdx] = useState(0);
   const [promoHidden, setPromoHidden] = useState(false);
-  const [currency, setCurrency] = useState(CURRENCIES[0]);
-  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const { currency: currencyCode } = useCurrency();
+  const { language } = useLanguage();
+  const { country } = useBuyerCountry();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [spot, setSpot] = useState({ left: 0, width: 0, opacity: 0 });
 
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
   const categoriesDropdownRef = useRef(null);
-  const currencyRef = useRef(null);
 
   const { data: categoriesData } = useQuery({
     queryKey: ["header-categories"],
@@ -116,18 +112,14 @@ const Header = () => {
     }
   };
 
-  const { data: cartData } = useQuery({
-    queryKey: ["cart", "count"],
-    queryFn: async () => {
-      if (!isAuthenticated) return { count: 0 };
-      try {
-        const response = await cartAPI.getCart();
-        return { count: response.data.data?.items?.length || 0 };
-      } catch {
-        return { count: 0 };
-      }
-    },
+  // ONE shared cart query for the whole app: the badge below and the mini-cart
+  // flyout both read this cache, so the cart is fetched once (not once per
+  // component) and any `invalidateQueries(['cart'])` updates both instantly.
+  const { data: cart } = useQuery({
+    queryKey: ["cart"],
+    queryFn: () => cartAPI.getCart().then((r) => r.data.data),
     enabled: isAuthenticated,
+    staleTime: 30_000, // don't refetch a heavy cart on every window focus
   });
 
   const [guestCartCount, setGuestCartCount] = useState(() =>
@@ -142,7 +134,7 @@ const Header = () => {
     }
   }, [isAuthenticated]);
 
-  const cartCount = isAuthenticated ? cartData?.count || 0 : guestCartCount;
+  const cartCount = isAuthenticated ? cart?.items?.length || 0 : guestCartCount;
 
   const { data: wishlistData } = useQuery({
     queryKey: ["wishlist", "count"],
@@ -208,15 +200,6 @@ const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (currencyRef.current && !currencyRef.current.contains(event.target)) {
-        setCurrencyOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -378,6 +361,19 @@ const Header = () => {
                     ) : searchSuggestions && searchSuggestions.length > 0 ? (
                       searchSuggestions.map((product) => {
                         const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
+                        const platformName = getPlatformName(product);
+                        const typeName = getTypeName(product);
+                        const offersCount = product.offersCount ?? 0;
+                        // Union of all offers' region codes (same shape the cards use) →
+                        // "can activate" if ANY seller covers the buyer's region. Static +
+                        // label-less so it drops cleanly into the clickable suggestion row.
+                        const regionOffer = (product.offerRegionCodes !== undefined || product.bestOfferRegionCodes !== undefined)
+                          ? {
+                              regionCodes: product.offerRegionCodes || product.bestOfferRegionCodes || [],
+                              countries: [],
+                              excludedCountries: [],
+                            }
+                          : null;
                         return (
                           <button key={product._id} type="button" className="fx-sp-row" onClick={() => handleSuggestionClick(product)}>
                             <span className="fx-sp-icon">
@@ -389,20 +385,29 @@ const Header = () => {
                             </span>
                             <span className="fx-sp-body">
                               <span className="fx-sp-title">{product.name}</span>
-                              <span className="fx-sp-meta">
-                                {discountPercentage > 0 && (
-                                  <span className="text-white font-semibold px-1 py-0.5 rounded-[6px] bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" style={{ fontSize: 11 }}>-{discountPercentage.toFixed(0)}%</span>
-                                )}
-                                {discountPercentage > 0 && <del style={{ opacity: 0.6 }}>${originalPrice.toFixed(2)}</del>}
+                              <span className="fx-sp-plat">{platformName}{typeName ? ` · ${typeName}` : ""}</span>
+                              {regionOffer && (
+                                <span className="fx-sp-region">
+                                  <RegionBadges offer={regionOffer} compact showWarning interactive={false} showLabel={false} maxChips={3} />
+                                </span>
+                              )}
+                            </span>
+                            <span className="fx-sp-right">
+                              {discountPercentage > 0 && (
+                                <span className="fx-sp-oldline">
+                                  <span className="fx-sp-disc">-{discountPercentage.toFixed(0)}%</span>
+                                  <del className="fx-sp-old">${originalPrice.toFixed(2)}</del>
+                                </span>
+                              )}
+                              {discountPrice != null && <span className="fx-sp-price">${discountPrice.toFixed(2)}</span>}
+                              <span className="fx-sp-subrow">
+                                {offersCount > 1 && <span className="fx-sp-offers">+{offersCount - 1} more offers</span>}
                                 {product.stock !== undefined && (
-                                  <span className={cn("fx-sp-stockpill", product.stock > 0 ? "in" : "out")}>
-                                    {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                                  <span className={cn("fx-sp-stock", product.stock > 0 ? "in" : "out")}>
+                                    <span className="fx-sp-dot" /> {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
                                   </span>
                                 )}
                               </span>
-                            </span>
-                            <span className="fx-sp-right">
-                              {discountPrice != null && <span className="fx-sp-price">${discountPrice.toFixed(2)}</span>}
                             </span>
                           </button>
                         );
@@ -417,23 +422,11 @@ const Header = () => {
 
             {/* Right actions — desktop */}
             <div className="hidden md:flex items-center gap-3 shrink-0">
-              {/* Currency / locale (visual only) */}
-              <div style={{ position: "relative" }} ref={currencyRef}>
-                <button className="fx-curr-btn" onClick={() => setCurrencyOpen((o) => !o)} type="button">
-                  <img src={`https://flagcdn.com/w20/${currency.flag}.png`} width={22} height={16} alt={currency.code} style={{ borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
-                  <span className="fx-curr-label">English EU&nbsp;&nbsp;|&nbsp;&nbsp;{currency.code}</span>
-                </button>
-                {currencyOpen && (
-                  <div className="fx-curr-dropdown">
-                    {CURRENCIES.map((c) => (
-                      <button key={c.code} type="button" className="fx-curr-item" onClick={() => { setCurrency(c); setCurrencyOpen(false); }}>
-                        <img src={`https://flagcdn.com/w20/${c.flag}.png`} width={20} height={14} alt={c.code} style={{ borderRadius: 2 }} />
-                        <span>{c.code} — {c.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Region / language / currency — opens the settings modal */}
+              <button className="fx-curr-btn" onClick={() => setSettingsOpen(true)} type="button">
+                <img src={`https://flagcdn.com/w20/${String(country || "us").toLowerCase()}.png`} width={22} height={16} alt={country || ""} style={{ borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
+                <span className="fx-curr-label">{language}&nbsp;&nbsp;|&nbsp;&nbsp;{currencyCode}</span>
+              </button>
 
               {/* Session (login / register / account) */}
               <SessionMenu />
@@ -444,8 +437,8 @@ const Header = () => {
                 {wishlistCount > 0 && <span className="fx-iconbtn-badge">{wishlistCount > 9 ? "9+" : wishlistCount}</span>}
               </button>
 
-              {/* Cart */}
-              <button className="fx-iconbtn" onClick={() => navigate("/cart")} aria-label="Cart" type="button">
+              {/* Cart — opens the mini-cart flyout */}
+              <button className="fx-iconbtn" onClick={() => setCartOpen((o) => !o)} aria-label="Cart" type="button">
                 <ShoppingCart className="h-5 w-5" strokeWidth={2} />
                 {cartCount > 0 && <span className="fx-iconbtn-badge">{cartCount > 9 ? "9+" : cartCount}</span>}
               </button>
@@ -632,10 +625,19 @@ const Header = () => {
               <Button onClick={() => { navigate("/dgmarq-plus"); setMobileMenuOpen(false); }} className="w-full bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white">
                 Save more with DGMARQ Plus
               </Button>
+
+              {/* Region / language / currency — opens the settings modal */}
+              <button type="button" onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }} className="flex items-center justify-center gap-2.5 w-full py-[10px] px-5 bg-[#07142E] rounded-lg text-white">
+                <img src={`https://flagcdn.com/w20/${String(country || "us").toLowerCase()}.png`} width={22} height={16} alt={country || ""} style={{ borderRadius: 2, objectFit: "cover" }} />
+                <span className="text-sm font-semibold">{language}&nbsp;&nbsp;|&nbsp;&nbsp;{currencyCode}</span>
+              </button>
             </div>
           </div>
         )}
       </div>
+
+      <CurrencyLanguageModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <CartDropdown open={cartOpen} onClose={() => setCartOpen(false)} />
     </div>
   );
 };

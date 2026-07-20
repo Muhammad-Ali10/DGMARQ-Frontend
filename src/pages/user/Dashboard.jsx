@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { userAPI, notificationAPI, walletAPI } from '@services/api';
+import { userAPI, notificationAPI, walletAPI, subscriptionAPI } from '@services/api';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Badge } from '@components/ui/badge';
 import { Button } from '@components/ui/button';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store, Wallet } from 'lucide-react';
+import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store, Wallet, Sparkles } from 'lucide-react';
 import { getOrderItemProductName } from '@utils/orderItem';
 
 const UserDashboard = () => {
@@ -57,6 +57,13 @@ const UserDashboard = () => {
     refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 
+  // M20: DGMARQ Plus points balance (null data when not a subscriber / no points).
+  const { data: pointsData } = useQuery({
+    queryKey: ['plus-points'],
+    queryFn: () => subscriptionAPI.getMyPoints().then((r) => r.data?.data || null).catch(() => null),
+    staleTime: 60000,
+  });
+
   const isLoading = ordersLoading || notifLoading || wishlistLoading || walletLoading;
   const totalSpent = ordersData?.orders?.reduce((sum, order) => {
     return sum + (order.totalAmount || 0);
@@ -95,6 +102,15 @@ const UserDashboard = () => {
         e.preventDefault();
         refetchWallet();
       },
+    },
+    {
+      id: 'plus-points',
+      title: 'Plus Points',
+      value: `${pointsData?.balance ?? 0} pts`,
+      icon: Sparkles,
+      color: 'text-amber-400',
+      bgColor: 'bg-amber-500/10',
+      link: '/dgmarq-plus',
     },
     {
       id: 'total-orders',
@@ -150,7 +166,7 @@ const UserDashboard = () => {
       bgColor: 'bg-yellow-500/10',
       link: '/user/notifications',
     },
-  ]), [walletBalanceFormatted, ordersData, totalSpent, completedOrders, pendingOrders, wishlist, unreadCount, refetchWallet]);
+  ]), [walletBalanceFormatted, ordersData, totalSpent, completedOrders, pendingOrders, wishlist, unreadCount, refetchWallet, pointsData]);
 
   if (isLoading) return <Loading message="Loading dashboard..." />;
 

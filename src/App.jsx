@@ -33,6 +33,9 @@ const PublicSellerSupport = lazy(() => import("./pages/public/SellerSupport"));
 const HowToSell = lazy(() => import("./pages/public/HowToSell"));
 const TermsConditions = lazy(() => import("./pages/public/TermsConditions"));
 const PrivacyPolicy = lazy(() => import("./pages/public/PrivacyPolicy"));
+const RefundPolicy = lazy(() => import("./pages/public/RefundPolicy"));
+const FeeSchedule = lazy(() => import("./pages/public/FeeSchedule"));
+const VendorTerms = lazy(() => import("./pages/public/VendorTerms"));
 const PublicSellerProfile = lazy(() => import("./pages/public/SellerProfile"));
 const Software = lazy(() => import("./pages/public/Software"));
 const RandomKeys = lazy(() => import("./pages/public/RandomKeys"));
@@ -71,6 +74,7 @@ const ModesManagement = lazy(() => import("./pages/admin/ModesManagement"));
 const TypesManagement = lazy(() => import("./pages/admin/TypesManagement"));
 const FlashDealsManagement = lazy(() => import("./pages/admin/FlashDealsManagement"));
 const HomepageSlidersManagement = lazy(() => import("./pages/admin/HomepageSlidersManagement"));
+const HomepageSectionsManagement = lazy(() => import("./pages/admin/HomepageSectionsManagement"));
 const TrendingOffersManagement = lazy(() => import("./pages/admin/TrendingOffersManagement"));
 const UpcomingReleasesManagement = lazy(() => import("./pages/admin/UpcomingReleasesManagement"));
 const UpcomingGamesManagement = lazy(() => import("./pages/admin/UpcomingGamesManagement"));
@@ -101,6 +105,7 @@ const SellerAnalytics = lazy(() => import("./pages/seller/Analytics"));
 const SellerReviews = lazy(() => import("./pages/seller/Reviews"));
 const SellerCatalog = lazy(() => import("./pages/seller/SellerCatalog"));
 const SellerOffers = lazy(() => import("./pages/seller/SellerOffers"));
+const SellerOfferPage = lazy(() => import("./pages/seller/SellerOfferPage"));
 
 // Lazy-loaded user pages
 const UserDashboard = lazy(() => import("./pages/user/Dashboard"));
@@ -111,8 +116,6 @@ const UserReviews = lazy(() => import("./pages/user/Reviews"));
 const UserProfile = lazy(() => import("./pages/user/Profile"));
 const UserChat = lazy(() => import("./pages/user/Chat"));
 const UserSupport = lazy(() => import("./pages/user/Support"));
-const UserCart = lazy(() => import("./pages/user/Cart"));
-const UserCheckout = lazy(() => import("./pages/user/Checkout"));
 const LicenseKeys = lazy(() => import("./pages/user/LicenseKeys"));
 const UserNotifications = lazy(() => import("./pages/user/Notifications"));
 const UserSubscriptions = lazy(() => import("./pages/user/Subscriptions"));
@@ -157,6 +160,9 @@ function App() {
           <Route path="/terms-conditions" element={<TermsConditions />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/refund-policy" element={<RefundPolicy />} />
+          <Route path="/fee-schedule" element={<FeeSchedule />} />
+          <Route path="/vendor-terms" element={<VendorTerms />} />
           <Route path="/seller/:sellerId" element={<PublicSellerProfile />} />
           <Route path="/software" element={<Software />} />
           <Route path="/random-keys" element={<RandomKeys />} />
@@ -200,6 +206,7 @@ function App() {
           <Route path="types" element={<TypesManagement />} />
           <Route path="flash-deals" element={<FlashDealsManagement />} />
           <Route path="homepage-sliders" element={<HomepageSlidersManagement />} />
+          <Route path="homepage-sections" element={<HomepageSectionsManagement />} />
           <Route path="trending-offers" element={<TrendingOffersManagement />} />
           <Route path="upcoming-releases" element={<UpcomingReleasesManagement />} />
           <Route path="upcoming-games" element={<UpcomingGamesManagement />} />
@@ -221,7 +228,9 @@ function App() {
           <Route path="orders" element={<SellerOrders />} />
           <Route path="orders/:orderId" element={<SellerOrderDetail />} />
           <Route path="catalog" element={<SellerCatalog />} />
+          <Route path="catalog/:productId/list" element={<SellerOfferPage />} />
           <Route path="offers" element={<SellerOffers />} />
+          <Route path="offers/:offerId/edit" element={<SellerOfferPage />} />
           <Route path="earnings" element={<SellerEarnings />} />
           <Route path="earnings/:payoutId" element={<SellerPayoutDetail />} />
           <Route path="payout-account" element={<PayoutAccount />} />
@@ -252,8 +261,7 @@ function App() {
           <Route path="become-seller" element={<BecomeSeller />} />
           <Route path="chat" element={<UserChat />} />
           <Route path="support" element={<UserSupport />} />
-          <Route path="cart" element={<UserCart />} />
-          <Route path="checkout/:checkoutId" element={<UserCheckout />} />
+          <Route path="cart" element={<Navigate to="/cart" replace />} />
           <Route path="license-keys" element={<LicenseKeys />} />
           <Route path="notifications" element={<UserNotifications />} />
           <Route path="subscriptions" element={<UserSubscriptions />} />

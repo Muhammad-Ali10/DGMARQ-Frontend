@@ -1,0 +1,145 @@
+/* ── Checkout page — ported from the v74 mockup (`co-*`) ──────────────────────
+   The mockup is a fixed overlay; this is a real route, so the overlay chrome
+   (fixed positioning, close button) is dropped and the inner layout kept.
+   The stepper lives in <CheckoutSteps>, the payment modal in <PaymentModal>,
+   so the mockup's `co-steps`/`pm-*` rules are deliberately not ported. */
+
+.co-wrap { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 26px 22px 80px; }
+
+.co-back { display: inline-flex; align-items: center; gap: 6px; color: #3a9bf5; font-size: 14px; font-weight: 700; cursor: pointer; margin-bottom: 16px; user-select: none; background: none; border: none; padding: 0; font-family: inherit; }
+.co-back:hover { color: #6cb6ff; }
+.co-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.co-head h1 { font-size: 30px; font-weight: 800; margin: 0; letter-spacing: -0.4px; display: flex; align-items: center; gap: 12px; color: #fff; }
+.co-head h1 svg { color: #3a9bf5; }
+
+.co-eneba { display: grid; grid-template-columns: 1fr 400px; gap: 24px; align-items: start; }
+@media (max-width: 960px) { .co-eneba { grid-template-columns: 1fr; } }
+
+.co-panel { background: linear-gradient(160deg, rgba(12, 20, 48, 0.9), rgba(8, 13, 30, 0.85)); border: 1px solid rgba(58, 116, 240, 0.24); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+.co-panel-h { margin: 0 0 20px; font-size: 24px; font-weight: 800; letter-spacing: -0.3px; color: #fff; }
+.co-panel-h.sm { font-size: 20px; margin-bottom: 18px; }
+.co-right .co-panel:last-child { position: sticky; top: 24px; }
+
+/* ── left: cart item cards ── */
+.co-citem { display: flex; gap: 16px; padding: 18px 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.co-citem:first-child { border-top: none; padding-top: 2px; }
+.co-cthumb { position: relative; width: 150px; height: 190px; border-radius: 12px; flex-shrink: 0; overflow: hidden; background: linear-gradient(135deg, #12245a, #0a1a44); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255, 255, 255, 0.08); }
+.co-cthumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 520px) { .co-cthumb { width: 104px; height: 132px; } }
+.co-cbody { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.co-ctitle { font-size: 15.5px; font-weight: 700; color: #fff; line-height: 1.35; margin-bottom: 8px; }
+a.co-ctitle:hover { color: #7fb4ff; }
+
+.co-cspecs { display: grid; grid-template-columns: 82px 1fr; gap: 5px 0; align-items: center; margin: 4px 0 10px; }
+.co-cspecs .k { font-size: 12.5px; color: rgba(255, 255, 255, 0.45); }
+.co-cspecs .v { font-size: 12.5px; color: #fff; font-weight: 600; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.co-dbadge { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 20px; color: #22c55e; background: rgba(34, 197, 94, 0.14); border: 1px solid rgba(34, 197, 94, 0.45); }
+.co-stockval { display: inline-flex; align-items: center; gap: 4px; color: #34d399; font-weight: 600; }
+.co-stockval.out { color: #ff8080; }
+
+.co-cmeta { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-bottom: 4px; }
+.co-dot { color: rgba(255, 255, 255, 0.3); }
+.co-csold { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: rgba(255, 255, 255, 0.55); }
+.co-csold strong { color: #fff; font-weight: 700; }
+.co-csold .srate { display: inline-flex; align-items: center; gap: 3px; color: #f58e2a; font-weight: 700; margin-left: 3px; text-shadow: 0 0 14px rgba(245, 142, 42, 0.5); }
+.co-csold .srate svg { flex-shrink: 0; filter: drop-shadow(0 0 4px rgba(245, 142, 42, 0.55)); }
+.co-csold .srate em { font-style: normal; color: rgba(255, 255, 255, 0.4); font-weight: 500; font-size: 10.5px; text-shadow: none; }
+
+.co-crow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.co-cqty { display: inline-flex; align-items: center; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 9px; overflow: hidden; }
+.co-cqty button { width: 34px; height: 34px; background: transparent; border: none; color: #7fb4ff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+.co-cqty button:hover:not(:disabled) { background: rgba(14, 81, 226, 0.2); }
+.co-cqty button:disabled { opacity: 0.35; cursor: not-allowed; }
+.co-cqty span { min-width: 34px; text-align: center; font-size: 14px; font-weight: 700; color: #fff; }
+.co-cprice { font-size: 18px; font-weight: 800; color: #fff; white-space: nowrap; text-align: right; }
+.co-cprice .was { display: block; font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.4); text-decoration: line-through; }
+.co-cdel { background: transparent; border: none; color: rgba(255, 255, 255, 0.4); cursor: pointer; padding: 4px; flex-shrink: 0; transition: color 0.15s; align-self: flex-start; }
+.co-cdel:hover { color: #ef4444; }
+.co-empty { text-align: center; padding: 40px 20px; color: rgba(255, 255, 255, 0.5); font-size: 14px; }
+
+/* ── email field ── */
+.co-field { margin-bottom: 14px; }
+.co-field label { display: block; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.6); margin-bottom: 6px; }
+.co-field input { width: 100%; height: 46px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; padding: 0 14px; color: #fff; font-family: inherit; font-size: 14px; outline: none; transition: border-color 0.2s; }
+.co-field input::placeholder { color: rgba(255, 255, 255, 0.35); }
+.co-field input:focus { border-color: rgba(58, 155, 245, 0.65); box-shadow: 0 0 0 3px rgba(14, 81, 226, 0.15); }
+.co-field input:disabled { color: rgba(255, 255, 255, 0.75); cursor: default; }
+.co-field.err input { border-color: rgba(239, 68, 68, 0.7); }
+.co-fielderr { font-size: 12.5px; font-weight: 600; color: #ff7676; margin-top: 6px; }
+.co-req { color: #ff7676; }
+
+/* ── DGMARQ Plus join panel ── */
+.co-plus { position: relative; display: block; border-radius: 16px; padding: 1.5px; margin-bottom: 20px; text-decoration: none; overflow: hidden; background: linear-gradient(120deg, #172aa4, #650eb3, #172aa4); background-size: 220% 220%; animation: coPlusBorder 7s ease infinite; box-shadow: 0 10px 30px rgba(80, 30, 180, 0.4), 0 0 18px rgba(123, 47, 247, 0.25); transition: box-shadow 0.25s, transform 0.18s; }
+.co-plus:hover { box-shadow: 0 14px 40px rgba(101, 14, 179, 0.55), 0 0 26px rgba(140, 90, 255, 0.4); transform: translateY(-2px); }
+@keyframes coPlusBorder { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.co-plus-in { position: relative; display: flex; align-items: center; gap: 14px; border-radius: 14.5px; padding: 16px 18px; overflow: hidden; background: linear-gradient(150deg, rgba(18, 16, 52, 0.97), rgba(30, 10, 60, 0.95)); }
+.co-plus-in::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 85% 15%, rgba(140, 90, 255, 0.22), transparent 55%), radial-gradient(circle at 10% 90%, rgba(14, 81, 226, 0.18), transparent 50%); }
+.co-plus-spark { position: relative; display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #7b2ff7, #0e51e2); border: 1px solid rgba(180, 140, 255, 0.55); box-shadow: 0 0 16px rgba(123, 47, 247, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.3); color: #fff; }
+.co-plus-spark svg { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)); }
+.co-plus-txt { position: relative; flex: 1; min-width: 0; }
+.co-plus-kicker { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #c9b0ff; margin-bottom: 3px; }
+.co-plus-kicker .dot { width: 5px; height: 5px; border-radius: 50%; background: #a855f7; box-shadow: 0 0 6px #a855f7; animation: coPlusDot 1.8s ease-in-out infinite; }
+@keyframes coPlusDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.co-plus-h { margin: 0; font-size: 15.5px; font-weight: 800; color: #fff; letter-spacing: -0.2px; line-height: 1.25; }
+.co-plus-h em { font-style: normal; background: linear-gradient(90deg, #9d7bff, #5ea2ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.co-plus-sub { margin: 3px 0 0; font-size: 11.5px; color: rgba(255, 255, 255, 0.6); line-height: 1.45; }
+.co-plus-cta { position: relative; display: flex; align-items: center; gap: 7px; flex-shrink: 0; height: 38px; padding: 0 16px; border-radius: 10px; background: linear-gradient(120deg, #0e51e2, #7b2ff7); color: #fff; font-size: 12.5px; font-weight: 800; letter-spacing: 0.3px; white-space: nowrap; box-shadow: 0 6px 18px rgba(123, 47, 247, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25); transition: filter 0.18s; }
+.co-plus:hover .co-plus-cta { filter: brightness(1.12); }
+@media (max-width: 560px) { .co-plus-in { flex-wrap: wrap; } .co-plus-cta { width: 100%; justify-content: center; } }
+
+/* ── right: summary ── */
+.co-proceed { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 56px; margin-bottom: 20px; background: linear-gradient(120deg, #0e51e2, #7b2ff7); border: none; border-radius: 12px; color: #fff; font-family: inherit; font-size: 17px; font-weight: 800; letter-spacing: 0.3px; cursor: pointer; box-shadow: 0 8px 26px rgba(123, 47, 247, 0.5), 0 0 22px rgba(168, 85, 247, 0.28); transition: filter 0.18s, box-shadow 0.2s; }
+.co-proceed:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 12px 34px rgba(123, 47, 247, 0.62); }
+.co-proceed:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+.co-sumlines { display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px; }
+.co-line { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: rgba(255, 255, 255, 0.6); }
+.co-line .v { color: #fff; font-weight: 700; font-size: 15px; }
+.co-line.save, .co-line.save .v { color: #34d399; }
+.co-line .lbl { display: flex; align-items: center; gap: 5px; }
+.co-line .info { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 50%; font-size: 9px; font-style: italic; color: rgba(255, 255, 255, 0.5); cursor: help; margin-left: 5px; }
+.co-totalrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 6px; }
+.co-totalrow .lbl { font-size: 20px; font-weight: 800; color: #fff; }
+.co-totalrow .amt { font-size: 32px; font-weight: 800; color: #fff; text-shadow: 0 0 22px rgba(58, 155, 245, 0.5); }
+.co-tax { font-size: 11.5px; color: rgba(255, 255, 255, 0.4); line-height: 1.5; margin-bottom: 16px; }
+
+.co-consent { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 13px; cursor: pointer; user-select: none; }
+.co-consent input { display: none; }
+.co-consent .box { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid rgba(255, 255, 255, 0.3); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.18s; margin-top: 1px; }
+.co-consent input:checked + .box { background: linear-gradient(135deg, #3a9bf5, #0e51e2); border-color: transparent; }
+.co-consent .box svg { opacity: 0; transition: opacity 0.15s; }
+.co-consent input:checked + .box svg { opacity: 1; }
+.co-consent.err .box { border-color: rgba(239, 68, 68, 0.8); }
+.co-consent .t { font-size: 13px; color: rgba(255, 255, 255, 0.68); line-height: 1.5; }
+.co-consent .t a { color: #3a9bf5; text-decoration: none; }
+.co-consent .t a:hover { text-decoration: underline; }
+
+/* ── discount accordion ── */
+.co-promoacc { border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 6px; }
+.co-promoacc-h { display: flex; align-items: center; justify-content: space-between; width: 100%; background: transparent; border: none; color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 700; padding: 14px 0; cursor: pointer; }
+.co-promoacc-h > span { display: flex; align-items: center; gap: 9px; }
+.co-promoacc-h svg { color: #3a9bf5; }
+.co-promoacc-h .chev { color: rgba(255, 255, 255, 0.5); transition: transform 0.25s; }
+.co-promoacc.open .co-promoacc-h .chev { transform: rotate(180deg); }
+.co-promoacc-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.co-promoacc.open .co-promoacc-body { max-height: 140px; }
+.co-promo-in { display: flex; gap: 9px; padding: 6px 0 4px; }
+.co-promo-in input { flex: 1; min-width: 0; height: 44px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 10px; padding: 0 14px; color: #fff; font-family: inherit; font-size: 13.5px; outline: none; transition: border-color 0.2s; }
+.co-promo-in input:focus { border-color: rgba(58, 155, 245, 0.6); }
+.co-promo-in button { height: 44px; padding: 0 20px; background: rgba(14, 81, 226, 0.9); border: none; border-radius: 10px; color: #fff; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: filter 0.18s; display: flex; align-items: center; gap: 6px; }
+.co-promo-in button:hover:not(:disabled) { filter: brightness(1.12); }
+.co-promo-in button:disabled { opacity: 0.6; cursor: not-allowed; }
+.co-promo-msg { font-size: 12.5px; font-weight: 600; padding: 4px 2px; min-height: 18px; }
+.co-promo-msg.ok { color: #34d399; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.co-promo-msg.err { color: #ff7676; }
+.co-promo-clear { background: none; border: none; color: rgba(255, 255, 255, 0.45); cursor: pointer; font-family: inherit; font-size: 11.5px; font-weight: 600; padding: 0; }
+.co-promo-clear:hover { color: #ff7676; }
+
+/* ── trust ── */
+.co-trust { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.co-trust .tr { display: flex; align-items: center; gap: 9px; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.co-trust .tr svg { flex-shrink: 0; }
+.co-paychips { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .co-plus, .co-plus-kicker .dot { animation: none; }
+}

@@ -43,7 +43,9 @@ const BundleDeals = () => {
     queryKey: ['products-search', productSearch],
     queryFn: async () => {
       try {
-        const response = await productAPI.getProducts({ search: productSearch, limit: 10, status: 'approved', adminView: 'true' });
+        // No adminView: only buyer-purchasable products (approved offer with
+        // stock / live pre-order) can go into a bundle.
+        const response = await productAPI.getProducts({ search: productSearch, limit: 10, status: 'approved' });
         return response.data.data;
       } catch {
         return { products: [] };
@@ -419,7 +421,7 @@ const BundleDeals = () => {
                           onClick={() => handleProductSelect(product)}
                         >
                           <div className="font-medium text-white">{product.name}</div>
-                          <div className="text-sm text-gray-400">${product.price}</div>
+                          <div className="text-sm text-gray-400">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</div>
                         </div>
                       ))
                   ) : (
@@ -541,7 +543,7 @@ const BundleDeals = () => {
                           onClick={() => handleProductSelect(product)}
                         >
                           <div className="font-medium text-white">{product.name}</div>
-                          <div className="text-sm text-gray-400">${product.price}</div>
+                          <div className="text-sm text-gray-400">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</div>
                         </div>
                       ))
                   ) : (

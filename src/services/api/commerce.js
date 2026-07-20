@@ -3,6 +3,8 @@ import api from '@lib/axios';
 export const orderAPI = {
   getAllOrders: (params) => api.get('/order/my-orders', { params }),
   getOrderById: (orderId) => api.get(`/order/${orderId}`),
+  // M21: cancel an undelivered pre-order (before release) → wallet refund.
+  cancelPreorder: (orderId) => api.post(`/order/${orderId}/cancel-preorder`),
 };
 
 export const checkoutAPI = {
@@ -97,6 +99,9 @@ export const subscriptionAPI = {
   renewSubscription: (data) => api.post('/subscription/renew', data),
   getAllSubscriptions: (params) => api.get('/subscription', { params }),
   getSubscriptionStats: () => api.get('/subscription/stats'),
+  // M20: DGMARQ Plus points (balance/ledger + wallet redemption).
+  getMyPoints: () => api.get('/subscription/points'),
+  redeemPoints: (points) => api.post('/subscription/points/redeem', { points }),
 };
 
 export const licenseKeyAPI = {

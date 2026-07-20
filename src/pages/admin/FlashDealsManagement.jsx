@@ -44,11 +44,12 @@ const FlashDealsManagement = () => {
   // Fetch products for dropdown
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products-search', debouncedSearch],
+    // No adminView: the buyer-visibility gate applies, so only products a buyer
+    // can actually purchase (approved offer with stock / live pre-order) show.
     queryFn: () => productAPI.getProducts({
       search: debouncedSearch,
       limit: 10,
       status: 'approved',
-      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,
   });
@@ -219,7 +220,9 @@ const FlashDealsManagement = () => {
                             )}
                             <div className="flex-1">
                               <div className="text-white font-medium">{product.name}</div>
-                              <div className="text-gray-400 text-sm">${product.price}</div>
+                              <div className="text-gray-400 text-sm">
+                                ${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
+                              </div>
                             </div>
                           </div>
                         ))

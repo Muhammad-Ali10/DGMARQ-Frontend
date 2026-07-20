@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { userAPI } from '@services/api';
+import { userAPI, orderAPI } from '@services/api';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -12,6 +12,7 @@ import ConfirmationModal from '@components/common/ConfirmationModal';
 import { RefundRequestModal } from '@features/wallet-payout';
 import { showSuccess, showApiError } from '@utils/toast';
 import { useSocket } from '@hooks/useSocket';
+import useCurrency from '@hooks/useCurrency';
 import { getOrderItemProductName } from '@utils/orderItem';
 
 const UserOrders = () => {
@@ -22,6 +23,7 @@ const UserOrders = () => {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
+  const { format } = useCurrency();
 
   const { data: ordersData, isLoading } = useQuery({
     queryKey: ['user-orders', page, status],
@@ -59,6 +61,17 @@ const UserOrders = () => {
     setReorderOrderId(orderId);
     setShowReorderModal(true);
   };
+
+  // M21: cancel an undelivered pre-order (before release) → wallet refund.
+  const cancelPreorderMutation = useMutation({
+    mutationFn: (orderId) => orderAPI.cancelPreorder(orderId),
+    onSuccess: (res) => {
+      showSuccess(res.data?.message || 'Pre-order cancelled — refunded to your wallet');
+      queryClient.invalidateQueries({ queryKey: ['user-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+    },
+    onError: (error) => showApiError(error, 'Failed to cancel pre-order'),
+  });
 
   if (isLoading) return <Loading message="Loading orders..." />;
 
@@ -118,9 +131,14 @@ const UserOrders = () => {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-xl text-white mb-2">
-                          ${order.totalAmount?.toFixed(2)}
+                          {format(order.totalAmount)}
                         </p>
                         {getStatusBadge(order.orderStatus)}
+                        {order.plusPointsEarned > 0 && (
+                          <p className="mt-2 text-xs font-semibold text-accent">
+                            +{order.plusPointsEarned} Plus points
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -131,7 +149,7 @@ const UserOrders = () => {
                             <span className="font-medium text-gray-300">{item.qty}x</span>
                             <span className="text-white">{getOrderItemProductName(item)}</span>
                           </div>
-                          <span className="text-gray-400">${item.unitPrice?.toFixed(2)}</span>
+                          <span className="text-gray-400">{format(item.unitPrice)}</span>
                         </div>
                       ))}
                     </div>
@@ -154,7 +172,7 @@ const UserOrders = () => {
                           Request Refund
                         </Button>
                       )}
-                      {order.orderStatus !== 'cancelled' && order.orderStatus !== 'completed' && order.paymentStatus === 'paid' && (
+                      {order.orderStatus !== 'cancelled' && order.orderStatus !== 'completed' && order.paymentStatus === 'paid' && !order.hasPreorder && (
                         <Button
                           onClick={() => handleReorder(order._id)}
                           size="sm"
@@ -162,6 +180,19 @@ const UserOrders = () => {
                         >
                           <RotateCcw className="w-4 h-4 mr-2" />
                           Reorder
+                        </Button>
+                      )}
+                      {/* M21: undelivered pre-order — cancellable until release */}
+                      {order.hasPreorder && order.orderStatus === 'processing' && order.paymentStatus === 'paid' && (
+                        <Button
+                          onClick={() => cancelPreorderMutation.mutate(order._id)}
+                          disabled={cancelPreorderMutation.isPending}
+                          variant="outline"
+                          size="sm"
+                          className="border-amber-500/60 text-amber-300 hover:bg-amber-500/10"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Cancel Pre-order
                         </Button>
                       )}
                     </div>

@@ -1,5 +1,8 @@
-import { memo } from "react";
-import { Link } from "react-router-dom";
+import { memo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { toast } from "sonner";
 import SafeImage from "@components/ui/safe-image";
 import {
   Card,
@@ -8,8 +11,13 @@ import {
   CardContent,
   CardFooter,
 } from "@components/ui/card";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Heart } from "lucide-react";
 import { cn } from "@lib/utils";
+import useCurrency from "@hooks/useCurrency";
+import useOfferVerdict from "@hooks/useOfferVerdict";
+import RegionBadges from "./RegionBadges";
+import { userAPI, cartAPI } from "@services/api";
+import { addToGuestCart } from "@features/cart-checkout";
 import {
   calculateProductPrice,
   getProductImage,
@@ -18,8 +26,10 @@ import {
   PRODUCT_IMAGE_PLACEHOLDER,
   getTypeName,
 } from "../utils/productUtils";
-  
+import { Badge } from "@/components/ui/badge";
+
 const ProductCard = memo(({ product }) => {
+  const queryClient = useQueryClient();
   const { discountPrice, discountPercentage, originalPrice } =
     calculateProductPrice(product);
   const image = getProductImage(product);
@@ -27,16 +37,103 @@ const ProductCard = memo(({ product }) => {
   const platformName = getPlatformName(product);
   const typeName = getTypeName(product);
   const hasDiscount = discountPercentage > 0;
+  const offersCount = product.offersCount ?? 0;
+  // Region badge uses the UNION of every offer's region codes (offerRegionCodes)
+  // so the card reads "can activate" when ANY seller covers the buyer's region —
+  // not just the cheapest offer (which may be region-locked). Price stays lowest.
+  // Falls back to the best-offer snapshot if the union isn't projected yet.
+  const hasRegionData = product.offerRegionCodes !== undefined || product.bestOfferRegionCodes !== undefined;
+  const regionOffer = hasRegionData
+    ? {
+      regionCodes: product.offerRegionCodes || product.bestOfferRegionCodes || [],
+      countries: [],
+      excludedCountries: [],
+    }
+    : null;
 
-  return ( 
-    <Link
-      to={`/product/${product.slug || product._id}`}
-      className="block h-full"
-    >
-      <Card className="w-full max-w-[196px] mx-auto h-full flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2.5 box-border hover:scale-105 transition-transform duration-200">
+  // Buyer-region compatibility for THIS listing's best offer. false ⇒ the buyer
+  // can't activate it ⇒ the whole card gets a red border (screenshot behaviour).
+  const { verdict } = useOfferVerdict(regionOffer);
+
+  const isAuthenticated = useSelector((s) => s.auth?.isAuthenticated);
+  const { format: formatPrice } = useCurrency();
+  const navigate = useNavigate();
+  const [wishlisted, setWishlisted] = useState(!!product.isWishlisted);
+  const [wlBusy, setWlBusy] = useState(false);
+  const [cartBusy, setCartBusy] = useState(false);
+
+  const toggleWishlist = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+    if (wlBusy) return;
+    const next = !wishlisted;
+    setWishlisted(next);
+    setWlBusy(true);
+    try {
+      if (next) await userAPI.addToWishlist({ productId: product._id });
+      else await userAPI.removeFromWishlist({ productId: product._id });
+    } catch {
+      setWishlisted(!next); // revert on failure
+      toast.error("Failed to update wishlist");
+    } finally {
+      setWlBusy(false);
+    }
+  };
+
+  const handleAddToCart = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (cartBusy) return;
+    const sellerId = product.bestOffer?.sellerId || product.sellerId;
+    if (!isAuthenticated) {
+      addToGuestCart({
+        productId: product._id,
+        qty: 1,
+        price: discountPrice,
+        originalPrice,
+        discountPercentage,
+        sellerId,
+        name: title,
+        slug: product.slug,
+        image,
+        platformName,
+        typeName,
+      });
+      toast.success("Added to cart");
+      return;
+    }
+    setCartBusy(true);
+    try {
+      await cartAPI.addItem({ productId: product._id, qty: 1, sellerId });
+      // Refresh the shared ['cart'] cache so the header badge + mini-cart
+      // reflect the new item immediately (this was missing → stale badge).
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      toast.success("Added to cart");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to add to cart");
+    } finally {
+      setCartBusy(false);
+    }
+  };
+
+  return (
+    <Link to={`/product/${product.slug || product._id}`} className="block h-full ">
+      <Card
+        className={cn(
+          "group w-full max-w-[196px] mx-auto h-full flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 text-white font-poppins gap-2.5 box-border transition duration-200 border",
+          // Hover glow matches the border colour: red when the buyer can't
+          // activate (red border), blue otherwise.
+          verdict === false
+            ? "border-red-500 hover:shadow-[0_0_22px_rgba(239,68,68,0.55)]"
+            : "border-blue-600 hover:shadow-[0_0_22px_rgba(37,99,235,0.55)]"
+        )}
+      >
         <div className="relative">
-          {image &&
-          image !== PRODUCT_IMAGE_PLACEHOLDER ? (
+          {image && image !== PRODUCT_IMAGE_PLACEHOLDER ? (
             <SafeImage
               src={image}
               alt={title}
@@ -56,6 +153,32 @@ const ProductCard = memo(({ product }) => {
               Featured
             </span>
           )}
+
+          {/* Wishlist toggle — top-right */}
+          <button
+            type="button"
+            onClick={toggleWishlist}
+            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
+          >
+            <Heart
+              className={cn(
+                "h-4 w-4",
+                wishlisted ? "fill-red-500 text-red-500" : "text-white"
+              )}
+            />
+          </button>
+
+          {/* Add to cart — bottom-right, revealed on card hover */}
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={cartBusy}
+            aria-label="Add to cart"
+            className="absolute bottom-2 right-2 z-10 p-2 rounded-full bg-accent text-white shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
+          >
+            <ShoppingCart className="h-4 w-4" />
+          </button>
         </div>
 
         <CardHeader className="p-0 flex-1 min-h-0">
@@ -74,13 +197,24 @@ const ProductCard = memo(({ product }) => {
           >
             Type: <span className="font-bold">{typeName || "—"}</span>
           </p>
+          {regionOffer && (
+            <div className="mt-0.5 mb-1">
+              <RegionBadges offer={regionOffer} maxChips={1} compact showWarning />
+            </div>
+          )}
+          <hr />
+          <Badge className="w-full border bg-transparent border-[#0e64dc73]">
+            {offersCount > 1
+              ? `+${offersCount - 1} more offers`
+              : `${offersCount} ${offersCount === 1 ? "offer" : "offers"}`}
+          </Badge>
+
         </CardHeader>
 
         <div className="mt-auto shrink-0 w-full">
           <CardContent className="flex flex-row justify-between items-center w-full p-0 gap-2 min-h-[1.5rem] md:min-h-[1.625rem]">
             <p className="text-xs md:text-sm font-bold truncate">
-              {discountPrice.toFixed(2)} &nbsp;
-              <span className="font-normal uppercase">USD</span>
+              {formatPrice(discountPrice)}
             </p>
             <h3
               className={cn(
@@ -95,22 +229,23 @@ const ProductCard = memo(({ product }) => {
           <CardFooter className="p-0 min-h-[1.125rem] md:min-h-[1.25rem] flex items-start">
             <del
               className={cn(
-                "text-xs md:text-sm font-normal uppercase leading-none",
+                "text-xs md:text-sm font-normal leading-none",
                 !hasDiscount && "invisible"
               )}
               aria-hidden={!hasDiscount}
             >
-              {(hasDiscount ? originalPrice : 0).toFixed(2)} usd
+              {formatPrice(hasDiscount ? originalPrice : 0)}
             </del>
           </CardFooter>
         </div>
       </Card>
     </Link>
   );
-}, (prev, next) => 
-  prev.product._id === next.product._id && 
-  prev.product.price === next.product.price && 
+}, (prev, next) =>
+  prev.product._id === next.product._id &&
+  prev.product.price === next.product.price &&
   prev.product.discount === next.product.discount &&
+  prev.product.offersCount === next.product.offersCount &&
   prev.product.trendingOffer?.discountPercent === next.product.trendingOffer?.discountPercent &&
   prev.product.trendingOffer?.offerId === next.product.trendingOffer?.offerId
 );

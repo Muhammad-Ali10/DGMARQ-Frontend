@@ -23,10 +23,11 @@ const SellerOffersManagement = () => {
     placeholderData: keepPreviousData,
   });
 
-  // Tab counts = number of offers (not products) for each status.
-  const pendingCountQ = useQuery({ queryKey: ['admin-offers-count', 'pending'], queryFn: () => offerAPI.adminGetOffers({ status: 'pending', limit: 1 }).then((r) => r.data.data.offerCount) });
-  const approvedCountQ = useQuery({ queryKey: ['admin-offers-count', 'approved'], queryFn: () => offerAPI.adminGetOffers({ status: 'approved', limit: 1 }).then((r) => r.data.data.offerCount) });
-  const rejectedCountQ = useQuery({ queryKey: ['admin-offers-count', 'rejected'], queryFn: () => offerAPI.adminGetOffers({ status: 'rejected', limit: 1 }).then((r) => r.data.data.offerCount) });
+  // Tab counts = number of PRODUCTS per status, so the badge always matches the
+  // number of rows in the list (rows are grouped by product, not per offer).
+  const pendingCountQ = useQuery({ queryKey: ['admin-offers-count', 'pending'], queryFn: () => offerAPI.adminGetOffers({ status: 'pending', limit: 1 }).then((r) => r.data.data.pagination.total) });
+  const approvedCountQ = useQuery({ queryKey: ['admin-offers-count', 'approved'], queryFn: () => offerAPI.adminGetOffers({ status: 'approved', limit: 1 }).then((r) => r.data.data.pagination.total) });
+  const rejectedCountQ = useQuery({ queryKey: ['admin-offers-count', 'rejected'], queryFn: () => offerAPI.adminGetOffers({ status: 'rejected', limit: 1 }).then((r) => r.data.data.pagination.total) });
   const counts = { pending: pendingCountQ.data ?? 0, approved: approvedCountQ.data ?? 0, rejected: rejectedCountQ.data ?? 0 };
 
   const groups = data?.groups || [];

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Button } from "@components/ui/button";
-import { Hero, CategoryNavigation, ProductCard, ProductVerticalCard, FlashDeal, CategoryProductSection, MicrosoftCard } from "@features/catalog";
+import { Hero, CategoryNavigation, ProductCard, ProductVerticalCard, FlashDeal, CategoryProductSection, MicrosoftCard, PlatformTrustGrid, PlusPromoSection, CustomHomepageSections } from "@features/catalog";
 import {
   bestsellerAPI,
   trendingOfferAPI,
@@ -125,7 +125,11 @@ const Home = () => {
   return (
     <div className="min-h-screen">
       <Hero />
+      {/* M15: platform trust strip (logo · global · dispute · instant) */}
+      <PlatformTrustGrid />
       <CategoryNavigation scrollOffset={140} />
+      {/* M15: DGMARQ Plus subscriptions promo (top area) */}
+      <PlusPromoSection />
       <div id="featured-products"></div>
       {(isLoadingFeatured || (featuredProductsData?.docs && featuredProductsData.docs.length > 0)) && (
         <section id="featured-products" className="py-16">
@@ -436,6 +440,9 @@ const Home = () => {
           </div>
         </section>
       )}
+
+      {/* M15: admin-defined custom heading sections (search-driven product rows) */}
+      <CustomHomepageSections />
     </div>
   );
 };

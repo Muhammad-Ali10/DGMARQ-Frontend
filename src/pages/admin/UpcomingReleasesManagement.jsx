@@ -55,22 +55,22 @@ const UpcomingReleasesManagement = () => {
   // Fetch products for dropdown
   const { data: productsData1, isLoading: isLoadingProducts1 } = useQuery({
     queryKey: ['products-search', debouncedSearch[1]],
-    queryFn: () => productAPI.getProducts({ 
+    // No adminView: only buyer-purchasable products (approved offer with stock
+    // / live pre-order) can be featured — a hidden product would dead-end buyers.
+    queryFn: () => productAPI.getProducts({
       search: debouncedSearch[1],
       limit: 10,
       status: 'active',
-      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen[1] || debouncedSearch[1].length > 0,
   });
 
   const { data: productsData2, isLoading: isLoadingProducts2 } = useQuery({
     queryKey: ['products-search', debouncedSearch[2]],
-    queryFn: () => productAPI.getProducts({ 
+    queryFn: () => productAPI.getProducts({
       search: debouncedSearch[2],
       limit: 10,
       status: 'active',
-      adminView: 'true'
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen[2] || debouncedSearch[2].length > 0,
   });
@@ -226,7 +226,7 @@ const UpcomingReleasesManagement = () => {
                                 )}
                                 <div>
                                   <p className="text-white text-sm font-medium">{product.name}</p>
-                                  <p className="text-gray-400 text-xs">${product.price}</p>
+                                  <p className="text-gray-400 text-xs">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</p>
                                 </div>
                               </div>
                               {selectedProduct?._id === product._id && <Check className="w-4 h-4 text-accent" />}

@@ -4,6 +4,7 @@ import { Button } from '@components/ui/button';
 import { Loader2, X, Lock, CreditCard, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@components/ui/card';
 import { getPayPalSDK } from '@utils/paypalSDK';
+import { getGooglePaySDK, getGooglePayEnvironment } from '@utils/googlePaySDK';
 import { paypalAPI, checkoutAPI } from '@services/api';
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
@@ -33,6 +34,12 @@ const PaymentModal = ({
   const [isCardFieldsEligible, setIsCardFieldsEligible] = useState(false);
   const paymentAttemptRef = useRef({ id: 0, isHandled: false });
   const pendingCardErrorTimerRef = useRef(null);
+  // Google Pay (fulfilled through PayPal's `googlepay` component). The tile only
+  // appears once the device + merchant are confirmed eligible.
+  const [isGooglePayEligible, setIsGooglePayEligible] = useState(false);
+  const googlePayContainerRef = useRef(null);
+  const googlePayRef = useRef({ client: null, config: null });
+  const googlePayHandlerRef = useRef(null);
 
   const clearPaymentToasts = () => {
     toast.dismiss();
@@ -75,6 +82,124 @@ const PaymentModal = ({
     setIsLoading(false);
     return true;
   };
+
+  // Google Pay authorization → PayPal order → confirm → capture. Google calls
+  // this from its payment sheet and expects a transactionState back.
+  const handleGooglePayAuthorized = async (paymentData) => {
+    const attemptId = beginPaymentAttempt();
+    try {
+      setIsLoading(true);
+      if (!checkoutId) throw new Error('Checkout ID is missing. Please try again.');
+
+      const response = await paypalAPI.createOrder({ checkoutId });
+      const orderId = response.data?.orderId || response.data?.data?.orderId;
+      if (!orderId) throw new Error(response.data?.message || 'Order ID not returned from server');
+
+      const confirmation = await paypalSDK.Googlepay().confirmOrder({
+        orderId,
+        paymentMethodData: paymentData?.paymentMethodData,
+      });
+      if (confirmation?.status !== 'APPROVED') {
+        throw new Error(
+          confirmation?.status === 'PAYER_ACTION_REQUIRED'
+            ? 'This card needs extra verification. Please use PayPal or a card instead.'
+            : 'Google Pay could not authorize this payment.'
+        );
+      }
+
+      const captureResponse = await paypalAPI.captureOrder(orderId, checkoutId);
+      const responseData = captureResponse.data || captureResponse;
+      const captureStatus = responseData?.status || responseData?.data?.status;
+      if (responseData?.ok === false || (captureStatus && captureStatus !== 'COMPLETED')) {
+        throw new Error(responseData?.message || `Payment capture failed. Status: ${captureStatus || 'unknown'}`);
+      }
+
+      resolvePaymentAttempt({ attemptId, success: true, payload: responseData });
+      return { transactionState: 'SUCCESS' };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Google Pay payment failed';
+      resolvePaymentAttempt({ attemptId, success: false, errorMessage });
+      return {
+        transactionState: 'ERROR',
+        error: { intent: 'PAYMENT_AUTHORIZATION', message: errorMessage, reason: 'PAYMENT_DATA_INVALID' },
+      };
+    }
+  };
+  // Keep the callback the Google client holds pointing at the latest closure
+  // (checkoutId/totalAmount change between renders; the client is built once).
+  googlePayHandlerRef.current = handleGooglePayAuthorized;
+
+  // Eligibility: merchant onboarded (PayPal config) AND device can pay (Google).
+  // Any failure just leaves the tile hidden — never blocks the other methods.
+  useEffect(() => {
+    if (!open || !paypalSDK) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const googleApi = await getGooglePaySDK();
+        const config = await paypalSDK.Googlepay().config();
+        if (cancelled || !config?.allowedPaymentMethods) return;
+        const client = new googleApi.PaymentsClient({
+          environment: getGooglePayEnvironment(),
+          paymentDataCallbacks: {
+            onPaymentAuthorized: (pd) => googlePayHandlerRef.current(pd),
+          },
+        });
+        const ready = await client.isReadyToPay({
+          apiVersion: 2,
+          apiVersionMinor: 0,
+          allowedPaymentMethods: config.allowedPaymentMethods,
+        });
+        if (cancelled) return;
+        if (ready?.result) {
+          googlePayRef.current = { client, config };
+          setIsGooglePayEligible(true);
+        }
+      } catch {
+        // Not eligible, blocked, or Google Pay not enabled on the PayPal account.
+        if (!cancelled) setIsGooglePayEligible(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, paypalSDK]);
+
+  // Render Google's own branded button (their API owns the markup).
+  useEffect(() => {
+    if (!open || selectedMethod !== 'googlepay' || !isGooglePayEligible) return undefined;
+    const container = googlePayContainerRef.current;
+    const { client, config } = googlePayRef.current;
+    if (!container || !client || !config) return undefined;
+
+    container.innerHTML = '';
+    const button = client.createButton({
+      buttonColor: 'white',
+      buttonType: 'pay',
+      buttonSizeMode: 'fill',
+      onClick: () => {
+        client
+          .loadPaymentData({
+            apiVersion: 2,
+            apiVersionMinor: 0,
+            allowedPaymentMethods: config.allowedPaymentMethods,
+            merchantInfo: config.merchantInfo,
+            transactionInfo: {
+              countryCode: config.countryCode || 'US',
+              currencyCode: currency,
+              totalPriceStatus: 'FINAL',
+              totalPrice: Number(totalAmount || 0).toFixed(2),
+            },
+            callbackIntents: ['PAYMENT_AUTHORIZATION'],
+          })
+          .catch(() => {
+            // Buyer dismissed the sheet — onPaymentAuthorized already reported
+            // any real failure, so there's nothing to surface here.
+          });
+      },
+    });
+    container.appendChild(button);
+    return () => { container.innerHTML = ''; };
+  }, [open, selectedMethod, isGooglePayEligible, currency, totalAmount]);
 
   useEffect(() => {
     if (!open) return;
@@ -459,8 +584,13 @@ const PaymentModal = ({
         </DialogHeader>
 
         <div className="space-y-5 mt-4 overflow-y-auto">
-          {/* Payment Method Selection */}
-          <div className={`grid gap-3 ${walletBalance >= totalAmount ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {/* Payment Method Selection — tile count varies with wallet balance and
+              Google Pay eligibility; classes stay static so Tailwind keeps them. */}
+          <div className={`grid gap-3 ${
+            { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-2 md:grid-cols-4' }[
+              2 + (walletBalance >= totalAmount ? 1 : 0) + (isGooglePayEligible ? 1 : 0)
+            ] || 'grid-cols-2'
+          }`}>
             {walletBalance >= totalAmount && (
               <Button
                 type="button"
@@ -480,6 +610,30 @@ const PaymentModal = ({
                 </div>
               </Button>
             )}
+            {isGooglePayEligible && (
+              <Button
+                type="button"
+                onClick={() => setSelectedMethod('googlepay')}
+                variant={selectedMethod === 'googlepay' ? 'default' : 'outline'}
+                className={`h-auto py-4 ${
+                  selectedMethod === 'googlepay'
+                    ? 'bg-accent hover:bg-accent/90 text-white'
+                    : 'border-gray-600 text-gray-300 hover:bg-gray-800'
+                }`}
+                disabled={isLoading}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="#4285F4" d="M22.5 12.2c0-.7-.06-1.4-.18-2H12v3.8h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.3-4.7 3.3-7.8z" />
+                    <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2v2.8A11 11 0 0 0 12 23z" />
+                    <path fill="#FBBC05" d="M5.7 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2a11 11 0 0 0 0 9.8z" />
+                    <path fill="#EA4335" d="M12 5.4c1.6 0 3 .5 4.2 1.6l3.1-3.1A11 11 0 0 0 2 7.1l3.7 2.8C6.6 7.4 9.1 5.4 12 5.4z" />
+                  </svg>
+                  <span className="text-xs font-medium">Google Pay</span>
+                </div>
+              </Button>
+            )}
+
             <Button
               type="button"
               onClick={() => setSelectedMethod('paypal')}
@@ -518,6 +672,16 @@ const PaymentModal = ({
               </div>
             </Button>
           </div>
+
+          {/* Google Pay — Google renders its own branded button into this slot. */}
+          {selectedMethod === 'googlepay' && isGooglePayEligible && (
+            <div className="space-y-3">
+              <div ref={googlePayContainerRef} className="min-h-[48px]" />
+              <p className="text-xs text-gray-400 text-center">
+                Google Pay is processed securely through PayPal. You&apos;ll be charged ${Number(totalAmount || 0).toFixed(2)} {currency}.
+              </p>
+            </div>
+          )}
 
           {/* Wallet Payment Option */}
           {selectedMethod === 'wallet' && walletBalance >= totalAmount && (

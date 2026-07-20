@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
-import { CircleCheck, Heart, Package } from 'lucide-react';
+import { Heart, Package } from 'lucide-react';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { userAPI } from '@services/api';
 import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getRegionName, getTypeName, getDeviceName, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productUtils';
 import SafeImage from '@components/ui/safe-image';
+import useCurrency from '@hooks/useCurrency';
+import RegionBadges from './RegionBadges';
 
 const CategoryProduct = ({ product }) => {
   const queryClient = useQueryClient();
@@ -23,6 +25,19 @@ const CategoryProduct = ({ product }) => {
   const regionText = regionName === 'Global' ? 'Global' : `For ${regionName} Currency only`;
   const stock = product.stock ?? product.availableKeysCount ?? 0;
   const inStock = stock > 0;
+  const { format: formatPrice } = useCurrency();
+  const offersCount = product.offersCount ?? 0;
+  // M9: real region compatibility from the best-offer snapshot (when the
+  // endpoint projects it) — replaces the old hardcoded "Can activate" line.
+  // Union of all offers' region codes → "can activate" if ANY seller covers the
+  // buyer's region (not just the cheapest offer). Price stays the lowest.
+  const regionOffer = (product.offerRegionCodes !== undefined || product.bestOfferRegionCodes !== undefined)
+    ? {
+        regionCodes: product.offerRegionCodes || product.bestOfferRegionCodes || [],
+        countries: [],
+        excludedCountries: [],
+      }
+    : null;
   
   // Check if product is in wishlist (only if authenticated)
   const { data: wishlist } = useQuery({
@@ -91,11 +106,6 @@ const CategoryProduct = ({ product }) => {
     }
   };
 
-  // Determine activation availability (can be enhanced based on product data)
-  const canActivate = true; // Default to true, can be enhanced with actual product data
-  const activationText = `Can activate in ${regionName}`;
-
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row items-center justify-center gap-2.5 p-4 bg-blue-4 rounded-21 max-w-[875px] w-full">
@@ -117,10 +127,10 @@ const CategoryProduct = ({ product }) => {
             </Link>
             <div className="flex items-center gap-3">
               <div className="flex flex-col items-end">
-                <span>{discountPrice.toFixed(2)} USD</span>
+                <span>{formatPrice(discountPrice)}</span>
                 {discountPercentage > 0 && (
-                  <del className="text-sm md:text-base font-normal text-gray-400 uppercase">
-                    {originalPrice.toFixed(2)} USD
+                  <del className="text-sm md:text-base font-normal text-gray-400">
+                    {formatPrice(originalPrice)}
                   </del>
                 )}
               </div>
@@ -159,15 +169,17 @@ const CategoryProduct = ({ product }) => {
                 <p className={`text-sm font-medium ${inStock ? 'text-[#04CF12]' : 'text-red-500'}`}>
                   {inStock ? `${stock} in stock` : 'Out of stock'}
                 </p>
+                <span className="ml-2 text-xs text-white/60">
+                  {offersCount} {offersCount === 1 ? 'offer' : 'offers'}
+                </span>
               </div>
             </div>
 
-            {canActivate && (
-              <div className="flex gap-2.5">
-                <CircleCheck className="text-[#04CF12]" />
-                <p className="text-[#04CF12] text-sm">
-                  {activationText}
-                </p>
+            {/* M9: real blue/red region compatibility (replaces the old
+                hardcoded "Can activate in …" line) */}
+            {regionOffer && (
+              <div className="flex">
+                <RegionBadges offer={regionOffer} showWarning />
               </div>
             )}
           </div>

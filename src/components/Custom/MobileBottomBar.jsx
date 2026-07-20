@@ -106,24 +106,15 @@ const MobileBottomBar = () => {
     };
   }, [accountMenuOpen]);
 
-  // PERF FIX (FP4): was refetchInterval:30000 — every authenticated user
-  // polled the full cart twice a minute from this always-mounted nav. The key
-  // is now nested under ["cart"], so every existing
-  // invalidateQueries({queryKey:["cart"]}) after add/remove/checkout
-  // prefix-matches it — counts update on mutation instead of on a timer.
-  const { data: cartData } = useQuery({
-    queryKey: ["cart", "count"],
-    queryFn: async () => {
-      if (!isAuthenticated) return { count: 0 };
-      try {
-        const response = await cartAPI.getCart();
-        return { count: response.data.data?.items?.length || 0 };
-      } catch {
-        return { count: 0 };
-      }
-    },
+  // Shares the ONE ["cart"] query with the Header + mini-cart (react-query
+  // dedupes identical keys), so the heavy cart endpoint is fetched once for the
+  // whole app instead of once per nav component. Counts update on mutation via
+  // the existing invalidateQueries({queryKey:["cart"]}) — never on a timer.
+  const { data: cart } = useQuery({
+    queryKey: ["cart"],
+    queryFn: () => cartAPI.getCart().then((r) => r.data.data),
     enabled: isAuthenticated,
-    staleTime: 60000,
+    staleTime: 30_000,
   });
 
   const [guestCartCount, setGuestCartCount] = useState(() =>
@@ -139,7 +130,7 @@ const MobileBottomBar = () => {
     }
   }, [isAuthenticated]);
 
-  const cartCount = isAuthenticated ? cartData?.count || 0 : guestCartCount;
+  const cartCount = isAuthenticated ? cart?.items?.length || 0 : guestCartCount;
 
   // PERF FIX (FP4): same as the cart count above — mutation-driven via the
   // ["wishlist"] prefix instead of 30s polling.
@@ -238,9 +229,7 @@ const MobileBottomBar = () => {
       return location.pathname === "/wishlist";
     }
     if (path === "/cart") {
-      return (
-        location.pathname === "/cart" || location.pathname === "/user/cart"
-      );
+      return location.pathname === "/cart";
     }
     if (path === "/account") {
       return (

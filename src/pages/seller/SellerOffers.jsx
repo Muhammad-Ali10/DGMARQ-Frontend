@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { offerAPI, regionAPI } from '@services/api';
+import { offerAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
-import { Input } from '@components/ui/input';
-import { Label } from '@components/ui/label';
 import { Badge } from '@components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
@@ -14,19 +12,6 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
 import { Store, Package, Edit, Trash2, Boxes, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import '../dashboard-fx.css';
-
-const selectCls = 'w-full bg-secondary border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent';
-
-const extractList = (res) => {
-  const d = res?.data?.data;
-  if (Array.isArray(d)) return d;
-  if (Array.isArray(d?.docs)) return d.docs;
-  if (d && typeof d === 'object') {
-    const arr = Object.values(d).find((v) => Array.isArray(v));
-    if (arr) return arr;
-  }
-  return [];
-};
 
 const STATUS = {
   pending: { variant: 'warning', label: 'Pending approval' },
@@ -41,21 +26,12 @@ const SellerOffers = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
-  const [editing, setEditing] = useState(null);
-  const [editForm, setEditForm] = useState({ price: '', discount: '', region: '', isFeatured: false });
   const [toDelete, setToDelete] = useState(null);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['my-offers', page],
     queryFn: () => offerAPI.getMyOffers({ page, limit: 10 }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
-  });
-
-  const { data: regions = [] } = useQuery({
-    queryKey: ['regions-all'],
-    queryFn: () => regionAPI.getRegions({ limit: 1000 }).then(extractList),
-    staleTime: 5 * 60 * 1000,
-    enabled: !!editing,
   });
 
   const offers = data?.offers || [];
@@ -74,40 +50,11 @@ const SellerOffers = () => {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['my-offers'] });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }) => offerAPI.updateOffer(id, payload),
-    onSuccess: () => { refresh(); toast.success('Offer updated'); setEditing(null); },
-    onError: (err) => toast.error(err?.response?.data?.message || 'Update failed'),
-  });
-
   const deleteMutation = useMutation({
     mutationFn: (id) => offerAPI.deleteOffer(id),
     onSuccess: () => { refresh(); toast.success('Offer removed'); setToDelete(null); },
     onError: (err) => toast.error(err?.response?.data?.message || 'Delete failed'),
   });
-
-  const openEdit = (o) => {
-    setEditForm({
-      price: o.price ?? '',
-      discount: o.discount ?? '',
-      region: o.region?._id || o.region || '',
-      isFeatured: !!o.isFeatured,
-    });
-    setEditing(o);
-  };
-
-  const submitEdit = () => {
-    if (editForm.price === '' || Number(editForm.price) < 0) { toast.warning('Enter a valid price'); return; }
-    updateMutation.mutate({
-      id: editing._id,
-      payload: {
-        price: Number(editForm.price),
-        discount: Number(editForm.discount) || 0,
-        region: editForm.region || undefined,
-        isFeatured: editForm.isFeatured,
-      },
-    });
-  };
 
   if (isLoading && !offers.length) return <Loading message="Loading your offers..." />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Error loading offers'} />;
@@ -184,7 +131,7 @@ const SellerOffers = () => {
                             <Button size="sm" variant="outline" className="border-gray-700" title="Manage inventory / license keys" onClick={() => navigate('/seller/license-keys')}>
                               <Boxes className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="outline" className="border-gray-700" title="Edit" onClick={() => openEdit(o)}>
+                            <Button size="sm" variant="outline" className="border-gray-700" title="Edit" onClick={() => navigate(`/seller/offers/${o._id}/edit`)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button size="sm" variant="destructive" className="hover:bg-red-700" title="Remove" onClick={() => setToDelete(o)}>
@@ -214,45 +161,6 @@ const SellerOffers = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Edit offer */}
-      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="bg-primary border-gray-700 max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-white text-xl font-semibold">Edit offer</DialogTitle>
-            <DialogDescription className="text-gray-400 truncate">{editing?.productId?.name}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-gray-300 text-sm">Price (USD) *</Label>
-                <Input type="number" min="0" step="0.01" value={editForm.price} onChange={(e) => setEditForm((f) => ({ ...f, price: e.target.value }))} className="bg-secondary border-gray-700 text-white" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-gray-300 text-sm">Discount (%)</Label>
-                <Input type="number" min="0" max="100" value={editForm.discount} onChange={(e) => setEditForm((f) => ({ ...f, discount: e.target.value }))} className="bg-secondary border-gray-700 text-white" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-gray-300 text-sm">Region</Label>
-              <select value={editForm.region} onChange={(e) => setEditForm((f) => ({ ...f, region: e.target.value }))} className={selectCls}>
-                <option value="">Global / Not specified</option>
-                {regions.map((r) => <option key={r._id} value={r._id}>{r.name}</option>)}
-              </select>
-            </div>
-            <label className="flex items-center gap-2 text-sm text-gray-300">
-              <input type="checkbox" aria-label="Feature this offer" checked={editForm.isFeatured} onChange={(e) => setEditForm((f) => ({ ...f, isFeatured: e.target.checked }))} className="accent-blue-600" />
-              Feature this offer
-            </label>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" className="border-gray-700" onClick={() => setEditing(null)}>Cancel</Button>
-              <Button className="bg-accent hover:bg-blue-700" disabled={updateMutation.isPending} onClick={submitEdit}>
-                {updateMutation.isPending ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Saving…</> : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete confirm */}
       <Dialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>

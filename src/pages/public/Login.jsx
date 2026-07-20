@@ -9,7 +9,7 @@ import { Label } from '@components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/card';
 import api from '@lib/axios';
 import { API_ORIGIN } from '@lib/config';
-import { Chrome } from 'lucide-react';
+import { Chrome, Gamepad2, MessagesSquare, Wallet } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -101,6 +101,10 @@ const Login = () => {
     window.location.href = `${API_ORIGIN}/api/v1/user/auth/google`;
   };
 
+  const socialLogin = (provider) => {
+    window.location.href = `${API_ORIGIN}/api/v1/user/auth/${provider}`;
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card border-border shadow-xl">
@@ -186,6 +190,18 @@ const Login = () => {
               <Chrome className="mr-2 h-5 w-5" />
               Continue with Google
             </Button>
+
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('steam')} title="Continue with Steam">
+                <Gamepad2 className="h-5 w-5" />
+              </Button>
+              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('discord')} title="Continue with Discord">
+                <MessagesSquare className="h-5 w-5" />
+              </Button>
+              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('paypal')} title="Continue with PayPal">
+                <Wallet className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
