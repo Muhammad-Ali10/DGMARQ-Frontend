@@ -28,12 +28,11 @@ import {
 import { Loading, ErrorMessage } from "@components/ui/loading";
 import {
   ShoppingCart,
-  ChevronLeft,
-  ChevronRight,
   DollarSign,
   Eye
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Pagination } from "@components/common/Pagination";
 
 const SellerOrders = () => {
   const [page, setPage] = useState(1);
@@ -202,37 +201,7 @@ const SellerOrders = () => {
                   </TableBody>
                 </Table>
               </div>
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
-                  <p className="text-sm text-gray-400">
-                    Page {page} of {totalPages} ({pagination.total ?? orders.length} total orders)
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                      className="border-gray-700 text-gray-300"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      Previous
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setPage((p) => Math.min(totalPages, p + 1))
-                      }
-                      disabled={page >= totalPages}
-                      className="border-gray-700 text-gray-300"
-                    >
-                      Next
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} total={pagination.total ?? orders.length} totalNoun="orders" />
             </>
           )}
         </CardContent>

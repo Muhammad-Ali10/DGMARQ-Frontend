@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Plus, Edit, X, Trash2, Package, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
+import { EmptyState } from '@components/common/EmptyState';
 import { showSuccess, showApiError, showError, showWarning } from '@utils/toast';
 
 const BundleDeals = () => {
@@ -281,7 +282,7 @@ const BundleDeals = () => {
         </CardHeader>
         <CardContent>
           {bundles.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No bundle deals found.</p>
+            <EmptyState title="No bundle deals found." />
           ) : (
             <>
               <div className="overflow-x-auto">

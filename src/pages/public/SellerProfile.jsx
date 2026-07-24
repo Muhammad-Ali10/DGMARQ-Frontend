@@ -11,10 +11,8 @@ import {
   Star, 
   Package, 
   MessageSquare, 
-  MapPin, 
+  MapPin,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   User,
   ShoppingCart,
   TrendingUp,
@@ -26,6 +24,7 @@ import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import SafeImage from '@components/ui/safe-image';
 import { useSEO } from '@hooks/useSEO';
+import { Pagination } from '@components/common/Pagination';
 
 const PublicSellerProfile = () => {
   const { sellerId } = useParams();
@@ -123,8 +122,6 @@ const PublicSellerProfile = () => {
   const pagination = {
     page: productsData?.page,
     totalPages: productsData?.totalPages,
-    hasNextPage: productsData?.hasNextPage,
-    hasPrevPage: productsData?.hasPrevPage,
     totalDocs: productsData?.totalDocs,
   };
   const reviews = reviewsData?.recentReviews || [];
@@ -297,29 +294,7 @@ const PublicSellerProfile = () => {
                     </div>
 
                     {/* Pagination */}
-                    {pagination.totalPages > 1 && (
-                      <div className="flex items-center justify-center gap-2 mt-6">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePageChange(productsPage - 1)}
-                          disabled={!pagination.hasPrevPage || productsLoading}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span className="text-sm text-gray-400">
-                          Page {pagination.page} of {pagination.totalPages}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePageChange(productsPage + 1)}
-                          disabled={!pagination.hasNextPage || productsLoading}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
+                    <Pagination page={productsPage} totalPages={pagination.totalPages} onPageChange={handlePageChange} />
                   </>
                 )}
               </CardContent>

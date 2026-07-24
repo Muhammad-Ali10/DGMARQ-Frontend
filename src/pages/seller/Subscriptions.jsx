@@ -9,7 +9,7 @@ import { CreditCard, Calendar, X, RefreshCw } from 'lucide-react';
 const SellerSubscriptions = () => {
   const queryClient = useQueryClient();
 
-  const { data: subscriptionData, isLoading } = useQuery({
+  const { data: subscriptionData, isLoading, isError } = useQuery({
     queryKey: ['seller-subscription'],
     queryFn: () => subscriptionAPI.getMySubscription().then(res => res.data.data),
   });
@@ -38,6 +38,7 @@ const SellerSubscriptions = () => {
   });
 
   if (isLoading) return <Loading message="Loading subscription..." />;
+  if (isError) return <ErrorMessage message="Failed to load subscription. Please try again." />;
 
   const subscription = subscriptionData?.subscription;
   const hasSubscription = subscriptionData?.hasSubscription || false;

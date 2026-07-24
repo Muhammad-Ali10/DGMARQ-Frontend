@@ -5,6 +5,9 @@ import { userAPI, notificationAPI, walletAPI, subscriptionAPI } from '@services/
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Badge } from '@components/ui/badge';
+import { StatusBadge } from '@components/common/StatusBadge';
+import { EmptyState } from '@components/common/EmptyState';
+import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { Button } from '@components/ui/button';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store, Wallet, Sparkles } from 'lucide-react';
@@ -71,19 +74,6 @@ const UserDashboard = () => {
   
   const completedOrders = ordersData?.orders?.filter(order => order.orderStatus === 'completed').length || 0;
   const pendingOrders = ordersData?.orders?.filter(order => order.orderStatus === 'pending' || order.orderStatus === 'processing').length || 0;
-
-  const getStatusBadge = (status) => {
-    const variants = {
-      completed: 'success',
-      pending: 'warning',
-      processing: 'default',
-      cancelled: 'destructive',
-      returned: 'secondary',
-      partially_completed: 'secondary',
-    };
-    const labels = { partially_completed: 'Partially completed' };
-    return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
-  };
 
   const walletBalance = walletData?.balance ?? 0;
   const walletBalanceFormatted = walletData?.balanceFormatted 
@@ -195,39 +185,20 @@ const UserDashboard = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {statsCards.map((stat) => {
-          const Icon = stat.icon;
-          
-          const cardNode = (
-            <Card className="bg-primary border-gray-700 hover:border-accent transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-accent/10">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
-                <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                  <Icon className={`h-5 w-5 ${stat.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{stat.value}</div>
-              </CardContent>
-            </Card>
-          );
-
-          if (stat.link === '#' && stat.onClick) {
-            return (
-              <div key={stat.id} onClick={stat.onClick} className="cursor-pointer">
-                {cardNode}
-              </div>
-            );
-          }
-
-          return (
-            <Link key={stat.id} to={stat.link}>
-              {cardNode}
-            </Link>
-          );
-        })}
-      </div>
+      <StatCardGrid className="sm:grid-cols-2 lg:grid-cols-3">
+        {statsCards.map((stat) => (
+          <StatCard
+            key={stat.id}
+            title={stat.title}
+            value={stat.value}
+            icon={stat.icon}
+            color={stat.color}
+            iconBg={stat.bgColor}
+            href={stat.link === '#' ? undefined : stat.link}
+            onClick={stat.link === '#' ? stat.onClick : undefined}
+          />
+        ))}
+      </StatCardGrid>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-primary border-gray-700">
@@ -271,22 +242,22 @@ const UserDashboard = () => {
                       </div>
                       <div className="text-right ml-4">
                         <p className="font-semibold text-white text-lg">${order.totalAmount?.toFixed(2)}</p>
-                        <div className="mt-1">{getStatusBadge(order.orderStatus)}</div>
+                        <div className="mt-1"><StatusBadge domain="order" status={order.orderStatus} /></div>
                       </div>
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <ShoppingCart className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-400 mb-4">No orders yet</p>
-                <Link to="/products">
-                  <Button className="bg-accent hover:bg-blue-700">
-                    Start Shopping
-                  </Button>
-                </Link>
-              </div>
+              <EmptyState
+                icon={ShoppingCart}
+                title="No orders yet"
+                action={
+                  <Link to="/products">
+                    <Button className="bg-accent hover:bg-blue-700">Start Shopping</Button>
+                  </Link>
+                }
+              />
             )}
           </CardContent>
         </Card>

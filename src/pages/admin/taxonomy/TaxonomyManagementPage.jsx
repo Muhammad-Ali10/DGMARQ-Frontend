@@ -36,10 +36,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  X,
   Filter,
   RefreshCw,
 } from "lucide-react";
+import { SearchInput } from "@components/common/SearchInput";
 
 // Default pagination extractor for backends using aggregatePaginate
 // ({ docs, totalDocs, page, totalPages, ... }). Entities with a different
@@ -365,28 +365,13 @@ const TaxonomyManagementPage = ({ config }) => {
           <div className="flex flex-col sm:flex-row gap-3 mt-6">
             {hasSearch && (
               <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
-                  <Input
-                    type="text"
-                    placeholder="Search by name..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="bg-secondary border-gray-700 text-white pl-10 pr-10 focus:ring-2 focus:ring-accent/50"
-                  />
-                  {search && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch("");
-                        setPage(1);
-                      }}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  onClear={() => { setSearch(''); setPage(1); }}
+                  placeholder="Search by name..."
+                  className="flex-1"
+                />
                 <Button
                   type="submit"
                   variant="outline"

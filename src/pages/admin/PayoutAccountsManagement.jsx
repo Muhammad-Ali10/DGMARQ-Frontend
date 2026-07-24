@@ -9,7 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Eye, XCircle, Search } from 'lucide-react';
+import { TableEmptyRow } from '@components/common/EmptyState';
+import { Eye, XCircle } from 'lucide-react';
+import { SearchInput } from '@components/common/SearchInput';
 import { showSuccess, showApiError } from '@utils/toast';
 
 /**
@@ -98,15 +100,12 @@ const PayoutAccountsManagement = () => {
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <Input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search sellers..."
-                className="bg-secondary border-gray-700 text-white pl-10"
-              />
-            </div>
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search sellers..."
+              className="flex-1"
+            />
           </div>
         </CardContent>
       </Card>
@@ -206,11 +205,7 @@ const PayoutAccountsManagement = () => {
                     );
                   })
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-gray-400 py-8">
-                      No sellers found
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={4}>No sellers found</TableEmptyRow>
                 )}
               </TableBody>
             </Table>

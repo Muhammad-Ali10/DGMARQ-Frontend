@@ -23,6 +23,7 @@ const BestSellers = lazy(() => import("./pages/public/BestSellers"));
 const Cart = lazy(() => import("./pages/public/Cart"));
 const Wishlist = lazy(() => import("./pages/public/Wishlist"));
 const Checkout = lazy(() => import("./pages/public/Checkout"));
+const OrderComplete = lazy(() => import("./pages/public/OrderComplete"));
 const DGMarketPlus = lazy(() => import("./pages/public/DGMarketPlus"));
 const Marketplace = lazy(() => import("./pages/public/Marketplace"));
 const Security = lazy(() => import("./pages/public/Security"));
@@ -80,6 +81,7 @@ const UpcomingReleasesManagement = lazy(() => import("./pages/admin/UpcomingRele
 const UpcomingGamesManagement = lazy(() => import("./pages/admin/UpcomingGamesManagement"));
 const CouponsManagement = lazy(() => import("./pages/admin/CouponsManagement"));
 const ReturnRefundManagement = lazy(() => import("./pages/admin/ReturnRefundManagement"));
+const AdminRefundDetail = lazy(() => import("./pages/admin/RefundDetail"));
 const SubscriptionsManagement = lazy(() => import("./pages/admin/SubscriptionsManagement"));
 const PayoutAccountsManagement = lazy(() => import("./pages/admin/PayoutAccountsManagement"));
 const BundleDeals = lazy(() => import("./pages/admin/BundleDeals"));
@@ -98,6 +100,7 @@ const PayoutAccount = lazy(() => import("./pages/seller/PayoutAccount"));
 const SellerChat = lazy(() => import("./pages/seller/Chat"));
 const SellerNotifications = lazy(() => import("./pages/seller/Notifications"));
 const SellerReturnRefunds = lazy(() => import("./pages/seller/ReturnRefunds"));
+const SellerRefundDetail = lazy(() => import("./pages/seller/RefundDetail"));
 const SellerSubscriptions = lazy(() => import("./pages/seller/Subscriptions"));
 const SellerLicenseKeys = lazy(() => import("./pages/seller/LicenseKeys"));
 const SellerProfile = lazy(() => import("./pages/seller/Profile"));
@@ -120,6 +123,7 @@ const LicenseKeys = lazy(() => import("./pages/user/LicenseKeys"));
 const UserNotifications = lazy(() => import("./pages/user/Notifications"));
 const UserSubscriptions = lazy(() => import("./pages/user/Subscriptions"));
 const UserReturnRefunds = lazy(() => import("./pages/user/ReturnRefunds"));
+const UserRefundDetail = lazy(() => import("./pages/user/RefundDetail"));
 const BecomeSeller = lazy(() => import("./pages/user/BecomeSeller"));
 
 const PageLoader = () => (
@@ -143,6 +147,9 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/checkout" element={<Checkout />} />
+          {/* Cart → Checkout → Reveal. Public so guests land here too; the
+              endpoint gates a guest by the ?guestEmail they proved at purchase. */}
+          <Route path="/order-complete/:orderId" element={<OrderComplete />} />
           <Route path="/dgmarq-plus" element={<DGMarketPlus />} />
           <Route path="/about-company" element={<About />} />
           <Route path="/marketplace" element={<Marketplace />} />
@@ -213,6 +220,7 @@ function App() {
           <Route path="coupons" element={<CouponsManagement />} />
           <Route path="disputes" element={<Navigate to="/admin/return-refund" replace />} />
           <Route path="return-refund" element={<ReturnRefundManagement />} />
+          <Route path="return-refund/:refundId" element={<AdminRefundDetail />} />
           <Route path="subscriptions" element={<SubscriptionsManagement />} />
           <Route path="payout-accounts" element={<PayoutAccountsManagement />} />
           <Route path="payouts/:orderId" element={<AdminPayoutDetail />} />
@@ -240,6 +248,7 @@ function App() {
           <Route path="notifications" element={<SellerNotifications />} />
           <Route path="disputes" element={<Navigate to="/seller/return-refunds" replace />} />
           <Route path="return-refunds" element={<SellerReturnRefunds />} />
+          <Route path="return-refunds/:refundId" element={<SellerRefundDetail />} />
           <Route path="subscriptions" element={<SellerSubscriptions />} />
           <Route path="license-keys" element={<SellerLicenseKeys />} />
           <Route path="profile" element={<SellerProfile />} />
@@ -267,6 +276,7 @@ function App() {
           <Route path="subscriptions" element={<UserSubscriptions />} />
           <Route path="disputes" element={<Navigate to="/user/return-refunds" replace />} />
           <Route path="return-refunds" element={<UserReturnRefunds />} />
+          <Route path="return-refunds/:refundId" element={<UserRefundDetail />} />
           <Route path="" element={<Navigate to="/user/dashboard" replace />} />
         </Route>
       </Routes>

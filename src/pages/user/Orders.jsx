@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
-import { Badge } from '@components/ui/badge';
+import { StatusBadge } from '@components/common/StatusBadge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
-import { Loading } from '@components/ui/loading';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { ShoppingCart, RotateCcw, Eye, RefreshCw } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
+import { Pagination } from '@components/common/Pagination';
 import { RefundRequestModal } from '@features/wallet-payout';
 import { showSuccess, showApiError } from '@utils/toast';
 import { useSocket } from '@hooks/useSocket';
@@ -25,7 +26,7 @@ const UserOrders = () => {
   const { socket, isConnected } = useSocket();
   const { format } = useCurrency();
 
-  const { data: ordersData, isLoading } = useQuery({
+  const { data: ordersData, isLoading, isError } = useQuery({
     queryKey: ['user-orders', page, status],
     queryFn: () => userAPI.getMyOrders({ page, limit: 10, status }).then(res => res.data.data),
   });
@@ -74,19 +75,7 @@ const UserOrders = () => {
   });
 
   if (isLoading) return <Loading message="Loading orders..." />;
-
-  const getStatusBadge = (status) => {
-    const variants = {
-      completed: 'success',
-      pending: 'warning',
-      processing: 'default',
-      cancelled: 'destructive',
-      returned: 'secondary',
-      partially_completed: 'secondary',
-    };
-    const labels = { partially_completed: 'Partially completed' };
-    return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
-  };
+  if (isError) return <ErrorMessage message="Failed to load your orders. Please try again." />;
 
   return (
     <div className="space-y-6">
@@ -133,7 +122,7 @@ const UserOrders = () => {
                         <p className="font-bold text-xl text-white mb-2">
                           {format(order.totalAmount)}
                         </p>
-                        {getStatusBadge(order.orderStatus)}
+                        <StatusBadge domain="order" status={order.orderStatus} />
                         {order.plusPointsEarned > 0 && (
                           <p className="mt-2 text-xs font-semibold text-accent">
                             +{order.plusPointsEarned} Plus points
@@ -207,32 +196,13 @@ const UserOrders = () => {
             )}
           </div>
 
-          {(ordersData?.pagination?.total ?? ordersData?.orders?.length ?? 0) > 0 && (
-            <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <span className="text-sm text-gray-400">
-                Page {ordersData.pagination.page} of {ordersData.pagination.pages} 
-                ({ordersData.pagination.total} total orders)
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  variant="outline"
-                  size="sm"
-                >
-                  Previous
-                </Button>
-                <Button
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page >= ordersData.pagination.pages}
-                  variant="outline"
-                  size="sm"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            totalPages={ordersData?.pagination?.pages}
+            onPageChange={setPage}
+            total={ordersData?.pagination?.total}
+            totalNoun="orders"
+          />
         </CardContent>
       </Card>
 

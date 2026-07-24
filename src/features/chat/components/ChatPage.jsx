@@ -7,14 +7,15 @@ import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { MessageSquare, Send, ImagePlus } from 'lucide-react';
+import { MessageSquare, Send, ImagePlus, Ban, ShieldOff } from 'lucide-react';
 import { useSocket } from '@hooks/useSocket';
 import { useChatNotifications } from '../hooks/useChatNotifications';
 import ErrorBoundary from '@components/common/ErrorBoundary';
+import { EmptyState } from '@components/common/EmptyState';
 import MessageBubble from './MessageBubble';
 import ChatMessageSkeleton from './ChatMessageSkeleton';
 import { useSelector } from 'react-redux';
-import { showApiError } from '@utils/toast';
+import { showApiError, showSuccess } from '@utils/toast';
 
 // ─── Helper: append message to infinite query cache with dedup ───
 function appendMessageToCache(queryClient, queryKey, newMsg) {
@@ -282,6 +283,28 @@ const ChatPage = ({ role }) => {
     };
   }, [socket, selectedConversation, queryClient, conversationsKey]);
 
+  // ─── M13: block-status sync ───
+  // Own effect, NOT gated on selectedConversation — the backend emits to the
+  // personal user room, so the non-blocker must receive this even when they
+  // have no conversation open (their list state still needs the flip).
+  useEffect(() => {
+    if (!socket) return;
+    const handleBlockChanged = (payload) => {
+      if (!payload?.conversationId) return;
+      queryClient.setQueryData([conversationsKey], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((conv) =>
+          conv._id?.toString() === payload.conversationId?.toString()
+            ? { ...conv, status: payload.status, blockedBy: payload.blockedBy }
+            : conv
+        );
+      });
+      conversationsCacheByRole[role].ts = 0;
+    };
+    socket.on('conversation_block_changed', handleBlockChanged);
+    return () => socket.off('conversation_block_changed', handleBlockChanged);
+  }, [socket, queryClient, conversationsKey, role]);
+
   // ─── Socket: message_received from personal room (backup delivery) ───
   useEffect(() => {
     if (!socket) return;
@@ -426,6 +449,20 @@ const ChatPage = ({ role }) => {
     mutationFn: (conversationId) => chatAPI.markAsRead(conversationId),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: [conversationsKey] }); },
     retry: false,
+  });
+
+  // M13: block / unblock. Invalidates the conversations query so the header
+  // re-renders with the fresh status; the socket 'conversation_block_changed'
+  // event covers the other participant's UI.
+  const blockMutation = useMutation({
+    mutationFn: (conversationId) => chatAPI.toggleBlock(conversationId).then((r) => r.data.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [conversationsKey] });
+      // Same-role cache also feeds the list; nudge it so the badge/state flips.
+      conversationsCacheByRole[role].ts = 0;
+      showSuccess(data?.status === 'blocked' ? 'Conversation blocked' : 'Conversation unblocked');
+    },
+    onError: (err) => showApiError(err, 'Failed to update block status'),
   });
 
   // ─── Scroll management ───
@@ -613,7 +650,7 @@ const ChatPage = ({ role }) => {
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto min-h-0 p-4" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4B5563 transparent' }}>
             {conversations.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">No conversations yet</div>
+              <EmptyState title="No conversations yet" className="py-8" />
             ) : (
               <div className="space-y-2">
                 {(conversations ?? []).map((conv) => (
@@ -649,9 +686,36 @@ const ChatPage = ({ role }) => {
         {/* Chat Messages - Fixed Width Container */}
         <Card className={config.chatCardClassName}>
           <CardHeader className={config.chatHeaderClassName}>
-            <CardTitle className="text-white text-lg">
-              {conversation ? `Chat with ${config.getPeerName(conversation)}` : 'Select a conversation'}
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="text-white text-lg">
+                {conversation ? `Chat with ${config.getPeerName(conversation)}` : 'Select a conversation'}
+              </CardTitle>
+              {conversation && (() => {
+                const isBlocked = conversation.status === 'blocked';
+                const blockedByMe = isBlocked && conversation.blockedBy?.toString() === myId;
+                // Blocked by the other party: no unblock button (only blocker can lift).
+                if (isBlocked && !blockedByMe) return null;
+                return (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={blockMutation.isPending}
+                    onClick={() => {
+                      const confirmMsg = isBlocked
+                        ? 'Unblock this conversation? Messages will resume.'
+                        : 'Block this conversation? Neither party will be able to send messages until you unblock.';
+                      if (window.confirm(confirmMsg)) blockMutation.mutate(selectedConversation);
+                    }}
+                    className={isBlocked
+                      ? 'border-emerald-600/60 text-emerald-300 hover:bg-emerald-500/10'
+                      : 'border-red-600/60 text-red-300 hover:bg-red-500/10'}
+                  >
+                    {isBlocked ? <ShieldOff className="h-4 w-4 mr-1.5" /> : <Ban className="h-4 w-4 mr-1.5" />}
+                    {isBlocked ? 'Unblock' : 'Block'}
+                  </Button>
+                );
+              })()}
+            </div>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col overflow-hidden p-0 min-h-0">
             {selectedConversation ? (
@@ -735,39 +799,51 @@ const ChatPage = ({ role }) => {
 
                 {/* Input Area - Fixed at bottom */}
                 <div className="shrink-0 p-4 border-t border-gray-700 bg-primary">
-                  <form onSubmit={handleSendMessage} className="flex gap-2 max-w-2xl mx-auto">
-                    <input
-                      ref={imageInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      className="hidden"
-                      onChange={handleImageSelect}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="shrink-0"
-                      disabled={sendImageMessageMutation.isPending || (!isConnected && !socket)}
-                      onClick={() => imageInputRef.current?.click()}
-                    >
-                      <ImagePlus className="h-4 w-4" />
-                    </Button>
-                    <Input
-                      value={message}
-                      onChange={handleMessageChange}
-                      placeholder="Type your message..."
-                      className="bg-gray-800 border-gray-700 text-white flex-1"
-                      disabled={sendMessageMutation.isPending || (!isConnected && !socket)}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={sendMessageMutation.isPending || !message.trim() || (!isConnected && !socket)}
-                      className="shrink-0"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </form>
+                  {conversation?.status === 'blocked' ? (
+                    <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-md border border-red-600/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                      <Ban className="h-4 w-4 shrink-0" />
+                      <span>
+                        This conversation is blocked.{' '}
+                        {conversation.blockedBy?.toString() === myId
+                          ? 'Click Unblock above to resume messaging.'
+                          : 'The other party has blocked this conversation.'}
+                      </span>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSendMessage} className="flex gap-2 max-w-2xl mx-auto">
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        className="hidden"
+                        onChange={handleImageSelect}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        disabled={sendImageMessageMutation.isPending || (!isConnected && !socket)}
+                        onClick={() => imageInputRef.current?.click()}
+                      >
+                        <ImagePlus className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        value={message}
+                        onChange={handleMessageChange}
+                        placeholder="Type your message..."
+                        className="bg-gray-800 border-gray-700 text-white flex-1"
+                        disabled={sendMessageMutation.isPending || (!isConnected && !socket)}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={sendMessageMutation.isPending || !message.trim() || (!isConnected && !socket)}
+                        className="shrink-0"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </form>
+                  )}
                 </div>
               </>
             ) : (

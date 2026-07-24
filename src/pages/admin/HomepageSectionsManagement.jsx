@@ -24,6 +24,7 @@ import {
 } from "@components/ui/dialog";
 import { Badge } from "@components/ui/badge";
 import { Loading, ErrorMessage } from "@components/ui/loading";
+import { EmptyState, TableEmptyRow } from "@components/common/EmptyState";
 import { Plus, Edit, Trash2, RefreshCw, LayoutList, Search } from "lucide-react";
 
 const EMPTY_FORM = { title: "", subtitle: "", searchQuery: "", productLimit: 6, order: 0, isActive: true };
@@ -302,12 +303,13 @@ const HomepageSectionsManagement = () => {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
-                      <p className="text-gray-400 font-medium">No sections yet</p>
-                      <p className="text-gray-500 text-sm mt-1">Create your first custom homepage section</p>
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={6}>
+                    <EmptyState
+                      title="No sections yet"
+                      description="Create your first custom homepage section"
+                      className="py-0"
+                    />
+                  </TableEmptyRow>
                 )}
               </TableBody>
             </Table>

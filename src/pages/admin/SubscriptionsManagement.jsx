@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { subscriptionAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { TableEmptyRow } from '@components/common/EmptyState';
 import { Badge } from '@components/ui/badge';
-import { Button } from '@components/ui/button';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Users, DollarSign, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, DollarSign, Calendar } from 'lucide-react';
+import { Pagination } from '@components/common/Pagination';
 
 const SubscriptionsManagement = () => {
   const [page, setPage] = useState(1);
@@ -24,7 +25,6 @@ const SubscriptionsManagement = () => {
   const pagination = subsData?.pagination || {};
   const totalItems = pagination.total ?? 0;
   const totalPages = pagination.pages ?? 1;
-  const showPagination = totalItems > 0;
 
   const { data: stats, isLoading: isLoadingStats, isError: isErrorStats, error: errorStats } = useQuery({
     queryKey: ['subscription-stats'],
@@ -133,42 +133,12 @@ const SubscriptionsManagement = () => {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-400 py-8">
-                      No subscriptions found
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={6}>No subscriptions found</TableEmptyRow>
                 )}
               </TableBody>
             </Table>
           </div>
-          {showPagination && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
-              <span className="text-sm text-gray-400">
-                Page {page} of {totalPages} ({totalItems} total)
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} total={totalItems} />
         </CardContent>
       </Card>
     </div>

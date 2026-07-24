@@ -6,6 +6,7 @@ import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { TableEmptyRow } from '@components/common/EmptyState';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
@@ -280,11 +281,7 @@ const CouponsManagement = () => {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-400 py-8">
-                      No coupons found
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={7}>No coupons found</TableEmptyRow>
                 )}
               </TableBody>
             </Table>

@@ -32,6 +32,7 @@ export const cartAPI = {
   updateCart: (data) => api.patch('/cart/update-cart', data),
   clearCart: () => api.patch('/cart/clear-cart'),
   addBundle: (data) => api.post('/cart/add-bundle', data),
+  guestView: (items) => api.post('/cart/guest-view', { items }),
 };
 
 export const couponAPI = {

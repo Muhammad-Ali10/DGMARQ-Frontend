@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminAPI } from "@services/api";
+import { EmptyState } from "@components/common/EmptyState";
 import { Button } from "@components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import {
@@ -33,8 +34,6 @@ import { Label } from "@components/ui/label";
 import { Loading, ErrorMessage } from "@components/ui/loading";
 import {
   DollarSign,
-  ChevronLeft,
-  ChevronRight,
   CheckCircle2,
   XCircle,
   RotateCcw,
@@ -43,6 +42,7 @@ import {
   Eye,
   Snowflake,
 } from "lucide-react";
+import { Pagination } from "@components/common/Pagination";
 import { showApiError, showSuccess } from "@utils/toast";
 import { useSocket } from "@hooks/useSocket";
 import { Link } from "react-router-dom";
@@ -361,7 +361,7 @@ const PayoutsManagement = () => {
               ) : withdrawalsErr ? (
                 <ErrorMessage message={withdrawalsError?.response?.data?.message || "Failed to load withdrawals"} />
               ) : withdrawals.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">No withdrawal requests yet.</div>
+                <EmptyState title="No withdrawal requests yet." />
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -462,21 +462,7 @@ const PayoutsManagement = () => {
                   </Table>
                 </div>
               )}
-              {withdrawalsTotal > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
-                  <span className="text-sm text-gray-400">
-                    Page {wPage} of {withdrawalsPages} ({withdrawalsTotal} total)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setWPage((p) => Math.max(1, p - 1))} disabled={wPage <= 1}>
-                      <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setWPage((p) => Math.min(withdrawalsPages, p + 1))} disabled={wPage >= withdrawalsPages}>
-                      Next <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Pagination page={wPage} totalPages={withdrawalsPages} onPageChange={setWPage} total={withdrawalsTotal} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -512,7 +498,7 @@ const PayoutsManagement = () => {
               ) : isError ? (
                 <ErrorMessage message={error?.response?.data?.message || "Error loading payouts"} />
               ) : payoutList.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">No earning lines found</div>
+                <EmptyState title="No earning lines found" />
               ) : (
                 <>
                   <div className="overflow-x-auto">
@@ -652,26 +638,7 @@ const PayoutsManagement = () => {
                       </TableBody>
                     </Table>
                   </div>
-                  {totalItems > 0 && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
-                      <span className="text-sm text-gray-400">
-                        Page {page} of {pagination.pages || 1} ({totalItems} total)
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
-                          <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPage((p) => Math.min(pagination.pages || 1, p + 1))}
-                          disabled={page >= (pagination.pages || 1)}
-                        >
-                          Next <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  <Pagination page={page} totalPages={pagination.pages || 1} onPageChange={setPage} total={totalItems} />
                 </>
               )}
             </CardContent>

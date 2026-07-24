@@ -3,7 +3,7 @@ import { offerAPI } from '@services/api';
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
-import { Input } from '@components/ui/input';
+import { SearchInput } from '@components/common/SearchInput';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
@@ -16,8 +16,10 @@ import {
   DialogTitle,
 } from '@components/ui/dialog';
 import { BulkUploadModal } from '@features/seller';
-import { Plus, Key, Search, RefreshCw, ChevronLeft, ChevronRight, Eye, EyeOff, Trash2, Package } from 'lucide-react';
+import { Plus, Key, RefreshCw, Eye, EyeOff, Trash2, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import { Pagination } from '@components/common/Pagination';
+import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { normalizeToHttps } from '@lib/utils';
 import SafeImage from '@components/ui/safe-image';
 
@@ -182,10 +184,7 @@ const SellerLicenseKeys = () => {
           <CardTitle className="text-white">Search Your Listings</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search products..." className="bg-secondary border-gray-700 text-white pl-10" />
-          </div>
+          <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search products..." />
         </CardContent>
       </Card>
 
@@ -307,30 +306,19 @@ const SellerLicenseKeys = () => {
                           );
                         })
                       ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-gray-400 py-8">
-                            <Key className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                            <p>No keys found for this listing</p>
-                            <p className="text-sm mt-2">Upload keys using the “Upload Inventory” button above</p>
-                          </TableCell>
-                        </TableRow>
+                        <TableEmptyRow colSpan={6}>
+                          <EmptyState
+                            icon={Key}
+                            title="No keys found for this listing"
+                            description="Upload keys using the “Upload Inventory” button above"
+                            className="py-0"
+                          />
+                        </TableEmptyRow>
                       )}
                     </TableBody>
                   </Table>
                 </div>
-                {keysPagination?.pages > 1 && (
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
-                    <p className="text-sm text-gray-400">Page {keysPagination.page || keysPage} of {keysPagination.pages || 1} ({keysPagination.total || 0} total keys)</p>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setKeysPage((p) => Math.max(1, p - 1))} disabled={keysPage === 1} className="border-gray-700 text-gray-300">
-                        <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setKeysPage((p) => Math.min(keysPagination.pages || 1, p + 1))} disabled={keysPage >= (keysPagination.pages || 1)} className="border-gray-700 text-gray-300">
-                        Next <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <Pagination page={keysPage} totalPages={keysPagination.pages || 1} onPageChange={setKeysPage} total={keysPagination.total || 0} totalNoun="keys" />
               </div>
             )}
           </CardContent>

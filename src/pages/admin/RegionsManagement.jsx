@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { regionAPI } from "@services/api";
+import { EmptyState, TableEmptyRow } from "@components/common/EmptyState";
 import {
   Card,
   CardContent,
@@ -32,12 +33,11 @@ import {
   Plus,
   Edit,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   Search,
-  X,
   RefreshCw,
 } from "lucide-react";
+import { SearchInput } from "@components/common/SearchInput";
+import { Pagination } from "@components/common/Pagination";
 
 const EMPTY_FORM = { name: "" };
 
@@ -105,8 +105,6 @@ const RegionsManagement = () => {
     totalPages: itemsData?.totalPages || 1,
     totalDocs: itemsData?.totalDocs || 0,
     limit: itemsData?.limit || 10,
-    hasNextPage: itemsData?.hasNextPage || false,
-    hasPrevPage: itemsData?.hasPrevPage || false,
   };
 
   const createMutation = useMutation({
@@ -158,30 +156,6 @@ const RegionsManagement = () => {
     setSelectedItem(item);
     setFormData({ name: item.name });
     setIsEditOpen(true);
-  };
-
-  const renderPageNumbers = () => {
-    const pages = [];
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, pagination.page - Math.floor(maxPagesToShow / 2));
-    const endPage = Math.min(pagination.totalPages, startPage + maxPagesToShow - 1);
-    if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
-    }
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(
-        <Button
-          key={i}
-          size="sm"
-          variant={i === pagination.page ? "default" : "outline"}
-          onClick={() => setPage(i)}
-          className={i === pagination.page ? "bg-accent hover:bg-blue-700" : ""}
-        >
-          {i}
-        </Button>
-      );
-    }
-    return pages;
   };
 
   if (isLoading && !itemsData) return <Loading message="Loading regions..." />;
@@ -243,25 +217,13 @@ const RegionsManagement = () => {
           </div>
 
           <form onSubmit={(e) => { e.preventDefault(); setPage(1); }} className="flex gap-2 mt-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
-              <Input
-                type="text"
-                placeholder="Search by name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="bg-secondary border-gray-700 text-white pl-10 pr-10"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => { setSearch(""); setPage(1); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              onClear={() => { setSearch(''); setPage(1); }}
+              placeholder="Search by name..."
+              className="flex-1"
+            />
             <Button type="submit" variant="outline" size="sm" className="border-gray-700">
               <Search className="w-4 h-4 mr-2" />
               Search
@@ -312,46 +274,19 @@ const RegionsManagement = () => {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-12">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <p className="text-gray-400 font-medium">No regions found</p>
-                        <p className="text-gray-500 text-sm">
-                          {search ? "Try adjusting your search" : "Get started by creating your first region"}
-                        </p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={3}>
+                    <EmptyState
+                      title="No regions found"
+                      description={search ? "Try adjusting your search" : "Get started by creating your first region"}
+                      className="py-0"
+                    />
+                  </TableEmptyRow>
                 )}
               </TableBody>
             </Table>
           </div>
 
-          {pagination.totalDocs > 0 && (
-            <div className="flex items-center justify-center gap-2 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(pagination.page - 1)}
-                disabled={!pagination.hasPrevPage || isLoading}
-                className="border-gray-700"
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous
-              </Button>
-              <div className="flex gap-1">{renderPageNumbers()}</div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(pagination.page + 1)}
-                disabled={!pagination.hasNextPage || isLoading}
-                className="border-gray-700"
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          )}
+          <Pagination variant="numbered" page={pagination.page} totalPages={pagination.totalPages} onPageChange={setPage} />
         </CardContent>
       </Card>
 

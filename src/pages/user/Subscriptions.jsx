@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 const UserSubscriptions = () => {
   const queryClient = useQueryClient();
 
-  const { data: subscriptionData, isLoading } = useQuery({
+  const { data: subscriptionData, isLoading, isError } = useQuery({
     queryKey: ['my-subscription'],
     queryFn: () => subscriptionAPI.getMySubscription().then(res => res.data.data),
   });
@@ -61,6 +61,7 @@ const UserSubscriptions = () => {
   });
 
   if (isLoading) return <Loading message="Loading subscription..." />;
+  if (isError) return <ErrorMessage message="Failed to load subscription. Please try again." />;
 
   const subscription = subscriptionData?.subscription;
   const now = new Date();

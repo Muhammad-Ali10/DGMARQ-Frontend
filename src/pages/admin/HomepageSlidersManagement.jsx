@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
+import { TableEmptyRow } from '@components/common/EmptyState';
 import { SearchableSelect } from '@components/ui/searchable-select';
 import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
@@ -395,11 +396,7 @@ const HomepageSlidersManagement = () => {
                       );
                     })
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-400 py-8">
-                      No sliders found. Click "Add Slide" to create your first slide.
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={6}>No sliders found. Click &quot;Add Slide&quot; to create your first slide.</TableEmptyRow>
                 )}
               </TableBody>
             </Table>

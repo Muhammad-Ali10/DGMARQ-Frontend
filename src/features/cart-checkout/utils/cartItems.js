@@ -7,6 +7,21 @@
 // in-game top-up/boosting/player-trade, which this marketplace doesn't model.
 export const DELIVERY_LABEL = "Instant";
 
+// The design prints a short human type ("Key"), not the raw enum
+// ("LICENSE_KEY"). Unknown values fall back to a de-underscored form.
+const PRODUCT_TYPE_LABEL = {
+  LICENSE_KEY: "Key",
+  ACCOUNT_BASED: "Account",
+};
+
+export const productTypeLabel = (productType) => {
+  if (!productType) return null;
+  return PRODUCT_TYPE_LABEL[productType] || String(productType).replace(/_/g, " ");
+};
+
+// The mockup hardcodes "PC / Desktop" when a product carries no device.
+export const DEVICE_FALLBACK = "PC / Desktop";
+
 const fromServer = (it) => ({
   key: `${it.product?._id || it.product}|${it.sellerId || ""}`,
   productId: it.product?._id || it.product,

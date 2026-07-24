@@ -12,8 +12,10 @@ import { Label } from '@components/ui/label';
 import { Textarea } from '@components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { UserX, UserCheck, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UserX, UserCheck, Users } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '@utils/toast';
+import { Pagination } from '@components/common/Pagination';
+import { EmptyState } from '@components/common/EmptyState';
 
 // Pure helpers hoisted to module scope so they keep a stable identity and can be
 // shared with the memoized row component below (avoids re-creating per render).
@@ -193,7 +195,6 @@ const UsersManagement = () => {
   const pagination = usersData?.pagination || {};
   const totalItems = pagination.total ?? users.length;
   const totalPages = pagination.pages ?? 1;
-  const showPagination = totalItems > 0;
 
   // Windowed (virtualized) rendering of the rows. The scroll container only
   // mounts the rows in/near the viewport; spacer <tr>s above and below reserve
@@ -257,7 +258,7 @@ const UsersManagement = () => {
         </CardHeader>
         <CardContent>
           {users.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">No users found</div>
+            <EmptyState title="No users found" />
           ) : (
             <>
               <div
@@ -302,34 +303,7 @@ const UsersManagement = () => {
                   </TableBody>
                 </Table>
               </div>
-              {showPagination && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
-                  <span className="text-sm text-gray-400">
-                    Page {page} of {totalPages} ({totalItems} total)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    <span className="text-gray-300 text-sm px-2">Page {page} of {totalPages}</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page >= totalPages}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} total={totalItems} />
             </>
           )}
         </CardContent>

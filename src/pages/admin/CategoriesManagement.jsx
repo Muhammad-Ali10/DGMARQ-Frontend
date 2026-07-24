@@ -10,7 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Plus, Edit, Trash2, Image as ImageIcon, Power, ChevronLeft, ChevronRight, Search, X, FolderTree, Filter, RefreshCw } from 'lucide-react';
+import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
+import { Plus, Edit, Trash2, Image as ImageIcon, Power, ChevronLeft, ChevronRight, Search, FolderTree, Filter, RefreshCw } from 'lucide-react';
+import { SearchInput } from '@components/common/SearchInput';
 import SafeImage from '@components/ui/safe-image';
 
 const CategoriesManagement = () => {
@@ -350,28 +352,13 @@ const CategoriesManagement = () => {
           {/* Search and Filter Section */}
           <div className="flex flex-col sm:flex-row gap-3 mt-6">
             <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
-                <Input
-                  type="text"
-                  placeholder="Search by name or slug..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="bg-secondary border-gray-700 text-white pl-10 pr-10 focus:ring-2 focus:ring-accent/50 transition-all"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch('');
-                      setPage(1);
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                onClear={() => { setSearch(''); setPage(1); }}
+                placeholder="Search by name or slug..."
+                className="flex-1"
+              />
               <Button type="submit" variant="outline" size="sm" className="border-gray-700 hover:bg-secondary">
                 <Search className="w-4 h-4 mr-2" />
                 Search
@@ -524,23 +511,14 @@ const CategoriesManagement = () => {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <div className="p-4 bg-secondary/30 rounded-full">
-                          <FolderTree className="w-8 h-8 text-gray-500" />
-                        </div>
-                        <div>
-                          <p className="text-gray-400 font-medium">No categories found</p>
-                          <p className="text-gray-500 text-sm mt-1">
-                            {search || isActiveFilter 
-                              ? 'Try adjusting your search or filter criteria' 
-                              : 'Get started by creating your first category'}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={6}>
+                    <EmptyState
+                      icon={FolderTree}
+                      title="No categories found"
+                      description={search || isActiveFilter ? 'Try adjusting your search or filter criteria' : 'Get started by creating your first category'}
+                      className="py-0"
+                    />
+                  </TableEmptyRow>
                 )}
               </TableBody>
             </Table>

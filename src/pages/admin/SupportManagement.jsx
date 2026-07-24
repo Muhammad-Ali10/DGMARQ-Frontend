@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Button } from '@components/ui/button';
-import { Input } from '@components/ui/input';
+import { SearchInput } from '@components/common/SearchInput';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
-import { Headphones, MessageSquare, Clock, CheckCircle2, UserPlus, UserMinus, Search, BookText, Star } from 'lucide-react';
+import { Headphones, MessageSquare, Clock, CheckCircle2, UserPlus, UserMinus, BookText, Star } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
+import { EmptyState } from '@components/common/EmptyState';
 import {
   MessageList,
   ChatInput,
@@ -186,15 +187,12 @@ const SupportManagement = () => {
                 </button>
               ))}
             </div>
-            <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-              <Input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search name, email, subject…"
-                className="bg-gray-800 border-gray-700 text-white pl-8"
-              />
-            </div>
+            <SearchInput
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search name, email, subject…"
+              className="flex-1 min-w-[180px]"
+            />
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
@@ -217,7 +215,7 @@ const SupportManagement = () => {
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">No tickets match these filters.</div>
+            <EmptyState title="No tickets match these filters." />
           ) : (
             <div className="overflow-x-auto">
               <Table>

@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { adminAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Users, Store, ShoppingCart, DollarSign, AlertCircle, Package, Headphones, RefreshCw, TrendingDown, Receipt } from 'lucide-react';
+import { Users, Store, ShoppingCart, DollarSign, AlertCircle, Package, Headphones, TrendingDown, Receipt } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { data: stats, isLoading, isError, error } = useQuery({
@@ -153,27 +154,18 @@ const AdminDashboard = () => {
         <p className="text-sm sm:text-base text-gray-400 mt-1">Overview of your platform</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="bg-primary border-gray-700">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">
-                  {stat.title}
-                </CardTitle>
-                <Icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{stat.value}</div>
-                {stat.description && (
-                  <p className="text-xs text-gray-400 mt-1">{stat.description}</p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <StatCardGrid>
+        {statCards.map((stat, index) => (
+          <StatCard
+            key={index}
+            title={stat.title}
+            value={stat.value}
+            icon={stat.icon}
+            color={stat.color}
+            description={stat.description}
+          />
+        ))}
+      </StatCardGrid>
 
       {/* Additional Metrics Section */}
       {stats?.metrics && (

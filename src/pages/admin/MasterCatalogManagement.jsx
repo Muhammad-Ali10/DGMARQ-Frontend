@@ -24,9 +24,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
 import {
-  Package, Upload, Plus, Search, Edit, Trash2, Eye, Tag,
-  ChevronLeft, ChevronRight, RefreshCw, FileJson,
+  Package, Upload, Plus, Edit, Trash2, Eye, Tag,
+  RefreshCw, FileJson,
 } from 'lucide-react';
+import { SearchInput } from '@components/common/SearchInput';
+import { Pagination } from '@components/common/Pagination';
 import '../dashboard-fx.css';
 
 const PRODUCT_TYPES = ['LICENSE_KEY', 'ACCOUNT_BASED', 'GIFT', 'ACTIVATION_LINK'];
@@ -273,15 +275,12 @@ const MasterCatalogManagement = () => {
             <CardTitle className="text-white text-xl font-semibold">
               {pagination.totalDocs} master {pagination.totalDocs === 1 ? 'product' : 'products'}
             </CardTitle>
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <Input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search products…"
-                className="pl-9 bg-secondary border-gray-700 text-white"
-              />
-            </div>
+            <SearchInput
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search products…"
+              className="w-full sm:w-72"
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -355,21 +354,7 @@ const MasterCatalogManagement = () => {
                 </Table>
               </div>
 
-              {pagination.totalDocs > 0 && (
-                <div className="flex items-center justify-between gap-4 mt-2 p-4 border-t border-gray-700">
-                  <span className="text-sm text-gray-400">
-                    Page <span className="text-white font-semibold">{pagination.page}</span> of {pagination.totalPages}
-                  </span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="border-gray-700" disabled={pagination.page <= 1} onClick={() => setPage(page - 1)}>
-                      <ChevronLeft className="h-4 w-4 mr-1" /> Prev
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-gray-700" disabled={pagination.page >= pagination.totalPages} onClick={() => setPage(page + 1)}>
-                      Next <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Pagination page={page} totalPages={pagination.totalPages} onPageChange={setPage} />
             </>
           )}
         </CardContent>

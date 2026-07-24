@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
+import { TableEmptyRow } from '@components/common/EmptyState';
 import { Plus, Edit, Trash2, Image as ImageIcon, Search, X } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '@utils/toast';
 import SafeImage from '@components/ui/safe-image';
@@ -388,11 +389,7 @@ const FlashDealsManagement = () => {
                     );
                   })
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-400 py-8">
-                      No flash deals found
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={7}>No flash deals found</TableEmptyRow>
                 )}
               </TableBody>
             </Table>

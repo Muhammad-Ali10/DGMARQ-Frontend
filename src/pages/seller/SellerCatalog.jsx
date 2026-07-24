@@ -4,12 +4,13 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { offerAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
-import { Input } from '@components/ui/input';
+import { SearchInput } from '@components/common/SearchInput';
 import { Badge } from '@components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
-import { Package, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, Plus } from 'lucide-react';
+import { Pagination } from '@components/common/Pagination';
 import '../dashboard-fx.css';
 
 const STATUS_LABEL = {
@@ -52,10 +53,12 @@ const SellerCatalog = () => {
             <p className="text-sm text-gray-400 mt-1">Find a product and list your offer. Product details are fixed by the catalog — you set price, stock & region.</p>
           </div>
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <Input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search products…" className="pl-9 bg-secondary border-gray-700 text-white" />
-        </div>
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search products…"
+          className="w-full sm:w-72"
+        />
       </div>
 
       <Card className="dash-card">
@@ -113,19 +116,7 @@ const SellerCatalog = () => {
                   </TableBody>
                 </Table>
               </div>
-              {pagination.total > 0 && (
-                <div className="flex items-center justify-between gap-4 p-4 border-t border-gray-700">
-                  <span className="text-sm text-gray-400">Page {pagination.page} of {pagination.pages}</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="border-gray-700" disabled={pagination.page <= 1} onClick={() => setPage(page - 1)}>
-                      <ChevronLeft className="h-4 w-4 mr-1" /> Prev
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-gray-700" disabled={pagination.page >= pagination.pages} onClick={() => setPage(page + 1)}>
-                      Next <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Pagination page={page} totalPages={pagination.pages} onPageChange={setPage} />
             </>
           )}
         </CardContent>

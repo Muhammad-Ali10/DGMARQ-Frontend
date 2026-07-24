@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
-import { Store, Package, Edit, Trash2, Boxes, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Store, Package, Edit, Trash2, Boxes, RefreshCw } from 'lucide-react';
+import { Pagination } from '@components/common/Pagination';
 import '../dashboard-fx.css';
 
 const STATUS = {
@@ -144,19 +145,7 @@ const SellerOffers = () => {
                   </TableBody>
                 </Table>
               </div>
-              {pagination.total > 0 && (
-                <div className="flex items-center justify-between gap-4 p-4 border-t border-gray-700">
-                  <span className="text-sm text-gray-400">Page {pagination.page} of {pagination.pages}</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="border-gray-700" disabled={pagination.page <= 1} onClick={() => setPage(page - 1)}>
-                      <ChevronLeft className="h-4 w-4 mr-1" /> Prev
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-gray-700" disabled={pagination.page >= pagination.pages} onClick={() => setPage(page + 1)}>
-                      Next <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Pagination page={page} totalPages={pagination.pages} onPageChange={setPage} />
             </>
           )}
         </CardContent>

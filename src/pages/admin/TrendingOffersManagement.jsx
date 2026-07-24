@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
+import { TableEmptyRow } from '@components/common/EmptyState';
 import { Plus, Edit, Trash2, X, Search, Check } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { showSuccess, showApiError } from '@utils/toast';
@@ -402,11 +403,7 @@ const TrendingOffersManagement = () => {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-400 py-8">
-                      No trending offers found
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={6}>No trending offers found</TableEmptyRow>
                 )}
               </TableBody>
             </Table>

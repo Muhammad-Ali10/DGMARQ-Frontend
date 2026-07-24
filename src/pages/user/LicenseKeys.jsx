@@ -7,8 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { LicenseKeysModal } from '@features/seller';
-import { Key, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Key, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import { Pagination } from '@components/common/Pagination';
+import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import SafeImage from '@components/ui/safe-image';
 
 const buildLicenseDetailsFromReveal = (data) => {
@@ -121,7 +123,9 @@ const LicenseKeys = () => {
                           )}
                           <div>
                             <p className="font-medium text-white">{key.productName || 'Product'}</p>
-                            <p className="text-sm text-gray-400">{key.keyType || 'License Key'}</p>
+                            {/* Was a second copy of keyType, which the "Type" column
+                                already shows — reused for seller attribution. */}
+                            <p className="text-sm text-gray-400">Sold by {key.sellerName || 'Seller'}</p>
                           </div>
                         </div>
                       </TableCell>
@@ -151,46 +155,14 @@ const LicenseKeys = () => {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-gray-400 py-8">
-                      <Key className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                      <p>No license keys found</p>
-                    </TableCell>
-                  </TableRow>
+                  <TableEmptyRow colSpan={5}>
+                    <EmptyState icon={Key} title="No license keys found" className="py-0" />
+                  </TableEmptyRow>
                 )}
               </TableBody>
             </Table>
           </div>
-          {(pagination.total ?? 0) > 0 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
-              <p className="text-sm text-gray-400">
-                Page {pagination.page || page} of {pagination.pages || 1} 
-                ({pagination.total || 0} total keys)
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="border-gray-700 text-gray-300"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Previous
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPage(p => Math.min(pagination.pages || 1, p + 1))}
-                  disabled={page >= (pagination.pages || 1)}
-                  className="border-gray-700 text-gray-300"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <Pagination page={page} totalPages={pagination.pages || 1} onPageChange={setPage} total={pagination.total || 0} totalNoun="keys" />
         </CardContent>
       </Card>
 

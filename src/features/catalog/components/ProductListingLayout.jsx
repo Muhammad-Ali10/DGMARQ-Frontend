@@ -15,7 +15,8 @@ import { Checkbox } from '@components/ui/checkbox';
 import { Label } from '@components/ui/label';
 import { Skeleton } from '@components/ui/skeleton';
 import { Card } from '@components/ui/card';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Search, Lock } from 'lucide-react';
+import { Pagination } from '@components/common/Pagination';
+import { ChevronDown, ChevronUp, X, Search, Lock } from 'lucide-react';
 
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -1320,29 +1321,7 @@ const ProductListingLayout = ({
                 )}
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-8">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-white px-4">
-                      Page {page} of {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
+                <Pagination variant="compact" page={page} totalPages={totalPages} onPageChange={setPage} />
               </>
             ) : (
               <div className="text-center py-16">

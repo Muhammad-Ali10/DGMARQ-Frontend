@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { sellerAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { Badge } from '@components/ui/badge';
 import { Button } from '@components/ui/button';
 import { Loading, ErrorMessage } from '@components/ui/loading';
@@ -136,25 +137,18 @@ const SellerDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.title} className="bg-primary border-gray-700">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
-                <Icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">{stat.value}</div>
-                {stat.description && (
-                  <p className="text-xs text-gray-400 mt-1">{stat.description}</p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <StatCardGrid>
+        {statsCards.map((stat) => (
+          <StatCard
+            key={stat.title}
+            title={stat.title}
+            value={stat.value}
+            icon={stat.icon}
+            color={stat.color}
+            description={stat.description}
+          />
+        ))}
+      </StatCardGrid>
 
       {/* Performance Metrics Section */}
       {performanceMetrics && (

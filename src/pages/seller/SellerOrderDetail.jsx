@@ -11,6 +11,7 @@ import {
 } from "@components/ui/card";
 import { Button } from "@components/ui/button";
 import { Badge } from "@components/ui/badge";
+import { StatusBadge } from "@components/common/StatusBadge";
 import { Loading, ErrorMessage } from "@components/ui/loading";
 import { LicenseKeysModal } from "@features/seller";
 import SafeImage from "@components/ui/safe-image";
@@ -99,40 +100,6 @@ const SellerOrderDetail = () => {
       </div>
     );
   }
-
-  const getStatusBadge = (status) => {
-    const variants = {
-      completed: "success",
-      pending: "warning",
-      processing: "default",
-      cancelled: "destructive",
-      returned: "secondary",
-      partially_completed: "secondary",
-      PARTIALLY_REFUNDED: "secondary",
-      REFUNDED: "secondary",
-    };
-    const labels = {
-      partially_completed: "Partially refunded",
-      PARTIALLY_REFUNDED: "Partially refunded",
-      REFUNDED: "Refunded",
-      returned: "Refunded",
-    };
-    return (
-      <Badge variant={variants[status] || "default"}>
-        {labels[status] || status}
-      </Badge>
-    );
-  };
-
-  const getPaymentBadge = (status) => {
-    const variants = {
-      paid: "success",
-      pending: "warning",
-      failed: "destructive",
-      refunded: "secondary",
-    };
-    return <Badge variant={variants[status] || "default"}>{status}</Badge>;
-  };
 
   const totalRefunded =
     (order.items || []).reduce(
@@ -348,11 +315,11 @@ const SellerOrderDetail = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Order Status:</span>
-                  {getStatusBadge(order.orderStatus)}
+                  <StatusBadge domain="order" status={order.orderStatus} />
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Payment Status:</span>
-                  {getPaymentBadge(order.paymentStatus)}
+                  <StatusBadge domain="payment" status={order.paymentStatus} />
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 flex items-center gap-2">

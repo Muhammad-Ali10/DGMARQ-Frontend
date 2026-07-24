@@ -4,11 +4,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
+import { TableEmptyRow } from '@components/common/EmptyState';
 import { Badge } from '@components/ui/badge';
+import { StatusBadge } from '@components/common/StatusBadge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Button } from '@components/ui/button';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
+import { Pagination } from '@components/common/Pagination';
 
 const OrdersManagement = () => {
   const [page, setPage] = useState(1);
@@ -41,20 +44,6 @@ const OrdersManagement = () => {
   const currentPage = pagination.page ?? page;
   const totalItems = pagination.total ?? orders.length;
   const totalPages = pagination.pages ?? pagination.totalPages ?? 1;
-  const showPagination = totalPages > 1;
-
-  const getStatusBadge = (status) => {
-    const variants = {
-      completed: 'success',
-      pending: 'warning',
-      processing: 'default',
-      cancelled: 'destructive',
-      returned: 'secondary',
-      partially_completed: 'secondary',
-    };
-    const labels = { partially_completed: 'Partially completed' };
-    return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
-  };
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -123,7 +112,7 @@ const OrdersManagement = () => {
                             <TableCell className={refundedAmount > 0 ? "text-amber-400/90" : "text-gray-500"}>
                               {refundedAmount > 0 ? `-$${refundedAmount.toFixed(2)}` : "—"}
                             </TableCell>
-                            <TableCell>{getStatusBadge(order.orderStatus)}</TableCell>
+                            <TableCell><StatusBadge domain="order" status={order.orderStatus} /></TableCell>
                             <TableCell>
                               <Badge variant={order.paymentStatus === 'paid' ? 'success' : 'warning'}>
                                 {order.paymentStatus || 'pending'}
@@ -144,45 +133,18 @@ const OrdersManagement = () => {
                         );
                       })
                     ) : (
-                      <TableRow>
-                        <TableCell colSpan="8" className="text-center py-12 text-gray-400">
-                          No orders found
-                        </TableCell>
-                      </TableRow>
+                      <TableEmptyRow colSpan={8}>No orders found</TableEmptyRow>
                     )}
                   </TableBody>
                 </Table>
               </div>
-              {showPagination && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-700">
-                  <span className="text-sm text-gray-400">
-                    Showing page {currentPage} of {totalPages} ({totalItems} total orders)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    <span className="text-gray-300 text-sm px-2">
-                      Page {page} of {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page >= totalPages}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <Pagination
+                page={currentPage}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={totalItems}
+                totalNoun="orders"
+              />
             </>
           )}
         </CardContent>

@@ -29,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 const ProductCard = memo(({ product }) => {
+  console.log(product)
   const queryClient = useQueryClient();
   const { discountPrice, discountPercentage, originalPrice } =
     calculateProductPrice(product);
@@ -120,7 +121,7 @@ const ProductCard = memo(({ product }) => {
     }
   };
 
-  return (
+  return ( 
     <Link to={`/product/${product.slug || product._id}`} className="block h-full ">
       <Card
         className={cn(

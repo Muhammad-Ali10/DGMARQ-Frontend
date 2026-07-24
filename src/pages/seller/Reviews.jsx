@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Star, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, MessageSquare } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
+import { Pagination } from '@components/common/Pagination';
 
 const SellerReviews = () => {
   const [page, setPage] = useState(1);
@@ -267,35 +268,7 @@ const SellerReviews = () => {
         </div>
       )}
 
-      {(pagination.totalPages ?? 0) > 1 && (
-        <div className="flex items-center justify-between pt-4">
-          <p className="text-sm text-gray-400">
-            Page {page} of {pagination.totalPages}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="border-gray-700 text-gray-300"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-              disabled={page >= pagination.totalPages}
-              className="border-gray-700 text-gray-300"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination page={page} totalPages={pagination.totalPages} onPageChange={setPage} />
     </div>
   );
 };

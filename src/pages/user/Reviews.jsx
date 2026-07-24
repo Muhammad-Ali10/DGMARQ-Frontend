@@ -3,14 +3,16 @@ import { userAPI, reviewAPI } from '@services/api';
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { EmptyState } from '@components/common/EmptyState';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Star, Edit, Trash2, Image as ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
+import { Pagination } from '@components/common/Pagination';
 import SafeImage from '@components/ui/safe-image';
 
 const UserReviews = () => {
@@ -21,7 +23,7 @@ const UserReviews = () => {
   const [editComment, setEditComment] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: reviewsData, isLoading } = useQuery({
+  const { data: reviewsData, isLoading, isError } = useQuery({
     queryKey: ['user-reviews', page, user?._id],
     queryFn: async () => {
       try {
@@ -132,6 +134,7 @@ const UserReviews = () => {
   };
 
   if (isLoading) return <Loading message="Loading reviews..." />;
+  if (isError) return <ErrorMessage message="Failed to load your reviews. Please try again." />;
 
   const reviews = reviewsData?.reviews || [];
   const pagination = reviewsData?.pagination || {};
@@ -145,10 +148,12 @@ const UserReviews = () => {
 
       {reviews.length === 0 ? (
         <Card className="bg-primary border-gray-700">
-          <CardContent className="py-12 text-center">
-            <Star className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 text-lg">No reviews yet</p>
-            <p className="text-gray-500 text-sm mt-2">Your reviews will appear here after you purchase and review products</p>
+          <CardContent className="text-center">
+            <EmptyState
+              icon={Star}
+              title="No reviews yet"
+              description="Your reviews will appear here after you purchase and review products"
+            />
           </CardContent>
         </Card>
       ) : (
@@ -285,35 +290,7 @@ const UserReviews = () => {
               </CardContent>
             </Card>
           ))}
-          {(pagination.total ?? pagination.totalDocs ?? 0) > 0 && (
-            <div className="flex items-center justify-between pt-4">
-              <p className="text-sm text-gray-400">
-                Page {page} of {pagination.totalPages}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="border-gray-700 text-gray-300"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  disabled={page >= pagination.totalPages}
-                  className="border-gray-700 text-gray-300"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <Pagination page={page} totalPages={pagination.totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

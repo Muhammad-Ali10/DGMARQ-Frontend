@@ -11,9 +11,11 @@ import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { CheckCircle2, XCircle, Eye, Ban, UserCheck, ChevronLeft, ChevronRight, Search, Store, Users, PauseCircle, PlayCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Eye, Ban, UserCheck, Store, Users, PauseCircle, PlayCircle } from 'lucide-react';
+import { SearchInput } from '@components/common/SearchInput';
 import { showSuccess, showApiError } from '@utils/toast';
 import SafeImage from '@components/ui/safe-image';
+import { Pagination } from '@components/common/Pagination';
 
 const SellersManagement = () => {
   const navigate = useNavigate();
@@ -231,9 +233,6 @@ const SellersManagement = () => {
     ? (activeSellers?.pagination || {})
     : (bannedSellers?.pagination || {});
 
-  const totalItems = pagination.total ?? 0;
-  const showPagination = totalItems > 0;
-
   const filteredSellers = sellers.filter(seller => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
@@ -298,15 +297,12 @@ const SellersManagement = () => {
                   {activeTab === 'active' && 'Active Sellers'}
                   {activeTab === 'banned' && 'Banned Sellers'}
                 </CardTitle>
-                <div className="relative w-full md:w-64">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search sellers..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-secondary border-gray-700 text-white placeholder:text-gray-500"
-                  />
-                </div>
+                <SearchInput
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="Search sellers..."
+                  className="w-full md:w-64"
+                />
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -447,60 +443,7 @@ const SellersManagement = () => {
                       </TableBody>
                     </Table>
                   </div>
-                  {showPagination && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-700 bg-secondary/30">
-                      <div className="text-sm text-gray-400">
-                        Showing page {page} of {pagination.pages || 1} ({pagination.total || 0} total)
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          disabled={page === 1}
-                          className="border-gray-700 hover:bg-accent hover:border-accent"
-                        >
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Previous
-                        </Button>
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: Math.min(5, pagination.pages || 1) }, (_, i) => {
-                            let pageNum;
-                            if (pagination.pages <= 5) {
-                              pageNum = i + 1;
-                            } else if (page <= 3) {
-                              pageNum = i + 1;
-                            } else if (page >= (pagination.pages || 1) - 2) {
-                              pageNum = (pagination.pages || 1) - 4 + i;
-                            } else {
-                              pageNum = page - 2 + i;
-                            }
-                            return (
-                              <Button
-                                key={pageNum}
-                                variant={page === pageNum ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setPage(pageNum)}
-                                className={page === pageNum ? "bg-accent" : "border-gray-700"}
-                              >
-                                {pageNum}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPage((p) => Math.min(pagination.pages || 1, p + 1))}
-                          disabled={page >= (pagination.pages || 1)}
-                          className="border-gray-700 hover:bg-accent hover:border-accent"
-                        >
-                          Next
-                          <ChevronRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  <Pagination variant="numbered" page={page} totalPages={pagination.pages || 1} onPageChange={setPage} total={pagination.total || 0} />
                 </>
               )}
             </CardContent>

@@ -9,6 +9,28 @@ import { paypalAPI, checkoutAPI } from '@services/api';
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
 
+// ─── Design tokens, ported 1:1 from the v74 mockup's `pm-*` block ────────────
+// Payment-method tile. The idle border/background and the hover colours are
+// applied only when the tile is NOT selected: in the old stylesheet `.pm-tile.sel`
+// came after the hover rule and therefore won, and utility source-order gives no
+// such guarantee. The hover lift stays on the base, since `.sel` never set
+// `transform` and selected tiles did rise on hover.
+const TILE_BASE =
+  'flex min-h-[104px] cursor-pointer flex-col items-center justify-center gap-[10px] rounded-[14px] border-[1.5px] px-[12px] py-[16px] text-white [font-family:inherit] [transition:border-color_0.2s,background_0.2s,transform_0.15s] enabled:hover:[transform:translateY(-2px)] disabled:cursor-not-allowed disabled:opacity-[0.45]';
+const TILE_IDLE =
+  'border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] enabled:hover:border-[rgba(58,155,245,0.65)] enabled:hover:bg-[rgba(14,81,226,0.1)]';
+const TILE_SEL =
+  'border-[rgba(58,155,245,0.9)] bg-[rgba(14,81,226,0.15)] shadow-[0_0_0_1px_rgba(58,155,245,0.4),0_8px_22px_rgba(14,81,226,0.3)]';
+// `.pm-tile .tl` — the caption under each tile's mark.
+const TILE_LABEL = 'text-center text-[13px] font-bold leading-[1.2] tracking-[0.1px]';
+// `.pm-grid` column counts, keyed by how many tiles are rendered. The 4-tile case
+// was a `max-width` query in CSS, so it inverts: 2 columns base, 4 from 520px up.
+const GRID_COLS = {
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-2 min-[520px]:grid-cols-4',
+};
+
 /**
  * Payment modal using PayPal CardFields and Buttons. No card data in React state.
  */
@@ -22,6 +44,9 @@ const PaymentModal = ({
   walletBalance = 0,
   paymentMethod = 'PayPal',
 }) => {
+  // PayPal always captures in USD, so the modal states the charge currency
+  // explicitly rather than in the buyer's display currency.
+  const formatAmount = (n) => `${currency} ${Number(n || 0).toFixed(2)}`;
   const [selectedMethod, setSelectedMethod] = useState(
     paymentMethod === 'Wallet' ? 'wallet' : 
     paymentMethod === 'Card' ? 'card' : 'paypal'
@@ -548,7 +573,14 @@ const PaymentModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm" className="bg-primary border-gray-700 p-6">
+      {/* Layout (fixed + centring) stays OWNED BY DialogContent — only the
+          design's visual values are layered on. An earlier attempt set these in
+          a `.pm-shell` CSS class whose `position:relative` silently beat the
+          component's `fixed`, and the modal stopped rendering on screen. */}
+      <DialogContent
+        size="sm"
+        className="max-h-[92vh] max-w-[460px] overflow-y-auto rounded-[20px] border border-[rgba(58,116,240,0.35)] bg-[linear-gradient(180deg,#0d1730,#080d1e)] p-0 shadow-[0_30px_80px_rgba(0,0,0,0.6),0_0_0_1px_rgba(58,155,245,0.15)] before:absolute before:inset-x-0 before:top-0 before:z-[2] before:h-[2px] before:bg-[linear-gradient(90deg,transparent,#0e51e2,#3a9bf5,#7b2ff7,transparent)] before:bg-[length:200%_100%] before:content-[''] before:animate-rail-slide"
+      >
         {/* Global styles to override PayPal CardFields default styling */}
         <style>{`
           .paypal-card-field-container {
@@ -579,98 +611,91 @@ const PaymentModal = ({
             align-items: center !important;
           }
         `}</style>
-        <DialogHeader>
-          <DialogTitle className="text-white text-xl font-semibold">Payment Methods</DialogTitle>
+        <DialogHeader className="px-[22px] pt-[22px] pb-0 text-left">
+          {/* Design puts the amount in the header, not at the foot of the modal.
+              The overrides sit on <DialogTitle> rather than the <h3> so `cn`'s
+              tailwind-merge resolves them against the component's own defaults —
+              Radix's `asChild` just concatenates class strings. */}
+          <DialogTitle asChild className="m-0 text-[19px] font-extrabold text-white">
+            <h3>Complete your payment</h3>
+          </DialogTitle>
+          <div className="mt-[4px] text-[13px] text-white/[0.55]">
+            Total to pay: <b className="text-[15px] font-extrabold text-white">{formatAmount(totalAmount)}</b>
+          </div>
+          <div className="mt-[12px] flex items-center gap-[6px] text-[11.5px] text-[#22c55e]">
+            <Lock className="h-3.5 w-3.5" />
+            Payments are encrypted &amp; secure
+          </div>
         </DialogHeader>
 
-        <div className="space-y-5 mt-4 overflow-y-auto">
-          {/* Payment Method Selection — tile count varies with wallet balance and
-              Google Pay eligibility; classes stay static so Tailwind keeps them. */}
-          <div className={`grid gap-3 ${
-            { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-2 md:grid-cols-4' }[
+        <div className="overflow-y-auto px-[22px] pt-[18px] pb-[22px]">
+          <div className="mt-[6px] mb-[10px] text-[11px] font-bold tracking-[0.8px] text-white/[0.4] uppercase">
+            Choose payment method
+          </div>
+          {/* Tile count varies with wallet balance and Google Pay eligibility. */}
+          <div className={`mb-[12px] grid gap-[12px] ${
+            GRID_COLS[
               2 + (walletBalance >= totalAmount ? 1 : 0) + (isGooglePayEligible ? 1 : 0)
-            ] || 'grid-cols-2'
+            ] || GRID_COLS[2]
           }`}>
             {walletBalance >= totalAmount && (
-              <Button
+              <button
                 type="button"
                 onClick={() => setSelectedMethod('wallet')}
-                variant={selectedMethod === 'wallet' ? 'default' : 'outline'}
-                className={`h-auto py-4 ${
-                  selectedMethod === 'wallet'
-                    ? 'bg-accent hover:bg-accent/90 text-white'
-                    : 'border-gray-600 text-gray-300 hover:bg-gray-800'
-                }`}
+                className={`${TILE_BASE} ${selectedMethod === 'wallet' ? TILE_SEL : TILE_IDLE}`}
                 disabled={isLoading}
               >
-                <div className="flex flex-col items-center gap-2">
-                  <Wallet className="w-6 h-6" />
-                  <span className="text-xs font-medium">Wallet</span>
-                  <span className="text-xs text-gray-400">${walletBalance.toFixed(2)}</span>
-                </div>
-              </Button>
+                <Wallet className="h-[30px] w-[30px]" />
+                <span className={TILE_LABEL}>Wallet</span>
+                <span className="text-[11px] text-white/45">${walletBalance.toFixed(2)}</span>
+              </button>
             )}
             {isGooglePayEligible && (
-              <Button
+              <button
                 type="button"
                 onClick={() => setSelectedMethod('googlepay')}
-                variant={selectedMethod === 'googlepay' ? 'default' : 'outline'}
-                className={`h-auto py-4 ${
-                  selectedMethod === 'googlepay'
-                    ? 'bg-accent hover:bg-accent/90 text-white'
-                    : 'border-gray-600 text-gray-300 hover:bg-gray-800'
-                }`}
+                className={`${TILE_BASE} ${selectedMethod === 'googlepay' ? TILE_SEL : TILE_IDLE}`}
                 disabled={isLoading}
               >
-                <div className="flex flex-col items-center gap-2">
-                  <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+                <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="#4285F4" d="M22.5 12.2c0-.7-.06-1.4-.18-2H12v3.8h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2-1.9 3.3-4.7 3.3-7.8z" />
                     <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2v2.8A11 11 0 0 0 12 23z" />
                     <path fill="#FBBC05" d="M5.7 14.1a6.6 6.6 0 0 1 0-4.2V7.1H2a11 11 0 0 0 0 9.8z" />
                     <path fill="#EA4335" d="M12 5.4c1.6 0 3 .5 4.2 1.6l3.1-3.1A11 11 0 0 0 2 7.1l3.7 2.8C6.6 7.4 9.1 5.4 12 5.4z" />
-                  </svg>
-                  <span className="text-xs font-medium">Google Pay</span>
-                </div>
-              </Button>
+                </svg>
+                <span className={TILE_LABEL}>Google Pay</span>
+              </button>
             )}
 
-            <Button
+            <button
               type="button"
               onClick={() => setSelectedMethod('paypal')}
-              variant={selectedMethod === 'paypal' ? 'default' : 'outline'}
-              className={`h-auto py-4 ${
-                selectedMethod === 'paypal'
-                  ? 'bg-accent hover:bg-accent/90 text-white'
-                  : 'border-gray-600 text-gray-300 hover:bg-gray-800'
-              }`}
+              className={`${TILE_BASE} ${selectedMethod === 'paypal' ? TILE_SEL : TILE_IDLE}`}
               disabled={isLoading}
             >
-              <div className="flex flex-col items-center gap-2">
-                <SafeImage
-                  src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg"
-                  alt="PayPal"
-                  className="h-8 w-auto"
-                />
-                <span className="text-xs font-medium">PayPal</span>
-              </div>
-            </Button>
+              {/* Wordmark drawn locally — the old remote paypalobjects JPEG was
+                  a third-party request on every modal open. */}
+              <span className="text-[19px] font-extrabold leading-none">
+                <span style={{ color: '#003087' }}>Pay</span><span style={{ color: '#009cde' }}>Pal</span>
+              </span>
+              <span className={TILE_LABEL}>PayPal</span>
+            </button>
 
-            <Button
+            <button
               type="button"
               onClick={() => setSelectedMethod('card')}
-              variant={selectedMethod === 'card' ? 'default' : 'outline'}
-              className={`h-auto py-4 ${
-                selectedMethod === 'card'
-                  ? 'bg-accent hover:bg-accent/90 text-white'
-                  : 'border-gray-600 text-gray-300 hover:bg-gray-800'
-              }`}
+              className={`${TILE_BASE} ${selectedMethod === 'card' ? TILE_SEL : TILE_IDLE}`}
               disabled={isLoading}
             >
-              <div className="flex flex-col items-center gap-2">
-                <CreditCard className="w-6 h-6" />
-                <span className="text-xs font-medium">Credit Card / Debit Card</span>
-              </div>
-            </Button>
+              {/* Design's bespoke card mark (v74 6971), not a generic glyph. */}
+              <svg width="36" height="26" viewBox="0 0 36 26" aria-hidden="true">
+                <rect x="0.75" y="0.75" width="34.5" height="24.5" rx="3.5" fill="#1a2b4a" stroke="rgba(127,180,255,.4)" strokeWidth="1.5" />
+                <rect x="0.75" y="6" width="34.5" height="4.5" fill="#0e51e2" />
+                <rect x="4" y="15" width="11" height="2.6" rx="1.3" fill="#7fb4ff" />
+                <rect x="17" y="15" width="7" height="2.6" rx="1.3" fill="#7fb4ff" />
+              </svg>
+              <span className={TILE_LABEL}>Credit / Debit Card</span>
+            </button>
           </div>
 
           {/* Google Pay — Google renders its own branded button into this slot. */}
@@ -856,42 +881,34 @@ const PaymentModal = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-gray-400 pt-2">
-                    <Lock className="w-4 h-4 text-gray-500" />
-                    <span>Your payment information is secure and encrypted by PayPal</span>
-                  </div>
-
-                  <Button
+                  <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold shadow-md"
-                    size="lg"
+                    className="mt-[8px] flex h-[50px] w-full cursor-pointer items-center justify-center gap-[8px] rounded-[12px] border-none bg-[linear-gradient(120deg,#0e51e2,#7b2ff7)] text-[15px] font-extrabold text-white [font-family:inherit] shadow-[0_8px_24px_rgba(123,47,247,0.5)] [transition:filter_0.18s] enabled:hover:brightness-[1.08] disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:shadow-none"
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Processing...
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Processing…
                       </>
                     ) : (
                       <>
-                        Pay {currency} {totalAmount.toFixed(2)}
-                        <Lock className="w-4 h-4 ml-2" />
+                        {/* Design puts the lock BEFORE the label. */}
+                        <Lock className="h-4 w-4" />
+                        Pay {formatAmount(totalAmount)}
                       </>
                     )}
-                  </Button>
+                  </button>
                 </form>
               )}
             </div>
           )}
 
-          {/* Total Amount Display */}
-          <div className="border-t border-gray-700 pt-4 mt-6">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-300 font-medium text-base">Total Amount</span>
-              <span className="text-xl font-bold text-blue-600">
-                {currency} {totalAmount.toFixed(2)}
-              </span>
-            </div>
+          {/* Design's modal-level legal line — shown for every method, not just
+              the card form (v74 line 6989). The old total row is gone: the
+              amount now lives in the header, as the design has it. */}
+          <div className="mt-[14px] text-center text-[11px] leading-[1.5] text-white/[0.4]">
+            By paying you agree to DGMARQ&apos;s Terms. Your card details are encrypted and never stored on our servers.
           </div>
         </div>
       </DialogContent>

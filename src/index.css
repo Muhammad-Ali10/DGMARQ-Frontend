@@ -344,3 +344,55 @@
   color: #9ca3af !important;
   opacity: 1 !important;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Cart → Checkout → Reveal design animations.
+
+   Tailwind v4 is CSS-first (no tailwind.config.js), so keyframes live here and
+   each `--animate-*` entry becomes an `animate-<name>` utility. Consolidated
+   from the per-page CSS files that used to carry them, so the mockup's motion
+   is defined ONCE instead of being re-declared (and drifting) per file.
+   ──────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Durations/easings are the EXACT originals from the per-file CSS. The two
+     keyframes that were used at two speeds keep their more-common duration here
+     and the divergent element overrides with `[animation-duration:…]`:
+     rail-slide is 3.5s (top rails) — the shimmering title used 6s; dgc-float is
+     8s (orb 1) — orb 2 used 9s + reverse. */
+  --animate-cp-item-in: cpItemIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-cp-flow: cpFlow 2.4s ease-in-out infinite;
+  --animate-rail-slide: railSlide 3.5s linear infinite;
+  --animate-dgc-border: dgcBorder 6s ease infinite;
+  --animate-dgc-float: dgcFloat 8s ease-in-out infinite;
+  --animate-dgc-open: dgcOpen 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-dgc-item-in: dgcItemIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-co-plus-border: coPlusBorder 7s ease infinite;
+  --animate-co-plus-dot: coPlusDot 1.8s ease-in-out infinite;
+  --animate-pm-pop: pmPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-oc-draw: ocDraw 0.6s 0.2s cubic-bezier(0.6, 0.1, 0.2, 1) forwards;
+  --animate-oc-spin: ocSpin 6s linear infinite;
+  --animate-oc-sparkle: ocSparkle 2.6s ease-in-out infinite;
+  --animate-oc-pop-in: ocPopIn 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-oc-fade: ocFade 0.22s ease;
+  --animate-oc-rise: ocRise 0.3s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* The mockup's sweep runs 200% → -200%: the highlight enters off-screen-right
+   and exits off-screen-left. Several page files had copied a half-sweep
+   (`to { background-position: 200% 50% }`) that never left the bar. */
+@keyframes railSlide { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes cpItemIn { 0% { opacity: 0; transform: translateY(14px); } 100% { opacity: 1; transform: none; } }
+@keyframes cpFlow { 0% { left: -40%; } 100% { left: 100%; } }
+@keyframes dgcBorder { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes dgcFloat { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-12px, 14px); } }
+@keyframes dgcOpen { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes dgcItemIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes coPlusBorder { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes coPlusDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes pmPop { 0% { opacity: 0; transform: translateY(24px) scale(0.96); } 100% { opacity: 1; transform: none; } }
+@keyframes ocDraw { to { stroke-dashoffset: 0; } }
+@keyframes ocSpin { to { transform: rotate(360deg); } }
+@keyframes ocSparkle { 0%, 100% { opacity: 0; transform: scale(0.5); } 45% { opacity: 0.95; transform: scale(1); } }
+@keyframes ocPopIn { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
+@keyframes ocFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ocRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }

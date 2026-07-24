@@ -10,6 +10,7 @@ import { DollarSign, FileText, Settings, History, Eye, ArrowUpRight, AlertCircle
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { WithdrawalRequestModal } from "@features/wallet-payout";
 import { useSocket } from "@hooks/useSocket";
+import { EmptyState } from "@components/common/EmptyState";
 
 // ============================================================================
 // Phase 5 - Seller Earnings page rewritten to drive the new withdrawal flow.
@@ -774,7 +775,7 @@ const SellerEarnings = () => {
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-400">No payout reports available</div>
+                      <EmptyState title="No payout reports available" />
                     )}
                   </div>
                 </CardContent>

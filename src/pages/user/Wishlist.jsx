@@ -6,15 +6,16 @@ import { Card, CardContent } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Heart, Trash2, ShoppingCart, Eye } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
+import { EmptyState } from '@components/common/EmptyState';
 import { showSuccess, showApiError } from '@utils/toast';
-import { Loading } from '@components/ui/loading';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
 
 const UserWishlist = () => {
   const queryClient = useQueryClient();
   const [showClearModal, setShowClearModal] = useState(false);
 
-  const { data: wishlist, isLoading } = useQuery({
+  const { data: wishlist, isLoading, isError } = useQuery({
     queryKey: ['wishlist'],
     queryFn: async () => {
       const response = await userAPI.getWishlist();
@@ -60,6 +61,10 @@ const UserWishlist = () => {
 
   if (isLoading) {
     return <Loading message="Loading wishlist..." />;
+  }
+
+  if (isError) {
+    return <ErrorMessage message="Failed to load your wishlist. Please try again." />;
   }
 
   return (
@@ -162,16 +167,20 @@ const UserWishlist = () => {
         </div>
       ) : (
         <Card className="bg-primary border-gray-700">
-          <CardContent className="py-16 text-center">
-            <Heart className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Your wishlist is empty</h3>
-            <p className="text-gray-400 mb-6">Start adding products you love to your wishlist</p>
-            <Link to="/search">
-              <Button className="bg-accent hover:bg-blue-700">
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                Browse Products
-              </Button>
-            </Link>
+          <CardContent className="text-center">
+            <EmptyState
+              icon={Heart}
+              title="Your wishlist is empty"
+              description="Start adding products you love to your wishlist"
+              action={
+                <Link to="/search">
+                  <Button className="bg-accent hover:bg-blue-700">
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Browse Products
+                  </Button>
+                </Link>
+              }
+            />
           </CardContent>
         </Card>
       )}

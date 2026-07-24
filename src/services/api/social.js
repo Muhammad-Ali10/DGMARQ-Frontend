@@ -27,6 +27,7 @@ export const chatAPI = {
   }),
   deleteConversation: (conversationId) => api.delete(`/chat/conversation/${conversationId}`, { skipErrorToast: true }),
   getUnreadCount: () => api.get('/chat/unread-count', { skipErrorToast: true }),
+  toggleBlock: (conversationId) => api.post(`/chat/conversation/${conversationId}/block`),
 };
 
 export const notificationAPI = {

@@ -32,7 +32,6 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
     () => describeOfferAvailability(offer),
     [offer]
   );
-  console.log(offer)
   // Chip labels: Worldwide (global) OR region names + individual countries.
   const chips = useMemo(() => {
     if (availability.unrestricted) return [{ key: "all", label: "All regions", tone: "global" }];

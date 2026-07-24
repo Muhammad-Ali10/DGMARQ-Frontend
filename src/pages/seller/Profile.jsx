@@ -19,7 +19,7 @@ const SellerProfile = () => {
   const [previewLogo, setPreviewLogo] = useState('');
   const [previewBanner, setPreviewBanner] = useState('');
 
-  const { data: sellerInfo, isLoading: infoLoading } = useQuery({
+  const { data: sellerInfo, isLoading: infoLoading, isError: infoError } = useQuery({
     queryKey: ['seller-info'],
     queryFn: () => sellerAPI.getSellerInfo().then(res => res.data.data),
   });
@@ -131,6 +131,7 @@ const SellerProfile = () => {
   };
 
   if (infoLoading || badgeLoading) return <Loading message="Loading seller profile..." />;
+  if (infoError) return <ErrorMessage message="Failed to load your profile. Please try again." />;
 
   const badge = verificationBadge?.criteria || verificationBadge || {};
   const isVerified = badge.hasKYC && badge.isActive && badge.hasPayoutAccount && badge.hasProducts && badge.hasSales;

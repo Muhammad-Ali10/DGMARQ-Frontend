@@ -5,7 +5,7 @@ import { bestsellerAPI } from "@services/api";
 import { ProductCard } from "@features/catalog";
 import { Loading, ErrorMessage } from "@components/ui/loading";
 import { Button } from "@components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Pagination } from "@components/common/Pagination";
 import { useSEO } from "@hooks/useSEO";
 
 const PlatformsButton = [
@@ -61,20 +61,6 @@ const BestSellers = () => {
   const bestsellers = data?.bestsellers || [];
   const pagination = data?.pagination || { page: 1, pages: 1, total: 0 };
 
-  const handlePreviousPage = () => {
-    if (page > 1) {
-      setPage(page - 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
-  const handleNextPage = () => {
-    if (page < pagination.pages) {
-      setPage(page + 1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen container mx-auto py-12">
@@ -126,34 +112,13 @@ const BestSellers = () => {
             </div>
 
             {/* Pagination */}
-            {pagination.pages > 1 && (
-              <div className="flex justify-center items-center gap-4 mt-8">
-                <Button
-                  onClick={handlePreviousPage}
-                  disabled={page === 1}
-                  variant="outline"
-                  className="border-gray-700 text-white hover:bg-gray-800 disabled:opacity-50"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Previous
-                </Button>
-
-                <span className="text-gray-400">
-                  Page {pagination.page} of {pagination.pages} (
-                  {pagination.total} products)
-                </span>
-
-                <Button
-                  onClick={handleNextPage}
-                  disabled={page >= pagination.pages}
-                  variant="outline"
-                  className="border-gray-700 text-white hover:bg-gray-800 disabled:opacity-50"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            )}
+            <Pagination
+              page={page}
+              totalPages={pagination.pages}
+              onPageChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              total={pagination.total}
+              totalNoun="products"
+            />
           </>
         ) : (
           <div className="text-center py-12">
