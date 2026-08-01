@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Button } from '@components/ui/button';
-import { Loader2, X, Lock, CreditCard, Wallet } from 'lucide-react';
+import { Loader2, Lock, Wallet } from 'lucide-react';
 import { Card, CardContent } from '@components/ui/card';
 import { getPayPalSDK } from '@utils/paypalSDK';
 import { getGooglePaySDK, getGooglePayEnvironment } from '@utils/googlePaySDK';
 import { paypalAPI, checkoutAPI } from '@services/api';
 import { toast } from 'sonner';
-import SafeImage from '@components/ui/safe-image';
 
 // ─── Design tokens, ported 1:1 from the v74 mockup's `pm-*` block ────────────
 // Payment-method tile. The idle border/background and the hover colours are
@@ -16,7 +15,7 @@ import SafeImage from '@components/ui/safe-image';
 // such guarantee. The hover lift stays on the base, since `.sel` never set
 // `transform` and selected tiles did rise on hover.
 const TILE_BASE =
-  'flex min-h-[104px] cursor-pointer flex-col items-center justify-center gap-[10px] rounded-[14px] border-[1.5px] px-[12px] py-[16px] text-white [font-family:inherit] [transition:border-color_0.2s,background_0.2s,transform_0.15s] enabled:hover:[transform:translateY(-2px)] disabled:cursor-not-allowed disabled:opacity-[0.45]';
+  'flex min-h-[104px] cursor-pointer flex-col items-center justify-center gap-[10px] rounded-[14px] border-[1.5px] px-[12px] py-[16px] text-fg [font-family:inherit] [transition:border-color_0.2s,background_0.2s,transform_0.15s] enabled:hover:[transform:translateY(-2px)] disabled:cursor-not-allowed disabled:opacity-[0.45]';
 const TILE_IDLE =
   'border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] enabled:hover:border-[rgba(58,155,245,0.65)] enabled:hover:bg-[rgba(14,81,226,0.1)]';
 const TILE_SEL =
@@ -616,11 +615,11 @@ const PaymentModal = ({
               The overrides sit on <DialogTitle> rather than the <h3> so `cn`'s
               tailwind-merge resolves them against the component's own defaults —
               Radix's `asChild` just concatenates class strings. */}
-          <DialogTitle asChild className="m-0 text-[19px] font-extrabold text-white">
+          <DialogTitle asChild className="m-0 text-[19px] font-extrabold text-fg">
             <h3>Complete your payment</h3>
           </DialogTitle>
-          <div className="mt-[4px] text-[13px] text-white/[0.55]">
-            Total to pay: <b className="text-[15px] font-extrabold text-white">{formatAmount(totalAmount)}</b>
+          <div className="mt-[4px] text-[13px] text-fg/[0.55]">
+            Total to pay: <b className="text-[15px] font-extrabold text-fg">{formatAmount(totalAmount)}</b>
           </div>
           <div className="mt-[12px] flex items-center gap-[6px] text-[11.5px] text-[#22c55e]">
             <Lock className="h-3.5 w-3.5" />
@@ -629,7 +628,7 @@ const PaymentModal = ({
         </DialogHeader>
 
         <div className="overflow-y-auto px-[22px] pt-[18px] pb-[22px]">
-          <div className="mt-[6px] mb-[10px] text-[11px] font-bold tracking-[0.8px] text-white/[0.4] uppercase">
+          <div className="mt-[6px] mb-[10px] text-[11px] font-bold tracking-[0.8px] text-fg/[0.4] uppercase">
             Choose payment method
           </div>
           {/* Tile count varies with wallet balance and Google Pay eligibility. */}
@@ -647,7 +646,7 @@ const PaymentModal = ({
               >
                 <Wallet className="h-[30px] w-[30px]" />
                 <span className={TILE_LABEL}>Wallet</span>
-                <span className="text-[11px] text-white/45">${walletBalance.toFixed(2)}</span>
+                <span className="text-[11px] text-fg/45">${walletBalance.toFixed(2)}</span>
               </button>
             )}
             {isGooglePayEligible && (
@@ -702,7 +701,7 @@ const PaymentModal = ({
           {selectedMethod === 'googlepay' && isGooglePayEligible && (
             <div className="space-y-3">
               <div ref={googlePayContainerRef} className="min-h-[48px]" />
-              <p className="text-xs text-gray-400 text-center">
+              <p className="text-xs text-fg-muted text-center">
                 Google Pay is processed securely through PayPal. You&apos;ll be charged ${Number(totalAmount || 0).toFixed(2)} {currency}.
               </p>
             </div>
@@ -711,23 +710,23 @@ const PaymentModal = ({
           {/* Wallet Payment Option */}
           {selectedMethod === 'wallet' && walletBalance >= totalAmount && (
             <div className="space-y-4">
-              <Card className="bg-gray-800/50 border-gray-700">
+              <Card className="bg-surface-2/50 ">
                 <CardContent className="pt-6">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 bg-accent/10 rounded-lg border border-accent/30">
                       <div>
-                        <p className="text-sm text-gray-300">Wallet Balance</p>
-                        <p className="text-2xl font-bold text-white">${walletBalance.toFixed(2)}</p>
+                        <p className="text-sm text-fg-muted">Wallet Balance</p>
+                        <p className="text-2xl font-bold text-fg">${walletBalance.toFixed(2)}</p>
                       </div>
-                      <Wallet className="w-8 h-8 text-accent" />
+                      <Wallet className="w-8 h-8 text-accent-on-dark" />
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
-                      <p className="text-sm text-gray-300">Order Total</p>
-                      <p className="text-xl font-semibold text-white">${totalAmount.toFixed(2)}</p>
+                    <div className="flex items-center justify-between p-4 bg-surface-2/50 rounded-lg">
+                      <p className="text-sm text-fg-muted">Order Total</p>
+                      <p className="text-xl font-semibold text-fg">${totalAmount.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-lg border border-green-500/30">
-                      <p className="text-sm text-gray-300">Remaining Balance</p>
-                      <p className="text-xl font-bold text-green-400">${(walletBalance - totalAmount).toFixed(2)}</p>
+                      <p className="text-sm text-fg-muted">Remaining Balance</p>
+                      <p className="text-xl font-bold text-success">${(walletBalance - totalAmount).toFixed(2)}</p>
                     </div>
                     <Button
                       onClick={async () => {
@@ -759,7 +758,7 @@ const PaymentModal = ({
                         }
                       }}
                       disabled={isLoading}
-                      className="w-full bg-accent hover:bg-accent/90 text-white"
+                      className="w-full bg-accent hover:bg-accent/90 text-fg"
                       size="lg"
                     >
                       {isLoading ? (
@@ -784,10 +783,10 @@ const PaymentModal = ({
           {selectedMethod !== 'wallet' && (
             <div className="relative py-2">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-700"></div>
+                <div className="w-full border-t border-border"></div>
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-primary px-3 text-gray-400">or</span>
+                <span className="bg-background px-3 text-fg-muted">or</span>
               </div>
             </div>
           )}
@@ -795,16 +794,16 @@ const PaymentModal = ({
           {/* PayPal Payment Option */}
           {selectedMethod === 'paypal' && (
             <div className="space-y-4">
-              <Card className="bg-gray-800/50 border-gray-700">
+              <Card className="bg-surface-2/50 ">
                 <CardContent className="pt-6">
                   {isLoading && !paypalSDK ? (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin text-accent" />
-                      <span className="ml-2 text-gray-300">Loading payment system...</span>
+                      <Loader2 className="w-6 h-6 animate-spin text-accent-on-dark" />
+                      <span className="ml-2 text-fg-muted">Loading payment system...</span>
                     </div>
                   ) : (
                     <>
-                      <p className="text-gray-300 text-sm mb-4">
+                      <p className="text-fg-muted text-sm mb-4">
                         Click the button below to pay with your PayPal account.
                       </p>
                       <div ref={paypalButtonsContainerRef} id="paypal-buttons-container"></div>
@@ -819,13 +818,13 @@ const PaymentModal = ({
           {selectedMethod === 'card' && (
             <div className="space-y-4">
               {!isCardFieldsEligible ? (
-                <Card className="bg-gray-800/50 border-gray-700">
+                <Card className="bg-surface-2/50 ">
                   <CardContent className="pt-6">
                     <div className="text-center space-y-2">
-                      <p className="text-gray-300 text-sm font-medium">
+                      <p className="text-fg-muted text-sm font-medium">
                         Card payments not available for this PayPal account/region.
                       </p>
-                      <p className="text-gray-400 text-xs mt-2">
+                      <p className="text-fg-muted text-xs mt-2">
                         Please use PayPal wallet payment instead.
                       </p>
                     </div>
@@ -835,9 +834,9 @@ const PaymentModal = ({
                 <form onSubmit={handleCardSubmit} className="space-y-5">
                   <div className="space-y-5">
                     <div>
-                      <label className="text-white text-sm font-medium mb-2 block">
+                      <span className="text-fg text-sm font-medium mb-2 block">
                         Card Number*
-                      </label>
+                      </span>
                       <div
                         id="card-number"
                         className="paypal-card-field-container"
@@ -847,9 +846,9 @@ const PaymentModal = ({
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-white text-sm font-medium mb-2 block">
+                        <span className="text-fg text-sm font-medium mb-2 block">
                           Expiration Date*
-                        </label>
+                        </span>
                         <div
                           id="card-expiry"
                           className="paypal-card-field-container"
@@ -858,9 +857,9 @@ const PaymentModal = ({
                       </div>
 
                       <div>
-                        <label className="text-white text-sm font-medium mb-2 block">
+                        <span className="text-fg text-sm font-medium mb-2 block">
                           CVV*
-                        </label>
+                        </span>
                         <div
                           id="card-cvv"
                           className="paypal-card-field-container"
@@ -870,9 +869,9 @@ const PaymentModal = ({
                     </div>
 
                     <div>
-                      <label className="text-white text-sm font-medium mb-2 block">
+                      <span className="text-fg text-sm font-medium mb-2 block">
                         Cardholder Name*
-                      </label>
+                      </span>
                       <div
                         id="card-name"
                         className="paypal-card-field-container"
@@ -884,7 +883,7 @@ const PaymentModal = ({
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="mt-[8px] flex h-[50px] w-full cursor-pointer items-center justify-center gap-[8px] rounded-[12px] border-none bg-[linear-gradient(120deg,#0e51e2,#7b2ff7)] text-[15px] font-extrabold text-white [font-family:inherit] shadow-[0_8px_24px_rgba(123,47,247,0.5)] [transition:filter_0.18s] enabled:hover:brightness-[1.08] disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:shadow-none"
+                    className="mt-[8px] flex h-[50px] w-full cursor-pointer items-center justify-center gap-[8px] rounded-[12px] border-none bg-[linear-gradient(120deg,#0e51e2,#7b2ff7)] text-[15px] font-extrabold text-fg [font-family:inherit] shadow-[0_8px_24px_rgba(123,47,247,0.5)] [transition:filter_0.18s] enabled:hover:brightness-[1.08] disabled:cursor-not-allowed disabled:opacity-[0.55] disabled:shadow-none"
                   >
                     {isLoading ? (
                       <>
@@ -907,7 +906,7 @@ const PaymentModal = ({
           {/* Design's modal-level legal line — shown for every method, not just
               the card form (v74 line 6989). The old total row is gone: the
               amount now lives in the header, as the design has it. */}
-          <div className="mt-[14px] text-center text-[11px] leading-[1.5] text-white/[0.4]">
+          <div className="mt-[14px] text-center text-[11px] leading-[1.5] text-fg/[0.4]">
             By paying you agree to DGMARQ&apos;s Terms. Your card details are encrypted and never stored on our servers.
           </div>
         </div>

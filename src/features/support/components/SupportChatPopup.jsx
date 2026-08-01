@@ -84,20 +84,20 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-24 right-6 w-96 h-[440px] bg-primary border border-gray-700 rounded-lg shadow-2xl z-50 flex flex-col overflow-hidden">
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-between border-b border-gray-700">
+    <div className="fixed bottom-24 right-6 w-96 h-[440px] bg-background border border-border rounded-lg shadow-2xl z-50 flex flex-col overflow-hidden">
+      <div className="bg-surface-2 px-4 py-3 flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-2">
-          <Headphones className="h-5 w-5 text-accent" />
-          <h3 className="text-white font-semibold">Support Chat</h3>
+          <Headphones className="h-5 w-5 text-accent-on-dark" />
+          <h3 className="text-fg font-semibold">Support Chat</h3>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors" aria-label="Close chat">
+        <button onClick={onClose} className="text-fg-muted hover:text-white transition-colors" aria-label="Close chat">
           <X className="h-5 w-5" />
         </button>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
         {/* Chat list */}
-        <div className="w-1/3 border-r border-gray-700 bg-gray-900 overflow-y-auto">
+        <div className="w-1/3 border-r border-border bg-surface-sunken overflow-y-auto">
           <div className="p-2">
             <Button size="sm" className="w-full mb-2" onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-1" />
@@ -105,23 +105,24 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
             </Button>
           </div>
           {chatsLoading ? (
-            <div className="p-4 text-center text-gray-400 text-sm">Loading...</div>
+            <div className="p-4 text-center text-fg-muted text-sm">Loading...</div>
           ) : chatsList.length === 0 ? (
-            <div className="p-4 text-center text-gray-400 text-xs">No chats yet</div>
+            <div className="p-4 text-center text-fg-muted text-xs">No chats yet</div>
           ) : (
             <div className="space-y-1 p-2">
               {chatsList.map((chat) => (
-                <div
+                <button
+                  type="button"
                   key={chat._id}
                   onClick={() => setSelectedChat(chat._id)}
-                  className={`p-2 rounded cursor-pointer transition-colors ${
-                    selectedChat === chat._id ? 'bg-accent text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
+                  className={`block w-full text-left p-2 rounded transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    selectedChat === chat._id ? 'bg-accent text-fg' : 'bg-surface-2 hover:bg-gray-700 text-fg-muted'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
                     <span className="text-xs font-medium truncate min-w-0">{chat.subject || 'No subject'}</span>
                     {chat.unreadCountUser > 0 && (
-                      <span className="shrink-0 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                      <span className="shrink-0 bg-red-500 text-fg text-xs rounded-full h-4 w-4 flex items-center justify-center">
                         {chat.unreadCountUser > 9 ? '9+' : chat.unreadCountUser}
                       </span>
                     )}
@@ -136,16 +137,16 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                       })}
                     </span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </div>
 
         {/* Messages */}
-        <div className="flex-1 flex flex-col bg-gray-900 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-surface-sunken overflow-hidden">
           {!selectedChat ? (
-            <div className="flex-1 flex items-center justify-center text-gray-400">
+            <div className="flex-1 flex items-center justify-center text-fg-muted">
               <div className="text-center">
                 <Headphones className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">Select a chat or create a new one</p>
@@ -153,8 +154,8 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
             </div>
           ) : (
             <>
-              <div className="px-3 py-2 border-b border-gray-700 bg-gray-800 flex items-center justify-between">
-                <h4 className="text-white font-medium text-sm truncate">{selectedChatData?.subject || 'Support Chat'}</h4>
+              <div className="px-3 py-2 border-b border-border bg-surface-2 flex items-center justify-between">
+                <h4 className="text-fg font-medium text-sm truncate">{selectedChatData?.subject || 'Support Chat'}</h4>
                 {getStatusBadge(selectedChatData?.status)}
               </div>
               <PresenceBar
@@ -163,7 +164,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                 connected={thread.connected}
               />
               {thread.isLoading ? (
-                <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Loading messages…</div>
+                <div className="flex-1 flex items-center justify-center text-fg-muted text-sm">Loading messages…</div>
               ) : (
                 <MessageList
                   messages={thread.messages}
@@ -186,25 +187,25 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent size="md" className="bg-primary border-gray-700">
+        <DialogContent size="md" className="">
           <DialogHeader>
-            <DialogTitle className="text-white">Create Support Ticket</DialogTitle>
-            <DialogDescription className="text-gray-400">Create a new support ticket to get help</DialogDescription>
+            <DialogTitle className="text-fg">Create Support Ticket</DialogTitle>
+            <DialogDescription className="text-fg-muted">Create a new support ticket to get help</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateChat} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="popup-subject" className="text-gray-300">Subject</Label>
+              <Label htmlFor="popup-subject" className="text-fg-muted">Subject</Label>
               <Input
                 id="popup-subject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="What do you need help with?"
                 required
-                className="bg-gray-800 border-gray-700 text-white"
+                className="bg-surface-2 border-border text-fg"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="popup-message" className="text-gray-300">Message</Label>
+              <Label htmlFor="popup-message" className="text-fg-muted">Message</Label>
               <Textarea
                 id="popup-message"
                 value={initialMessage}
@@ -212,7 +213,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                 placeholder="Describe your issue..."
                 required
                 rows={4}
-                className="bg-gray-800 border-gray-700 text-white"
+                className="bg-surface-2 border-border text-fg"
               />
             </div>
             <div className="flex justify-end gap-2">

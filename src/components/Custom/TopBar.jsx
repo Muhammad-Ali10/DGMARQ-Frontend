@@ -1,175 +1,113 @@
-import { useState, useRef, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { logout } from '@store/slices/authSlice';
 import { authAPI } from '@services/api';
-import { User, LogOut, Settings } from 'lucide-react';
-import { cn } from '@lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@components/ui/dropdown-menu';
 import { NotificationBell } from '@features/notifications';
 import SafeImage from '@components/ui/safe-image';
+import { User, LogOut, Settings } from 'lucide-react';
 
-const AvatarDropdown = ({ user }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const avatarRef = useRef(null);
+const initialsOf = (name) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
+/** Highest-privilege role wins, so a dual account lands on the right dashboard. */
+const routesFor = (user) => {
+  const roles = Array.isArray(user?.roles) ? user.roles.map((r) => String(r).toLowerCase()) : [];
+  if (roles.includes('admin')) return { dashboard: '/admin/dashboard', profile: '/admin/settings' };
+  if (roles.includes('seller')) return { dashboard: '/seller/dashboard', profile: '/seller/profile' };
+  return { dashboard: '/user/dashboard', profile: '/user/profile' };
+};
+
+/**
+ * Dashboard top bar.
+ *
+ * The account menu is now a Radix DropdownMenu. It used to be a hand-rolled
+ * `useState` + `useRef` + document `mousedown` listener, which meant no keyboard
+ * navigation, no Escape, no focus return and no `aria-expanded`. Radix was
+ * already a dependency — the primitive simply had no wrapper until now.
+ */
+const AccountMenu = ({ user }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
 
   const logoutMutation = useMutation({
     mutationFn: () => authAPI.logout(),
-    onSuccess: () => {
+    // Clear client state either way — a failed server logout must not strand
+    // the user in a half-authenticated UI.
+    onSettled: () => {
       dispatch(logout());
       queryClient.clear();
-      setIsOpen(false);
-      navigate('/');
-    },
-    onError: () => {
-      // Even if backend logout fails, clear frontend state for UX
-      dispatch(logout());
-      queryClient.clear();
-      setIsOpen(false);
       navigate('/');
     },
   });
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target) &&
-        avatarRef.current &&
-        !avatarRef.current.contains(event.target)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  };
-
-  const userName = user?.name || user?.username || 'User';
-  const userAvatar = user?.profileImage || user?.avatar || null;
-  const initials = getInitials(userName);
-
-  // Determine profile route based on user role (priority: admin > seller > customer)
-  const getProfileRoute = () => {
-    const roles = user?.roles || [];
-    const normalizedRoles = Array.isArray(roles) ? roles.map(r => String(r).toLowerCase()) : [];
-    
-    if (normalizedRoles.includes('admin')) {
-      return '/admin/settings'; // Admin settings page
-    } else if (normalizedRoles.includes('seller')) {
-      return '/seller/profile';
-    } else {
-      return '/user/profile';
-    }
-  };
-
-  // Determine dashboard route based on user role (priority: admin > seller > customer)
-  const getDashboardRoute = () => {
-    const roles = user?.roles || [];
-    const normalizedRoles = Array.isArray(roles) ? roles.map(r => String(r).toLowerCase()) : [];
-    
-    if (normalizedRoles.includes('admin')) {
-      return '/admin/dashboard';
-    } else if (normalizedRoles.includes('seller')) {
-      return '/seller/dashboard';
-    } else {
-      return '/user/dashboard';
-    }
-  };
+  const name = user?.name || user?.username || 'User';
+  const avatar = user?.profileImage || user?.avatar || null;
+  const { dashboard, profile } = routesFor(user);
 
   return (
-    <div className="relative">
-      {/* Avatar Button */}
-      <button
-        ref={avatarRef}
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-700/50 transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
-        aria-label="User menu"
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+        aria-label="Account menu"
       >
-        {userAvatar ? (
+        {avatar ? (
           <SafeImage
-            src={userAvatar}
-            alt={userName}
-            className="w-10 h-10 rounded-full object-cover border-2 border-accent/30"
+            src={avatar}
+            alt=""
+            w={40}
+            className="size-10 rounded-full border border-border-interactive object-cover"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center border-2 border-accent/30">
-            <span className="text-accent font-semibold text-sm">{initials}</span>
-          </div>
+          <span className="flex size-10 items-center justify-center rounded-full border border-border-interactive bg-accent-soft text-sm font-semibold text-accent-on-dark">
+            {initialsOf(name)}
+          </span>
         )}
-      </button>
+      </DropdownMenuTrigger>
 
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className={cn(
-            'absolute right-0 mt-2 w-64 bg-[#041536] border border-gray-700 rounded-lg shadow-xl z-50',
-            'transition-all duration-200 ease-out'
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="flex flex-col gap-0.5">
+          <span className="truncate text-sm font-semibold text-fg">{name}</span>
+          {user?.email && (
+            <span className="truncate text-xs font-normal text-fg-muted">{user.email}</span>
           )}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate(dashboard)}>
+          <User aria-hidden="true" />
+          Dashboard
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate(profile)}>
+          <Settings aria-hidden="true" />
+          Profile &amp; settings
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={logoutMutation.isPending}
+          onSelect={(e) => {
+            e.preventDefault();
+            logoutMutation.mutate();
+          }}
         >
-          <div className="p-4 border-b border-gray-700">
-            <p className="text-white font-semibold text-sm truncate">{userName}</p>
-            <p className="text-gray-400 text-xs truncate mt-1">{user?.email}</p>
-          </div>
-          
-          <div className="p-2">
-            <button
-              onClick={() => {
-                navigate(getDashboardRoute());
-                setIsOpen(false);
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-md transition-colors"
-            >
-              <User className="w-4 h-4" />
-              Dashboard
-            </button>
-            
-            <button
-              onClick={() => {
-                navigate(getProfileRoute());
-                setIsOpen(false);
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/50 rounded-md transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              Profile / Settings
-            </button>
-            
-            <button
-              onClick={handleLogout}
-              disabled={logoutMutation.isPending}
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-md transition-colors mt-1"
-            >
-              <LogOut className="w-4 h-4" />
-              {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+          <LogOut aria-hidden="true" />
+          {logoutMutation.isPending ? 'Signing out…' : 'Sign out'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -177,15 +115,11 @@ const TopBar = () => {
   const { user } = useSelector((state) => state.auth);
 
   return (
-    <header className="h-16 bg-secondary border-b border-border flex items-center justify-end px-6 gap-4">
-      {/* Right: Notifications and User Avatar */}
-      <div className="flex items-center gap-3">
-        <NotificationBell />
-        <AvatarDropdown user={user} />
-      </div>
-    </header>
+    <div className="flex h-16 items-center justify-end gap-3 px-4 md:px-6">
+      <NotificationBell />
+      <AccountMenu user={user} />
+    </div>
   );
 };
 
 export default TopBar;
-

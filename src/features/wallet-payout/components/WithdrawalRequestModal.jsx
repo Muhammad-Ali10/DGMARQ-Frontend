@@ -9,6 +9,7 @@ import { Badge } from "@components/ui/badge";
 import { Loading } from "@components/ui/loading";
 import { showApiError, showSuccess, showWarning } from "@utils/toast";
 import { AlertCircle, RefreshCw, Wallet } from "lucide-react";
+import { formatUSD } from '@lib/money';
 
 // ============================================================================
 // Phase 5 - Seller WithdrawalRequestModal
@@ -29,7 +30,6 @@ const METHOD_LABEL = {
 const QUOTE_REFRESH_SLACK_MS = 60 * 1000;
 const QUOTE_AUTO_DEBOUNCE_MS = 600;
 
-const formatUsd = (n) => `$${Number(n || 0).toFixed(2)}`;
 
 const formatTimeLeft = (ms) => {
   if (!Number.isFinite(ms) || ms <= 0) return "expired";
@@ -45,13 +45,13 @@ export function WithdrawalRequestModal({ open, onOpenChange, balance, accounts =
   const formKey = `${open ? "open" : "closed"}-${(accounts || []).map((a) => a.accountType).join(",")}`;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="bg-primary border-gray-700 max-w-2xl">
+      <DialogContent size="lg" className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-green-500" />
+          <DialogTitle className="text-fg flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-success" />
             Request a withdrawal
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-fg-muted">
             Choose a connected payout method and the amount you want to receive.
           </DialogDescription>
         </DialogHeader>
@@ -151,7 +151,7 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
     if (!methodType) return "Select a payout method.";
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return "Enter an amount.";
     if (numericAmount > availableBalance + 0.001) {
-      return `Amount exceeds your available balance of ${formatUsd(availableBalance)}.`;
+      return `Amount exceeds your available balance of ${formatUSD(availableBalance)}.`;
     }
     return null;
   }, [methodType, numericAmount, availableBalance]);
@@ -190,7 +190,7 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
           </div>
         </div>
         <div className="flex justify-end">
-          <Button type="button" variant="outline" onClick={onCancel} className="border-gray-700 text-gray-300">
+          <Button type="button" variant="outline" onClick={onCancel} className="border-border text-fg-muted">
             Close
           </Button>
         </div>
@@ -201,27 +201,27 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-md border border-gray-700 bg-secondary/50 p-3">
-          <p className="text-xs text-gray-400 mb-1">Available balance</p>
-          <p className="text-xl font-semibold text-white">{formatUsd(availableBalance)}</p>
-          <p className="text-[10px] text-gray-500 mt-1">Open withdrawals already deducted.</p>
+        <div className="rounded-md border border-border bg-secondary/50 p-3">
+          <p className="text-xs text-fg-muted mb-1">Available balance</p>
+          <p className="text-xl font-semibold text-fg">{formatUSD(availableBalance)}</p>
+          <p className="text-[10px] text-fg-subtle mt-1">Open withdrawals already deducted.</p>
         </div>
-        <div className="rounded-md border border-gray-700 bg-secondary/50 p-3">
-          <p className="text-xs text-gray-400 mb-1">In-flight withdrawals</p>
-          <p className="text-xl font-semibold text-white">{formatUsd(balance?.inFlight?.amount || 0)}</p>
-          <p className="text-[10px] text-gray-500 mt-1">
+        <div className="rounded-md border border-border bg-secondary/50 p-3">
+          <p className="text-xs text-fg-muted mb-1">In-flight withdrawals</p>
+          <p className="text-xl font-semibold text-fg">{formatUSD(balance?.inFlight?.amount || 0)}</p>
+          <p className="text-[10px] text-fg-subtle mt-1">
             {balance?.inFlight?.count || 0} request(s) being processed.
           </p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="withdrawal-method" className="text-gray-300">Payout method</Label>
+        <Label htmlFor="withdrawal-method" className="text-fg-muted">Payout method</Label>
         <select
           id="withdrawal-method"
           value={methodType}
           onChange={(e) => setMethodType(e.target.value)}
-          className="w-full bg-secondary border border-gray-700 rounded-md px-3 py-2 text-white text-sm"
+          className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-fg text-sm"
         >
           <option value="" disabled>Select a verified method</option>
           {verifiedAccounts.map((a) => (
@@ -230,13 +230,13 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
             </option>
           ))}
         </select>
-        <p className="text-[11px] text-gray-500">
+        <p className="text-[11px] text-fg-subtle">
           PayPal payouts are sent from our PayPal account.
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="withdrawal-amount" className="text-gray-300">Gross amount (USD)</Label>
+        <Label htmlFor="withdrawal-amount" className="text-fg-muted">Gross amount (USD)</Label>
         <Input
           id="withdrawal-amount"
           type="number"
@@ -246,16 +246,16 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder="0.00"
-          className="bg-secondary border-gray-700 text-white"
+          className="bg-secondary border-border text-fg"
         />
       </div>
 
       {/* Quote panel */}
-      <div className="rounded-md border border-gray-700 bg-secondary/30 p-3 space-y-2">
+      <div className="rounded-md border border-border bg-secondary/30 p-3 space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-gray-200">Live quote</p>
+          <p className="text-sm font-medium text-fg">Live quote</p>
           {quoteQuery.isFetching && (
-            <span className="text-[11px] text-gray-400 flex items-center gap-1">
+            <span className="text-[11px] text-fg-muted flex items-center gap-1">
               <RefreshCw className="w-3 h-3 animate-spin" />
               Fetching...
             </span>
@@ -271,7 +271,7 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
         </div>
         {quoteQuery.isLoading && <Loading message="Calculating fee..." size="sm" />}
         {quoteQuery.error && (
-          <div className="text-sm text-red-400 flex items-center gap-2">
+          <div className="text-sm text-danger flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
             <span>Could not fetch quote: {quoteQuery.error?.response?.data?.message || "unknown error"}</span>
           </div>
@@ -279,25 +279,25 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
         {quoteQuery.data && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
-              <p className="text-gray-400">Provider fee</p>
-              <p className="text-white font-medium">{formatUsd(quoteQuery.data.fee)}</p>
+              <p className="text-fg-muted">Provider fee</p>
+              <p className="text-fg font-medium">{formatUSD(quoteQuery.data.fee)}</p>
             </div>
             {quoteQuery.data.chargebackFee > 0 && (
               <div>
-                <p className="text-gray-400">
+                <p className="text-fg-muted">
                   Chargeback fee
                   {quoteQuery.data.chargebackFeePercent ? ` (${quoteQuery.data.chargebackFeePercent}%)` : ""}
                 </p>
-                <p className="text-white font-medium">{formatUsd(quoteQuery.data.chargebackFee)}</p>
+                <p className="text-fg font-medium">{formatUSD(quoteQuery.data.chargebackFee)}</p>
               </div>
             )}
             <div>
-              <p className="text-gray-400">You will receive</p>
-              <p className="text-green-400 font-semibold">{formatUsd(quoteQuery.data.net)}</p>
+              <p className="text-fg-muted">You will receive</p>
+              <p className="text-success font-semibold">{formatUSD(quoteQuery.data.net)}</p>
             </div>
             <div>
-              <p className="text-gray-400">Source</p>
-              <p className="text-white text-xs">
+              <p className="text-fg-muted">Source</p>
+              <p className="text-fg text-xs">
                 {quoteQuery.data.feeSource === "static" && "Admin-configured static fee"}
                 {(quoteQuery.data.feeSource === "live" || quoteQuery.data.feeSource === "fallback") && "Configured fee"}
               </p>
@@ -307,29 +307,29 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="withdrawal-notes" className="text-gray-300">Note (optional)</Label>
+        <Label htmlFor="withdrawal-notes" className="text-fg-muted">Note (optional)</Label>
         <Input
           id="withdrawal-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Anything you want the admin to see"
-          className="bg-secondary border-gray-700 text-white"
+          className="bg-secondary border-border text-fg"
           maxLength={500}
         />
       </div>
 
       {validationError && (
-        <div className="text-sm text-red-400 flex items-center gap-2">
+        <div className="text-sm text-danger flex items-center gap-2">
           <AlertCircle className="w-4 h-4" />
           <span>{validationError}</span>
         </div>
       )}
 
-      <div className="flex justify-end gap-2 pt-2 border-t border-gray-700">
-        <Button type="button" variant="outline" onClick={onCancel} className="border-gray-700 text-gray-300">
+      <div className="flex justify-end gap-2 pt-2 border-t border-border">
+        <Button type="button" variant="outline" onClick={onCancel} className="border-border text-fg-muted">
           Cancel
         </Button>
-        <Button type="submit" disabled={!canSubmit} className="bg-accent text-white">
+        <Button type="submit" disabled={!canSubmit} className="bg-accent text-fg">
           {submitMutation.isPending ? "Submitting..." : "Request withdrawal"}
         </Button>
       </div>

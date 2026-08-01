@@ -170,9 +170,9 @@ const AdminDashboard = () => {
       {/* Additional Metrics Section */}
       {stats?.metrics && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5" />
                 Platform Metrics
               </CardTitle>
@@ -201,9 +201,9 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
                 Refund Statistics
               </CardTitle>

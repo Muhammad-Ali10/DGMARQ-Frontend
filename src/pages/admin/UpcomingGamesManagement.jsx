@@ -187,9 +187,9 @@ const UpcomingGamesManagement = () => {
       </div>
 
       {/* Add Products Section */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">Add Products</CardTitle>
+          <CardTitle>Add Products</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -222,7 +222,7 @@ const UpcomingGamesManagement = () => {
                       );
                       
                       return (
-                        <div
+                        <button type="button"
                           key={product._id}
                           onClick={() => handleProductSelect(product)}
                           className={`p-3 hover:bg-gray-700 cursor-pointer flex items-center justify-between ${
@@ -244,8 +244,8 @@ const UpcomingGamesManagement = () => {
                               </p>
                             </div>
                           </div>
-                          {isSelected && <Check className="w-4 h-4 text-accent" />}
-                        </div>
+                          {isSelected && <Check className="w-4 h-4 text-accent-on-dark" />}
+                        </button>
                       );
                     })
                   ) : (
@@ -291,9 +291,9 @@ const UpcomingGamesManagement = () => {
       </Card>
 
       {/* Current Products List */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">
+          <CardTitle>
             Current Upcoming Games ({configData?.products?.length || 0})
           </CardTitle>
         </CardHeader>
@@ -397,7 +397,7 @@ const UpcomingGamesManagement = () => {
       </Card>
 
       {/* Info Note */}
-      <Card className="bg-blue-900/20 border-blue-700">
+      <Card variant="hud" className="bg-blue-900/20 border-blue-700">
         <CardContent className="pt-6">
           <p className="text-blue-300 text-sm">
             <strong>Note:</strong> Only the first 6 products will be displayed on the homepage.

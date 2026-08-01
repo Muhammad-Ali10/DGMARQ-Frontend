@@ -56,7 +56,7 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
             />
           ) : (
             <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center border-2 border-accent/30">
-              <span className="text-accent font-semibold text-xs">
+              <span className="text-accent-on-dark font-semibold text-xs">
                 {getInitials(senderName)}
               </span>
             </div>
@@ -71,7 +71,7 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
       )}>
         {/* Sender Name (only for received messages) */}
         {!isOwn && senderName && (
-          <span className="text-gray-400 text-xs mb-1 px-1">
+          <span className="text-fg-muted text-xs mb-1 px-1">
             {senderName}
           </span>
         )}
@@ -81,8 +81,8 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
           className={cn(
             'rounded-lg px-4 py-2.5 shadow-sm',
             isOwn
-              ? 'bg-accent text-white rounded-br-sm'
-              : 'bg-gray-800 text-white rounded-bl-sm'
+              ? 'bg-accent text-fg rounded-br-sm'
+              : 'bg-surface-2 text-fg rounded-bl-sm'
           )}
         >
           {message.messageType === 'image' ? (
@@ -95,11 +95,11 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
                     className="max-w-[280px] max-h-[240px] rounded object-cover opacity-90"
                   />
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded">
-                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                    <Loader2 className="h-6 w-6 animate-spin text-fg" />
                   </div>
                 </div>
               ) : message.uploadStatus === 'pending' && !message.attachment ? (
-                <div className="flex items-center gap-2 min-w-[120px] min-h-[80px] bg-gray-700/50 rounded p-3">
+                <div className="flex items-center gap-2 min-w-[120px] min-h-[80px] bg-surface-2/50 rounded p-3">
                   <Loader2 className="h-5 w-5 animate-spin shrink-0" />
                   <span className="text-xs opacity-80">Uploading...</span>
                 </div>
@@ -123,8 +123,8 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
                     onClick={() => message.attachment && setLightboxOpen(true)}
                   />
                   {!imgLoaded && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-700/50 rounded min-w-[120px] min-h-[80px]">
-                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-surface-2/50 rounded min-w-[120px] min-h-[80px]">
+                      <Loader2 className="h-6 w-6 animate-spin text-fg-muted" />
                     </div>
                   )}
                 </div>
@@ -144,6 +144,7 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
 
         {lightboxOpen && message.attachment && (
           <div
+            role="presentation"
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
             onClick={() => setLightboxOpen(false)}
           >
@@ -157,7 +158,7 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
         )}
 
         {/* Timestamp */}
-        <span className="text-gray-500 text-xs mt-1 px-1">
+        <span className="text-fg-subtle text-xs mt-1 px-1">
           {formatTime(message.sentAt || message.createdAt)}
         </span>
       </div>

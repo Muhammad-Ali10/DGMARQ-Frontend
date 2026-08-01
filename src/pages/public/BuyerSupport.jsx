@@ -56,7 +56,7 @@ const BuyerSupport = () => {
                   <ul className="space-y-2 text-sm text-gray-400">
                     {section.items.map((item, j) => (
                       <li key={j} className="flex gap-2">
-                        <span className="text-accent">✓</span> {item}
+                        <span className="text-accent-on-dark">✓</span> {item}
                       </li>
                     ))}
                   </ul>
@@ -65,7 +65,7 @@ const BuyerSupport = () => {
                   <ol className="space-y-2 text-sm text-gray-400">
                     {section.process.map((step, j) => (
                       <li key={j} className="flex gap-3">
-                        <span className="shrink-0 w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">{j + 1}</span>
+                        <span className="shrink-0 w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">{j + 1}</span>
                         {step}
                       </li>
                     ))}

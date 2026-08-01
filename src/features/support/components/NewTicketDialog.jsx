@@ -78,39 +78,39 @@ const NewTicketDialog = ({ open, onOpenChange, onCreated, prefill = null }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="md" className="bg-primary border-gray-700">
+      <DialogContent size="md" className="">
         <DialogHeader>
-          <DialogTitle className="text-white">Create Support Ticket</DialogTitle>
-          <DialogDescription className="text-gray-400">Tell us what you need help with</DialogDescription>
+          <DialogTitle className="text-fg">Create Support Ticket</DialogTitle>
+          <DialogDescription className="text-fg-muted">Tell us what you need help with</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-gray-300">Subject</Label>
+            <Label className="text-fg-muted">Subject</Label>
             <Input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="What do you need help with?"
               required
-              className="bg-gray-800 border-gray-700 text-white"
+              className="bg-surface-2 border-border text-fg"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label className="text-gray-300">Category</Label>
+              <Label className="text-fg-muted">Category</Label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-md px-2 py-2"
+                className="w-full bg-surface-2 border border-border text-fg text-sm rounded-md px-2 py-2"
               >
                 {SUPPORT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="space-y-2">
-              <Label className="text-gray-300">Related order (optional)</Label>
+              <Label className="text-fg-muted">Related order (optional)</Label>
               <select
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-md px-2 py-2"
+                className="w-full bg-surface-2 border border-border text-fg text-sm rounded-md px-2 py-2"
               >
                 <option value="">None</option>
                 {orders.map((o) => <option key={o._id} value={o._id}>{orderLabel(o)}</option>)}
@@ -118,14 +118,14 @@ const NewTicketDialog = ({ open, onOpenChange, onCreated, prefill = null }) => {
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-gray-300">Message</Label>
+            <Label className="text-fg-muted">Message</Label>
             <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Describe your issue…"
               required
               rows={5}
-              className="bg-gray-800 border-gray-700 text-white"
+              className="bg-surface-2 border-border text-fg"
             />
           </div>
           <div className="flex justify-end gap-2">

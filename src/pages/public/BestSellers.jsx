@@ -8,36 +8,6 @@ import { Button } from "@components/ui/button";
 import { Pagination } from "@components/common/Pagination";
 import { useSEO } from "@hooks/useSEO";
 
-const PlatformsButton = [
-  { name: "steam Games", url: "#" },
-  { name: "Origin Games ", url: "#" },
-  { name: "Xbox Live Games", url: "#" },
-  { name: "GOG Games", url: "#" },
-  { name: "Ubisoft Connect", url: "#" },
-  { name: "PSN Games", url: "#" },
-];
-
-const PopularTopics = [
-  { name: "Civilization Games", url: "#" },
-  { name: "Final Fantasy Games", url: "#" },
-  { name: "Nancy Drew Games ", url: "#" },
-  { name: "Borderlands Games", url: "#" },
-  { name: "Fallout Games", url: "#" },
-  { name: "Payday Games", url: "#" },
-  { name: "Sniper Elite Games", url: "#" },
-  { name: "ACA NEOGEO Games", url: "#" },
-  { name: "Civilization 7 Price", url: "#" },
-  { name: "Civilization 7 PS5 Code", url: "#" },
-  { name: "Kingdom Come Deliverance 2 Price", url: "#" },
-  { name: "Monster Hunter Wilds PC Key", url: "#" },
-  { name: "Monster Hunter Wilds Best Price", url: "#" },
-  { name: "Monster Hunter Wilds Xbox Key", url: "#" },
-  { name: "Monster Hunter Wilds PS5 Code", url: "#" },
-  { name: "Ambulance Life PC Key", url: "#" },
-  { name: "Spider-Man 2 PC Key", url: "#" },
-  { name: "Assetto Corsa Evo Key", url: "#" },
-];
-
 const BestSellers = () => {
   useSEO({
     title: "Best Sellers | DGMARQ",
@@ -128,7 +98,7 @@ const BestSellers = () => {
             <Button
               asChild
               variant="outline"
-              className="border-accent text-accent hover:bg-accent/10"
+              className="border-accent text-accent-on-dark hover:bg-accent/10"
             >
               <Link to="/search">Browse All Products</Link>
             </Button>
@@ -136,50 +106,6 @@ const BestSellers = () => {
         )}
       </div>
 
-      {/* <div className="flex flex-col items-center justify-center gap-7 bg-[#0E092C] py-12  w-full">
-        <h3 className="text-2xl font-semibold text-white">
-          TOP Game Platforms
-        </h3>
-        <p className="text-sm font-poppins font-normal text-white">
-          Are you low on cash or just want to score a great bargain? DGMARQ
-          offers a selection of great video games for all major gaming
-          platforms!
-        </p>
-
-        <div className="flex flex-wrap items-center justify-center gap-4 max-w-1260 w-full">
-          {PlatformsButton.map((platform, index) => (
-            <Button
-              className="py-5 px-4 rounded-21 h-[110px] bg-[#060318] w-[189px]  font-poppins text-base text-center text-white font-bold"
-              key={index}
-              as={Link}
-              to={platform.url}
-            >
-              {platform.name}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col items-center justify-center gap-7 py-12 max-w-1260 w-full mx-auto">
-        <h3 className="text-2xl font-semibold text-white">Popular Topics</h3>
-        <p className="text-sm font-poppins font-normal text-white">
-          Explore the most popular topics in the gaming world and find the best
-          deals on your favorite games!
-        </p>
-
-        <div className="flex flex-wrap items-center justify-start gap-4 max-w-1260 w-full mx-auto">
-          {PopularTopics.map((topic, index) => (
-            <Button
-              className="py-5 px-4 bg-blue-3 rounded-21 h-[64px] font-poppins text-base text-center text-white font-bold"
-              key={index}
-              as={Link}
-              to={topic.url}
-            >
-              {topic.name}
-            </Button>
-          ))}
-        </div>
-      </div>
-        */}
     </div>
   );
 };

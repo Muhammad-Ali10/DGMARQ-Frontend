@@ -18,30 +18,30 @@ const LegalPage = ({ data, seo }) => {
   const renderContent = (item) => {
     if (Array.isArray(item)) {
       return (
-        <ul className="list-disc list-inside space-y-1 ml-4 mt-2 text-sm text-gray-400">
+        <ul className="list-disc list-inside space-y-1 ml-4 mt-2 text-sm text-fg-muted">
           {item.map((sub, j) => (
             <li key={j}>{sub}</li>
           ))}
         </ul>
       );
     }
-    return <p className="text-sm text-gray-400">{item}</p>;
+    return <p className="text-sm text-fg-muted">{item}</p>;
   };
 
   const isInternalCta = finalCta?.ctaPrimaryUrl?.startsWith("/");
 
   return (
-    <main className="flex min-h-screen flex-col text-white">
+    <main className="flex min-h-screen flex-col text-fg">
       {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden bg-gradient-to-b from-accent/10 via-transparent to-transparent">
         <div className="flex flex-col gap-6 max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-white">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-fg">
             {hero.headline}
           </h1>
-          <p className="text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl text-fg-muted max-w-3xl mx-auto leading-relaxed">
             {hero.subtext}
           </p>
-          <p className="text-sm text-accent/90">{hero.effectiveDate}</p>
+          <p className="text-sm text-accent-on-dark/90">{hero.effectiveDate}</p>
         </div>
       </SectionWrapper>
 
@@ -50,7 +50,7 @@ const LegalPage = ({ data, seo }) => {
         <div className="flex flex-col gap-8 max-w-4xl mx-auto">
           {sections.map((section) => (
             <GlowCard key={section.num}>
-              <h2 className="text-lg font-semibold text-white mb-4">
+              <h2 className="text-lg font-semibold text-fg mb-4">
                 {section.num}. {section.title}
               </h2>
               <div className="space-y-3">
@@ -67,18 +67,18 @@ const LegalPage = ({ data, seo }) => {
       {finalCta && (
         <SectionWrapper id="final-cta">
           <div className="flex flex-col items-center gap-6 text-center max-w-2xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white">{finalCta.headline}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-fg">{finalCta.headline}</h2>
             {isInternalCta ? (
               <Link
                 to={finalCta.ctaPrimaryUrl}
-                className="inline-flex items-center justify-center rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white shadow-[0_0_30px_rgba(14,81,226,0.8)] transition-transform hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-fg shadow-[0_0_30px_rgba(14,81,226,0.8)] transition-transform hover:-translate-y-0.5"
               >
                 {finalCta.ctaPrimary}
               </Link>
             ) : (
               <a
                 href={finalCta.ctaPrimaryUrl}
-                className="inline-flex items-center justify-center rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white shadow-[0_0_30px_rgba(14,81,226,0.8)] transition-transform hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-fg shadow-[0_0_30px_rgba(14,81,226,0.8)] transition-transform hover:-translate-y-0.5"
               >
                 {finalCta.ctaPrimary}
               </a>

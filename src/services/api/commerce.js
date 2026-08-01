@@ -66,7 +66,6 @@ export const returnRefundAPI = {
   },
   validateGuestOrder: (queryString) =>
     api.get(`/return-refund/guest/validate?${queryString}`),
-  escalateToAdmin: (refundId) => api.post(`/return-refund/${refundId}/escalate`),
   getRefundMessages: (refundId) => api.get(`/return-refund/${refundId}/messages`),
   addRefundMessage: (refundId, payload) => {
     if (payload instanceof FormData) {
@@ -77,12 +76,10 @@ export const returnRefundAPI = {
     return api.post(`/return-refund/${refundId}/messages`, payload);
   },
   getSellerRefundList: (params) => api.get('/return-refund/seller/list', { params }),
-  sellerApproveRefund: (refundId) => api.patch(`/return-refund/seller/${refundId}/approve`),
-  sellerRejectRefund: (refundId, reason) => api.patch(`/return-refund/seller/${refundId}/reject`, { reason }),
+  // Sellers can only leave advisory feedback — no approve/reject (admin-only).
   sellerSubmitFeedback: (refundId, feedback) => api.patch(`/return-refund/seller/${refundId}/feedback`, { feedback }),
   getAllRefunds: (params) => api.get('/return-refund/admin/all', { params }),
   updateRefundStatus: (refundId, data) => api.patch(`/return-refund/admin/${refundId}`, data),
-  requestSellerInput: (refundId, note) => api.patch(`/return-refund/admin/${refundId}/request-seller-input`, { note }),
   getRefundKeyDetails: (refundId) => api.get(`/return-refund/${refundId}/key-details`),
 };
 

@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { returnRefundAPI } from '@services/api';
 import { useSocket } from '@hooks/useSocket';
 import { Card, CardContent } from '@components/ui/card';
 import { Button } from '@components/ui/button';
-import { Label } from '@components/ui/label';
 import { Badge } from '@components/ui/badge';
-import { Textarea } from '@components/ui/textarea';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import {
   ArrowLeft, CheckCircle2, XCircle, Copy, Check, Key, EyeOff,
-  MessageSquare, ExternalLink, ClipboardCheck, AlertTriangle, Clock,
+  ExternalLink, ClipboardCheck, AlertTriangle, Clock,
   User as UserIcon, Store, Package, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
@@ -63,7 +61,7 @@ const CopyButton = ({ value, label = 'Copy' }) => {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-accent transition-colors"
+      className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-accent-on-dark transition-colors"
       aria-label={label}
     >
       {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
@@ -87,13 +85,6 @@ const Timeline = ({ refund }) => {
       label: 'Refund requested',
       at: refund?.createdAt,
       reached: true,
-    },
-    {
-      key: 'seller_review',
-      label: refund?.sellerReviewStartedAt ? 'Seller review' : 'Skipped seller review',
-      at: refund?.sellerReviewStartedAt || null,
-      reached: !!refund?.sellerReviewStartedAt || ['SELLER_APPROVED', 'SELLER_REJECTED'].includes(status),
-      muted: !refund?.sellerReviewStartedAt,
     },
     {
       key: 'admin_review',
@@ -180,8 +171,6 @@ const AdminRefundDetail = () => {
 
   const [actionType, setActionType] = useState(null);
   const [isActionOpen, setIsActionOpen] = useState(false);
-  const [sellerInputNote, setSellerInputNote] = useState('');
-  const [showRequestSellerInput, setShowRequestSellerInput] = useState(false);
   const [showKeyDetails, setShowKeyDetails] = useState(false);
   const [keyDetails, setKeyDetails] = useState(null);
   const [keyDetailsLoading, setKeyDetailsLoading] = useState(false);
@@ -206,18 +195,6 @@ const AdminRefundDetail = () => {
     socket.on('refund_executed', onRefundExecuted);
     return () => socket.off('refund_executed', onRefundExecuted);
   }, [socket, isConnected, queryClient, refundId]);
-
-  const requestSellerInputMutation = useMutation({
-    mutationFn: ({ refundId: id, note }) => returnRefundAPI.requestSellerInput(id, note),
-    onSuccess: () => {
-      toast.success('Seller has been requested to provide input.');
-      queryClient.invalidateQueries({ queryKey: ['admin-refunds'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-refund-details', refundId] });
-      setSellerInputNote('');
-      setShowRequestSellerInput(false);
-    },
-    onError: (err) => toast.error(err.response?.data?.message || 'Failed to request seller input'),
-  });
 
   const back = (
     <Button onClick={() => navigate('/admin/return-refund')} variant="outline" size="sm">
@@ -354,11 +331,11 @@ const AdminRefundDetail = () => {
       </div>
 
       {/* Meta strip — one-line facts admin needs before opening any section */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardContent className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-start gap-2 min-w-0">
-              <Package className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+              <Package className="w-4 h-4 text-accent-on-dark mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wider">Order</p>
                 <div className="flex items-center gap-1">
@@ -368,7 +345,7 @@ const AdminRefundDetail = () => {
               </div>
             </div>
             <div className="flex items-start gap-2 min-w-0">
-              <UserIcon className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+              <UserIcon className="w-4 h-4 text-accent-on-dark mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wider">Customer</p>
                 <p className="text-white truncate">{refund.userId?.name || refund.userId?.email || 'N/A'}</p>
@@ -378,14 +355,14 @@ const AdminRefundDetail = () => {
               </div>
             </div>
             <div className="flex items-start gap-2 min-w-0">
-              <Store className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+              <Store className="w-4 h-4 text-accent-on-dark mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wider">Seller</p>
                 <p className="text-white truncate">{refund.sellerId?.shopName || 'N/A'}</p>
               </div>
             </div>
             <div className="flex items-start gap-2 min-w-0">
-              <Clock className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+              <Clock className="w-4 h-4 text-accent-on-dark mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wider">Requested</p>
                 <p className="text-white">{new Date(refund.createdAt).toLocaleDateString()}</p>
@@ -401,7 +378,7 @@ const AdminRefundDetail = () => {
         {/* LEFT COLUMN — the review flow (top-down as an admin reads) */}
         <div className="lg:col-span-2 space-y-4">
           {/* REASON + PRODUCT snapshot (why is this being refunded, of what) */}
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardContent className="p-5 space-y-4">
               <div className="flex items-start gap-4">
                 {refund.productId?.images?.[0] && (
@@ -432,7 +409,7 @@ const AdminRefundDetail = () => {
 
           {/* EVIDENCE — prominent, click-to-lightbox */}
           {refund.evidenceFiles?.length > 0 && (
-            <Card className="bg-primary border-gray-700">
+            <Card variant="hud">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-white">Evidence</p>
@@ -459,11 +436,11 @@ const AdminRefundDetail = () => {
 
           {/* LICENSE KEYS — collapsible reveal */}
           {refund.licenseKeyIds?.length > 0 && (
-            <Card className="bg-primary border-gray-700">
+            <Card variant="hud">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Key className="w-4 h-4 text-accent" />
+                    <Key className="w-4 h-4 text-accent-on-dark" />
                     <p className="text-sm font-semibold text-white">Keys in request</p>
                     <span className="text-xs text-gray-500">({refund.licenseKeyIds.length})</span>
                   </div>
@@ -517,61 +494,12 @@ const AdminRefundDetail = () => {
             </Card>
           )}
 
-          {/* REQUEST SELLER INPUT — inline block, only when actionable */}
-          {status === 'ADMIN_REVIEW' && (
-            <Card className="bg-primary border-gray-700">
-              <CardContent className="p-5">
-                {!showRequestSellerInput ? (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-white">Need seller input?</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Ask the seller to clarify before you decide.</p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowRequestSellerInput(true)}
-                      className="border-gray-600 text-gray-300"
-                    >
-                      <MessageSquare className="w-4 h-4 mr-1" />
-                      Request input
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label className="text-gray-300 text-sm">Message to seller</Label>
-                    <Textarea
-                      value={sellerInputNote}
-                      onChange={(e) => setSellerInputNote(e.target.value)}
-                      placeholder={'e.g. "Was this license valid at delivery?"'}
-                      rows={2}
-                      className="bg-secondary border-gray-700 text-white w-full"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => requestSellerInputMutation.mutate({ refundId: refund._id, note: sellerInputNote })}
-                        disabled={requestSellerInputMutation.isPending || !sellerInputNote.trim()}
-                        className="bg-accent hover:bg-accent/90"
-                      >
-                        Send
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setShowRequestSellerInput(false); setSellerInputNote(''); }}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
           {/* SELLER FEEDBACK — advisory only, prominent when present */}
           {(refund.sellerFeedback || refund.sellerDecisionReason) && (
-            <Card className="bg-primary border-gray-700">
+            <Card variant="hud">
               <CardContent className="p-5 space-y-3">
                 <p className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Store className="w-4 h-4 text-accent" />
+                  <Store className="w-4 h-4 text-accent-on-dark" />
                   From the seller
                 </p>
                 {refund.sellerDecisionReason && (
@@ -608,7 +536,7 @@ const AdminRefundDetail = () => {
                       {refund.refundHistory.map((h, i) => (
                         <li key={i} className="flex gap-2 items-baseline">
                           <span className="text-gray-500 font-mono shrink-0">{h.timestamp ? new Date(h.timestamp).toLocaleString() : ''}</span>
-                          <span className="text-accent capitalize">{h.actor}</span>
+                          <span className="text-accent-on-dark capitalize">{h.actor}</span>
                           <span className="text-gray-400">{h.action}</span>
                           {h.newStatus && <span className="text-white">→ {h.newStatus}</span>}
                         </li>
@@ -653,7 +581,7 @@ const AdminRefundDetail = () => {
           )}
 
           {/* REFUND CHAT — full-width at bottom */}
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardContent className="p-5">
               <RefundChat refundId={refund._id} canSend={true} locked={isRefundChatLocked(refund.status)} />
             </CardContent>
@@ -664,12 +592,12 @@ const AdminRefundDetail = () => {
         <div className="space-y-4">
           <div className="lg:sticky lg:top-4 space-y-4">
             {/* Decision panel */}
-            <Card className="bg-primary border-gray-700">
+            <Card variant="hud">
               <CardContent className="p-5">{decisionPanel}</CardContent>
             </Card>
 
             {/* Timeline */}
-            <Card className="bg-primary border-gray-700">
+            <Card variant="hud">
               <CardContent className="p-5">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-3">Timeline</p>
                 <Timeline refund={refund} />

@@ -3,7 +3,6 @@ import { keepPreviousData, useQuery, useMutation } from '@tanstack/react-query';
 import { sellerAPI, chatAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
-import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { ProductCard } from '@features/catalog';
 import { 
@@ -143,7 +142,7 @@ const PublicSellerProfile = () => {
         )}
         
         <div className="container mx-auto px-4 py-8">
-          <Card className="bg-[#0a1f3d] border-gray-700">
+          <Card className="bg-[#0a1f3d] ">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
                 {/* Seller Avatar */}
@@ -193,7 +192,7 @@ const PublicSellerProfile = () => {
                     <Button
                       onClick={handleChatWithSeller}
                       disabled={createConversationMutation.isPending}
-                      className="bg-primary hover:bg-primary/90 text-white"
+                      className="bg-background hover:bg-primary/90 text-white"
                     >
                       <MessageSquare className="h-4 w-4 mr-2" />
                       {createConversationMutation.isPending ? 'Starting...' : 'Chat with Seller'}
@@ -229,7 +228,7 @@ const PublicSellerProfile = () => {
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">
-                        <Package className="h-5 w-5 text-primary" />
+                        <Package className="h-5 w-5 text-accent-on-dark" />
                         <span className="text-xl sm:text-2xl font-bold">{sellerProfile.stats.totalProducts}</span>
                       </div>
                       <p className="text-xs sm:text-sm text-gray-400">Products</p>
@@ -260,14 +259,15 @@ const PublicSellerProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Products Section */}
           <div className="lg:col-span-2">
-            <Card className="bg-[#0a1f3d] border-gray-700 mb-6">
+            <Card className="bg-[#0a1f3d] mb-6">
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <CardTitle className="text-white flex items-center gap-2">
                   <Package className="h-5 w-5" />
                   Products ({sellerProfile.stats.totalProducts})
                 </CardTitle>
                 <input
-                  type="text"
+                  type="search"
+                  aria-label="Search this seller's products"
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   placeholder="Search this seller's products..."
@@ -303,7 +303,7 @@ const PublicSellerProfile = () => {
 
           {/* Reviews Section */}
           <div className="lg:col-span-1">
-            <Card className="bg-[#0a1f3d] border-gray-700">
+            <Card className="bg-[#0a1f3d] ">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   <Star className="h-5 w-5 text-yellow-400" />

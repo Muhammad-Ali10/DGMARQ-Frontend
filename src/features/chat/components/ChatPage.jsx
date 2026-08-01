@@ -66,8 +66,8 @@ const ROLE_CONFIG = {
     headerSubtitle: 'Chat with sellers about your orders',
     getPeerName: (conv) => conv?.sellerId?.shopName || 'Seller',
     getUnreadCount: (conv) => conv?.unreadCountBuyer ?? 0,
-    chatCardClassName: 'lg:col-span-2 bg-primary border-gray-700 flex flex-col max-w-full h-full min-h-0 overflow-hidden',
-    chatHeaderClassName: 'shrink-0 border-b border-gray-700 px-4 py-3',
+    chatCardClassName: 'lg:col-span-2 flex flex-col max-w-full h-full min-h-0 overflow-hidden',
+    chatHeaderClassName: 'shrink-0 border-b border-brand-cyan/10 px-4 py-3',
     messagesWidthClassName: 'max-w-2xl mx-auto',
   },
   seller: {
@@ -75,8 +75,8 @@ const ROLE_CONFIG = {
     headerSubtitle: 'Communicate with buyers',
     getPeerName: (conv) => conv?.buyerId?.name || 'Buyer',
     getUnreadCount: (conv) => conv?.unreadCountSeller ?? 0,
-    chatCardClassName: 'lg:col-span-2 bg-primary border-gray-700 flex flex-col max-w-full py-2 h-full min-h-0 overflow-hidden',
-    chatHeaderClassName: 'shrink-0 border-b border-gray-700 px-4 py-0!',
+    chatCardClassName: 'lg:col-span-2 flex flex-col max-w-full py-2 h-full min-h-0 overflow-hidden',
+    chatHeaderClassName: 'shrink-0 border-b border-brand-cyan/10 px-4 py-0!',
     messagesWidthClassName: 'max-w-4xl mx-auto',
   },
 };
@@ -634,16 +634,16 @@ const ChatPage = ({ role }) => {
     <ErrorBoundary>
       <div className="flex flex-col h-[calc(100vh-4rem)] min-h-0 max-h-[calc(100vh-4rem)] -m-4 md:-m-6 lg:-m-8">
       <div className="shrink-0 mb-4 px-4 md:px-6 lg:px-8 pt-4 md:pt-6 lg:pt-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Chat</h1>
-        <p className="text-gray-400 mt-1">{config.headerSubtitle}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-fg">Chat</h1>
+        <p className="text-fg-muted mt-1">{config.headerSubtitle}</p>
         {isConnected && <Badge variant="success" className="mt-2">Connected</Badge>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0 px-4 md:px-6 lg:px-8 pb-4 md:pb-6 lg:pb-8 overflow-hidden">
         {/* Conversations List */}
-        <Card className="bg-primary border-gray-700 flex flex-col h-full min-h-0 overflow-hidden">
-          <CardHeader className="shrink-0 border-b border-gray-700">
-            <CardTitle className="text-white flex items-center gap-2">
+        <Card variant="hud" className="flex flex-col h-full min-h-0 overflow-hidden">
+          <CardHeader className="shrink-0 border-b ">
+            <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
               Conversations
             </CardTitle>
@@ -654,29 +654,30 @@ const ChatPage = ({ role }) => {
             ) : (
               <div className="space-y-2">
                 {(conversations ?? []).map((conv) => (
-                  <div
+                  <button
+                    type="button"
                     key={conv?._id}
                     onClick={() => setSelectedConversation(conv?._id)}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                    className={`block w-full text-left p-3 rounded-lg transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       selectedConversation === conv?._id
                         ? 'bg-accent'
-                        : 'bg-gray-800 hover:bg-gray-700'
+                        : 'bg-surface-2 hover:bg-gray-700'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-white font-medium truncate">
+                      <span className="text-fg font-medium truncate">
                         {config.getPeerName(conv)}
                       </span>
                       {config.getUnreadCount(conv) > 0 && (
                         <Badge variant="destructive">{config.getUnreadCount(conv)}</Badge>
                       )}
                     </div>
-                    <p className="text-gray-400 text-sm truncate">
+                    <p className="text-fg-muted text-sm truncate">
                       {conv?.lastMessage || (conv?.orderId
                         ? `Order: $${conv?.orderId?.totalAmount?.toFixed(2) || '0.00'}`
                         : 'No messages yet')}
                     </p>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -684,10 +685,10 @@ const ChatPage = ({ role }) => {
         </Card>
 
         {/* Chat Messages - Fixed Width Container */}
-        <Card className={config.chatCardClassName}>
+        <Card variant="hud" className={config.chatCardClassName}>
           <CardHeader className={config.chatHeaderClassName}>
             <div className="flex items-center justify-between gap-3">
-              <CardTitle className="text-white text-lg">
+              <CardTitle>
                 {conversation ? `Chat with ${config.getPeerName(conversation)}` : 'Select a conversation'}
               </CardTitle>
               {conversation && (() => {
@@ -707,8 +708,8 @@ const ChatPage = ({ role }) => {
                       if (window.confirm(confirmMsg)) blockMutation.mutate(selectedConversation);
                     }}
                     className={isBlocked
-                      ? 'border-emerald-600/60 text-emerald-300 hover:bg-emerald-500/10'
-                      : 'border-red-600/60 text-red-300 hover:bg-red-500/10'}
+                      ? 'border-emerald-600/60 text-success hover:bg-emerald-500/10'
+                      : 'border-red-600/60 text-danger hover:bg-red-500/10'}
                   >
                     {isBlocked ? <ShieldOff className="h-4 w-4 mr-1.5" /> : <Ban className="h-4 w-4 mr-1.5" />}
                     {isBlocked ? 'Unblock' : 'Block'}
@@ -740,8 +741,8 @@ const ChatPage = ({ role }) => {
                     </div>
                   ) : messagesError ? (
                     <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                      <p className="text-red-400 mb-2 font-medium">Failed to load messages</p>
-                      <p className="text-gray-400 text-sm mb-4">
+                      <p className="text-danger mb-2 font-medium">Failed to load messages</p>
+                      <p className="text-fg-muted text-sm mb-4">
                         {messagesError?.response?.data?.message || messagesError?.message || 'Please try again'}
                       </p>
                       <Button
@@ -756,9 +757,9 @@ const ChatPage = ({ role }) => {
                     <>
                       {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center py-12 px-4">
-                          <MessageSquare className="h-16 w-16 text-gray-600 mb-4 opacity-50" />
-                          <p className="text-gray-400 text-lg font-medium mb-2">No messages yet</p>
-                          <p className="text-gray-500 text-sm">Start the conversation by sending a message</p>
+                          <MessageSquare className="h-16 w-16 text-fg-subtle mb-4 opacity-50" />
+                          <p className="text-fg-muted text-lg font-medium mb-2">No messages yet</p>
+                          <p className="text-fg-subtle text-sm">Start the conversation by sending a message</p>
                         </div>
                       ) : (
                         <div className={config.messagesWidthClassName}>
@@ -792,13 +793,13 @@ const ChatPage = ({ role }) => {
 
                 {/* Typing indicator */}
                 {peerTyping && (
-                  <div className="shrink-0 px-5 pb-1 text-xs text-gray-400 italic">
+                  <div className="shrink-0 px-5 pb-1 text-xs text-fg-muted italic">
                     typing…
                   </div>
                 )}
 
                 {/* Input Area - Fixed at bottom */}
-                <div className="shrink-0 p-4 border-t border-gray-700 bg-primary">
+                <div className="shrink-0 p-4 border-t border-brand-cyan/10">
                   {conversation?.status === 'blocked' ? (
                     <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-md border border-red-600/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                       <Ban className="h-4 w-4 shrink-0" />
@@ -814,6 +815,7 @@ const ChatPage = ({ role }) => {
                       <input
                         ref={imageInputRef}
                         type="file"
+                        aria-label="Attach an image"
                         accept="image/jpeg,image/png,image/gif,image/webp"
                         className="hidden"
                         onChange={handleImageSelect}
@@ -832,7 +834,7 @@ const ChatPage = ({ role }) => {
                         value={message}
                         onChange={handleMessageChange}
                         placeholder="Type your message..."
-                        className="bg-gray-800 border-gray-700 text-white flex-1"
+                        className="bg-surface-2 border-border text-fg flex-1"
                         disabled={sendMessageMutation.isPending || (!isConnected && !socket)}
                       />
                       <Button
@@ -847,7 +849,7 @@ const ChatPage = ({ role }) => {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-400">
+              <div className="flex-1 flex items-center justify-center text-fg-muted">
                 <div className="text-center">
                   <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Select a conversation to start chatting</p>

@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Badge } from '@components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@components/ui/dialog';
-import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Textarea } from '@components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
@@ -226,9 +225,9 @@ const UsersManagement = () => {
         <p className="text-sm sm:text-base text-gray-400 mt-1">Manage platform users</p>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             All Users
           </CardTitle>
@@ -265,7 +264,7 @@ const UsersManagement = () => {
                 ref={scrollContainerRef}
                 className="overflow-auto max-h-[70vh]"
               >
-                <Table>
+                <Table variant="hud">
                   <TableHeader>
                     <TableRow className="border-gray-700 hover:bg-gray-800">
                       <TableHead className="text-gray-300">Name</TableHead>
@@ -279,7 +278,7 @@ const UsersManagement = () => {
                   <TableBody>
                     {paddingTop > 0 && (
                       <tr aria-hidden="true">
-                        <td colSpan={6} style={{ height: `${paddingTop}px`, padding: 0, border: 0 }} />
+                        <td aria-hidden="true" colSpan={6} style={{ height: `${paddingTop}px`, padding: 0, border: 0 }} />
                       </tr>
                     )}
                     {virtualRows.map((virtualRow) => {
@@ -297,7 +296,7 @@ const UsersManagement = () => {
                     })}
                     {paddingBottom > 0 && (
                       <tr aria-hidden="true">
-                        <td colSpan={6} style={{ height: `${paddingBottom}px`, padding: 0, border: 0 }} />
+                        <td aria-hidden="true" colSpan={6} style={{ height: `${paddingBottom}px`, padding: 0, border: 0 }} />
                       </tr>
                     )}
                   </TableBody>
@@ -311,7 +310,7 @@ const UsersManagement = () => {
 
       {/* Ban Dialog */}
       <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <UserX className="h-5 w-5" />
@@ -355,7 +354,7 @@ const UsersManagement = () => {
 
       {/* Unban Dialog */}
       <Dialog open={unbanDialogOpen} onOpenChange={setUnbanDialogOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <UserCheck className="h-5 w-5" />

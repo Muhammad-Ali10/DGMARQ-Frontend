@@ -94,8 +94,8 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Notifications</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-fg">Notifications</h1>
+          <p className="text-fg-muted mt-1">
             {unreadCount > 0
               ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
               : 'All caught up!'}
@@ -105,7 +105,7 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
           <Button
             onClick={() => markAllAsReadMutation.mutate()}
             disabled={markAllAsReadMutation.isPending}
-            className="bg-accent hover:bg-blue-700"
+            className=""
           >
             <CheckCheck className="w-4 h-4 mr-2" />
             Mark All as Read
@@ -115,9 +115,9 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
 
       <NotificationFilterTabs value={filter} onChange={onFilterChange} unreadCount={unreadCount} />
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">
+          <CardTitle>
             {filter === 'unread' ? 'Unread Notifications' : filter === 'read' ? 'Read Notifications' : 'All Notifications'}
           </CardTitle>
         </CardHeader>
@@ -128,16 +128,35 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
                 const actionUrl = resolveNotificationActionUrl(notification.actionUrl, roles);
                 const isRefund = showRefundBadge && notification.type === 'refund';
                 return (
+                // A clickable card that CONTAINS action buttons, so it cannot be
+                // a native <button> — nested buttons are invalid HTML. The
+                // role="button" contract is fully met: role, tabIndex, onClick
+                // and Enter/Space are all present and all gated on the same
+                // `actionUrl` condition, and the inner controls stop
+                // propagation. ESLint reports it only because it cannot evaluate
+                // the ternary to see that the role is set whenever the handlers
+                // are. Disabled here specifically, not repo-wide.
+                /* eslint-disable-next-line jsx-a11y/no-static-element-interactions */
                 <div
                   key={notification._id}
                   className={`p-4 rounded-lg border ${
                     notification.isRead
-                      ? 'bg-secondary border-gray-700'
+                      ? 'bg-secondary border-border'
                       : 'bg-accent/10 border-accent'
                   } ${actionUrl ? 'cursor-pointer hover:border-accent/50' : ''}`}
                   role={actionUrl ? 'button' : undefined}
+                  // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- see above
+                  tabIndex={actionUrl ? 0 : undefined}
                   onClick={() => {
                     if (actionUrl) {
+                      navigate(actionUrl);
+                      if (!notification.isRead) markAsReadMutation.mutate(notification._id);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (!actionUrl) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
                       navigate(actionUrl);
                       if (!notification.isRead) markAsReadMutation.mutate(notification._id);
                     }
@@ -146,36 +165,36 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <Bell className="w-5 h-5 text-accent" />
+                        <Bell className="w-5 h-5 text-accent-on-dark" />
                         {!notification.isRead && (
                           <Badge variant="default" className="bg-accent">
                             New
                           </Badge>
                         )}
                         {isRefund && (
-                          <Badge variant="outline" className="border-amber-500 text-amber-400">
+                          <Badge variant="outline" className="border-amber-500 text-warning">
                             Refund
                           </Badge>
                         )}
-                        <span className="text-gray-400 text-sm">
+                        <span className="text-fg-muted text-sm">
                           {new Date(notification.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      <h3 className="text-white font-semibold mb-1">{notification.title || 'Notification'}</h3>
-                      <p className="text-gray-300">{notification.message || notification.body}</p>
+                      <h3 className="text-fg font-semibold mb-1">{notification.title || 'Notification'}</h3>
+                      <p className="text-fg-muted">{notification.message || notification.body}</p>
                       {notification.type && !isRefund && (
                         <Badge variant="outline" className="mt-2">
                           {notification.type}
                         </Badge>
                       )}
                       {showActionHint && actionUrl && (
-                        <p className="text-accent text-sm mt-2 flex items-center gap-1">
+                        <p className="text-accent-on-dark text-sm mt-2 flex items-center gap-1">
                           <ExternalLink className="w-4 h-4" />
                           View details
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
+                    <div role="presentation" className="flex gap-2 ml-4" onClick={(e) => e.stopPropagation()}>
                       {!notification.isRead && (
                         <Button
                           size="sm"
@@ -199,14 +218,14 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
               })
             ) : (
               <div className="text-center py-12">
-                <Bell className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400 text-lg">No notifications yet</p>
+                <Bell className="w-16 h-16 text-fg-subtle mx-auto mb-4" />
+                <p className="text-fg-muted text-lg">No notifications yet</p>
               </div>
             )}
           </div>
           {pagination.total > 0 && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-700">
-              <p className="text-sm text-gray-400">
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-brand-cyan/10">
+              <p className="text-sm text-fg-muted">
                 Page {page} of {pagination.totalPages}
               </p>
               <div className="flex gap-2">
@@ -215,7 +234,7 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
                   variant="outline"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="border-gray-700 text-gray-300"
+                  className="border-border text-fg-muted"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Previous
@@ -225,7 +244,7 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
                   variant="outline"
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                   disabled={page >= pagination.totalPages || isFetching}
-                  className="border-gray-700 text-gray-300"
+                  className="border-border text-fg-muted"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />

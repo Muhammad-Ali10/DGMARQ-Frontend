@@ -5,7 +5,8 @@ import { sellerAPI } from "@services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@components/ui/card";
 import { Button } from "@components/ui/button";
 import { Badge } from "@components/ui/badge";
-import { Loading, ErrorMessage } from "@components/ui/loading";
+import { Skeleton } from "@components/ui/skeleton";
+import { ErrorState } from "@components/common/ErrorState";
 import {
   Table,
   TableBody,
@@ -31,6 +32,7 @@ import {
   Hash,
 } from "lucide-react";
 import { showApiError } from "@utils/toast";
+import { formatUSD } from '@lib/money';
 
 // =============================================================================
 // Seller payout detail page (full route at /seller/earnings/:payoutId).
@@ -41,7 +43,6 @@ import { showApiError } from "@utils/toast";
 // date and expected release date.
 // =============================================================================
 
-const formatUsd = (n) => `$${Number(n || 0).toFixed(2)}`;
 
 const formatDateTime = (value) => {
   if (!value) return "N/A";
@@ -56,20 +57,6 @@ const formatDate = (value) => {
 };
 
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
-
-// Match the admin page's badge palette so the same statuses look identical
-// on both views (the seller's view is the same visual block, just scoped to
-// one payout line instead of multiple sellers per order).
-const PAYOUT_STATUS_VARIANT = {
-  pending: "warning",
-  available: "warning",
-  frozen: "warning",
-  released: "success",
-  hold: "secondary",
-  blocked: "destructive",
-  failed: "destructive",
-  processing: "warning",
-};
 
 // SECURITY: never render a raw license-key id. The backend already masks
 // keys via maskLicenseKeyForPayout() and ships `displayKey`. If for any
@@ -187,13 +174,19 @@ const PayoutDetail = () => {
     }
   }, [isError, error]);
 
-  if (isLoading) return <Loading message="Loading payout details..." />;
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-72 w-full rounded-lg" />
+      </div>
+    );
+  }
 
   if (isError) {
-    const message =
-      error?.response?.data?.message || error?.message || "Error loading payout details";
     return (
-      <div className="space-y-6 px-4 sm:px-0">
+      <div className="space-y-6">
         <Button
           onClick={() => navigate("/seller/earnings?tab=history")}
           variant="outline"
@@ -202,14 +195,18 @@ const PayoutDetail = () => {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Earnings
         </Button>
-        <ErrorMessage message={message} />
+        <Card variant="hud">
+          <CardContent>
+            <ErrorState error={error} title="Couldn't load this payout" />
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (!payout) {
     return (
-      <div className="space-y-6 px-4 sm:px-0">
+      <div className="space-y-6">
         <Button
           onClick={() => navigate("/seller/earnings?tab=history")}
           variant="outline"
@@ -218,8 +215,8 @@ const PayoutDetail = () => {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Earnings
         </Button>
-        <Card className="bg-primary border-gray-700">
-          <CardContent className="py-10 text-center text-gray-400">
+        <Card variant="hud">
+          <CardContent className="py-10 text-center text-fg-muted">
             Payout not found.
           </CardContent>
         </Card>
@@ -297,7 +294,7 @@ const PayoutDetail = () => {
       : Number(payout.netAmount || 0);
 
   return (
-    <div className="space-y-6 px-4 sm:px-0">
+    <div className="space-y-6">
       {/* Header — same shape as AdminPayoutDetail (back button + title + side action) */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
@@ -305,21 +302,21 @@ const PayoutDetail = () => {
             onClick={() => navigate("/seller/earnings?tab=history")}
             variant="outline"
             size="sm"
-            className="border-gray-700"
+            className="border-border"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Earnings
           </Button>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">Payout Detail</h1>
-            <p className="text-gray-400 text-sm mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-fg">Payout Detail</h1>
+            <p className="text-fg-muted text-sm mt-1">
               Order #{orderNumber}
             </p>
           </div>
         </div>
         {orderIdString && (
           <Link to={`/seller/orders/${orderIdString}`}>
-            <Button variant="outline" size="sm" className="border-gray-700 text-gray-300">
+            <Button variant="outline" size="sm" className="border-border text-fg-muted">
               <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
               View full order
             </Button>
@@ -332,38 +329,38 @@ const PayoutDetail = () => {
           intentionally NOT shown to sellers — buyer PII and admin-side financials are
           out of scope for the seller view. */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+            <div className="flex items-center gap-2 text-fg-muted text-xs mb-1">
               <Calendar className="w-3.5 h-3.5" /> Order Date
             </div>
-            <p className="text-white">{formatDateTime(orderDate)}</p>
+            <p className="text-fg">{formatDateTime(orderDate)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+            <div className="flex items-center gap-2 text-fg-muted text-xs mb-1">
               <Hash className="w-3.5 h-3.5" /> Order Number
             </div>
-            <p className="text-white font-mono">#{orderNumber}</p>
+            <p className="text-fg font-mono">#{orderNumber}</p>
           </CardContent>
         </Card>
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+            <div className="flex items-center gap-2 text-fg-muted text-xs mb-1">
               <DollarSign className="w-3.5 h-3.5" /> Net to You
             </div>
-            <p className="text-green-400 text-lg font-semibold">
-              {formatUsd(payout.netAmount)}
+            <p className="text-success text-lg font-semibold">
+              {formatUSD(payout.netAmount)}
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+            <div className="flex items-center gap-2 text-fg-muted text-xs mb-1">
               <Clock className="w-3.5 h-3.5" /> Hold Until
             </div>
-            <p className="text-white">{formatDate(payout.holdUntil)}</p>
+            <p className="text-fg">{formatDate(payout.holdUntil)}</p>
           </CardContent>
         </Card>
       </div>
@@ -371,22 +368,22 @@ const PayoutDetail = () => {
       {/* Frozen-by-refund timeline: when a refund pauses this payout line, show
           when the payment was paused and when funds are expected to release. */}
       {isFrozen && (
-        <Card className="bg-primary border-cyan-700/40">
+        <Card variant="hud" className="border-info/35">
           <CardContent className="pt-5 pb-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                <div className="flex items-center gap-2 text-fg-muted text-xs mb-1">
                   <Clock className="w-3.5 h-3.5" /> Payment Pause Date
                 </div>
-                <p className="text-white">
+                <p className="text-fg">
                   {formatDate(payout.frozenAt || refund?.createdAt || payout.updatedAt)}
                 </p>
               </div>
               <div>
-                <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                <div className="flex items-center gap-2 text-fg-muted text-xs mb-1">
                   <Calendar className="w-3.5 h-3.5" /> Expected Release Date
                 </div>
-                <p className="text-white">{formatDate(payout.holdUntil)}</p>
+                <p className="text-fg">{formatDate(payout.holdUntil)}</p>
               </div>
             </div>
           </CardContent>
@@ -396,9 +393,9 @@ const PayoutDetail = () => {
       {/* Single line-block — same shape as the admin's per-line block.
           The admin page renders one of these per (seller, line); sellers see
           exactly one because the route is scoped to their own payoutId. */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
             Payout Line
           </CardTitle>
@@ -407,8 +404,8 @@ const PayoutDetail = () => {
           <div
             className={`rounded-lg border p-4 space-y-4 ${
               isFrozen
-                ? "bg-cyan-950/20 border-cyan-700/40"
-                : "bg-secondary border-gray-700"
+                ? "bg-info-soft border-info/35"
+                : "bg-secondary border-border"
             }`}
           >
             {/* Product header + status badge */}
@@ -418,26 +415,24 @@ const PayoutDetail = () => {
                   <SafeImage
                     src={payout.product.image}
                     alt={payout.product.name}
-                    className="w-14 h-14 rounded-md object-cover border border-gray-700"
+                    className="w-14 h-14 rounded-md object-cover border border-border"
                   />
                 )}
                 <div>
                   <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-gray-400" />
-                    <span className="text-white font-semibold">
+                    <Package className="w-4 h-4 text-fg-muted" />
+                    <span className="text-fg font-semibold">
                       {payout.product?.name || "Unknown product"}
                     </span>
                   </div>
                   {payout.product?.productType && (
-                    <p className="text-xs text-gray-400 mt-0.5 ml-6">
+                    <p className="text-xs text-fg-muted mt-0.5 ml-6">
                       {payout.product.productType}
                     </p>
                   )}
                 </div>
               </div>
-              <Badge variant={PAYOUT_STATUS_VARIANT[payout.status] || "default"}>
-                {statusBadge.children}
-              </Badge>
+              <Badge {...statusBadge} />
             </div>
 
             {/* Inline metrics row — Gross/Commission/Net use sale-time
@@ -447,24 +442,24 @@ const PayoutDetail = () => {
                 Mirrors AdminPayoutDetail for visual consistency. */}
             <div className={`grid grid-cols-2 ${inlineGridCols} gap-3 text-sm`}>
               <div>
-                <p className="text-gray-400">Gross</p>
-                <p className="text-white">{formatUsd(originalGross)}</p>
+                <p className="text-fg-muted">Gross</p>
+                <p className="text-fg">{formatUSD(originalGross)}</p>
               </div>
               <div>
-                <p className="text-gray-400">Commission</p>
-                <p className="text-white">{formatUsd(originalCommission)}</p>
+                <p className="text-fg-muted">Commission</p>
+                <p className="text-fg">{formatUSD(originalCommission)}</p>
               </div>
               <div>
-                <p className="text-gray-400">Net</p>
-                <p className="text-green-400 font-semibold">{formatUsd(originalNet)}</p>
+                <p className="text-fg-muted">Net</p>
+                <p className="text-success font-semibold">{formatUSD(originalNet)}</p>
               </div>
 
               {/* Frozen — currently withheld pending refund review. */}
               {isFrozen && (
                 <div>
-                  <p className="text-gray-400">Frozen</p>
-                  <p className="text-cyan-400 font-semibold">
-                    {formatUsd(frozenAmount)}
+                  <p className="text-fg-muted">Frozen</p>
+                  <p className="text-info font-semibold">
+                    {formatUSD(frozenAmount)}
                   </p>
                 </div>
               )}
@@ -474,9 +469,9 @@ const PayoutDetail = () => {
                   longer payable to them. */}
               {isRefunded && (
                 <div>
-                  <p className="text-gray-400">Refunded</p>
-                  <p className="text-red-400 font-semibold line-through">
-                    {formatUsd(refundedAmount)}
+                  <p className="text-fg-muted">Refunded</p>
+                  <p className="text-danger font-semibold line-through">
+                    {formatUSD(refundedAmount)}
                   </p>
                 </div>
               )}
@@ -486,46 +481,46 @@ const PayoutDetail = () => {
                   or refunded); otherwise it duplicates Net. */}
               {showAvailable && (
                 <div>
-                  <p className="text-gray-400">Available</p>
-                  <p className="text-green-400 font-semibold">
-                    {formatUsd(availableAmount)}
+                  <p className="text-fg-muted">Available</p>
+                  <p className="text-success font-semibold">
+                    {formatUSD(availableAmount)}
                   </p>
                 </div>
               )}
 
               <div>
-                <p className="text-gray-400">Hold Until</p>
-                <p className="text-white">{formatDate(payout.holdUntil)}</p>
+                <p className="text-fg-muted">Hold Until</p>
+                <p className="text-fg">{formatDate(payout.holdUntil)}</p>
               </div>
             </div>
 
             {/* Frozen banner (cyan) — identical structure to admin, but
                 without admin-only "Destination" line. */}
             {isFrozen && (
-              <div className="rounded-md bg-cyan-950/30 border border-cyan-700/30 p-3 flex items-start gap-3">
-                <AlertCircle className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+              <div className="rounded-md bg-info-soft border border-info/35 p-3 flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-info mt-0.5 shrink-0" />
                 <div className="flex-1 text-sm">
-                  <p className="text-white font-medium mb-1">
+                  <p className="text-fg font-medium mb-1">
                     {payout.status === "frozen"
                       ? "Fully frozen by refund request"
-                      : `Partially frozen: ${formatUsd(frozenAmount)} of ${formatUsd(payout.netAmount)}`}
+                      : `Partially frozen: ${formatUSD(frozenAmount)} of ${formatUSD(payout.netAmount)}`}
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-fg-muted">
                     <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      <Clock className="w-3.5 h-3.5 text-fg-muted" />
                       <span>Pause date: {formatDateTime(payout.paymentPauseDate)}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                      <Calendar className="w-3.5 h-3.5 text-fg-muted" />
                       <span>Expected release: {formatDateTime(payout.expectedReleaseDate)}</span>
                     </div>
                     {refundBadge && (
                       <div className="flex items-center gap-1.5">
-                        <span className="text-gray-400">Refund:</span>
+                        <span className="text-fg-muted">Refund:</span>
                         <Badge variant={refundBadge.variant} className="text-xs">
                           {refundBadge.label}
                         </Badge>
-                        <span className="text-gray-400">{formatUsd(refund?.refundAmount)}</span>
+                        <span className="text-fg-muted">{formatUSD(refund?.refundAmount)}</span>
                       </div>
                     )}
                     {/* SECURITY: refund destination / method intentionally
@@ -537,9 +532,9 @@ const PayoutDetail = () => {
 
             {/* Open refund (non-frozen edge case) — admin parity */}
             {!isFrozen && refund && (
-              <div className="rounded-md bg-yellow-950/20 border border-yellow-700/30 p-3 text-sm">
+              <div className="rounded-md bg-warning-soft border border-warning/35 p-3 text-sm">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-gray-400">Open refund:</span>
+                  <span className="text-fg-muted">Open refund:</span>
                   {refundBadge ? (
                     <Badge variant={refundBadge.variant} className="text-xs">
                       {refundBadge.label}
@@ -547,23 +542,23 @@ const PayoutDetail = () => {
                   ) : (
                     <Badge variant="warning" className="text-xs">{refund.status}</Badge>
                   )}
-                  <span className="text-white">{formatUsd(refund.refundAmount)}</span>
+                  <span className="text-fg">{formatUSD(refund.refundAmount)}</span>
                 </div>
               </div>
             )}
 
             {/* Dispute banner (amber) — partial-freeze case */}
             {hasDisputeOnSomeKeys && (
-              <div className="rounded-md bg-amber-950/30 border border-amber-600/50 p-3 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+              <div className="rounded-md bg-warning-soft border border-warning/35 p-3 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning mt-0.5 shrink-0" />
                 <div className="flex-1 text-sm">
-                  <p className="text-amber-200 font-semibold">
+                  <p className="text-warning font-semibold">
                     {keyBreakdown.frozenCount} of {keyBreakdown.totalKeys} license keys{" "}
                     {keyBreakdown.frozenCount === 1 ? "has" : "have"} an active dispute.
                   </p>
-                  <p className="text-amber-100/80 mt-0.5">
-                    {formatUsd(frozenAmount)} is frozen pending resolution.
-                    {refund?.refundAmount ? ` Refund requested: ${formatUsd(refund.refundAmount)}.` : ""}
+                  <p className="text-warning mt-0.5">
+                    {formatUSD(frozenAmount)} is frozen pending resolution.
+                    {refund?.refundAmount ? ` Refund requested: ${formatUSD(refund.refundAmount)}.` : ""}
                   </p>
                 </div>
               </div>
@@ -591,28 +586,28 @@ const PayoutDetail = () => {
                     : "grid-cols-1";
               return (
                 <div className={`grid ${gridCols} gap-3`}>
-                  <div className="rounded-md border border-green-700/40 bg-green-950/20 p-3">
-                    <div className="flex items-center gap-2 text-green-300 text-xs uppercase tracking-wide">
+                  <div className="rounded-md border border-success/35 bg-success-soft p-3">
+                    <div className="flex items-center gap-2 text-success text-xs uppercase tracking-wide">
                       <CheckCircle2 className="w-4 h-4" /> Available
                     </div>
-                    <p className="text-2xl font-semibold text-green-400 mt-1">
-                      {formatUsd(availableAmount)}
+                    <p className="text-2xl font-semibold text-success mt-1">
+                      {formatUSD(availableAmount)}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-fg-muted mt-1">
                       {keyBreakdown.availableCount} of {keyBreakdown.totalKeys} key
                       {keyBreakdown.totalKeys === 1 ? "" : "s"} ready to withdraw
                     </p>
                   </div>
 
                   {hasFrozen && (
-                    <div className="rounded-md border border-cyan-700/40 bg-cyan-950/20 p-3">
-                      <div className="flex items-center gap-2 text-cyan-300 text-xs uppercase tracking-wide">
+                    <div className="rounded-md border border-info/35 bg-info-soft p-3">
+                      <div className="flex items-center gap-2 text-info text-xs uppercase tracking-wide">
                         <Snowflake className="w-4 h-4" /> Frozen
                       </div>
-                      <p className="text-2xl font-semibold text-cyan-400 mt-1">
-                        {formatUsd(frozenAmount)}
+                      <p className="text-2xl font-semibold text-info mt-1">
+                        {formatUSD(frozenAmount)}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-fg-muted mt-1">
                         {keyBreakdown.frozenCount} of {keyBreakdown.totalKeys} key
                         {keyBreakdown.frozenCount === 1 ? "" : "s"} under review
                       </p>
@@ -620,14 +615,14 @@ const PayoutDetail = () => {
                   )}
 
                   {hasRefunded && (
-                    <div className="rounded-md border border-red-700/40 bg-red-950/20 p-3">
-                      <div className="flex items-center gap-2 text-red-300 text-xs uppercase tracking-wide">
+                    <div className="rounded-md border border-danger/35 bg-danger-soft p-3">
+                      <div className="flex items-center gap-2 text-danger text-xs uppercase tracking-wide">
                         <AlertCircle className="w-4 h-4" /> Refunded
                       </div>
-                      <p className="text-2xl font-semibold text-red-400 mt-1">
-                        {formatUsd(keyBreakdown.refundedAmount)}
+                      <p className="text-2xl font-semibold text-danger mt-1">
+                        {formatUSD(keyBreakdown.refundedAmount)}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-fg-muted mt-1">
                         {keyBreakdown.refundedCount} of {keyBreakdown.totalKeys} key
                         {keyBreakdown.refundedCount === 1 ? "" : "s"} refunded to buyer
                       </p>
@@ -640,32 +635,32 @@ const PayoutDetail = () => {
             {/* Per-key table */}
             {keyBreakdown.totalKeys > 0 && (
               <div>
-                <p className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
+                <p className="text-xs text-fg-muted mb-2 flex items-center gap-1.5">
                   <KeyRound className="w-3.5 h-3.5" /> License Keys
-                  <span className="text-gray-500">
+                  <span className="text-fg-subtle">
                     ({keyBreakdown.totalKeys} total · {keyBreakdown.availableCount} available · {keyBreakdown.frozenCount} frozen
                     {keyBreakdown.refundedCount > 0 ? ` · ${keyBreakdown.refundedCount} refunded` : ""})
                   </span>
                 </p>
-                <div className="overflow-x-auto rounded-md border border-gray-700">
-                  <Table>
+                <div className="overflow-x-auto rounded-md border border-brand-cyan/12">
+                  <Table variant="hud">
                     <TableHeader>
-                      <TableRow className="border-gray-700 hover:bg-gray-800">
-                        <TableHead className="text-gray-300">Key</TableHead>
-                        <TableHead className="text-gray-300">Amount</TableHead>
-                        <TableHead className="text-gray-300">Status</TableHead>
-                        <TableHead className="text-gray-300">Note</TableHead>
+                      <TableRow>
+                        <TableHead className="text-fg-muted">Key</TableHead>
+                        <TableHead className="text-fg-muted">Amount</TableHead>
+                        <TableHead className="text-fg-muted">Status</TableHead>
+                        <TableHead className="text-fg-muted">Note</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {keyBreakdown.rows.map((row) => (
-                        <TableRow key={row.keyId} className="border-gray-700 hover:bg-gray-800">
-                          <TableCell className="font-mono text-xs text-white">{row.displayKey}</TableCell>
+                        <TableRow key={row.keyId}>
+                          <TableCell className="font-mono text-xs text-fg">{row.displayKey}</TableCell>
                           <TableCell
                             className={
                               row.status === "refunded"
-                                ? "font-semibold line-through text-gray-500"
-                                : "text-white font-semibold"
+                                ? "font-semibold line-through text-fg-subtle"
+                                : "text-fg font-semibold"
                             }
                             title={
                               row.status === "refunded"
@@ -673,7 +668,7 @@ const PayoutDetail = () => {
                                 : undefined
                             }
                           >
-                            {formatUsd(row.amount)}
+                            {formatUSD(row.amount)}
                           </TableCell>
                           <TableCell>
                             {row.status === "available" && (
@@ -682,7 +677,7 @@ const PayoutDetail = () => {
                               </Badge>
                             )}
                             {row.status === "frozen" && (
-                              <Badge variant="warning" className="flex items-center gap-1 w-fit bg-red-900/40 border-red-700/50 text-red-300">
+                              <Badge variant="warning" className="flex items-center gap-1 w-fit bg-danger-soft border-danger/35 text-danger">
                                 <Snowflake className="w-3 h-3" /> Frozen
                               </Badge>
                             )}
@@ -695,10 +690,10 @@ const PayoutDetail = () => {
                           <TableCell
                             className={`text-sm ${
                               row.status === "available"
-                                ? "text-gray-300"
+                                ? "text-fg-muted"
                                 : row.status === "frozen"
-                                  ? "text-amber-300"
-                                  : "text-red-300"
+                                  ? "text-warning"
+                                  : "text-danger"
                             }`}
                           >
                             {row.note}
@@ -714,9 +709,9 @@ const PayoutDetail = () => {
             {/* Footer meta — payout request reason (operator-controlled but
                 already shown elsewhere; safe to display). */}
             {payout.requestReason && (
-              <div className="pt-3 border-t border-gray-700 text-sm">
-                <p className="text-gray-400 mb-1">Reason</p>
-                <p className="text-white">{payout.requestReason}</p>
+              <div className="pt-3 border-t border-brand-cyan/10 text-sm">
+                <p className="text-fg-muted mb-1">Reason</p>
+                <p className="text-fg">{payout.requestReason}</p>
               </div>
             )}
             {/* SECURITY: admin-only fields (failureReason, blockReason, notes,

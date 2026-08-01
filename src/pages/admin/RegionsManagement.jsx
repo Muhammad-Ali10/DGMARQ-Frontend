@@ -177,7 +177,7 @@ const RegionsManagement = () => {
               Create Region
             </Button>
           </DialogTrigger>
-          <DialogContent size="sm" className="bg-primary border-gray-700">
+          <DialogContent size="sm" className="">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">Create New Region</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -197,11 +197,11 @@ const RegionsManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700 shadow-xl">
-        <CardHeader className="border-b border-gray-700">
+      <Card variant="hud">
+        <CardHeader className="border-b ">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle className="text-white text-xl font-semibold">All Regions</CardTitle>
+              <CardTitle>All Regions</CardTitle>
               <p className="text-sm text-gray-400 mt-1">
                 {pagination.totalDocs > 0
                   ? `${pagination.totalDocs} region(s)`
@@ -233,7 +233,7 @@ const RegionsManagement = () => {
 
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
                   <TableHead className="text-gray-300 font-semibold">Name</TableHead>
@@ -291,7 +291,7 @@ const RegionsManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Edit Region</DialogTitle>
             <DialogDescription className="text-gray-400">

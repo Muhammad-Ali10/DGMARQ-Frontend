@@ -16,7 +16,7 @@ export default function AnimatedHeading({
     <Tag
       ref={ref}
       className={`
-        text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight
+        text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-fg tracking-tight
         transition-all duration-600 ease-out
         w-full text-center block
         ${animate ? (isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4') : ''}

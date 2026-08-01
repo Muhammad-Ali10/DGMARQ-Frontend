@@ -108,17 +108,17 @@ const CategoryProduct = ({ product }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row items-center justify-center gap-2.5 p-4 bg-blue-4 rounded-21 max-w-[875px] w-full">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-2.5 p-4 bg-surface-base rounded-2xl max-w-[875px] w-full">
         <div className="w-full md:w-[174px] md:h-[240px]">
           <SafeImage 
             src={image} 
             alt={title} 
-            className="w-full h-full object-cover rounded-21" 
+            className="w-full h-full object-cover rounded-2xl" 
             fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
           />
         </div>
         <div className="flex flex-col flex-1">
-          <h2 className="text-xl md:text-3xl font-semibold text-white flex flex-wrap items-center justify-between w-full mb-4 gap-2">
+          <h2 className="text-xl md:text-3xl font-semibold text-fg flex flex-wrap items-center justify-between w-full mb-4 gap-2">
             <Link 
               to={`/product/${product.slug || product._id}`}
               className="hover:underline flex-1 min-w-[200px]"
@@ -129,7 +129,7 @@ const CategoryProduct = ({ product }) => {
               <div className="flex flex-col items-end">
                 <span>{formatPrice(discountPrice)}</span>
                 {discountPercentage > 0 && (
-                  <del className="text-sm md:text-base font-normal text-gray-400">
+                  <del className="text-sm md:text-base font-normal text-fg-muted">
                     {formatPrice(originalPrice)}
                   </del>
                 )}
@@ -144,32 +144,32 @@ const CategoryProduct = ({ product }) => {
 
           <div className="flex flex-col gap-4">
             <div className="flex">
-              <p className="w-24 text-white">Platform:</p>
-              <p className="text-white">{platformName}</p>
+              <p className="w-24 text-fg">Platform:</p>
+              <p className="text-fg">{platformName}</p>
             </div>
 
             <div className="flex">
-              <p className="w-24 text-white">Type:</p>
-              <p className="text-white">{typeName}</p>
+              <p className="w-24 text-fg">Type:</p>
+              <p className="text-fg">{typeName}</p>
             </div>
 
             <div className="flex">
-              <p className="w-24 text-white">Region</p>
-              <p className="text-white">{regionText}</p>
+              <p className="w-24 text-fg">Region</p>
+              <p className="text-fg">{regionText}</p>
             </div>
             <div className="flex">
-              <p className="w-24 text-white">Device</p>
-              <p className="text-white">{deviceName}</p>
+              <p className="w-24 text-fg">Device</p>
+              <p className="text-fg">{deviceName}</p>
             </div>
 
             <div className="flex items-center">
-              <p className="w-24 text-white">Stock</p>
+              <p className="w-24 text-fg">Stock</p>
               <div className="flex items-center gap-1.5">
-                <Package className={`size-4 ${inStock ? 'text-[#04CF12]' : 'text-red-500'}`} />
-                <p className={`text-sm font-medium ${inStock ? 'text-[#04CF12]' : 'text-red-500'}`}>
+                <Package className={`size-4 ${inStock ? 'text-[#04CF12]' : 'text-danger'}`} />
+                <p className={`text-sm font-medium ${inStock ? 'text-[#04CF12]' : 'text-danger'}`}>
                   {inStock ? `${stock} in stock` : 'Out of stock'}
                 </p>
-                <span className="ml-2 text-xs text-white/60">
+                <span className="ml-2 text-xs text-fg/60">
                   {offersCount} {offersCount === 1 ? 'offer' : 'offers'}
                 </span>
               </div>
@@ -193,7 +193,7 @@ const CategoryProduct = ({ product }) => {
               aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
             >
               <Heart 
-                className={`text-white size-6 ${isInWishlist ? 'fill-red-500 text-red-500' : ''}`}
+                className={`text-fg size-6 ${isInWishlist ? 'fill-red-500 text-danger' : ''}`}
               />
             </button>
           </div>

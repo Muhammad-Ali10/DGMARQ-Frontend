@@ -8,28 +8,13 @@ import { Button } from '@components/ui/button';
 import { Label } from '@components/ui/label';
 import { Badge } from '@components/ui/badge';
 import { Textarea } from '@components/ui/textarea';
-import { Loading, ErrorMessage } from '@components/ui/loading';
+import { Skeleton } from '@components/ui/skeleton';
+import { ErrorState } from '@components/common/ErrorState';
+import { Fact } from '@components/common/SpecList';
 import { ArrowLeft, Key, EyeOff, MessageSquare } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
 import { toast } from 'sonner';
-import { RefundChat, isRefundChatLocked } from '@features/wallet-payout';
-
-const STATUS_BADGES = {
-  PENDING: { variant: 'warning', label: 'Pending' },
-  SELLER_REVIEW: { variant: 'warning', label: 'Your review' },
-  SELLER_APPROVED: { variant: 'default', label: 'Approved' },
-  SELLER_REJECTED: { variant: 'destructive', label: 'Rejected' },
-  ADMIN_REVIEW: { variant: 'secondary', label: 'In progress' },
-  ADMIN_APPROVED: { variant: 'default', label: 'Admin approved' },
-  ADMIN_REJECTED: { variant: 'destructive', label: 'Admin rejected' },
-  COMPLETED: { variant: 'success', label: 'Completed' },
-  WAITING_FOR_MANUAL_REFUND: { variant: 'secondary', label: 'Waiting manual refund' },
-  ON_HOLD_INSUFFICIENT_FUNDS: { variant: 'destructive', label: 'On hold' },
-  pending: { variant: 'warning', label: 'Pending' },
-  approved: { variant: 'success', label: 'Approved' },
-  rejected: { variant: 'destructive', label: 'Rejected' },
-  completed: { variant: 'success', label: 'Completed' },
-};
+import { RefundChat, isRefundChatLocked , refundBadgeProps } from '@features/wallet-payout';
 
 const getDisplayOrderId = (orderLike) => {
   if (!orderLike) return 'N/A';
@@ -37,11 +22,6 @@ const getDisplayOrderId = (orderLike) => {
   if (orderNumber) return orderNumber;
   const rawId = orderLike._id?.toString?.() || '';
   return rawId ? rawId.slice(-8).toUpperCase() : 'N/A';
-};
-
-const StatusBadge = ({ status }) => {
-  const cfg = STATUS_BADGES[status] || { variant: 'default', label: status };
-  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 };
 
 const SellerRefundDetail = () => {
@@ -92,12 +72,28 @@ const SellerRefundDetail = () => {
     </Button>
   );
 
-  if (isLoading) return <div className="space-y-6">{back}<Loading message="Loading refund details..." /></div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
   if (isError || !refund) {
     return (
       <div className="space-y-6">
         {back}
-        <ErrorMessage message={error?.response?.data?.message || 'Refund not found'} />
+        <Card variant="hud">
+          <CardContent>
+            <ErrorState
+              error={error}
+              title="Couldn't load this refund request"
+              onRetry={() => queryClient.invalidateQueries({ queryKey: ['seller-refund-details', refundId] })}
+            />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -129,58 +125,52 @@ const SellerRefundDetail = () => {
       {back}
 
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Refund #{refund._id?.slice(-8)}</h1>
-        <p className="text-gray-400 mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-fg">Refund #{refund._id?.slice(-8)}</h1>
+        <p className="text-fg-muted mt-1">
           Admin has full authority over this refund. You may leave optional feedback below.
         </p>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">Overview</CardTitle>
+          <CardTitle>Overview</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="rounded-lg border border-gray-700 bg-secondary p-3">
-              <Label className="text-gray-400 text-xs">Order ID</Label>
-              <p className="text-white mt-1 font-mono">#{getDisplayOrderId(refund.orderId)}</p>
-            </div>
-            <div className="rounded-lg border border-gray-700 bg-secondary p-3">
-              <Label className="text-gray-400 text-xs">Status</Label>
-              <div className="mt-1"><StatusBadge status={refund.status} /></div>
-            </div>
-            <div className="rounded-lg border border-gray-700 bg-secondary p-3">
-              <Label className="text-gray-400 text-xs">Customer</Label>
-              <p className="text-white mt-1">{refund.userId?.name || refund.userId?.email || 'N/A'}</p>
-            </div>
-            <div className="rounded-lg border border-gray-700 bg-secondary p-3">
-              <Label className="text-gray-400 text-xs">Product</Label>
-              <p className="text-white mt-1">{refund.productId?.name || 'Product'}</p>
-            </div>
-          </div>
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Fact label="Order ID">
+              <span className="font-mono">#{getDisplayOrderId(refund.orderId)}</span>
+            </Fact>
+            <Fact label="Status">
+              <Badge {...refundBadgeProps(refund.status)} />
+            </Fact>
+            <Fact label="Customer">
+              {refund.userId?.name || refund.userId?.email || 'N/A'}
+            </Fact>
+            <Fact label="Product">{refund.productId?.name || 'Product'}</Fact>
+          </dl>
 
           <div>
-            <Label className="text-gray-300">Reason</Label>
-            <p className="text-white mt-1">{refund.reason || 'No reason provided'}</p>
+            <p className="text-xs tracking-wide text-fg-subtle uppercase">Reason</p>
+            <p className="text-fg mt-1">{refund.reason || 'No reason provided'}</p>
           </div>
           <div>
-            <Label className="text-gray-300">Amount</Label>
-            <p className="text-white mt-1 font-semibold text-lg">
+            <p className="text-xs tracking-wide text-fg-subtle uppercase">Amount</p>
+            <p className="text-fg mt-1 font-semibold text-lg">
               ${refund.refundAmount?.toFixed(2) || refund.productId?.price?.toFixed(2) || '0.00'}
             </p>
           </div>
           {refund.refundMethod && (
             <div>
-              <Label className="text-gray-300">Refund method</Label>
-              <p className="text-white mt-1 capitalize">{refund.refundMethod.replace('_', ' ')}</p>
+              <p className="text-xs tracking-wide text-fg-subtle uppercase">Refund method</p>
+              <p className="text-fg mt-1 capitalize">{refund.refundMethod.replace('_', ' ')}</p>
             </div>
           )}
 
-          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm">
+          <div className="p-3 rounded-lg bg-warning-soft border border-warning/35 text-warning text-sm">
             Customer requested a refund. Admin is reviewing. You cannot approve or reject; you may leave optional feedback below.
           </div>
           {isAdminHandledRefund && (
-            <p className="text-amber-200 text-sm">
+            <p className="text-warning text-sm">
               Refund Through the Original Payment Method may take up to 1-3 business days to fully process
             </p>
           )}
@@ -188,15 +178,15 @@ const SellerRefundDetail = () => {
           {refund.licenseKeyIds?.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-gray-300">Keys requested for refund</Label>
-                <span className="text-white text-sm">{refund.licenseKeyIds.length} key(s)</span>
+                <p className="text-xs tracking-wide text-fg-subtle uppercase">Keys requested for refund</p>
+                <span className="text-fg text-sm">{refund.licenseKeyIds.length} key(s)</span>
               </div>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={toggleKeys}
                 disabled={keyDetailsLoading}
-                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                className="border-border-interactive text-fg-muted hover:bg-surface-2"
               >
                 {keyDetailsLoading ? 'Loading...' : showKeyDetails ? (
                   <><EyeOff className="w-4 h-4 mr-1" />Hide Keys/Details</>
@@ -205,19 +195,19 @@ const SellerRefundDetail = () => {
                 )}
               </Button>
               {showKeyDetails && keyDetails && (
-                <div className="mt-3 p-3 bg-gray-800/50 rounded-lg border border-gray-700 space-y-2">
-                  <p className="text-xs text-amber-400 mb-2">⚠️ Sensitive information - handle with care</p>
+                <div className="mt-3 space-y-2 rounded-lg border border-brand-cyan/12 bg-brand-cyan/3 p-3">
+                  <p className="text-xs text-warning mb-2">⚠️ Sensitive information - handle with care</p>
                   {keyDetails.keys?.length > 0 ? keyDetails.keys.map((key, idx) => (
-                    <div key={key.keyId || idx} className="p-2 bg-gray-900/50 rounded border border-gray-600">
+                    <div key={key.keyId || idx} className="p-2 bg-surface-sunken/50 rounded border border-border-interactive">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-gray-400 mb-1">
+                          <p className="text-xs text-fg-muted mb-1">
                             {keyDetails.productType === 'ACCOUNT_BASED' ? 'Account Credentials' : 'License Key'}
                             {key.keyType && key.keyType !== 'other' && (
-                              <span className="ml-2 text-gray-500">({key.keyType})</span>
+                              <span className="ml-2 text-fg-subtle">({key.keyType})</span>
                             )}
                           </p>
-                          <p className="text-white font-mono text-sm break-all select-all">{key.keyData}</p>
+                          <p className="text-fg font-mono text-sm break-all select-all">{key.keyData}</p>
                         </div>
                         <div className="text-right shrink-0">
                           {key.isRefunded ? <Badge variant="secondary" className="text-xs">Refunded</Badge>
@@ -226,13 +216,13 @@ const SellerRefundDetail = () => {
                         </div>
                       </div>
                       {key.assignedAt && (
-                        <p className="text-xs text-gray-500 mt-1">Assigned: {new Date(key.assignedAt).toLocaleString()}</p>
+                        <p className="text-xs text-fg-subtle mt-1">Assigned: {new Date(key.assignedAt).toLocaleString()}</p>
                       )}
                       {key.refundedAt && (
-                        <p className="text-xs text-gray-500">Refunded: {new Date(key.refundedAt).toLocaleString()}</p>
+                        <p className="text-xs text-fg-subtle">Refunded: {new Date(key.refundedAt).toLocaleString()}</p>
                       )}
                     </div>
-                  )) : <p className="text-gray-400 text-sm">No key details available</p>}
+                  )) : <p className="text-fg-muted text-sm">No key details available</p>}
                 </div>
               )}
             </div>
@@ -240,11 +230,11 @@ const SellerRefundDetail = () => {
 
           {refund.evidenceFiles?.length > 0 && (
             <div>
-              <Label className="text-gray-300">Evidence</Label>
+              <p className="text-xs tracking-wide text-fg-subtle uppercase">Evidence</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {refund.evidenceFiles.map((url, i) => (
                   <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block">
-                    <SafeImage src={url} alt={`Evidence ${i + 1}`} className="h-20 w-20 object-cover rounded border border-gray-600 hover:border-accent" />
+                    <SafeImage src={url} alt={`Evidence ${i + 1}`} className="h-20 w-20 object-cover rounded border border-border-interactive hover:border-accent" />
                   </a>
                 ))}
               </div>
@@ -253,33 +243,34 @@ const SellerRefundDetail = () => {
 
           {refund.adminNotes && (
             <div>
-              <Label className="text-gray-300">Admin notes</Label>
-              <p className="text-white mt-1">{refund.adminNotes}</p>
+              <p className="text-xs tracking-wide text-fg-subtle uppercase">Admin notes</p>
+              <p className="text-fg mt-1">{refund.adminNotes}</p>
             </div>
           )}
           {refund.sellerFeedback && (
             <div>
-              <Label className="text-gray-300">Your feedback</Label>
-              <p className="text-white mt-1 text-sm">{refund.sellerFeedback}</p>
+              <p className="text-xs tracking-wide text-fg-subtle uppercase">Your feedback</p>
+              <p className="text-fg mt-1 text-sm">{refund.sellerFeedback}</p>
               {refund.sellerFeedbackAt && (
-                <p className="text-gray-500 text-xs mt-0.5">{new Date(refund.sellerFeedbackAt).toLocaleString()}</p>
+                <p className="text-fg-subtle text-xs mt-0.5">{new Date(refund.sellerFeedbackAt).toLocaleString()}</p>
               )}
             </div>
           )}
 
           {canSubmitFeedback && (
-            <div className="pt-4 border-t border-gray-700 space-y-2">
-              <Label className="text-gray-300 flex items-center gap-2">
+            <div className="pt-4 border-t border-brand-cyan/10 space-y-2">
+              <Label htmlFor="seller-refund-feedback" className="flex items-center gap-2 text-fg-muted">
                 <MessageSquare className="w-4 h-4" />
                 Optional feedback for admin
               </Label>
-              <p className="text-xs text-gray-500">e.g. license validity, explanation. Does not change refund status.</p>
+              <p className="text-xs text-fg-subtle">e.g. license validity, explanation. Does not change refund status.</p>
               <Textarea
-                placeholder="Add optional feedback for admin review..."
+                id="seller-refund-feedback"
+                placeholder="Add optional feedback for admin review…"
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
                 rows={3}
-                className="bg-secondary border-gray-700 text-white w-full"
+                className="w-full"
               />
               <Button
                 size="sm"
@@ -294,9 +285,9 @@ const SellerRefundDetail = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">Refund chat</CardTitle>
+          <CardTitle>Refund chat</CardTitle>
         </CardHeader>
         <CardContent>
           <RefundChat refundId={refund._id} canSend={!!refund.adminRequestedSellerInput} locked={isRefundChatLocked(refund.status)} />

@@ -215,7 +215,7 @@ const HomepageSectionsManagement = () => {
     <div className="space-y-6 px-4 sm:px-0">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-accent/20 text-accent"><LayoutList className="w-6 h-6" /></div>
+          <div className="p-2.5 rounded-lg bg-accent/20 text-accent-on-dark"><LayoutList className="w-6 h-6" /></div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Homepage Sections</h1>
             <p className="text-sm sm:text-base text-gray-400 mt-1">
@@ -230,7 +230,7 @@ const HomepageSectionsManagement = () => {
               Create Section
             </Button>
           </DialogTrigger>
-          <DialogContent size="sm" className="bg-primary border-gray-700">
+          <DialogContent size="sm" className="">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">Create Homepage Section</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -242,14 +242,14 @@ const HomepageSectionsManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700 shadow-xl">
-        <CardHeader className="border-b border-gray-700">
-          <CardTitle className="text-white text-xl font-semibold">All Sections</CardTitle>
+      <Card variant="hud">
+        <CardHeader className="border-b ">
+          <CardTitle>All Sections</CardTitle>
           <p className="text-sm text-gray-400 mt-1">{sections.length} section(s)</p>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
                   <TableHead className="text-gray-300 font-semibold">Order</TableHead>
@@ -318,7 +318,7 @@ const HomepageSectionsManagement = () => {
       </Card>
 
       <Dialog open={!!editing} onOpenChange={(o) => { if (!o) setEditing(null); }}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Edit Homepage Section</DialogTitle>
             <DialogDescription className="text-gray-400">Update the section details</DialogDescription>

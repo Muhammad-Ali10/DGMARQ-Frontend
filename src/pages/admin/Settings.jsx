@@ -391,9 +391,9 @@ const Settings = () => {
         <p className="text-sm sm:text-base text-gray-400 mt-1">Manage platform configuration</p>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Product Approval
           </CardTitle>
@@ -450,9 +450,9 @@ const Settings = () => {
       </Card>
 
       {/* Payment Processing Fee Setting (fixed) */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
             Payment Processing Fee
           </CardTitle>
@@ -480,6 +480,7 @@ const Settings = () => {
                     <input
                       type="radio"
                       name="feeType"
+                      aria-label="Percentage fee"
                       checked={handlingFeeType === 'percentage'}
                       onChange={() => setHandlingFeeTypeDraft('percentage')}
                       className="rounded border-gray-600"
@@ -490,6 +491,7 @@ const Settings = () => {
                     <input
                       type="radio"
                       name="feeType"
+                      aria-label="Fixed fee"
                       checked={handlingFeeType === 'fixed'}
                       onChange={() => setHandlingFeeTypeDraft('fixed')}
                       className="rounded border-gray-600"
@@ -544,9 +546,9 @@ const Settings = () => {
       </Card>
 
       {/* Buyer Protection Fee Setting (percentage) */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
             Buyer Protection Fee
           </CardTitle>
@@ -593,9 +595,9 @@ const Settings = () => {
       </Card>
 
       {/* Commission Rate Setting */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <SettingsIcon className="h-5 w-5" />
             Commission Rate
           </CardTitle>
@@ -646,9 +648,9 @@ const Settings = () => {
       </Card>
 
       {/* DGMARQ Plus Discount */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
             DGMARQ Plus Discount
           </CardTitle>
@@ -686,9 +688,9 @@ const Settings = () => {
       </Card>
 
       {/* Featured Product Commission */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
             Featured Product Commission
           </CardTitle>
@@ -726,9 +728,9 @@ const Settings = () => {
       </Card>
 
       {/* Home Page SEO Settings */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
             Home Page SEO Settings
           </CardTitle>
@@ -802,9 +804,9 @@ const Settings = () => {
       </Card>
 
       {/* Payout & Refund Windows */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" />
             Payout & Refund Windows
           </CardTitle>

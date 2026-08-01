@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 const SubscriptionCancel = () => {
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center p-4">
-      <Card className="bg-primary border-gray-700 max-w-md w-full">
+      <Card className="max-w-md w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-yellow-400 flex flex-col items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-yellow-900/20 flex items-center justify-center">

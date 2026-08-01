@@ -1,385 +1,419 @@
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { userAPI, chatAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
-import { StatusBadge } from '@components/common/StatusBadge';
-import { Loading, ErrorMessage } from '@components/ui/loading';
-import { LicenseKeysModal } from '@features/seller';
+import { Skeleton } from '@components/ui/skeleton';
 import SafeImage from '@components/ui/safe-image';
+import { StatusBadge } from '@components/common/StatusBadge';
+import { PlatformBadge, isKnownPlatform } from '@components/common/PlatformBadge';
+import { ErrorState } from '@components/common/ErrorState';
+import { SpecList, SpecRow } from '@components/common/SpecList';
+import { LicenseKeysModal } from '@features/seller';
 import { getOrderItemProductName } from '@utils/orderItem';
+import { getRedemption } from '@lib/redemption';
+import { formatDateTime, formatRelativeDate, formatExactTitle } from '@lib/datetime';
 import useCurrency from '@hooks/useCurrency';
-import { ArrowLeft, Package, CreditCard, MapPin, Calendar, MessageSquare, ExternalLink } from 'lucide-react';
-import { showApiError } from '@utils/toast';
+import { useSocket } from '@hooks/useSocket';
+import {
+  ArrowLeft,
+  Package,
+  CreditCard,
+  MapPin,
+  MessageSquare,
+  ExternalLink,
+  KeyRound,
+  LifeBuoy,
+  ShieldCheck,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
+/** The keyTypes assigned to one order item, deduped. */
+const keyTypesFor = (item) => {
+  const types = (item.assignedKeyIds || [])
+    .map((k) => (typeof k === 'object' ? k?.keyType : null))
+    .filter(Boolean);
+  return [...new Set(types)];
+};
+
+/**
+ * Buyer order detail — "did my key arrive, and how do I use it?".
+ *
+ * `getOrderById` populates `items.assignedKeyIds` with `keyType`, which is the
+ * one place in this system that carries a real platform identity. That is why
+ * this screen can show genuine brand marks and per-platform redemption steps
+ * while the order LIST cannot (its endpoint only returns `productType`).
+ *
+ * Not built, because no endpoint supports it:
+ *  - Seller rating / delivery-time stats. `items.sellerId` is populated with
+ *    `shopName shopLogo` only. `Seller.rating` exists on the model but is not
+ *    selected, so a rating here would be invented. The seller's public profile
+ *    (which does carry ratings) is one click away instead.
+ *  - Invoice download. There is no invoice endpoint anywhere in the API.
+ */
 const OrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const { format } = useCurrency();
-  const [licenseKeysModalOpen, setLicenseKeysModalOpen] = useState(false);
+  const { socket, isConnected } = useSocket();
+  const [keysOpen, setKeysOpen] = useState(false);
 
-  const { data: order, isLoading, isError, error } = useQuery({
+  const orderQuery = useQuery({
     queryKey: ['order-detail', orderId],
-    queryFn: () => userAPI.getOrderById(orderId).then(res => res.data.data),
-    enabled: !!orderId,
+    queryFn: () => userAPI.getOrderById(orderId).then((res) => res.data.data),
+    enabled: Boolean(orderId),
     retry: 1,
-    onError: (err) => {
-      showApiError(err, 'Failed to load order details');
-    },
   });
 
-  const createConversationMutation = useMutation({
+  // Same pattern the list uses: `refund_executed` is the only order-related
+  // event this platform emits, so it is the only live signal available here.
+  useEffect(() => {
+    if (!socket || !isConnected) return undefined;
+    const onRefundExecuted = () => {
+      queryClient.invalidateQueries({ queryKey: ['order-detail', orderId] });
+    };
+    socket.on('refund_executed', onRefundExecuted);
+    return () => socket.off('refund_executed', onRefundExecuted);
+  }, [socket, isConnected, queryClient, orderId]);
+
+  const createConversation = useMutation({
     mutationFn: (data) => chatAPI.createConversation(data),
     onSuccess: (response) => {
       const conversation = response.data.data;
-      toast.success('Conversation created! Opening chat...');
       navigate(`/user/chat?conversation=${conversation._id}`);
     },
     onError: (err) => {
+      // A 200-shaped error means the conversation already existed.
       if (err.response?.status === 200 && err.response?.data?.data) {
-        const conversation = err.response.data.data;
-        navigate(`/user/chat?conversation=${conversation._id}`);
+        navigate(`/user/chat?conversation=${err.response.data.data._id}`);
       } else {
-        toast.error(err.response?.data?.message || 'Failed to start conversation');
+        toast.error(err.response?.data?.message || 'Could not open the conversation');
       }
     },
   });
 
-  if (isLoading) return <Loading message="Loading order details..." />;
-  
-  if (isError) {
-    const errorMessage = error?.response?.data?.message || error?.message || "Error loading order details";
-    return (
-      <div className="space-y-6">
-        <Button onClick={() => navigate('/user/orders')} variant="outline" className="mb-4">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Orders
-        </Button>
-        <ErrorMessage message={errorMessage} />
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="space-y-6">
-        <Button onClick={() => navigate('/user/orders')} variant="outline" className="mb-4">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Orders
-        </Button>
-        <ErrorMessage message="Order not found" />
-      </div>
-    );
-  }
-
   const handleContactSeller = (sellerId) => {
     if (!isAuthenticated) {
-      toast.info('Please log in to contact the seller');
+      toast.info('Sign in to contact the seller');
       navigate('/login', { state: { from: `/user/orders/${orderId}` } });
       return;
     }
-    createConversationMutation.mutate({ sellerId });
+    createConversation.mutate({ sellerId });
   };
 
+  const backButton = (
+    <Button variant="outline" onClick={() => navigate('/user/orders')}>
+      <ArrowLeft aria-hidden="true" />
+      Back to orders
+    </Button>
+  );
+
+  if (orderQuery.isPending) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-8 w-56" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Skeleton className="h-64 w-full rounded-lg" />
+          </div>
+          <Skeleton className="h-80 w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (orderQuery.isError || !orderQuery.data) {
+    return (
+      <div className="space-y-6">
+        {backButton}
+        <Card variant="hud">
+          <CardContent>
+            <ErrorState
+              error={orderQuery.error}
+              title="Couldn't load this order"
+              onRetry={() => orderQuery.refetch()}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const order = orderQuery.data;
+  const totalRefunded = (order.items || []).reduce(
+    (sum, item) => sum + (Number(item.refundedAmount) || 0),
+    0
+  );
+  const keysAvailable =
+    ['completed', 'partially_completed', 'PARTIALLY_REFUNDED'].includes(order.orderStatus) &&
+    order.paymentStatus === 'paid' &&
+    !(order.items || []).every((item) => item.refunded);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Order Details</h1>
-          <p className="text-gray-400 mt-1">
+    <div className="space-y-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold text-fg">
             Order #{order.orderNumber || order._id.slice(-8)}
+          </h1>
+          <p className="mt-1 text-sm text-fg-muted" title={formatExactTitle(order.createdAt)}>
+            Placed {formatRelativeDate(order.createdAt)}
           </p>
         </div>
-        <Button onClick={() => navigate('/user/orders')} variant="outline">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Orders
-        </Button>
-      </div>
+        {backButton}
+      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Order Information */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Order Items – product details + seller name, Contact Seller box, View Seller Profile per item */}
-          <Card className="bg-primary border-gray-700">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* ── Items ───────────────────────────────────────────────────────── */}
+        <div className="space-y-6 lg:col-span-2">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Order Items
+              <CardTitle className="flex items-center gap-2">
+                <Package aria-hidden="true" className="size-4" />
+                What you bought
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {order.items?.map((item, idx) => {
-                  const productImage = item.productId?.images?.[0];
-                  const sellerId = item.sellerId?._id ?? item.sellerId;
-                  const sellerName = item.sellerId?.shopName ?? (typeof item.sellerId === 'object' ? null : 'Seller');
-                  const sellerLogo = item.sellerId?.shopLogo;
-                  const displaySellerName = sellerName || 'Seller';
-                  return (
-                    <div key={idx} className="p-4 bg-secondary rounded-lg border border-gray-700 space-y-4">
-                      {/* Product information and details */}
-                      <div className="flex items-start gap-4">
-                        {productImage && (
-                          <div className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-800">
-                            <SafeImage
-                              src={productImage}
-                              alt={getOrderItemProductName(item)}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
+            <CardContent className="space-y-4">
+              {order.items?.map((item, idx) => {
+                const sellerId = item.sellerId?._id ?? item.sellerId;
+                const sellerName = item.sellerId?.shopName || 'Seller';
+                const sellerLogo = item.sellerId?.shopLogo;
+                const types = keyTypesFor(item);
+                const redemption = types.length === 1 ? getRedemption(types[0]) : null;
+
+                return (
+                  <div
+                    key={idx}
+                    className="rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4"
+                  >
+                    <div className="flex items-start gap-4">
+                      <SafeImage
+                        src={item.productId?.images?.[0]}
+                        alt=""
+                        w={80}
+                        className="size-20 shrink-0 rounded-md border border-border object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold text-fg">
+                          {getOrderItemProductName(item)}
+                        </h3>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          {types.filter(isKnownPlatform).map((t) => (
+                            <PlatformBadge key={t} platform={t} />
+                          ))}
+                        </div>
+                        <p className="mt-2 text-xs text-fg-muted">
+                          Qty {item.qty} · {format(item.unitPrice)} each
+                        </p>
+                        {(item.refundedKeysCount > 0 || item.refundedAmount > 0) && (
+                          <p className="mt-1 text-xs text-warning">
+                            Refunded: {item.refundedKeysCount || 0} key(s) ·{' '}
+                            −{format(Number(item.refundedAmount) || 0)}
+                          </p>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-white mb-1">
-                            {getOrderItemProductName(item)}
-                          </h4>
-                          {item.productId?.slug && (
-                            <p className="text-sm text-gray-400 mb-1">
-                              SKU: {item.productId.slug}
-                            </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-semibold tabular-nums text-fg">
+                          {format(item.lineTotal ?? item.qty * item.unitPrice)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Per-platform redemption steps, shown only when every key
+                        on this line is the same known platform. */}
+                    {redemption && (
+                      <div className="mt-4 rounded-lg border border-brand-cyan/12 bg-brand-cyan/3 p-3">
+                        <p className="mb-2 text-xs font-semibold tracking-wide text-fg-subtle uppercase">
+                          How to redeem on {redemption.label}
+                        </p>
+                        <ol className="mb-3 list-decimal space-y-1 pl-4 text-xs text-fg-muted">
+                          {redemption.steps.map((step) => (
+                            <li key={step}>{step}</li>
+                          ))}
+                        </ol>
+                        <Button asChild variant="outline" size="sm">
+                          <a href={redemption.url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink aria-hidden="true" />
+                            Open {redemption.label}
+                          </a>
+                        </Button>
+                      </div>
+                    )}
+
+                    {sellerId && (
+                      <div className="mt-4 flex flex-col gap-3 border-t border-brand-cyan/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                          {sellerLogo ? (
+                            <SafeImage
+                              src={sellerLogo}
+                              alt=""
+                              w={40}
+                              className="size-10 rounded-full border border-border object-cover"
+                            />
+                          ) : (
+                            <div className="flex size-10 items-center justify-center rounded-full border border-border bg-surface-2">
+                              <Package aria-hidden="true" className="size-4 text-fg-subtle" />
+                            </div>
                           )}
-                          {item.productId?.description && (
-                            <p className="text-sm text-gray-400 mb-2">
-                              {item.productId.description}
-                            </p>
-                          )}
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
-                            <span>Quantity: {item.qty}</span>
-                            <span>Unit price: {format(item.unitPrice)}</span>
-                            {(item.refundedKeysCount > 0 || item.refundedAmount > 0) && (
-                              <span className="text-amber-400/90">
-                                Refunded: {item.refundedKeysCount || 0} key(s) · -{format(Number(item.refundedAmount) || 0)}
-                              </span>
-                            )}
+                          <div className="min-w-0">
+                            <p className="text-xs text-fg-subtle">Sold by</p>
+                            <p className="truncate text-sm font-medium text-fg">{sellerName}</p>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-bold text-white text-lg">
-                            {format(item.lineTotal ?? item.qty * item.unitPrice)}
-                          </p>
-                          {(item.refundedAmount > 0) && (
-                            <p className="text-sm text-amber-400/90 mt-0.5">
-                              After refund: {format((item.lineTotal ?? item.qty * item.unitPrice) - (Number(item.refundedAmount) || 0))}
-                            </p>
-                          )}
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleContactSeller(sellerId)}
+                            disabled={createConversation.isPending}
+                          >
+                            <MessageSquare aria-hidden="true" />
+                            Contact seller
+                          </Button>
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to={`/seller/${sellerId}`}>
+                              <ExternalLink aria-hidden="true" />
+                              Seller profile
+                            </Link>
+                          </Button>
                         </div>
                       </div>
-
-                      {/* Seller: name + Contact Seller box + View Seller Profile (per order item) */}
-                      {sellerId && (
-                        <div className="border-t border-gray-700 pt-4">
-                          <p className="text-sm text-gray-400 mb-3">Sold by</p>
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-lg bg-[#0E092C]/60 border border-gray-700">
-                            <div className="flex items-center gap-3">
-                              {sellerLogo && (
-                                <SafeImage
-                                  src={sellerLogo}
-                                  alt={displaySellerName}
-                                  className="w-10 h-10 rounded-full object-cover"
-                                />
-                              )}
-                              <div>
-                                <p className="font-medium text-white">{displaySellerName}</p>
-                                <p className="text-xs text-gray-400">Seller</p>
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <div className="inline-flex flex-col gap-1">
-                                <span className="text-xs text-gray-400 uppercase tracking-wide">Contact Seller</span>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-2"
-                                  onClick={() => handleContactSeller(sellerId)}
-                                  disabled={createConversationMutation.isPending}
-                                >
-                                  <MessageSquare className="w-4 h-4" />
-                                  Contact Seller
-                                </Button>
-                              </div>
-                              <div className="inline-flex flex-col gap-1">
-                                <span className="text-xs text-gray-400 uppercase tracking-wide">View Seller Profile</span>
-                                <Link to={`/seller/${sellerId}`}>
-                                  <Button variant="secondary" size="sm" className="gap-2">
-                                    <ExternalLink className="w-4 h-4" />
-                                    View Seller Profile
-                                  </Button>
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
 
-          {/* Shipping Information */}
           {order.shippingAddress && (
-            <Card className="bg-primary border-gray-700">
+            <Card variant="hud">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
-                  Shipping Address
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin aria-hidden="true" className="size-4" />
+                  Billing address
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-gray-300 space-y-1">
-                  <p className="font-medium text-white">{order.shippingAddress.fullName}</p>
-                  <p>{order.shippingAddress.address}</p>
-                  {order.shippingAddress.address2 && <p>{order.shippingAddress.address2}</p>}
-                  <p>
-                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}
-                  </p>
-                  <p>{order.shippingAddress.country}</p>
-                  {order.shippingAddress.phone && (
-                    <p className="mt-2">Phone: {order.shippingAddress.phone}</p>
-                  )}
-                </div>
+              <CardContent className="space-y-1 text-sm text-fg-muted">
+                <p className="font-medium text-fg">{order.shippingAddress.fullName}</p>
+                <p>{order.shippingAddress.address}</p>
+                {order.shippingAddress.address2 && <p>{order.shippingAddress.address2}</p>}
+                <p>
+                  {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
+                  {order.shippingAddress.zipCode}
+                </p>
+                <p>{order.shippingAddress.country}</p>
+                {order.shippingAddress.phone && <p className="pt-1">{order.shippingAddress.phone}</p>}
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* Order Summary */}
+        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <div className="space-y-6">
-          <Card className="bg-primary border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white">Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Order Status:</span>
-                  <StatusBadge domain="order" status={order.orderStatus} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Payment Status:</span>
-                  <StatusBadge domain="payment" status={order.paymentStatus} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Order Date:
-                  </span>
-                  <span className="text-white">
-                    {new Date(order.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                {order.updatedAt && order.updatedAt !== order.createdAt && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Last Updated:</span>
-                    <span className="text-white">
-                      {new Date(order.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                )}
-              </div>
+          {keysAvailable && (
+            <Card variant="hud">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <KeyRound aria-hidden="true" className="size-4" />
+                  Your keys
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button className="w-full" onClick={() => setKeysOpen(true)}>
+                  <KeyRound aria-hidden="true" />
+                  View keys
+                </Button>
+                <p className="flex items-start gap-2 text-xs text-fg-subtle">
+                  <ShieldCheck aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-success" />
+                  Keys stay hidden until you choose to reveal them.{' '}
+                  <Link to="/refund-policy" className="text-accent-on-dark underline-offset-4 hover:underline">
+                    Refund policy
+                  </Link>
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
-              <div className="border-t border-gray-700 pt-4 space-y-2">
-                <div className="flex justify-between text-gray-400">
-                  <span>Subtotal:</span>
-                  <span>{format(order.subtotal || order.totalAmount)}</span>
-                </div>
-                {order.shippingCost && order.shippingCost > 0 && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Shipping:</span>
-                    <span>{format(order.shippingCost)}</span>
-                  </div>
-                )}
-                {order.tax && order.tax > 0 && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Tax:</span>
-                    <span>{format(order.tax)}</span>
-                  </div>
-                )}
-                {order.discount && order.discount > 0 && (
-                  <div className="flex justify-between text-green-400">
-                    <span>Discount:</span>
-                    <span>-{format(order.discount)}</span>
-                  </div>
+          <Card variant="hud">
+            <CardHeader>
+              <CardTitle>Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SpecList>
+                <SpecRow
+                  label="Order status"
+                  /* announce: a socket-driven refetch can change this while the
+                     buyer is looking at it. One order = one live region. */
+                  value={<StatusBadge domain="order" status={order.orderStatus} announce />}
+                />
+                <SpecRow
+                  label="Payment"
+                  value={<StatusBadge domain="payment" status={order.paymentStatus} />}
+                />
+                <SpecRow label="Placed" value={formatDateTime(order.createdAt)} />
+                <SpecRow label="Subtotal" value={format(order.subtotal ?? order.totalAmount)} />
+                {order.discount > 0 && (
+                  <SpecRow label="Discount" value={`−${format(order.discount)}`} tone="success" />
                 )}
                 {order.buyerHandlingFee > 0 && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Buyer Protection Fee:</span>
-                    <span>{format(order.buyerHandlingFee)}</span>
-                  </div>
+                  <SpecRow label="Buyer protection" value={format(order.buyerHandlingFee)} />
                 )}
-                {(() => {
-                  const totalRefunded = (order.items || []).reduce((sum, item) => sum + (Number(item.refundedAmount) || 0), 0);
-                  return totalRefunded > 0 ? (
-                    <div className="flex justify-between text-amber-400/90">
-                      <span>Refunded:</span>
-                      <span>-{format(totalRefunded)}</span>
-                    </div>
-                  ) : null;
-                })()}
-                <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-gray-700">
-                  <span>{order.grandTotal != null ? 'Grand Total:' : 'Total:'}</span>
-                  <span>{format(order.grandTotal ?? order.totalAmount)}</span>
-                </div>
-                {(() => {
-                  const totalRefunded = (order.items || []).reduce((sum, item) => sum + (Number(item.refundedAmount) || 0), 0);
-                  if (totalRefunded <= 0) return null;
-                  const paidAfterRefunds = (order.grandTotal ?? order.totalAmount ?? 0) - totalRefunded;
-                  return (
-                    <div className="flex justify-between text-gray-400 text-sm pt-1">
-                      <span>Amount after refunds:</span>
-                      <span>{format(paidAfterRefunds)}</span>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {order.paymentMethod && (
-                <div className="pt-4 border-t border-gray-700">
-                  <div className="flex items-center gap-2 text-gray-400 mb-2">
-                    <CreditCard className="w-4 h-4" />
-                    <span>Payment Method:</span>
-                  </div>
-                  <p className="text-white">
-                    {order.paymentMethod === 'Card' ? 'Credit/Debit Card'
-                      : order.paymentMethod === 'Wallet+Card' ? 'Wallet + Credit/Debit Card'
-                      : order.paymentMethod}
-                  </p>
-                </div>
-              )}
+                {totalRefunded > 0 && (
+                  <SpecRow label="Refunded" value={`−${format(totalRefunded)}`} tone="warning" />
+                )}
+                {order.paymentMethod && (
+                  <SpecRow
+                    label="Paid by"
+                    value={
+                      <span className="inline-flex items-center gap-2">
+                        <CreditCard aria-hidden="true" className="size-4 text-fg-subtle" />
+                        {order.paymentMethod === 'Card'
+                          ? 'Card'
+                          : order.paymentMethod === 'Wallet+Card'
+                            ? 'Wallet + card'
+                            : order.paymentMethod}
+                      </span>
+                    }
+                  />
+                )}
+                <SpecRow
+                  emphasis
+                  label="Total"
+                  value={format(order.grandTotal ?? order.totalAmount)}
+                />
+              </SpecList>
             </CardContent>
           </Card>
 
-          {/* License Keys: show when delivered and at least one key not refunded */}
-          {(order.orderStatus === 'completed' || order.orderStatus === 'PARTIALLY_REFUNDED' || order.orderStatus === 'partially_completed') &&
-            order.paymentStatus === 'paid' &&
-            !(order.items || []).every((item) => item.refunded) && (
-            <Card className="bg-primary border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">License Keys</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setLicenseKeysModalOpen(true)}
-                >
-                  View License Keys
-                </Button>
-                <LicenseKeysModal
-                  open={licenseKeysModalOpen}
-                  onOpenChange={setLicenseKeysModalOpen}
-                  orderId={order._id}
-                  guestEmail={order.isGuest ? order.guestEmail : undefined}
-                />
-              </CardContent>
-            </Card>
-          )}
+          <Card variant="hud">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LifeBuoy aria-hidden="true" className="size-4" />
+                Need help?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/user/return-refunds">Report a problem</Link>
+              </Button>
+              <Button asChild variant="ghost" className="w-full">
+                <Link to="/user/support">Contact support</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      <LicenseKeysModal
+        open={keysOpen}
+        onOpenChange={setKeysOpen}
+        orderId={order._id}
+        guestEmail={order.isGuest ? order.guestEmail : undefined}
+      />
     </div>
   );
 };

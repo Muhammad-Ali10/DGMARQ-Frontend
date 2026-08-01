@@ -135,9 +135,9 @@ const SearchableSelect = React.forwardRef(
       <div className={cn("space-y-2", className)} ref={containerRef}>
         {label && (
           <div>
-            <Label className="text-white text-base font-semibold">{label}</Label>
+            <Label className="text-fg text-base font-semibold">{label}</Label>
             {description && (
-              <p className="text-xs text-gray-400 mt-0.5">{description}</p>
+              <p className="text-xs text-fg-muted mt-0.5">{description}</p>
             )}
           </div>
         )}
@@ -152,8 +152,8 @@ const SearchableSelect = React.forwardRef(
             onClick={() => setOpen(!open)}
             onKeyDown={handleKeyDown}
             className={cn(
-              "w-full justify-between bg-secondary border-gray-700 text-white hover:bg-gray-700",
-              !selectedOption && "text-gray-400",
+              "w-full justify-between",
+              !selectedOption && "text-fg-muted",
               disabled && "opacity-50 cursor-not-allowed"
             )}
           >
@@ -174,14 +174,14 @@ const SearchableSelect = React.forwardRef(
           {open && (
             <div
               className={cn(
-                "absolute z-50 w-full mt-1 bg-secondary border border-gray-700 rounded-md shadow-lg",
+                "absolute z-50 w-full mt-1 bg-popover text-popover-foreground border border-border rounded-md shadow-e2",
                 "animate-in fade-in-0 zoom-in-95 min-w-[500px]"
               )}
               style={{ maxHeight }}
             >
-              <div className="p-2 border-b border-gray-700">
+              <div className="p-2 border-b border-border">
                 <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-fg-muted" />
                   <Input
                     ref={inputRef}
                     type="text"
@@ -198,7 +198,7 @@ const SearchableSelect = React.forwardRef(
                         setFocusedIndex(-1);
                       }
                     }}
-                    className="pl-8 bg-primary border-gray-600 text-white placeholder:text-gray-500"
+                    className="pl-8"
                   />
                 </div>
               </div>
@@ -216,11 +216,11 @@ const SearchableSelect = React.forwardRef(
                 role="listbox"
               >
                 {loading ? (
-                  <div className="p-4 text-center text-gray-400 text-sm">
+                  <div className="p-4 text-center text-fg-muted text-sm">
                     Loading...
                   </div>
                 ) : filteredOptions.length === 0 ? (
-                  <div className="p-4 text-center text-gray-400 text-sm">
+                  <div className="p-4 text-center text-fg-muted text-sm">
                     {emptyMessage}
                   </div>
                 ) : (
@@ -246,9 +246,9 @@ const SearchableSelect = React.forwardRef(
                         tabIndex={isFocused ? 0 : -1}
                         className={cn(
                           "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none min-h-[3.5rem]",
-                          "hover:bg-gray-700 focus:bg-gray-700",
-                          isSelected && "bg-accent/20 text-accent",
-                          isFocused && "bg-gray-700"
+                          "hover:bg-surface-2 focus:bg-surface-2",
+                          isSelected && "bg-accent-soft text-accent-on-dark",
+                          isFocused && "bg-surface-2"
                         )}
                       >
                         {renderOption ? (
@@ -257,7 +257,7 @@ const SearchableSelect = React.forwardRef(
                           <>
                             <span className="flex-1 truncate">{optionLabel}</span>
                             {isSelected && (
-                              <Check className="h-4 w-4 text-accent ml-2 shrink-0" />
+                              <Check className="h-4 w-4 text-accent-on-dark ml-2 shrink-0" />
                             )}
                           </>
                         )}
@@ -267,7 +267,7 @@ const SearchableSelect = React.forwardRef(
                 )}
               </div>
               {filteredOptions.length > 0 && (
-                <div className="p-2 border-t border-gray-700 text-xs text-gray-400 text-center">
+                <div className="p-2 border-t border-border text-xs text-fg-muted text-center">
                   {filteredOptions.length} of {options.length} products
                 </div>
               )}

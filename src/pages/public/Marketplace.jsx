@@ -1,4 +1,3 @@
-import React from "react";
 import {
   HiCpuChip,
   HiDevicePhoneMobile,
@@ -56,7 +55,7 @@ const Marketplace = () => {
           {/* Title, subcopy, CTAs */}
           <div className="flex flex-1 flex-col justify-center space-y-8">
             <div className="space-y-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent/80">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent-on-dark/80">
                 Multi-vendor digital infrastructure
               </p>
               <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-[2.7rem] md:leading-tight">
@@ -127,7 +126,7 @@ const Marketplace = () => {
                   >
                     <div className="flex items-center gap-3">
                       {Icon && (
-                        <span className="rounded-xl bg-accent/15 p-2 text-accent">
+                        <span className="rounded-xl bg-accent/15 p-2 text-accent-on-dark">
                           <Icon className="h-4 w-4" />
                         </span>
                       )}
@@ -161,7 +160,7 @@ const Marketplace = () => {
                   <GlowCard key={category.id}>
                     <div className="flex items-center gap-3">
                       {Icon && (
-                        <span className="rounded-xl bg-accent/15 p-2 text-accent">
+                        <span className="rounded-xl bg-accent/15 p-2 text-accent-on-dark">
                           <Icon className="h-4 w-4" />
                         </span>
                       )}
@@ -228,7 +227,7 @@ const Marketplace = () => {
             {promotions.map((promo) => (
                 <GlowCard key={promo.id}>
                 <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-                  <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-accent/90">
+                  <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-on-dark/90">
                     {promo.badge}
                   </span>
                   <span className="text-[11px] text-emerald-300">

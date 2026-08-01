@@ -29,7 +29,7 @@ export const MessageListSkeleton = () => {
 export const TicketListSkeleton = ({ count = 5 }) => (
   <div className="space-y-2">
     {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="p-3 rounded-lg bg-gray-800/60 space-y-2">
+      <div key={i} className="p-3 rounded-lg bg-surface-2/60 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Skeleton className="h-4 w-32 opacity-30" />
           <Skeleton className="h-4 w-14 rounded-full opacity-30" />

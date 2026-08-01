@@ -29,9 +29,9 @@ export default function FAQAccordion({ items, className = "" }) {
               onClick={() => setOpenIndex(isOpen ? null : i)}
               className="w-full flex items-center justify-between gap-4 px-5 py-4 sm:px-6 sm:py-5 text-left hover:bg-white/[0.02] transition-colors"
             >
-              <span className="text-sm font-semibold text-white pr-4">{question}</span>
+              <span className="text-sm font-semibold text-fg pr-4">{question}</span>
               <span
-                className={`shrink-0 w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent transition-transform duration-300 ${
+                className={`shrink-0 w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark transition-transform duration-300 ${
                   isOpen ? "rotate-180" : ""
                 }`}
               >
@@ -52,7 +52,7 @@ export default function FAQAccordion({ items, className = "" }) {
             >
               <div className="overflow-hidden">
                 <div className="px-5 pb-4 pt-0 sm:px-6 sm:pb-5 sm:pt-0 border-t border-white/10">
-                  <p className="text-sm text-gray-400 leading-relaxed pt-4">{answer}</p>
+                  <p className="text-sm text-fg-muted leading-relaxed pt-4">{answer}</p>
                 </div>
               </div>
             </div>

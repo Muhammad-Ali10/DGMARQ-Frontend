@@ -11,7 +11,6 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
 import { CheckCircle2, XCircle, Clock, Store, Package, Eye } from 'lucide-react';
 import { Pagination } from '@components/common/Pagination';
-import '../dashboard-fx.css';
 
 const SellerOffersManagement = () => {
   const navigate = useNavigate();
@@ -38,9 +37,9 @@ const SellerOffersManagement = () => {
   if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Error loading offers'} />;
 
   return (
-    <div className="dash-fx space-y-6 px-4 sm:px-0">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="dash-icon-chip"><Store className="w-6 h-6" /></div>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-info/40 bg-info-soft text-info"><Store className="w-6 h-6" /></div>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Seller Offers</h1>
           <p className="text-sm text-gray-400 mt-1">Products that sellers have listed offers on. Open a product to review &amp; approve its offers.</p>
@@ -55,9 +54,9 @@ const SellerOffersManagement = () => {
         </TabsList>
       </Tabs>
 
-      <Card className="dash-card">
-        <CardHeader className="dash-card-head">
-          <CardTitle className="text-white text-xl font-semibold capitalize">{tab} offers</CardTitle>
+      <Card variant="hud">
+        <CardHeader className="border-b border-info/15">
+          <CardTitle className="capitalize">{tab} offers</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {groups.length === 0 ? (
@@ -68,7 +67,7 @@ const SellerOffersManagement = () => {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <Table>
+                <Table variant="hud">
                   <TableHeader>
                     <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
                       <TableHead className="text-gray-300">Product</TableHead>

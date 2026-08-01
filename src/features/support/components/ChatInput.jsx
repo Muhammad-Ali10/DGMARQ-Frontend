@@ -127,25 +127,25 @@ const ChatInput = ({
         setDragOver(false);
         handleFiles(e.dataTransfer?.files);
       }}
-      className={`relative border-t border-gray-700 p-3 ${internal ? 'bg-yellow-900/20' : 'bg-gray-800'} ${
+      className={`relative border-t border-brand-cyan/10 p-3 ${internal ? 'bg-yellow-900/20' : 'bg-surface-2'} ${
         dragOver ? 'ring-2 ring-accent ring-inset' : ''
       }`}
     >
       {/* Canned response picker */}
       {suggestions.length > 0 && (
-        <div className="absolute bottom-full left-3 right-3 mb-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl overflow-hidden z-10">
+        <div className="absolute bottom-full left-3 right-3 mb-1 bg-surface-sunken border border-border rounded-lg shadow-xl overflow-hidden z-10">
           {suggestions.map((c) => (
             <button
               key={c._id || c.shortcut}
               type="button"
               onClick={() => insertCanned(c)}
-              className="w-full text-left px-3 py-2 hover:bg-gray-800 border-b border-gray-800 last:border-0"
+              className="w-full text-left px-3 py-2 hover:bg-gray-800 border-b border-border last:border-0"
             >
               <div className="flex items-center gap-2">
-                <span className="text-accent text-xs font-mono">{c.shortcut}</span>
-                <span className="text-gray-200 text-sm font-medium">{c.title}</span>
+                <span className="text-accent-on-dark text-xs font-mono">{c.shortcut}</span>
+                <span className="text-fg text-sm font-medium">{c.title}</span>
               </div>
-              <p className="text-gray-400 text-xs truncate">{c.message}</p>
+              <p className="text-fg-muted text-xs truncate">{c.message}</p>
             </button>
           ))}
         </div>
@@ -154,6 +154,7 @@ const ChatInput = ({
       <input
         ref={fileRef}
         type="file"
+        aria-label="Attach a file"
         accept={ACCEPT}
         className="hidden"
         onChange={(e) => {
@@ -167,7 +168,7 @@ const ChatInput = ({
           type="button"
           onClick={() => setInternal((v) => !v)}
           className={`mb-2 inline-flex items-center gap-1 text-xs px-2 py-1 rounded ${
-            internal ? 'bg-yellow-700/60 text-yellow-100' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            internal ? 'bg-yellow-700/60 text-yellow-100' : 'bg-surface-2 text-fg-muted hover:bg-gray-600'
           }`}
         >
           {internal ? <Lock className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}
@@ -182,6 +183,7 @@ const ChatInput = ({
         <div className="flex-1">
           <textarea
             ref={taRef}
+            aria-label="Message"
             rows={1}
             value={text}
             disabled={disabled}
@@ -193,10 +195,10 @@ const ChatInput = ({
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder={dragOver ? 'Drop image to send…' : internal ? 'Write an internal note…' : placeholder}
-            className="w-full resize-none rounded-md bg-gray-900 border border-gray-700 text-white text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
+            className="w-full resize-none rounded-md bg-surface-sunken border border-border text-fg text-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-50"
           />
           {text.length > MAX_CHARS * 0.75 && (
-            <div className="text-right text-[10px] text-gray-400 mt-0.5">
+            <div className="text-right text-[10px] text-fg-muted mt-0.5">
               {text.length}/{MAX_CHARS}
             </div>
           )}

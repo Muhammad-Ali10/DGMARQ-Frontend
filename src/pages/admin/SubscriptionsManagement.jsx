@@ -57,18 +57,18 @@ const SubscriptionsManagement = () => {
 
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 text-sm">Total Subscriptions</p>
                   <p className="text-2xl font-bold text-white mt-1">{stats.totalSubscriptions || 0}</p>
                 </div>
-                <Users className="w-8 h-8 text-accent" />
+                <Users className="w-8 h-8 text-accent-on-dark" />
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -79,7 +79,7 @@ const SubscriptionsManagement = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -95,13 +95,13 @@ const SubscriptionsManagement = () => {
         </div>
       )}
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">All Subscriptions</CardTitle>
+          <CardTitle>All Subscriptions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700">
                   <TableHead className="text-gray-300">User</TableHead>

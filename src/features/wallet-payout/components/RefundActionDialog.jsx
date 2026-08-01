@@ -79,12 +79,12 @@ const RefundActionDialog = ({ open, onOpenChange, refund, actionType, onSuccess 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm" className="bg-primary border-gray-700 max-h-[90vh] h-[90vh] sm:h-auto overflow-hidden">
+      <DialogContent size="sm" className="max-h-[90vh] h-[90vh] sm:h-auto overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="text-white">
+          <DialogTitle className="text-fg">
             {actionType === 'approve' ? 'Approve Refund' : 'Reject Refund'}
           </DialogTitle>
-          <DialogDescription className="text-gray-400">
+          <DialogDescription className="text-fg-muted">
             {actionType === 'approve'
               ? 'This will process the refund, credit the customer wallet, and deduct from seller balance.'
               : 'Please provide a reason for rejecting this refund request.'}
@@ -93,20 +93,20 @@ const RefundActionDialog = ({ open, onOpenChange, refund, actionType, onSuccess 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4 overflow-y-auto pr-1">
           {actionType === 'reject' && (
             <div className="space-y-2">
-              <Label htmlFor="rejectionReason" className="text-white">Rejection Reason *</Label>
+              <Label htmlFor="rejectionReason" className="text-fg">Rejection Reason *</Label>
               <Textarea
                 id="rejectionReason"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Please provide a reason for rejecting this refund request..."
                 rows={4}
-                className="bg-secondary border-gray-700 text-white placeholder:text-gray-500 resize-none focus:border-accent"
+                className="bg-secondary border-border text-fg placeholder:text-gray-500 resize-none focus:border-accent"
                 required
               />
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="adminNotes" className="text-white">
+            <Label htmlFor="adminNotes" className="text-fg">
               Admin Notes {actionType === 'approve' && '(Optional)'}
             </Label>
             <Textarea
@@ -115,17 +115,17 @@ const RefundActionDialog = ({ open, onOpenChange, refund, actionType, onSuccess 
               onChange={(e) => setAdminNotes(e.target.value)}
               placeholder="Add any additional notes..."
               rows={3}
-              className="bg-secondary border-gray-700 text-white placeholder:text-gray-500 resize-none focus:border-accent"
+              className="bg-secondary border-border text-fg placeholder:text-gray-500 resize-none focus:border-accent"
               required={actionType === 'reject'}
             />
           </div>
           {actionType === 'approve' && refund && (
             <div className="p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                 <div className="text-sm text-yellow-200">
                   <p className="font-semibold mb-1">Important:</p>
-                  <ul className="list-disc list-inside space-y-1 text-yellow-300/80">
+                  <ul className="list-disc list-inside space-y-1 text-warning/80">
                     {hasSplit ? (
                       <>
                         {providerPortion > 0 && (
@@ -146,12 +146,12 @@ const RefundActionDialog = ({ open, onOpenChange, refund, actionType, onSuccess 
               </div>
             </div>
           )}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 sticky bottom-0 bg-primary pb-1">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 sticky bottom-0 bg-background pb-1">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-700"
+              className="flex-1 border-border text-fg-muted hover:bg-gray-700"
               disabled={updateMutation.isPending}
             >
               Cancel
@@ -159,7 +159,7 @@ const RefundActionDialog = ({ open, onOpenChange, refund, actionType, onSuccess 
             <Button
               type="submit"
               disabled={updateMutation.isPending || (actionType === 'reject' && !rejectionReason.trim())}
-              className={`flex-1 ${actionType === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white`}
+              className={`flex-1 ${actionType === 'approve' ? 'bg-success-solid hover:bg-green-700' : 'bg-danger-solid hover:bg-red-700'} text-fg`}
             >
               {updateMutation.isPending ? 'Processing...' : (actionType === 'approve' ? 'Approve & Process' : 'Reject')}
             </Button>

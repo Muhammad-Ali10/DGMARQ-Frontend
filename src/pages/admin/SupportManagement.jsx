@@ -142,9 +142,9 @@ const SupportManagement = () => {
         {statsCards.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={stat.title} className="bg-primary border-gray-700">
+            <Card key={stat.title} variant="hud">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
+                <CardTitle className="text-gray-300">{stat.title}</CardTitle>
                 <Icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
@@ -153,9 +153,9 @@ const SupportManagement = () => {
             </Card>
           );
         })}
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Satisfaction</CardTitle>
+            <CardTitle className="text-gray-300">Satisfaction</CardTitle>
             <Star className="h-4 w-4 text-yellow-400" />
           </CardHeader>
           <CardContent>
@@ -167,9 +167,9 @@ const SupportManagement = () => {
         </Card>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader className="space-y-3">
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <Headphones className="h-5 w-5" /> Support Chats
           </CardTitle>
           {/* Toolbar */}
@@ -218,7 +218,7 @@ const SupportManagement = () => {
             <EmptyState title="No tickets match these filters." />
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table variant="hud">
                 <TableHeader>
                   <TableRow className="border-gray-700 hover:bg-gray-800">
                     <TableHead className="text-gray-300">Ticket</TableHead>
@@ -278,7 +278,7 @@ const SupportManagement = () => {
 
       {/* Chat dialog */}
       <Dialog open={chatDialogOpen} onOpenChange={setChatDialogOpen}>
-        <DialogContent size="lg" className="bg-primary border-gray-700 flex flex-col h-[85vh]">
+        <DialogContent size="lg" className="flex flex-col h-[85vh]">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center justify-between flex-wrap gap-2">
               <div className="min-w-0">

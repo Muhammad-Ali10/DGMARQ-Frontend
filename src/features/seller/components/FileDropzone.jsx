@@ -68,7 +68,7 @@ const FileDropzone = ({ file, previewUrl, onChange, label, note, error, compact 
   return (
     <div className="space-y-2">
       {label && (
-        <span className="block text-sm font-medium text-gray-200">{label}</span>
+        <span className="block text-sm font-medium text-fg">{label}</span>
       )}
 
       {!file ? (
@@ -84,27 +84,27 @@ const FileDropzone = ({ file, previewUrl, onChange, label, note, error, compact 
             compact ? 'p-4' : 'p-6',
             dragOver
               ? 'border-accent bg-accent/10 scale-[1.01]'
-              : 'border-gray-600 bg-white/[0.02] hover:border-accent/70 hover:bg-accent/[0.04]',
+              : 'border-border-interactive bg-white/[0.02] hover:border-accent/70 hover:bg-accent/[0.04]',
             shownError && 'border-destructive seller-shake',
           )}
         >
           <UploadCloud
             className={cn(
-              'mx-auto mb-2 text-gray-400 transition-colors group-hover:text-accent',
+              'mx-auto mb-2 text-fg-muted transition-colors group-hover:text-accent-on-dark',
               compact ? 'h-7 w-7' : 'h-9 w-9',
-              dragOver && 'text-accent',
+              dragOver && 'text-accent-on-dark',
             )}
           />
-          <p className="text-sm font-medium text-gray-200">
+          <p className="text-sm font-medium text-fg">
             {dragOver ? 'Drop here' : 'Click or drag files here to upload'}
           </p>
-          <p className="text-xs text-gray-500 mt-1">PNG, JPG, PDF up to 10MB</p>
+          <p className="text-xs text-fg-subtle mt-1">PNG, JPG, PDF up to 10MB</p>
         </button>
       ) : (
         <div
           className={cn(
             'flex items-center gap-3 rounded-xl border p-3 bg-white/[0.03]',
-            shownError ? 'border-destructive' : 'border-gray-600',
+            shownError ? 'border-destructive' : 'border-border-interactive',
           )}
         >
           <div className="flex-shrink-0">
@@ -112,25 +112,25 @@ const FileDropzone = ({ file, previewUrl, onChange, label, note, error, compact 
               <img
                 src={preview}
                 alt={file.name}
-                className="h-14 w-14 rounded-lg object-cover border border-gray-600"
+                className="h-14 w-14 rounded-lg object-cover border border-border-interactive"
               />
             ) : (
-              <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-gray-600 bg-accent/10">
+              <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border-interactive bg-accent/10">
                 {isPdf ? (
-                  <FileText className="h-7 w-7 text-accent" />
+                  <FileText className="h-7 w-7 text-accent-on-dark" />
                 ) : (
-                  <ImageIcon className="h-7 w-7 text-accent" />
+                  <ImageIcon className="h-7 w-7 text-accent-on-dark" />
                 )}
               </div>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">{file.name}</p>
-            <p className="text-xs text-gray-400">{humanSize(file.size)}</p>
+            <p className="truncate text-sm font-medium text-fg">{file.name}</p>
+            <p className="text-xs text-fg-muted">{humanSize(file.size)}</p>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="mt-1 text-xs text-accent hover:underline"
+              className="mt-1 text-xs text-accent-on-dark hover:underline"
             >
               Replace
             </button>
@@ -139,7 +139,7 @@ const FileDropzone = ({ file, previewUrl, onChange, label, note, error, compact 
             type="button"
             onClick={() => { onChange(null); setLocalError(''); }}
             aria-label="Remove file"
-            className="flex-shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-destructive/20 hover:text-destructive transition-colors"
+            className="flex-shrink-0 rounded-full p-1.5 text-fg-muted hover:bg-destructive/20 hover:text-destructive transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -150,11 +150,12 @@ const FileDropzone = ({ file, previewUrl, onChange, label, note, error, compact 
         ref={inputRef}
         type="file"
         accept={ACCEPT}
+        aria-label={label || 'Choose a file'}
         className="hidden"
         onChange={(e) => validateAndSet(e.target.files?.[0])}
       />
 
-      {note && !shownError && <p className="text-xs text-gray-500">{note}</p>}
+      {note && !shownError && <p className="text-xs text-fg-subtle">{note}</p>}
       {shownError && <p className="text-xs text-destructive">{shownError}</p>}
     </div>
   );

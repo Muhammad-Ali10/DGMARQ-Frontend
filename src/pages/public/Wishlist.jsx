@@ -1,14 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { userAPI, cartAPI } from '@services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Card, CardContent } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
 import { Heart, ShoppingCart, Trash2, LogIn, ArrowRight, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { ProductCard } from '@features/catalog';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import SafeImage from '@components/ui/safe-image';
 import { showSuccess, showApiError } from '@utils/toast';
@@ -93,7 +91,7 @@ const Wishlist = () => {
   if (!isAuthenticated) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
-        <Card className="bg-[#041536] border-gray-700 max-w-md w-full mx-4">
+        <Card className="bg-[#041536] max-w-md w-full mx-4">
           <CardContent className="py-12 px-6 text-center">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-800 flex items-center justify-center">
               <Heart className="w-10 h-10 text-gray-400" />
@@ -114,7 +112,7 @@ const Wishlist = () => {
               <Button
                 onClick={() => navigate('/register')}
                 variant="outline"
-                className="border-accent text-accent hover:bg-accent/10"
+                className="border-accent text-accent-on-dark hover:bg-accent/10"
                 size="lg"
               >
                 Create Account
@@ -142,7 +140,7 @@ const Wishlist = () => {
   if (isError) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
-        <Card className="bg-[#041536] border-gray-700 max-w-md w-full mx-4">
+        <Card className="bg-[#041536] max-w-md w-full mx-4">
           <CardContent className="py-12 px-6 text-center">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-900/20 flex items-center justify-center">
               <Heart className="w-10 h-10 text-red-400" />
@@ -171,7 +169,7 @@ const Wishlist = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">My Wishlist</h1>
           <p className="text-gray-400 mb-8">Save your favorite products for later</p>
           
-          <Card className="bg-[#041536] border-gray-700">
+          <Card className="bg-[#041536] ">
             <CardContent className="py-16 text-center">
               <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-800 flex items-center justify-center">
                 <Heart className="w-12 h-12 text-gray-500" />
@@ -223,14 +221,11 @@ const Wishlist = () => {
           {wishlistItems.map((product) => {
             if (!product || !product._id) return null;
 
-            // const discountPrice = product.discount 
-            //   ? product.price * (1 - product.discount / 100)
-            //   : product.price;
             const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
             return (
               <Card
                 key={product._id}
-                className="bg-[#041536] border-gray-700 hover:border-accent/50 transition-all duration-300 group overflow-hidden"
+                className="bg-[#041536] hover:border-accent/50 transition-all duration-300 group overflow-hidden"
               >
                 {/* Remove from Wishlist Button */}
                 <div className="absolute top-2 right-2 z-10">
@@ -273,7 +268,7 @@ const Wishlist = () => {
                 <CardContent className="p-4">
                   {/* Product Title */}
                   <Link to={`/product/${product.slug || product._id}`}>
-                    <h3 className="font-semibold text-white text-base mb-2 line-clamp-2 hover:text-accent transition-colors min-h-[3rem]">
+                    <h3 className="font-semibold text-white text-base mb-2 line-clamp-2 hover:text-accent-on-dark transition-colors min-h-[3rem]">
                       {product.name}
                     </h3>
                   </Link>
@@ -285,7 +280,7 @@ const Wishlist = () => {
 
                   {/* Price */}
                   <div className="flex items-center gap-2 mb-4">
-                        <span className="text-accent font-bold text-lg">
+                        <span className="text-accent-on-dark font-bold text-lg">
                           ${discountPrice.toFixed(2)}
                         </span>
                         {discountPercentage > 0 && (

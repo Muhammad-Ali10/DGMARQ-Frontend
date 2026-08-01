@@ -26,10 +26,10 @@ const PresenceBar = ({
   }
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/60 border-b border-gray-700/60 text-xs">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-surface-2/60 border-b border-brand-cyan/10 text-xs">
       <span className={`h-2 w-2 rounded-full ${online ? 'bg-green-500' : 'bg-gray-500'}`} />
-      <span className="text-gray-200 font-medium">{name}</span>
-      <span className="text-gray-500">· {online ? onlineText : offlineText}</span>
+      <span className="text-fg font-medium">{name}</span>
+      <span className="text-fg-subtle">· {online ? onlineText : offlineText}</span>
     </div>
   );
 };

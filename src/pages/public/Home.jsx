@@ -10,11 +10,10 @@ import {
   upcomingGamesAPI,
   softwareAPI,
   seoAPI,
+  productAPI,
 } from "@services/api";
-import { productAPI } from "@services/api";
 import { Loading } from "@components/ui/loading";
 import { useSEO } from "@hooks/useSEO";
-import SafeImage from "@components/ui/safe-image";
 
 const widths = ["w-1/4", "w-1/4", "w-1/2", "w-1/4", "w-1/4", "w-1/2"];
 
@@ -175,7 +174,7 @@ const Home = () => {
             <Button
               asChild
               variant="outline"
-              className="border-accent text-accent hover:bg-accent/10 shrink-0"
+              className="border-accent text-accent-on-dark hover:bg-accent/10 shrink-0"
             >
               <Link to="/bestsellers">Show More</Link>
             </Button>

@@ -69,7 +69,7 @@ const ITEM_DELAY_REST = '[animation-delay:0.28s]';
 const QTY_BTN =
   'h-6 w-[26px] text-[15px] font-bold leading-none text-[#3a9bf5] hover:bg-[rgba(58,155,245,0.15)]';
 const CHECKOUT_BTN =
-  'flex h-[46px] w-full items-center justify-center rounded-[11px] bg-gradient-to-br from-[#0e51e2] to-[#7b2ff7] text-[15px] font-extrabold tracking-[0.3px] text-white [transition:filter_0.18s,box-shadow_0.2s] hover:[filter:brightness(1.08)] hover:shadow-[0_12px_40px_rgba(123,47,247,0.6),0_0_26px_rgba(168,85,247,0.4)]';
+  'flex h-[46px] w-full items-center justify-center rounded-[11px] bg-gradient-to-br from-[#0e51e2] to-[#7b2ff7] text-[15px] font-extrabold tracking-[0.3px] text-fg [transition:filter_0.18s,box-shadow_0.2s] hover:[filter:brightness(1.08)] hover:shadow-[0_12px_40px_rgba(123,47,247,0.6),0_0_26px_rgba(168,85,247,0.4)]';
 
 // Mini-cart flyout (header). Reuses the real cart (auth via API, guest via
 // localStorage) and mirrors the full cart page's data — images, platform·type,
@@ -154,7 +154,9 @@ const CartDropdown = ({ open, onClose }) => {
 
   return (
     <>
-      <div className="fixed inset-0 z-[1999] bg-transparent" onClick={onClose} />
+      {/* Click-catcher. Escape and the panel's close button are the real
+          dismiss paths; this is a pointer convenience, hence presentational. */}
+      <div role="presentation" className="fixed inset-0 z-[1999] bg-transparent" onClick={onClose} />
       <div className={PANEL} role="dialog" aria-label="Shopping cart">
         <span className={TOPLINE} />
         <span className={`${ORB} ${ORB_1}`} />
@@ -163,7 +165,7 @@ const CartDropdown = ({ open, onClose }) => {
 
         {/* Header */}
         <div className="relative z-[2] flex items-center justify-between px-4 pb-2.5 pt-3.5">
-          <h3 className="m-0 flex items-center gap-2 text-[13px] font-extrabold tracking-[1.4px] text-white">
+          <h3 className="m-0 flex items-center gap-2 text-[13px] font-extrabold tracking-[1.4px] text-fg">
             <ShoppingCart className="h-4 w-4 text-[#3a9bf5]" strokeWidth={2} />
             <span className={TITLE}>MY SHOPPING CART</span>
             <span className="rounded-full border border-[rgba(58,116,240,0.5)] bg-[rgba(14,81,226,0.2)] px-[7px] py-px text-[10px] font-extrabold text-[#7fb4ff]">
@@ -174,7 +176,7 @@ const CartDropdown = ({ open, onClose }) => {
             type="button"
             onClick={onClose}
             aria-label="Close cart"
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/60 transition-colors hover:bg-white/10"
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-white/10 bg-white/5 text-fg/60 transition-colors hover:bg-white/10"
           >
             <X className="h-3.5 w-3.5" strokeWidth={2.4} />
           </button>
@@ -184,8 +186,8 @@ const CartDropdown = ({ open, onClose }) => {
         <div className={`${SCROLL} relative z-[2] px-3 pb-1 pt-0.5`}>
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-              <ShoppingCart className="h-10 w-10 text-white/25" strokeWidth={1.5} />
-              <p className="text-sm text-white/50">Your cart is empty</p>
+              <ShoppingCart className="h-10 w-10 text-fg/25" strokeWidth={1.5} />
+              <p className="text-sm text-fg/50">Your cart is empty</p>
             </div>
           ) : (
             items.map((it, idx) => {
@@ -201,26 +203,26 @@ const CartDropdown = ({ open, onClose }) => {
                     <SafeImage src={it.image} alt={it.name} className="absolute inset-0 h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
-                      <ShoppingCart className="h-6 w-6 text-white/25" />
+                      <ShoppingCart className="h-6 w-6 text-fg/25" />
                     </div>
                   )}
                 </Link>
                 <div className="min-w-0 flex-1 p-2.5">
                   <div className="flex items-start justify-between gap-1.5">
-                    <Link to={`/product/${it.slug}`} onClick={onClose} className="line-clamp-2 text-[12.5px] font-bold leading-tight text-white hover:text-accent">
+                    <Link to={`/product/${it.slug}`} onClick={onClose} className="line-clamp-2 text-[12.5px] font-bold leading-tight text-fg hover:text-accent-on-dark">
                       {it.name}
                     </Link>
                     <button
                       type="button"
                       onClick={() => remove(it.productId, it.sellerId)}
                       aria-label="Remove item"
-                      className="shrink-0 text-white/35 transition-colors hover:text-red-400"
+                      className="shrink-0 text-fg/35 transition-colors hover:text-red-400"
                     >
                       <Trash2 className="h-[15px] w-[15px]" strokeWidth={2} />
                     </button>
                   </div>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10.5px] text-white/45">
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10.5px] text-fg/45">
                     {it.platform && <span>{it.platform}</span>}
                     {it.productType && <ProductTypeBadge type={it.productType} />}
                   </div>
@@ -231,28 +233,28 @@ const CartDropdown = ({ open, onClose }) => {
                     </div>
                   )}
                   {it.isPreorder && (
-                    <span className="mt-1 inline-block rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold text-amber-300">
+                    <span className="mt-1 inline-block rounded border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5 text-[9.5px] font-semibold text-warning">
                       PRE-ORDER
                     </span>
                   )}
 
                   <div className="mt-1.5 flex items-end justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[15px] font-extrabold text-white">{format(it.price)}</span>
+                      <span className="text-[15px] font-extrabold text-fg">{format(it.price)}</span>
                       {it.hasDiscount && it.discountPct > 0 && (
                         <>
-                          <span className="rounded-full border border-[rgba(120,180,255,0.9)] bg-gradient-to-br from-[#172AA4] to-[#0E9FE2] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                          <span className="rounded-full border border-[rgba(120,180,255,0.9)] bg-gradient-to-br from-[#172AA4] to-[#0E9FE2] px-2 py-0.5 text-[10px] font-extrabold text-fg">
                             -{Math.round(it.discountPct)}%
                           </span>
                           {it.original != null && (
-                            <span className="text-[10.5px] text-white/30 line-through">{format(it.original)}</span>
+                            <span className="text-[10.5px] text-fg/30 line-through">{format(it.original)}</span>
                           )}
                         </>
                       )}
                     </div>
                     <div className="flex items-center overflow-hidden rounded-md border border-white/15 bg-white/5">
                       <button type="button" onClick={() => setQty(it.productId, it.sellerId, it.qty - 1)} className={QTY_BTN} aria-label="Decrease quantity">−</button>
-                      <span className="min-w-[20px] text-center text-xs font-semibold text-white">{it.qty}</span>
+                      <span className="min-w-[20px] text-center text-xs font-semibold text-fg">{it.qty}</span>
                       <button type="button" onClick={() => setQty(it.productId, it.sellerId, it.qty + 1)} className={QTY_BTN} aria-label="Increase quantity">+</button>
                     </div>
                   </div>
@@ -263,7 +265,7 @@ const CartDropdown = ({ open, onClose }) => {
                         <CheckCircle2 className="h-3 w-3" /> {it.stock} in stock
                       </span>
                     ) : <span />}
-                    {it.seller && <span className="truncate text-white/55">Sold by {it.seller}</span>}
+                    {it.seller && <span className="truncate text-fg/55">Sold by {it.seller}</span>}
                   </div>
                 </div>
               </div>
@@ -275,25 +277,25 @@ const CartDropdown = ({ open, onClose }) => {
         {/* Footer */}
         {items.length > 0 && (
           <div className="relative z-[2] flex-none border-t border-[rgba(58,116,240,0.18)] bg-[#090e1c] px-4 pb-4 pt-3">
-            <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-white/50">
+            <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-fg/50">
               <span>Subtotal</span>
-              <span className="text-white/80">{format(subtotal)}</span>
+              <span className="text-fg/80">{format(subtotal)}</span>
             </div>
             {protectionFee > 0 && (
-              <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-white/50">
+              <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-fg/50">
                 <span>Buyer Protection</span>
-                <span className="text-white/80">{format(protectionFee)}</span>
+                <span className="text-fg/80">{format(protectionFee)}</span>
               </div>
             )}
             {processingFee > 0 && (
-              <div className="mb-2.5 flex items-center justify-between text-[12.5px] text-white/50">
+              <div className="mb-2.5 flex items-center justify-between text-[12.5px] text-fg/50">
                 <span>Checkout Fee</span>
-                <span className="text-white/80">{format(processingFee)}</span>
+                <span className="text-fg/80">{format(processingFee)}</span>
               </div>
             )}
             <div className="mb-3 flex items-center justify-between border-t border-dashed border-white/10 pt-2.5">
-              <span className="text-[13px] font-extrabold tracking-[0.8px] text-white">TOTAL</span>
-              <span className="text-[22px] font-extrabold text-white [text-shadow:0_0_18px_rgba(58,155,245,0.55)]">{format(total)}</span>
+              <span className="text-[13px] font-extrabold tracking-[0.8px] text-fg">TOTAL</span>
+              <span className="text-[22px] font-extrabold text-fg [text-shadow:0_0_18px_rgba(58,155,245,0.55)]">{format(total)}</span>
             </div>
             <button
               type="button"

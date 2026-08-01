@@ -3,10 +3,10 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { sellerAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
-import { Badge } from '@components/ui/badge';
-import { Loading, ErrorMessage } from '@components/ui/loading';
+import { Skeleton } from '@components/ui/skeleton';
+import { StatusBadge } from '@components/common/StatusBadge';
+import { ErrorState } from '@components/common/ErrorState';
 import {
-  CheckCircle2,
   CreditCard,
   ExternalLink,
   Info,
@@ -23,22 +23,9 @@ const METHODS = [
     description: 'Receive payouts to your PayPal account.',
     icon: CreditCard,
     routedFrom: 'PayPal',
-    accent: 'bg-sky-500/10 border-sky-500/30 text-sky-100',
+    accent: 'bg-info-soft border-info/35 text-info',
   },
 ];
-
-const StatusBadge = ({ status }) => {
-  if (status === 'verified') {
-    return <Badge variant="success" className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Connected</Badge>;
-  }
-  if (status === 'blocked') {
-    return <Badge variant="destructive" className="flex items-center gap-1"><ShieldAlert className="h-3 w-3" /> Blocked</Badge>;
-  }
-  if (status === 'pending') {
-    return <Badge variant="warning">Pending</Badge>;
-  }
-  return <Badge variant="secondary">Not connected</Badge>;
-};
 
 const PayoutAccount = () => {
   const queryClient = useQueryClient();
@@ -131,31 +118,46 @@ const PayoutAccount = () => {
     unlinkMutation.mutate(method);
   };
 
-  if (isLoading) return <Loading message="Loading payout account..." />;
-  if (isError) return <ErrorMessage message="Error loading payout account" />;
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-48 w-full rounded-lg" />
+        <Skeleton className="h-32 w-full rounded-lg" />
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <ErrorState
+        title="Couldn't load your payout account"
+        onRetry={() => queryClient.invalidateQueries({ queryKey: ['payout-account'] })}
+      />
+    );
+  }
 
   const accountBlocked = payoutAccountData?.accountBlocked ?? false;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Payout Account</h1>
-        <p className="text-gray-400 mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-fg">Payout Account</h1>
+        <p className="text-fg-muted mt-1">
           Connect your PayPal account. Once connected, your earnings release automatically every {holdDays} day{holdDays === 1 ? '' : 's'} after order completion.
         </p>
       </div>
 
-      <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-3 flex items-start gap-2">
-        <Info className="w-4 h-4 text-sky-300 mt-0.5 shrink-0" />
-        <p className="text-xs text-sky-100/90">
+      <div className="rounded-lg border border-info/35 bg-info-soft p-3 flex items-start gap-2">
+        <Info className="w-4 h-4 text-info mt-0.5 shrink-0" />
+        <p className="text-xs text-info">
           PayPal payouts are sent from our PayPal account. You pay the provider fee for withdrawals at request time.
         </p>
       </div>
 
       {accountBlocked ? (
-        <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 flex items-start gap-2">
-          <ShieldAlert className="w-4 h-4 text-rose-300 mt-0.5 shrink-0" />
-          <p className="text-xs text-rose-100">
+        <div className="rounded-lg border border-danger/35 bg-danger-soft p-3 flex items-start gap-2">
+          <ShieldAlert className="w-4 h-4 text-danger mt-0.5 shrink-0" />
+          <p className="text-xs text-danger">
             Your account is currently blocked from receiving payouts. Contact support if you believe this is an error.
           </p>
         </div>
@@ -169,28 +171,28 @@ const PayoutAccount = () => {
           const Icon = m.icon;
 
           return (
-            <Card key={m.key} className="bg-primary border-gray-700">
+            <Card key={m.key} variant="hud">
               <CardHeader className="flex flex-row items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <CardTitle className="text-white flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2">
                     <Icon className="h-5 w-5" />
                     {m.label}
                   </CardTitle>
-                  <p className="text-xs text-gray-400">Routed via: {m.routedFrom}</p>
+                  <p className="text-xs text-fg-muted">Routed via: {m.routedFrom}</p>
                 </div>
-                <StatusBadge status={account?.status || 'none'} />
+                <StatusBadge domain="payoutAccount" status={account?.status || 'unlinked'} />
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-gray-400">{m.description}</p>
+                <p className="text-sm text-fg-muted">{m.description}</p>
 
                 {isConnected && account ? (
-                  <div className="rounded-md bg-gray-800 p-3 space-y-1">
-                    <p className="text-sm text-white">
+                  <div className="rounded-md bg-surface-2 p-3 space-y-1">
+                    <p className="text-sm text-fg">
                       {account.accountIdentifier || 'Connected'}
                     </p>
-                    {account.accountName ? <p className="text-xs text-gray-300">{account.accountName}</p> : null}
+                    {account.accountName ? <p className="text-xs text-fg-muted">{account.accountName}</p> : null}
                     {account.linkedAt ? (
-                      <p className="text-[11px] text-gray-500">
+                      <p className="text-[11px] text-fg-subtle">
                         Connected on {new Date(account.linkedAt).toLocaleDateString()}
                       </p>
                     ) : null}
@@ -198,7 +200,7 @@ const PayoutAccount = () => {
                 ) : null}
 
                 {isBlocked ? (
-                  <p className="text-xs text-rose-300">
+                  <p className="text-xs text-danger">
                     Blocked by admin: {account?.blockedReason || 'no reason provided'}.
                   </p>
                 ) : null}

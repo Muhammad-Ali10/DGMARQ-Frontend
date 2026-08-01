@@ -314,7 +314,7 @@ const Header = () => {
             <Button
               variant="outline"
               size="icon"
-              className="md:hidden border-accent text-white hover:bg-accent/10 rounded-lg shrink-0"
+              className="md:hidden border-accent text-fg hover:bg-accent/10 rounded-lg shrink-0"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
             >
@@ -450,30 +450,54 @@ const Header = () => {
 
         {/* Command strip (sub-nav) — desktop */}
         <div className="fx-cmdbar container mx-auto" ref={categoriesDropdownRef}>
-          <nav className="fx-cmd" aria-label="Browse the store" onMouseLeave={hideSpot}>
-            <div className="fx-cmd-track">
+          <nav className="fx-cmd" aria-label="Browse the store">
+            {/* The spot is a decorative hover highlight, so its pointer handlers
+                live on a presentational wrapper rather than on the <nav>. */}
+            <div className="fx-cmd-track" role="presentation" onMouseLeave={hideSpot}>
               <span className="fx-cmd-spot" aria-hidden="true" style={{ left: spot.left, width: spot.width, opacity: spot.opacity }} />
 
               {/* Categories — opens mega dropdown */}
+              {/* Grouping wrapper. The real control is the <button> inside
+                  (aria-expanded + click + focus); these handlers only route
+                  pointer convenience and bubbled Escape to it. */}
               <div
+                role="presentation"
                 className="relative"
                 style={{ flex: "1 1 0", minWidth: 0 }}
                 onMouseEnter={openCategories}
                 onMouseLeave={closeCategoriesDelayed}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && showCategoriesDropdown) {
+                    setShowCategoriesDropdown(false);
+                    setHoveredCategory(null);
+                  }
+                }}
               >
-                <button type="button" className="fx-cmd-item" style={{ width: "100%" }} onMouseEnter={moveSpot}>
+                <button
+                  type="button"
+                  className="fx-cmd-item"
+                  style={{ width: "100%" }}
+                  aria-expanded={showCategoriesDropdown}
+                  aria-haspopup="true"
+                  onMouseEnter={moveSpot}
+                  onFocus={openCategories}
+                  onClick={() =>
+                    showCategoriesDropdown ? setShowCategoriesDropdown(false) : openCategories()
+                  }
+                >
                   <Menu /> <span className="fx-cmd-label">Categories</span>
                 </button>
 
                 {showCategoriesDropdown && categories.length > 0 && (
                   <div
-                    className="absolute top-full left-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50"
+                    className="absolute top-full left-0 bg-surface-sunken border border-border rounded-lg shadow-xl z-50"
                     style={{ marginTop: 2, width: hoveredCategory && subcategories.length > 0 ? 600 : 300, transition: "width 0.2s ease-in-out" }}
+                    role="presentation"
                     onMouseEnter={openCategories}
                     onMouseLeave={closeCategoriesDelayed}
                   >
                     <div className="flex min-h-[300px]">
-                      <div className={cn("border-r border-gray-700 max-h-[500px] overflow-y-auto", hoveredCategory && subcategories.length > 0 ? "w-2/5" : "w-full")}>
+                      <div className={cn("border-r border-border max-h-[500px] overflow-y-auto", hoveredCategory && subcategories.length > 0 ? "w-2/5" : "w-full")}>
                         {categories.map((category) => {
                           const hasSubcategories = categoriesWithSubcategories[category._id] || false;
                           return (
@@ -482,32 +506,32 @@ const Header = () => {
                               type="button"
                               onMouseEnter={() => handleCategoryHover(category)}
                               onClick={() => { navigate(`/category/${category.slug || category._id}`); setShowCategoriesDropdown(false); }}
-                              className={cn("w-full px-4 py-3 text-left text-white hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-gray-800/30 last:border-b-0", hoveredCategory?._id === category._id && "bg-gray-800/50")}
+                              className={cn("w-full px-4 py-3 text-left text-fg hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-border/30 last:border-b-0", hoveredCategory?._id === category._id && "bg-surface-2/50")}
                             >
                               {category.image ? (
                                 <SafeImage src={category.image} alt={category.name} className="w-8 h-8 object-cover rounded shrink-0" />
                               ) : (
-                                <div className="w-8 h-8 bg-gray-700 rounded shrink-0 flex items-center justify-center">
-                                  <Menu className="h-4 w-4 text-gray-400" />
+                                <div className="w-8 h-8 bg-surface-2 rounded shrink-0 flex items-center justify-center">
+                                  <Menu className="h-4 w-4 text-fg-muted" />
                                 </div>
                               )}
                               <span className="flex-1 text-sm font-medium">{category.name}</span>
-                              {hasSubcategories && <ArrowRight className="h-4 w-4 text-gray-400 shrink-0" />}
+                              {hasSubcategories && <ArrowRight className="h-4 w-4 text-fg-muted shrink-0" />}
                             </button>
                           );
                         })}
                       </div>
                       {hoveredCategory && subcategories.length > 0 && (
-                        <div className="w-3/5 max-h-[500px] overflow-y-auto bg-gray-800/10">
+                        <div className="w-3/5 max-h-[500px] overflow-y-auto bg-surface-2/10">
                           <div className="py-2">
                             {subcategories.map((subcategory) => (
                               <Link
                                 key={subcategory._id}
                                 to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${hoveredCategory?._id || ""}`}
                                 onClick={() => setShowCategoriesDropdown(false)}
-                                className="flex items-center px-4 py-2.5 hover:bg-gray-800/50 transition-colors group border-b border-gray-800/20 last:border-b-0"
+                                className="flex items-center px-4 py-2.5 hover:bg-gray-800/50 transition-colors group border-b border-border/20 last:border-b-0"
                               >
-                                <span className="text-white text-sm group-hover:text-accent flex-1">{subcategory.name}</span>
+                                <span className="text-fg text-sm group-hover:text-accent-on-dark flex-1">{subcategory.name}</span>
                               </Link>
                             ))}
                           </div>
@@ -536,12 +560,14 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-700 max-h-[calc(100vh-80px)] overflow-y-auto bg-[#060318]">
+          <div className="md:hidden border-t border-border max-h-[calc(100vh-80px)] overflow-y-auto bg-[#060318]">
             <div className="p-4 space-y-4">
               {/* Mobile search */}
               <form onSubmit={handleSearch} className="flex items-center gap-2">
                 <input
-                  className="flex-1 bg-gray-900/60 border border-accent rounded-lg px-3 h-10 text-white text-sm outline-none"
+                  type="search"
+                  aria-label="Search products"
+                  className="flex-1 bg-surface-sunken/60 border border-accent rounded-lg px-3 h-10 text-fg text-sm outline-none"
                   placeholder="Search…"
                   value={searchQuery}
                   onChange={handleSearchChange}
@@ -550,7 +576,7 @@ const Header = () => {
               </form>
 
               <div className="space-y-2">
-                <button className="w-full flex items-center justify-between text-white py-2" onClick={() => setMobileCategoriesOpen(!mobileCategoriesOpen)}>
+                <button className="w-full flex items-center justify-between text-fg py-2" onClick={() => setMobileCategoriesOpen(!mobileCategoriesOpen)}>
                   <div className="flex items-center gap-2"><Menu className="h-5 w-5" /><span className="font-medium">Categories</span></div>
                   <ChevronDown className={cn("h-4 w-4 transition-transform", mobileCategoriesOpen && "rotate-180")} />
                 </button>
@@ -566,7 +592,7 @@ const Header = () => {
                             <Link
                               to={`/category/${category.slug || category._id}`}
                               onClick={() => { setMobileMenuOpen(false); setMobileCategoriesOpen(false); setExpandedCategoryId(null); }}
-                              className="flex-1 text-gray-300 hover:text-accent py-1"
+                              className="flex-1 text-fg-muted hover:text-accent-on-dark py-1"
                             >
                               {category.name}
                             </Link>
@@ -589,20 +615,20 @@ const Header = () => {
                                   setExpandedCategoryId(null);
                                 }
                               }}
-                              className="p-1 text-gray-400 hover:text-accent"
+                              className="p-1 text-fg-muted hover:text-accent-on-dark"
                               aria-label={isExpanded ? "Collapse" : "Expand"}
                             >
                               <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
                             </button>
                           </div>
                           {isExpanded && subs.length > 0 && (
-                            <div className="pl-4 space-y-1 border-l-2 border-gray-700 ml-2">
+                            <div className="pl-4 space-y-1 border-l-2 border-border ml-2">
                               {subs.map((subcategory) => (
                                 <Link
                                   key={subcategory._id}
                                   to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${category._id}`}
                                   onClick={() => { setMobileMenuOpen(false); setMobileCategoriesOpen(false); setExpandedCategoryId(null); }}
-                                  className="block text-gray-400 hover:text-accent py-1 text-sm"
+                                  className="block text-fg-muted hover:text-accent-on-dark py-1 text-sm"
                                 >
                                   {subcategory.name}
                                 </Link>
@@ -617,17 +643,17 @@ const Header = () => {
               </div>
 
               {navLinks.map((l) => (
-                <Link key={l.to} to={l.to} className="block text-white hover:text-accent py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center" onClick={() => setMobileMenuOpen(false)}>
+                <Link key={l.to} to={l.to} className="block text-fg hover:text-accent-on-dark py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center" onClick={() => setMobileMenuOpen(false)}>
                   {l.label}
                 </Link>
               ))}
 
-              <Button onClick={() => { navigate("/dgmarq-plus"); setMobileMenuOpen(false); }} className="w-full bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white">
+              <Button onClick={() => { navigate("/dgmarq-plus"); setMobileMenuOpen(false); }} className="w-full bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-fg">
                 Save more with DGMARQ Plus
               </Button>
 
               {/* Region / language / currency — opens the settings modal */}
-              <button type="button" onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }} className="flex items-center justify-center gap-2.5 w-full py-[10px] px-5 bg-[#07142E] rounded-lg text-white">
+              <button type="button" onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }} className="flex items-center justify-center gap-2.5 w-full py-[10px] px-5 bg-[#07142E] rounded-lg text-fg">
                 <img src={`https://flagcdn.com/w20/${String(country || "us").toLowerCase()}.png`} width={22} height={16} alt={country || ""} style={{ borderRadius: 2, objectFit: "cover" }} />
                 <span className="text-sm font-semibold">{language}&nbsp;&nbsp;|&nbsp;&nbsp;{currencyCode}</span>
               </button>

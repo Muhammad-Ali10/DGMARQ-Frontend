@@ -288,11 +288,11 @@ const SellersManagement = () => {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6">
-          <Card className="bg-primary border-gray-700 shadow-lg">
-            <CardHeader className="border-b border-gray-700">
+          <Card variant="hud">
+            <CardHeader className="border-b ">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Store className="h-5 w-5 text-accent" />
+                <CardTitle className="flex items-center gap-2">
+                  <Store className="h-5 w-5 text-accent-on-dark" />
                   {activeTab === 'pending' && 'Pending Seller Applications'}
                   {activeTab === 'active' && 'Active Sellers'}
                   {activeTab === 'banned' && 'Banned Sellers'}
@@ -315,7 +315,7 @@ const SellersManagement = () => {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <Table>
+                    <Table variant="hud">
                       <TableHeader>
                         <TableRow className="border-gray-700 bg-secondary/50 hover:bg-secondary">
                           <TableHead className="text-gray-300 font-semibold">Shop Name</TableHead>
@@ -453,7 +453,7 @@ const SellersManagement = () => {
 
       {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Reject Seller Application</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -489,7 +489,7 @@ const SellersManagement = () => {
 
       {/* Block Dialog */}
       <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Block Seller</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -525,7 +525,7 @@ const SellersManagement = () => {
 
       {/* CLIENT REQ: Hold Dialog */}
       <Dialog open={holdDialogOpen} onOpenChange={setHoldDialogOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Put Seller on Hold</DialogTitle>
             <DialogDescription className="text-gray-400">

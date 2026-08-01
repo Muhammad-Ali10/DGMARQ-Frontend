@@ -88,9 +88,9 @@ const ReturnRefundManagement = () => {
         <p className="text-sm sm:text-base text-gray-400 mt-1">Review and manage refund requests. Approve or reject from each refund&apos;s detail page.</p>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-white">All Refund Requests</CardTitle>
+          <CardTitle>All Refund Requests</CardTitle>
           <Select value={statusFilter || "all"} onValueChange={(value) => { setStatusFilter(value === "all" ? "" : value); setPage(1); }}>
             <SelectTrigger className="w-48 bg-secondary border-gray-700 text-white">
               <SelectValue placeholder="Filter by status" />
@@ -98,7 +98,6 @@ const ReturnRefundManagement = () => {
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="SELLER_REVIEW">Seller review</SelectItem>
               <SelectItem value="ADMIN_REVIEW">In progress</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
               <SelectItem value="ADMIN_REJECTED">Rejected</SelectItem>
@@ -167,7 +166,7 @@ const ReturnRefundManagement = () => {
 
           {/* Desktop table view */}
           <div className="hidden lg:block overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700">
                   <TableHead className="text-gray-300">Refund ID</TableHead>

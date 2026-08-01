@@ -1,348 +1,345 @@
-import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { analyticsAPI, sellerAPI } from '@services/api';
-import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
-import { Loading, ErrorMessage } from '@components/ui/loading';
-import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Package, Users, Calendar } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import SafeImage from '@components/ui/safe-image';
+import { StatCard, StatCardGrid } from '@components/common/StatCard';
+import { StatCardGridSkeleton } from '@components/common/Skeletons';
+import { EmptyState } from '@components/common/EmptyState';
+import { ErrorState } from '@components/common/ErrorState';
+import { Skeleton } from '@components/ui/skeleton';
+import { formatUSD } from '@lib/money';
+import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Package, Trophy } from 'lucide-react';
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+const now = new Date();
+const CURRENT_YEAR = now.getFullYear();
+const YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
+
+/**
+ * Seller analytics.
+ *
+ * NO CHART LIBRARY. `getSellerMonthlyAnalytics` returns aggregate totals for one
+ * period plus `topProducts` — there is no time series anywhere in the API, so a
+ * revenue-over-time line would have nothing to plot. Rather than add ~50KB of
+ * charting to render a single bar, the one genuinely comparative dataset
+ * (topProducts) is drawn as a horizontal bar list from divs and token colours:
+ * bars proportional to value, sorted descending, each value direct-labelled at
+ * the end of its own bar so no legend or axis is required. Costs zero KB.
+ *
+ * KPI tiles carry no trend delta for the same reason — the endpoint returns
+ * `allTime*` totals, which are a different thing from a prior-period comparison
+ * and cannot honestly be rendered as "up 12%".
+ */
 const SellerAnalytics = () => {
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [filterType, setFilterType] = useState('month'); // 'month' or 'range'
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const { data: analytics, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['seller-analytics', startDate, endDate, selectedMonth, selectedYear, filterType],
-    queryFn: async () => {
-      const params = filterType === 'range' && startDate && endDate
-        ? { startDate, endDate }
-        : { month: selectedMonth, year: selectedYear };
-      const response = await analyticsAPI.getSellerMonthlyAnalytics(params);
-      return response.data.data;
+  const mode = searchParams.get('mode') === 'range' ? 'range' : 'month';
+  const month = Number(searchParams.get('month')) || now.getMonth() + 1;
+  const year = Number(searchParams.get('year')) || CURRENT_YEAR;
+  const startDate = searchParams.get('from') || '';
+  const endDate = searchParams.get('to') || '';
+
+  const updateParams = useCallback(
+    (next) => {
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          for (const [k, v] of Object.entries(next)) {
+            if (v === null || v === '' || v === undefined) params.delete(k);
+            else params.set(k, String(v));
+          }
+          return params;
+        },
+        { replace: true }
+      );
     },
-    enabled: true,
+    [setSearchParams]
+  );
+
+  const rangeReady = mode === 'range' && startDate && endDate;
+
+  const analyticsQuery = useQuery({
+    queryKey: ['seller-analytics', mode, month, year, startDate, endDate],
+    queryFn: () =>
+      analyticsAPI
+        .getSellerMonthlyAnalytics(rangeReady ? { startDate, endDate } : { month, year })
+        .then((res) => res.data.data),
+    placeholderData: keepPreviousData,
     retry: 2,
   });
 
-  // Phase 6: payout/balance cards must use the same source as Earnings and
-  // Dashboard, not the date-filtered analytics endpoint.
-  const { data: balance } = useQuery({
+  const balanceQuery = useQuery({
     queryKey: ['seller-balance'],
     queryFn: () => sellerAPI.getPayoutBalance().then((res) => res.data.data),
     staleTime: 60 * 1000,
   });
 
-  const handleDateFilter = () => {
-    refetch();
-  };
+  const analytics = analyticsQuery.data;
+  const topProducts = analytics?.topProducts ?? [];
+  const maxRevenue = Math.max(...topProducts.map((p) => Number(p.revenue) || 0), 0);
 
-  const handleResetFilter = () => {
-    setStartDate('');
-    setEndDate('');
-    setSelectedMonth(new Date().getMonth() + 1);
-    setSelectedYear(new Date().getFullYear());
-    setFilterType('month');
-  };
+  const periodLabel = rangeReady
+    ? `${startDate} → ${endDate}`
+    : `${MONTHS[(month || 1) - 1]} ${year}`;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Analytics</h1>
-        <p className="text-gray-400 mt-1">Monthly performance and insights</p>
-      </div>
+    <div className="space-y-8">
+      <header>
+        <h1 className="text-xl font-semibold text-fg">Analytics</h1>
+        <p className="mt-1 text-sm text-fg-muted">
+          How your listings performed over a period you choose.
+        </p>
+      </header>
 
-      <Card className="bg-primary border-gray-700">
+      {/* ── Period picker ───────────────────────────────────────────────── */}
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Filter Analytics
-          </CardTitle>
+          <CardTitle>Period</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Button
-                variant={filterType === 'month' ? 'default' : 'outline'}
-                onClick={() => setFilterType('month')}
-                className={filterType === 'month' ? 'bg-accent' : ''}
-              >
-                By Month
-              </Button>
-              <Button
-                variant={filterType === 'range' ? 'default' : 'outline'}
-                onClick={() => setFilterType('range')}
-                className={filterType === 'range' ? 'bg-accent' : ''}
-              >
-                Date Range
-              </Button>
-            </div>
-
-            {filterType === 'month' ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="month" className="text-gray-300">Month</Label>
-                  <Input
-                    id="month"
-                    type="number"
-                    min="1"
-                    max="12"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                    className="bg-secondary border-gray-700 text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="year" className="text-gray-300">Year</Label>
-                  <Input
-                    id="year"
-                    type="number"
-                    min="2020"
-                    max={new Date().getFullYear() + 1}
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="bg-secondary border-gray-700 text-white"
-                  />
-                </div>
-                <div className="flex items-end gap-2">
-                  <Button
-                    onClick={handleDateFilter}
-                    className="flex-1 bg-accent hover:bg-blue-700"
-                  >
-                    Apply
-                  </Button>
-                  <Button
-                    onClick={handleResetFilter}
-                    variant="outline"
-                    className="border-gray-700 text-gray-300"
-                  >
-                    Reset
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate" className="text-gray-300">Start Date</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="bg-secondary border-gray-700 text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate" className="text-gray-300">End Date</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    max={new Date().toISOString().split('T')[0]}
-                    className="bg-secondary border-gray-700 text-white"
-                  />
-                </div>
-                <div className="flex items-end gap-2">
-                  <Button
-                    onClick={handleDateFilter}
-                    disabled={!startDate || !endDate}
-                    className="flex-1 bg-accent hover:bg-blue-700"
-                  >
-                    Apply
-                  </Button>
-                  <Button
-                    onClick={handleResetFilter}
-                    variant="outline"
-                    className="border-gray-700 text-gray-300"
-                  >
-                    Reset
-                  </Button>
-                </div>
-              </div>
-            )}
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Button
+              variant={mode === 'month' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => updateParams({ mode: null, from: null, to: null })}
+            >
+              By month
+            </Button>
+            <Button
+              variant={mode === 'range' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => updateParams({ mode: 'range' })}
+            >
+              Date range
+            </Button>
           </div>
+
+          {mode === 'month' ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="analytics-month">Month</Label>
+                <Select
+                  value={String(month)}
+                  onValueChange={(v) => updateParams({ month: v })}
+                >
+                  <SelectTrigger id="analytics-month">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={m} value={String(i + 1)}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="analytics-year">Year</Label>
+                <Select value={String(year)} onValueChange={(v) => updateParams({ year: v })}>
+                  <SelectTrigger id="analytics-year">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {YEARS.map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="analytics-from">Start date</Label>
+                <Input
+                  id="analytics-from"
+                  type="date"
+                  value={startDate}
+                  max={endDate || undefined}
+                  onChange={(e) => updateParams({ from: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="analytics-to">End date</Label>
+                <Input
+                  id="analytics-to"
+                  type="date"
+                  value={endDate}
+                  min={startDate || undefined}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => updateParams({ to: e.target.value })}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  onClick={() => updateParams({ mode: null, from: null, to: null })}
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs text-fg-subtle">
+            {mode === 'range' && !rangeReady
+              ? 'Pick both dates to apply the range.'
+              : `Showing ${periodLabel}.`}
+          </p>
         </CardContent>
       </Card>
 
-      {isLoading && <Loading message="Loading analytics..." />}
-      {isError && (
-        <ErrorMessage 
-          message={error?.response?.data?.message || 'Error loading analytics. Please try again.'} 
-        />
-      )}
-      {!isLoading && !isError && !analytics && (
-        <Card className="bg-primary border-gray-700">
-          <CardContent className="py-8 text-center text-gray-400">
-            No analytics data available for the selected period.
+      {/* ── KPI row ─────────────────────────────────────────────────────── */}
+      {analyticsQuery.isPending ? (
+        <StatCardGridSkeleton count={4} />
+      ) : analyticsQuery.isError ? (
+        <Card variant="hud">
+          <CardContent>
+            <ErrorState
+              error={analyticsQuery.error}
+              title="Couldn't load analytics"
+              onRetry={() => analyticsQuery.refetch()}
+            />
           </CardContent>
         </Card>
+      ) : (
+        <StatCardGrid>
+          <StatCard
+            title="Revenue"
+            value={formatUSD(analytics?.totalRevenue ?? analytics?.sales?.revenue)}
+            icon={DollarSign}
+            tone="success"
+            description={periodLabel}
+          />
+          <StatCard
+            title="Keys sold"
+            value={analytics?.totalSales ?? analytics?.sales?.total ?? 0}
+            icon={ShoppingCart}
+            tone="accent"
+            description={`${analytics?.totalOrders ?? 0} orders`}
+          />
+          <StatCard
+            title="Net earnings"
+            value={formatUSD(analytics?.netEarnings ?? analytics?.earnings?.total)}
+            icon={TrendingUp}
+            tone="info"
+            description="After commission"
+          />
+          <StatCard
+            title="Average order"
+            value={formatUSD(analytics?.averageOrderValue)}
+            icon={BarChart3}
+            tone="neutral"
+            description="Per order, this period"
+          />
+        </StatCardGrid>
       )}
 
-      {!isLoading && !isError && analytics && (
-        <>
-          {/* Period Summary */}
-          {analytics.period && (
-            <Card className="bg-primary border-gray-700 border-l-4 border-l-accent mb-6">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <h3 className="text-white font-semibold mb-1">Selected Period</h3>
-                    <p className="text-gray-300 text-sm">
-                      {filterType === 'month' 
-                        ? `${new Date(analytics.period.year, analytics.period.month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-                        : `${new Date(analytics.period.startDate).toLocaleDateString()} - ${new Date(analytics.period.endDate).toLocaleDateString()}`
-                      }
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-gray-400 text-xs">Total Orders</p>
-                    <p className="text-white font-bold text-lg">{analytics.totalOrders || 0}</p>
-                  </div>
+      {/* ── Top products: a bar list, not a chart library ────────────────── */}
+      <Card variant="hud">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy aria-hidden="true" className="size-4" />
+            Best sellers
+          </CardTitle>
+          <p className="mt-1 text-sm text-fg-muted">By revenue, {periodLabel}.</p>
+        </CardHeader>
+        <CardContent>
+          {analyticsQuery.isPending ? (
+            <div className="space-y-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-2.5 w-full rounded-full" />
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Period Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              ${(analytics?.totalRevenue || analytics?.sales?.revenue || 0).toFixed(2)}
+              ))}
             </div>
-            <p className="text-xs text-gray-400 mt-1">
-              {analytics?.allTimeRevenue ? `All time: $${analytics.allTimeRevenue.toFixed(2)}` : 'Selected period'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Period Sales</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              {analytics?.totalSales || analytics?.sales?.total || 0}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              {analytics?.allTimeSales ? `All time: ${analytics.allTimeSales}` : 'Units sold'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Net Earnings</CardTitle>
-            <TrendingUp className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              ${(analytics?.netEarnings || analytics?.earnings?.total || 0).toFixed(2)}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              {analytics?.allTimeEarnings ? `All time: $${analytics.allTimeEarnings.toFixed(2)}` : 'After commission'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Total Products</CardTitle>
-            <Package className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              {analytics?.totalProducts || 0}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              {analytics?.activeProducts ? `${analytics.activeProducts} active` : 'Total products'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Average Order Value</CardTitle>
-            <BarChart3 className="h-4 w-4 text-indigo-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              ${(analytics?.averageOrderValue || 0).toFixed(2)}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Per order</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-300">Pending Payouts</CardTitle>
-            <DollarSign className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
-              ${(balance?.pending?.amount || 0).toFixed(2)}
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              {balance?.pending?.count ? `${balance.pending.count} payout(s)` : 'Awaiting release'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {analytics?.topProducts && analytics.topProducts.length > 0 && (
-        <Card className="bg-primary border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Top Products</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-700">
-                    <th className="text-left py-3 px-4 text-gray-300">Product</th>
-                    <th className="text-left py-3 px-4 text-gray-300">Sales</th>
-                    <th className="text-left py-3 px-4 text-gray-300">Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analytics.topProducts.map((product, index) => (
-                    <tr key={product.productId || index} className="border-b border-gray-800">
-                      <td className="py-3 px-4 text-white">
-                        <div className="flex items-center gap-2">
-                          {product.productImage && (
-                            <SafeImage 
-                              src={product.productImage} 
-                              alt={product.productName}
-                              className="w-10 h-10 object-cover rounded"
-                            />
-                          )}
-                          <span>{product.productName || 'Unknown Product'}</span>
+          ) : analyticsQuery.isError ? null : topProducts.length === 0 ? (
+            <EmptyState
+              icon={Package}
+              title="No sales in this period"
+              description="Pick a different period, or keep your listings in stock to start building a history."
+            />
+          ) : (
+            <ol className="space-y-4">
+              {[...topProducts]
+                .sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0))
+                .map((product, index) => {
+                  const revenue = Number(product.revenue) || 0;
+                  // Bars start from zero and are proportional to the leader, so
+                  // relative magnitude is readable without an axis.
+                  const pct = maxRevenue > 0 ? Math.max((revenue / maxRevenue) * 100, 2) : 0;
+                  return (
+                    <li key={product.productId || index} className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <SafeImage
+                          src={product.productImage}
+                          alt=""
+                          w={32}
+                          className="size-8 shrink-0 rounded border border-border object-cover"
+                        />
+                        <span className="min-w-0 flex-1 truncate text-sm text-fg">
+                          {product.productName || 'Unknown product'}
+                        </span>
+                        <span className="shrink-0 text-xs text-fg-subtle tabular-nums">
+                          {product.salesCount || 0} sold
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-sunken"
+                          role="img"
+                          aria-label={`${product.productName || 'Product'}: ${formatUSD(revenue)} revenue`}
+                        >
+                          <div
+                            className="h-full rounded-full bg-chart-1 transition-[width] duration-150 ease-out"
+                            style={{ width: `${pct}%` }}
+                          />
                         </div>
-                      </td>
-                      <td className="py-3 px-4 text-white">{product.salesCount || 0}</td>
-                      <td className="py-3 px-4 text-green-400">${(product.revenue || 0).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        {/* Direct-labelled at the end of its own bar — no legend. */}
+                        <span className="shrink-0 text-sm font-semibold tabular-nums text-fg">
+                          {formatUSD(revenue)}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Payout context ──────────────────────────────────────────────── */}
+      {balanceQuery.data && (
+        <Card variant="sunken">
+          <CardContent className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-fg">
+                {formatUSD(balanceQuery.data.pending?.amount)} pending payout
+              </p>
+              <p className="mt-0.5 text-xs text-fg-muted">
+                {balanceQuery.data.pending?.count || 0} earning line(s) still inside the hold
+                period. Analytics above covers sales; this is what has yet to clear.
+              </p>
             </div>
           </CardContent>
         </Card>
-      )}
-        </>
       )}
     </div>
   );
 };
 
 export default SellerAnalytics;
-

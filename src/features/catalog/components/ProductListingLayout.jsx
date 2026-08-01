@@ -6,9 +6,8 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { productAPI, platformAPI, categoryAPI, subcategoryAPI, deviceAPI, typeAPI, genreAPI, themeAPI, modeAPI } from '@services/api';
 import { REGION_PRESETS } from '@lib/regionPresets';
 import ProductCard from './ProductCard';
-import ProductVerticalCard from './ProductVerticalCard';
 import CategoryProduct from './CategoryProduct';
-import { Loading, ErrorMessage } from '@components/ui/loading';
+import { ErrorMessage } from '@components/ui/loading';
 import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
 import { Checkbox } from '@components/ui/checkbox';
@@ -53,13 +52,13 @@ const FilterSection = ({
   const hasMoreItems = totalItems > 5;
 
   return (
-    <div className="bg-slate-800 rounded-lg overflow-hidden mb-4 text-white">
+    <div className="bg-slate-800 rounded-lg overflow-hidden mb-4 text-fg">
       <div className="bg-[#043086] px-4 py-3 flex items-center justify-between">
-        <h3 className="text-white font-medium text-sm uppercase tracking-wide">
+        <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
           {title}
         </h3>
         {itemCount > 0 && (
-          <span className="text-base text-white px-2 py-1 rounded">
+          <span className="text-base text-fg px-2 py-1 rounded">
             {itemCount}
           </span>
         )}
@@ -70,7 +69,7 @@ const FilterSection = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
               placeholder={`Search for ${title}`}
-              className="pl-10 bg-transparent text-white placeholder-white focus:border-blue-500"
+              className="pl-10 bg-transparent text-fg placeholder-white focus:border-blue-500"
               value={searchValue || ''}
               onChange={(e) => onSearchChange(section, e.target.value)}
             />
@@ -88,7 +87,7 @@ const FilterSection = ({
               e.stopPropagation();
               onToggleSection(section);
             }}
-            className="w-full text-white hover:bg-slate-700"
+            className="w-full text-fg hover:bg-slate-700"
           >
             {isExpanded ? (
               <>Show Less <ChevronUp className="ml-2 h-4 w-4" /></>
@@ -104,13 +103,13 @@ const FilterSection = ({
 
 const CheckboxItem = ({ id, title, type, count, isLocked = false, isChecked, onToggle }) => {
   return (
-    <div
+    <label
+      htmlFor={id}
       className={`flex items-center justify-between py-3 px-2 cursor-pointer bg-[#052157] transition-all duration-200 group ${
         isChecked
           ? 'bg-[#06051C]/60 hover:bg-[#06051C]'
           : 'hover:bg-slate-700'
-      } ${isLocked ? 'opacity-75' : ''}`}
-      onClick={() => !isLocked && onToggle(type, id)}
+      } ${isLocked ? 'opacity-75 cursor-not-allowed' : ''}`}
     >
       <div className="flex items-center space-x-3">
         <div className="relative">
@@ -122,20 +121,19 @@ const CheckboxItem = ({ id, title, type, count, isLocked = false, isChecked, onT
             className="h-4 w-4 border-white data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
           />
           {isLocked && (
-            <Lock className="absolute -top-1 -right-1 h-3 w-3 text-blue-400" />
+            <Lock className="absolute -top-1 -right-1 h-3 w-3 text-info" />
           )}
         </div>
-        <Label
-          htmlFor={id}
-          className={`text-sm cursor-pointer transition-colors ${
+        <span
+          className={`text-sm transition-colors ${
             isChecked
-              ? 'text-white font-medium'
+              ? 'text-fg font-medium'
               : 'text-slate-200 group-hover:text-white'
           } ${isLocked ? 'cursor-not-allowed' : ''}`}
         >
           {title}
-          {isLocked && <span className="ml-2 text-xs text-blue-400">(Locked)</span>}
-        </Label>
+          {isLocked && <span className="ml-2 text-xs text-info">(Locked)</span>}
+        </span>
       </div>
       {count && (
         <span className={`text-xs px-2 py-1 rounded transition-colors ${
@@ -146,7 +144,7 @@ const CheckboxItem = ({ id, title, type, count, isLocked = false, isChecked, onT
           {count}
         </span>
       )}
-    </div>
+    </label>
   );
 };
 
@@ -735,20 +733,20 @@ const ProductListingLayout = ({
   const displayItemCount = totalDocs > 0 ? `${totalDocs} items` : '';
 
   return (
-    <div className="min-h-screen bg-[#0E092C] text-white">
+    <div className="min-h-screen bg-[#0E092C] text-fg">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">{displayTitle}</h1>
           {displayItemCount && (
-            <p className="text-gray-400">{displayItemCount}</p>
+            <p className="text-fg-muted">{displayItemCount}</p>
           )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 relative">
           {/* Mobile Filter Button */}
           <div className="md:hidden absolute -top-20 right-4 z-10">
-            <Button onClick={() => setIsOpen(true)} className="bg-blue-600 text-white">
+            <Button onClick={() => setIsOpen(true)} className="bg-info-solid text-fg">
               Filters
             </Button>
           </div>
@@ -825,7 +823,7 @@ const ProductListingLayout = ({
             {/* Price Range */}
             <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
               <div className="bg-[#043086] px-4 py-3">
-                <h3 className="text-white font-medium text-sm uppercase tracking-wide">
+                <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
                   Price (USD)
                 </h3>
               </div>
@@ -837,7 +835,7 @@ const ProductListingLayout = ({
                       placeholder="From"
                       value={minPrice || ''}
                       onChange={(e) => handleInputChange('minPrice', e.target.value)}
-                      className="bg-transparent text-white placeholder-slate-400 focus:border-red-500"
+                      className="bg-transparent text-fg placeholder-slate-400 focus:border-red-500"
                     />
                   </div>
                   <span className="text-slate-400">—</span>
@@ -847,7 +845,7 @@ const ProductListingLayout = ({
                       placeholder="To"
                       value={maxPrice || ''}
                       onChange={(e) => handleInputChange('maxPrice', e.target.value)}
-                      className="bg-transparent border-slate-600 text-white placeholder-slate-400 focus:border-red-500"
+                      className="bg-transparent border-slate-600 text-fg placeholder-slate-400 focus:border-red-500"
                     />
                   </div>
                 </div>
@@ -857,7 +855,7 @@ const ProductListingLayout = ({
             {/* Availability */}
             <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
               <div className="bg-[#043086] px-4 py-3">
-                <h3 className="text-white font-medium text-sm uppercase tracking-wide">
+                <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
                   Availability
                 </h3>
               </div>
@@ -1064,7 +1062,7 @@ const ProductListingLayout = ({
 
             {/* Need More Filters */}
             <div className="pt-4">
-              <p className="text-sm text-gray-400 text-center">
+              <p className="text-sm text-fg-muted text-center">
                 Need More Filters? Let Us Know.
               </p>
             </div>
@@ -1077,9 +1075,9 @@ const ProductListingLayout = ({
             }`}
           >
             <div className="flex justify-between items-center p-4 bg-[#043086]">
-              <h2 className="text-white font-bold">Filters</h2>
+              <h2 className="text-fg font-bold">Filters</h2>
               <button onClick={() => setIsOpen(false)}>
-                <X className="text-white" />
+                <X className="text-fg" />
               </button>
             </div>
 
@@ -1127,7 +1125,7 @@ const ProductListingLayout = ({
               {/* Price Range */}
               <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
                 <div className="bg-[#043086] px-4 py-3">
-                  <h3 className="text-white font-medium text-sm uppercase tracking-wide">
+                  <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
                     Price (USD)
                   </h3>
                 </div>
@@ -1139,7 +1137,7 @@ const ProductListingLayout = ({
                         placeholder="From"
                         value={minPrice || ''}
                         onChange={(e) => handleInputChange('minPrice', e.target.value)}
-                        className="bg-transparent text-white placeholder-slate-400 focus:border-red-500"
+                        className="bg-transparent text-fg placeholder-slate-400 focus:border-red-500"
                       />
                     </div>
                     <span className="text-slate-400">—</span>
@@ -1149,7 +1147,7 @@ const ProductListingLayout = ({
                         placeholder="To"
                         value={maxPrice || ''}
                         onChange={(e) => handleInputChange('maxPrice', e.target.value)}
-                        className="bg-transparent border-slate-600 text-white placeholder-slate-400 focus:border-red-500"
+                        className="bg-transparent border-slate-600 text-fg placeholder-slate-400 focus:border-red-500"
                       />
                     </div>
                   </div>
@@ -1159,7 +1157,7 @@ const ProductListingLayout = ({
               {/* Availability */}
               <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
                 <div className="bg-[#043086] px-4 py-3">
-                  <h3 className="text-white font-medium text-sm uppercase tracking-wide">
+                  <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
                     Availability
                   </h3>
                 </div>
@@ -1247,7 +1245,7 @@ const ProductListingLayout = ({
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                className="bg-gray-800 border-gray-700 text-white flex-1 max-w-md"
+                className="bg-surface-2 border-border text-fg flex-1 max-w-md"
               />
               <div className="flex gap-2">
                 <select
@@ -1256,7 +1254,7 @@ const ProductListingLayout = ({
                     setSortBy(e.target.value);
                     setPage(1);
                   }}
-                  className="bg-gray-800 border border-gray-700 text-white px-4 py-2 rounded-lg"
+                  className="bg-surface-2 border border-border text-fg px-4 py-2 rounded-lg"
                 >
                   <option value="newest">Newest First</option>
                   <option value="price_asc">Price: Low to High</option>
@@ -1265,7 +1263,7 @@ const ProductListingLayout = ({
                   <option value="name_asc">Name: A to Z</option>
                   <option value="name_desc">Name: Z to A</option>
                 </select>
-                <div className="flex gap-1 border border-gray-700 rounded-lg overflow-hidden">
+                <div className="flex gap-1 border border-border rounded-lg overflow-hidden">
                   <Button
                     variant={layout === 'listing' ? 'default' : 'ghost'}
                     size="sm"
@@ -1304,7 +1302,7 @@ const ProductListingLayout = ({
             ) : products.length > 0 ? (
               <>
                 {isFetching && (
-                  <p className="mb-4 text-sm text-gray-400">Updating products...</p>
+                  <p className="mb-4 text-sm text-fg-muted">Updating products...</p>
                 )}
                 {layout === 'listing' ? (
                   <div className="space-y-4">
@@ -1325,8 +1323,8 @@ const ProductListingLayout = ({
               </>
             ) : (
               <div className="text-center py-16">
-                <p className="text-gray-400 text-lg mb-2">No products found</p>
-                <p className="text-gray-500 text-sm">
+                <p className="text-fg-muted text-lg mb-2">No products found</p>
+                <p className="text-fg-subtle text-sm">
                   Try adjusting your filters or search terms
                 </p>
               </div>

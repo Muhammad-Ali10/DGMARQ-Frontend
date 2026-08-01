@@ -129,12 +129,12 @@ const DGMarketPlus = () => {
         {/* Hero Section */}
         <section className="text-center mb-16 relative overflow-hidden rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent py-16 px-6">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/30 mb-6">
-            <Sparkles className="w-5 h-5 text-accent" />
-            <span className="text-accent font-semibold">DGMARQ Plus</span>
+            <Sparkles className="w-5 h-5 text-accent-on-dark" />
+            <span className="text-accent-on-dark font-semibold">DGMARQ Plus</span>
           </div>
           
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Save with <span className="text-accent">DGMARQ Plus</span>
+            Save with <span className="text-accent-on-dark">DGMARQ Plus</span>
           </h1>
           
           <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
@@ -173,7 +173,7 @@ const DGMarketPlus = () => {
                 onClick={() => navigate('/user/subscriptions')}
                 size="lg"
                 variant="outline"
-                className="border-accent text-accent hover:bg-accent/10 px-8 py-6 text-lg"
+                className="border-accent text-accent-on-dark hover:bg-accent/10 px-8 py-6 text-lg"
               >
                 Manage Subscription
               </Button>
@@ -193,8 +193,8 @@ const DGMarketPlus = () => {
         {/* M20: Plus Points — balance + redemption (members) */}
         {isAuthenticated && pointsData && (
           <section className="mb-20">
-            <Card className="bg-primary border-accent/30 overflow-hidden">
-              <CardHeader className="border-b border-gray-700">
+            <Card className="border-accent/30 overflow-hidden">
+              <CardHeader className="border-b ">
                 <CardTitle className="text-white flex items-center gap-2">
                   <Star className="w-5 h-5 text-amber-400" />
                   Your Plus Points
@@ -207,8 +207,8 @@ const DGMarketPlus = () => {
                     <p className="mt-1 text-sm text-gray-400">≈ ${pointsData.walletValue.toFixed(2)} wallet value</p>
                   </div>
                   <div className="text-sm text-gray-300 space-y-1">
-                    <p>• Earn <span className="font-semibold text-accent">{pointsData.pointsPerDollar} points per $1</span> spent</p>
-                    <p>• <span className="font-semibold text-accent">{pointsData.pointsPerWalletDollar} points = $1</span> wallet credit</p>
+                    <p>• Earn <span className="font-semibold text-accent-on-dark">{pointsData.pointsPerDollar} points per $1</span> spent</p>
+                    <p>• <span className="font-semibold text-accent-on-dark">{pointsData.pointsPerWalletDollar} points = $1</span> wallet credit</p>
                     <p>• Redeem anytime — spend via wallet at checkout</p>
                   </div>
                   <div className="flex flex-col gap-2">
@@ -239,7 +239,7 @@ const DGMarketPlus = () => {
                       <button
                         type="button"
                         onClick={() => setRedeemAmount(String(Math.floor(pointsData.balance / pointsData.pointsPerWalletDollar) * pointsData.pointsPerWalletDollar))}
-                        className="self-start text-xs text-accent hover:underline"
+                        className="self-start text-xs text-accent-on-dark hover:underline"
                       >
                         Redeem maximum
                       </button>
@@ -255,10 +255,10 @@ const DGMarketPlus = () => {
         <section className="mb-20">
           <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">How It Works</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="bg-primary border-gray-700 text-center">
+            <Card className="text-center">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/10 flex items-center justify-center">
-                  <CreditCard className="w-8 h-8 text-accent" />
+                  <CreditCard className="w-8 h-8 text-accent-on-dark" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">1. Subscribe</h3>
                 <p className="text-gray-400">
@@ -267,10 +267,10 @@ const DGMarketPlus = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-primary border-gray-700 text-center">
+            <Card className="text-center">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/10 flex items-center justify-center">
-                  <Zap className="w-8 h-8 text-accent" />
+                  <Zap className="w-8 h-8 text-accent-on-dark" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">2. Get Instant Discounts</h3>
                 <p className="text-gray-400">
@@ -279,10 +279,10 @@ const DGMarketPlus = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-primary border-gray-700 text-center">
+            <Card className="text-center">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/10 flex items-center justify-center">
-                  <TrendingUp className="w-8 h-8 text-accent" />
+                  <TrendingUp className="w-8 h-8 text-accent-on-dark" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">3. Save More</h3>
                 <p className="text-gray-400">
@@ -297,10 +297,10 @@ const DGMarketPlus = () => {
         <section className="mb-20">
           <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">Subscription Plan</h2>
           <div className="max-w-2xl mx-auto">
-            <Card className={`bg-primary border-2 ${hasActiveSubscription ? 'border-green-500/50' : 'border-accent/50'}`}>
+            <Card className={`border-2 ${hasActiveSubscription ? 'border-green-500/50' : 'border-accent/50'}`}>
               <CardHeader className="text-center pb-4">
                 <div className="flex items-center justify-center gap-2 mb-2">
-                  <Star className="w-6 h-6 text-accent" />
+                  <Star className="w-6 h-6 text-accent-on-dark" />
                   <CardTitle className="text-2xl sm:text-3xl font-bold text-white">{plan.displayName}</CardTitle>
                 </div>
                 {hasActiveSubscription && (
@@ -356,7 +356,7 @@ const DGMarketPlus = () => {
                     <Button
                       onClick={() => navigate('/user/subscriptions')}
                       variant="outline"
-                      className="w-full border-accent text-accent hover:bg-accent/10 py-6 text-lg"
+                      className="w-full border-accent text-accent-on-dark hover:bg-accent/10 py-6 text-lg"
                       size="lg"
                     >
                       Manage Subscription
@@ -371,18 +371,18 @@ const DGMarketPlus = () => {
         {/* Discount Explanation Section */}
         <section className="mb-20">
           <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">How Discounts Work</h2>
-          <Card className="bg-primary border-gray-700">
+          <Card className="">
             <CardContent className="pt-6">
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                    <Shield className="w-6 h-6 text-accent" />
+                    <Shield className="w-6 h-6 text-accent-on-dark" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-white mb-2">Automatic Application</h3>
                     <p className="text-gray-400">
                       Once you subscribe to DGMARQ Plus, you'll automatically receive a{' '}
-                      <span className="text-accent font-semibold">{plan.discountPercentage}% discount</span> on all
+                      <span className="text-accent-on-dark font-semibold">{plan.discountPercentage}% discount</span> on all
                       your purchases. No coupon codes needed!
                     </p>
                   </div>
@@ -390,14 +390,14 @@ const DGMarketPlus = () => {
 
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                    <TrendingUp className="w-6 h-6 text-accent" />
+                    <TrendingUp className="w-6 h-6 text-accent-on-dark" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-white mb-2">Discount Stacking</h3>
                     <p className="text-gray-400">
                       Your subscription discount is applied{' '}
-                      <span className="text-accent font-semibold">after bundle deals</span> but{' '}
-                      <span className="text-accent font-semibold">before coupon codes</span>. This means you can
+                      <span className="text-accent-on-dark font-semibold">after bundle deals</span> but{' '}
+                      <span className="text-accent-on-dark font-semibold">before coupon codes</span>. This means you can
                       maximize your savings by combining multiple discounts!
                     </p>
                   </div>
@@ -405,7 +405,7 @@ const DGMarketPlus = () => {
 
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                    <Zap className="w-6 h-6 text-accent" />
+                    <Zap className="w-6 h-6 text-accent-on-dark" />
                   </div>
                   <div>
                     <h3 className="text-xl font-semibold text-white mb-2">Instant Activation</h3>
@@ -481,7 +481,7 @@ const DGMarketPlus = () => {
                   onClick={() => navigate('/user/subscriptions')}
                   size="lg"
                   variant="outline"
-                  className="border-accent text-accent hover:bg-accent/10 px-8 py-6 text-lg"
+                  className="border-accent text-accent-on-dark hover:bg-accent/10 px-8 py-6 text-lg"
                 >
                   View My Subscription
                 </Button>
@@ -493,7 +493,7 @@ const DGMarketPlus = () => {
         {/* Auth Prompt Modal */}
         {showAuthPrompt && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="bg-primary border-gray-700 max-w-md w-full">
+            <Card className="max-w-md w-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-white">Sign In Required</CardTitle>

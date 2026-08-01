@@ -2,258 +2,617 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* DGMARQ is DARK-ONLY by design decision (Phase A). There is no light palette:
+   the previous `:root` / `.dark` pair held byte-identical values and only
+   pretended to be a theme system. The variant below stays declared so `dark:`
+   utilities keep compiling and a light theme remains a pure-additive change
+   later (give `.light` a second value set; nothing else has to move). */
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================================
+   RAW TOKENS — the single source of truth. Everything else references these.
+   Contrast ratios in the comments are MEASURED (WCAG 2.1 relative luminance),
+   not assumed. See the Phase A report for the full matrix.
+   ========================================================================== */
+:root {
+  /* ── Surfaces ─────────────────────────────────────────────────────────────
+     A layered navy ramp. Elevation goes LIGHTER (standard on dark UI); the
+     old palette had cards DARKER than the page, which made nesting invisible.
+     Exactly three elevation levels above the page, plus one "sunken" step for
+     wells/inputs. Every elevated surface also carries a border, so layering is
+     never communicated by fill alone. */
+  --surface-sidebar: #060318;   /* brand indigo — sidebar, footer            */
+  --surface-sunken:  #020D24;   /* below the page — inputs, wells, table head */
+  --surface-base:    #041536;   /* brand navy — the page itself              */
+  --surface-1:       #0B2455;   /* elevation 1 — cards, panels               */
+  --surface-2:       #143168;   /* elevation 2 — dialogs, popovers, menus    */
+
+  /* ── Text ─────────────────────────────────────────────────────────────────
+     Every tier clears 4.5:1 on EVERY surface above, so any tier may be used
+     for body copy anywhere without re-checking. */
+  --fg:        #F2F6FF;         /* 11.63 – 18.76 : primary text              */
+  --fg-muted:  #A8BAD9;         /*  6.41 – 10.34 : secondary text            */
+  --fg-subtle: #96A9CF;         /*  5.32 –  8.58 : tertiary / micro-labels   */
+
+  /* ── Accent ───────────────────────────────────────────────────────────────
+     THE fix for the old palette. `--primary` used to be #041536, a dark navy
+     BACKGROUND masquerading as an action colour — which is why 31 call sites
+     reached for a raw `bg-blue-700`. Accent is now a real action colour and
+     it is split by job, because no single blue can do both:
+       accent          solid fills   white text on it = 5.17
+       accent-on-dark  text / icons  on dark surfaces = 5.41 – 8.73
+     The old `--accent: #0E51E2` rendered text at 2.83:1 — a live AA failure on
+     209 elements. #2563EB is a ~3% shift off the brand blue and is the lightest
+     value that keeps white-on-fill above 4.5 while the fill itself stays above
+     3.0 against the page. */
+  --accent:         #2563EB;    /* solid fill / border                       */
+  --accent-fg:      #FFFFFF;    /* text ON the solid fill — 5.17             */
+  --accent-on-dark: #7FA9FF;    /* accent as TEXT on a dark surface          */
+  --accent-soft:    #1E2F54;    /* opaque tinted chip — text on it = 5.67    */
+  /* Secondary brand hue. Taken from the public header's command bar, which
+     gradients blue -> violet. It had no token and was hardcoded as #8b4dff in
+     Header.css. Verified at 3.72:1 against the sidebar backdrop, which clears
+     the 3.0 minimum for a graphical object — it is only ever used as a
+     gradient stop on decorative edges, NEVER as text or as a fill behind text. */
+  --accent-2:       #8B4DFF;
+  /* The two remaining stops of the brand gradient, both lifted from the public
+     header (.fx-plus / .bg-blue) where they were hardcoded. They exist to be
+     gradient stops UNDER white text, so they are the deep ends of the ramp:
+     white across #172AA4 -> #2563EB -> #650EB3 bottoms out at 5.25:1.
+     Note --accent-2 (#8B4DFF) is NOT usable here — it is the bright violet for
+     lit edges on dark, and white over it measures 4.56, a 0.06 margin. */
+  --accent-deep:    #172AA4;   /* indigo, gradient start */
+  --accent-2-deep:  #650EB3;   /* violet, gradient end   */
+  /* The product page's cyan. It was hardcoded 17 times across ProductDetail.css
+     with no token; it is the second stop of the panel gradient the dashboard
+     now shares, so it finally gets a name. Decorative only — it is never used
+     as text or as a fill behind text, so it carries no contrast obligation of
+     its own (unlike --info-fg, which does). */
+  --brand-cyan:     #0E9FE2;
+
+  /* ── Borders & focus ──────────────────────────────────────────────────────
+     `--border` is decorative (card edges, separators): no WCAG minimum, it
+     only has to be visible. `--border-interactive` is the boundary of an
+     actual CONTROL (inputs, selects, outline buttons) and therefore must clear
+     3.0 against every surface it can sit on — hence the noticeably brighter
+     value than the old #1a2d5a, which managed only 1.17–1.52. */
+  --border:             #1D3A72;
+  --border-interactive: #5B80C9;  /* 3.22 – 5.20 vs surfaces                 */
+  /* Scrollbar thumb. `--border-interactive` was used here and read as a bright
+     blue bar competing with the nav items beside it. A scrollbar should be
+     findable, not loud. */
+  --scrollbar-thumb:    #2A4682;
+  --ring:               #8FB6FF;  /* 6.17 – 9.96 vs surfaces                 */
+
+  /* ── Semantic ─────────────────────────────────────────────────────────────
+     Meaning only, never decoration. Colour is never the sole signal: every
+     status pill pairs these with an icon AND a text label (see StatusBadge).
+       -fg    text/icon on a dark surface   (>= 4.5 on all five surfaces)
+       -soft  opaque tinted chip fill       (fg on it >= 4.94)
+       -solid filled badge                  (white on it >= 5.02)
+     `-soft` values are OPAQUE and mixed over --surface-sunken rather than
+     alpha-composited over whatever is behind them. An alpha chip drifts with
+     its backdrop and failed AA on the dialog surface; an opaque chip cannot. */
+  --success-fg:    #4ADE80;  --success-soft:  #123B38;  --success-solid: #15803D;
+  --warning-fg:    #FBBF24;  --warning-soft:  #393424;  --warning-solid: #B45309;
+  --danger-fg:     #FB8C8C;  --danger-soft:   #39293B;  --danger-solid:  #B91C1C;
+  --info-fg:       #38BDF8;  --info-soft:     #0E3453;  --info-solid:    #0369A1;
+  --on-solid:      #FFFFFF;  /* text on any *-solid fill                     */
+
+  /* ── Charts ───────────────────────────────────────────────────────────────
+     Was five shades of one blue — unusable for five categories. This is an
+     Okabe-Ito-derived set: hues chosen to stay separable under deuteranopia,
+     protanopia and tritanopia, and every entry clears 3.0 against all
+     surfaces (graphical-object minimum). */
+  --chart-1: #56B4E9;   /* sky      */
+  --chart-2: #E69F00;   /* orange   */
+  --chart-3: #00C08B;   /* teal     */
+  --chart-4: #CC79A7;   /* mauve    */
+  --chart-5: #ECD34A;   /* yellow   */
+
+  /* ── Radius — ONE ramp, applied to cards, inputs, buttons, badges alike ── */
+  --radius: 0.625rem;   /* 10px */
+
+  /* ── Elevation — three levels, deliberately restrained.
+     On dark surfaces a border does the separating and the shadow only adds
+     depth, so these are soft. Level 1 is border-only by design. */
+  --elevation-1: 0 0 0 0 rgb(0 0 0 / 0);
+  --elevation-2: 0 4px 12px -2px rgb(0 0 0 / 0.35);
+  --elevation-3: 0 18px 48px -12px rgb(0 0 0 / 0.55);
+  /* Hover lift for interactive surfaces — depth plus a faint accent halo. */
+  --elevation-hover: 0 10px 30px -10px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(127 169 255 / 0.18);
+  /* The HUD rim, lifted from ProductDetail.css: `.fx-price-card`'s hairline cyan
+     ring, wide cyan bloom and two inset lit edges, plus `.of-shell`'s deep drop
+     shadow — the offers panel needs it because that surface is translucent, and
+     the shadow is what separates it from the backdrop once the fill stops doing
+     that job. rgb(14 159 226) IS --brand-cyan; it is spelled out because a
+     shadow cannot apply alpha to a colour token without color-mix(), and
+     color-mix() inside a shadow list is not worth the parse risk. */
+  --elevation-hud: 0 0 0 1px rgb(14 159 226 / 0.06), 0 0 24px rgb(14 159 226 / 0.1),
+    0 20px 60px -20px rgb(0 0 0 / 0.5), inset 0 1px 0 rgb(255 255 255 / 0.06),
+    inset 0 -1px 0 rgb(14 159 226 / 0.1);
+  /* The same shadow, deepened for hover: the cyan ring and bloom roughly double
+     and the dark drop grows. Every stop is still low-opacity — the brief asks for
+     an elegant glow, not neon, so this is the resting shadow turned up rather
+     than a different, brighter effect. */
+  --elevation-hud-hover: 0 0 0 1px rgb(14 159 226 / 0.14),
+    0 0 34px rgb(14 159 226 / 0.18), 0 26px 70px -22px rgb(0 0 0 / 0.6),
+    inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -1px 0 rgb(14 159 226 / 0.14);
+
+  /* One bracket arm, reused as every layer of every HUD corner utility below.
+     Defined once here because three utilities draw it (card / row-start /
+     row-end) and a gradient cannot live in @theme without also generating
+     colour utilities nobody would call. */
+  --hud-bracket: linear-gradient(
+    color-mix(in srgb, var(--brand-cyan) 75%, transparent),
+    color-mix(in srgb, var(--brand-cyan) 75%, transparent)
+  );
+
+  /* ── Spotlight ────────────────────────────────────────────────────────────
+     The sidebar/tab ACTIVE treatment, lifted verbatim from `.tab-item
+     [data-state='active']` below so the hover response on a row or a tile is
+     the same object the menu already is — one language, one set of values.
+     Named here because two classes draw it (`.hud-spot` uses a pseudo-element,
+     `.hud-spot-row` uses background layers) and the ramps must not drift. */
+  --hud-spot-fill: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--accent) 42%, transparent),
+    color-mix(in oklab, var(--accent) 12%, transparent)
+  );
+  --hud-spot-ring: inset 0 0 0 1px
+      color-mix(in oklab, var(--accent-on-dark) 40%, transparent),
+    0 8px 22px -8px color-mix(in oklab, var(--accent) 70%, transparent);
+  --hud-spot-beam: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent),
+    var(--accent-2),
+    transparent
+  );
+  /* Stand-in for the beam's `0 0 12px` halo where a box-shadow is not available
+     (a background layer cannot cast one). Only `.hud-spot-row` needs it. */
+  --hud-spot-bloom: radial-gradient(
+    50% 120% at 50% 100%,
+    color-mix(in oklab, var(--accent) 45%, transparent),
+    transparent 70%
+  );
+
+  /* ── Glass ────────────────────────────────────────────────────────────────
+     Frosted surfaces are ALPHA over a variable backdrop, so their effective
+     contrast moves with whatever is behind them. Measured against the real
+     backdrops on this app (page navy, both extremes of the background image,
+     and pure white as a worst case):
+        alpha 0.70 -> muted 2.94, subtle 2.44   FAILS
+        alpha 0.80 -> subtle 3.40               FAILS
+        alpha 0.90 -> fg 10.38, muted 5.72, subtle 4.75   all pass
+     0.9 is therefore the floor for any glass surface carrying text. It still
+     reads as glass (10% of the backdrop plus the blur) without letting the
+     text contrast drift below AA. Do not lower it. */
+  --glass-alpha: 0.9;
+}
+
+/* ============================================================================
+   THEME — maps the raw tokens above onto Tailwind/shadcn utility names.
+   `inline` so the utilities resolve through the CSS vars (one edit point).
+   ========================================================================== */
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
+  /* ── Type scale: 12 / 14 / 16 / 20 / 24 / 32 / 40 ───────────────────────
+     Kept monotonic past 3xl so the marketing pages' existing text-4xl…7xl
+     (53 call sites) do not invert against the new 3xl. Dashboard screens use
+     xs…3xl only. */
+  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+               'Helvetica Neue', Arial, sans-serif;
+
+  --text-xs: 0.75rem;    --text-xs--line-height: 1rem;        /* 12 / 16 */
+  --text-sm: 0.875rem;   --text-sm--line-height: 1.25rem;     /* 14 / 20 */
+  --text-base: 1rem;     --text-base--line-height: 1.5rem;    /* 16 / 24 */
+  --text-lg: 1.25rem;    --text-lg--line-height: 1.75rem;     /* 20 / 28 */
+  --text-xl: 1.5rem;     --text-xl--line-height: 2rem;        /* 24 / 32 */
+  --text-2xl: 2rem;      --text-2xl--line-height: 2.5rem;     /* 32 / 40 */
+  --text-3xl: 2.5rem;    --text-3xl--line-height: 3rem;       /* 40 / 48 */
+  --text-4xl: 3rem;      --text-4xl--line-height: 3.5rem;     /* 48 / 56 */
+  --text-5xl: 3.75rem;   --text-5xl--line-height: 1.1;        /* 60 */
+  --text-6xl: 4.5rem;    --text-6xl--line-height: 1.05;       /* 72 */
+  --text-7xl: 5.25rem;   --text-7xl--line-height: 1;          /* 84 */
+
+  /* ── Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 ─────────────────
+     THE APPROVED SCALE, expressed in the utilities you actually write:
+
+         p-1   gap-1   =  4px          p-6   gap-6   = 24px
+         p-2   gap-2   =  8px          p-8   gap-8   = 32px
+         p-3   gap-3   = 12px          p-12  gap-12  = 48px
+         p-4   gap-4   = 16px          p-16  gap-16  = 64px
+
+     Tailwind v4's dynamic scale (--spacing: 0.25rem) already yields exactly
+     these values at those steps, so no token is needed and none is defined.
+
+     Do NOT add named `--spacing-xs/sm/md/...` aliases here: `max-w-*`, `w-*`
+     and `min-w-*` read the SAME namespace, so defining `--spacing-sm: 0.5rem`
+     silently rewrites `max-w-sm` from 24rem to 0.5rem. That collision was
+     introduced and caught in this phase — it would have collapsed all 111
+     `max-w-{xs..4xl}` call sites to between 4px and 64px.
+
+     Off-scale steps (p-5, gap-7, mt-10 …) still compile because ~560 of them
+     live on public pages outside this phase; they are migrated per screen in
+     B/C rather than broken all at once. */
+
+  /* ── Radius — one ramp ─────────────────────────────────────────────────── */
+  --radius-sm: calc(var(--radius) - 4px);   /*  6px — badges, chips          */
+  --radius-md: calc(var(--radius) - 2px);   /*  8px — inputs, buttons        */
+  --radius-lg: var(--radius);               /* 10px — cards                  */
+  --radius-xl: calc(var(--radius) + 4px);   /* 14px — panels                 */
+  --radius-2xl: calc(var(--radius) + 8px);  /* 18px — dialogs                */
+
+  /* ── Elevation ─────────────────────────────────────────────────────────── */
+  --shadow-e1: var(--elevation-1);
+  --shadow-e2: var(--elevation-2);
+  --shadow-e3: var(--elevation-3);
+  /* Named here rather than written as an arbitrary `shadow-[...]` at call sites
+     so it stays ONE definition and stays merge-aware: `shadow-hud` is a real
+     `shadow-*` utility, so tailwind-merge dedupes it against the Card
+     variant's own `shadow-e1`/`shadow-e2` and the last class wins predictably.
+     An arbitrary value would also have had to hardcode rgb(14,159,226) —
+     color-mix() cannot go inside an arbitrary shadow (its commas break the
+     value parser), which would have re-duplicated the --brand-cyan token. */
+  --shadow-hud: var(--elevation-hud);
+  --shadow-hud-hover: var(--elevation-hud-hover);
+
+  /* ── Surfaces ──────────────────────────────────────────────────────────── */
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-base: var(--surface-base);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+
+  /* ── Text ──────────────────────────────────────────────────────────────── */
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+
+  /* ── Accent ────────────────────────────────────────────────────────────── */
   --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-accent-foreground: var(--accent-fg);
+  --color-accent-on-dark: var(--accent-on-dark);
+  /* Mapped so the panel gradient can be written as Tailwind utilities
+     (`from-accent-deep/18 to-brand-cyan/8`) instead of a hand-rolled CSS rule. */
+  --color-accent-deep: var(--accent-deep);
+  --color-brand-cyan: var(--brand-cyan);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+
+  /* ── Semantic ──────────────────────────────────────────────────────────── */
+  --color-success: var(--success-fg);
+  --color-success-soft: var(--success-soft);
+  --color-success-solid: var(--success-solid);
+  --color-warning: var(--warning-fg);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-solid: var(--warning-solid);
+  --color-danger: var(--danger-fg);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-solid: var(--danger-solid);
+  --color-info: var(--info-fg);
+  --color-info-soft: var(--info-soft);
+  --color-info-solid: var(--info-solid);
+  --color-on-solid: var(--on-solid);
+
+  /* ── Charts ────────────────────────────────────────────────────────────── */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  
+
+  /* ── shadcn compatibility aliases ──────────────────────────────────────────
+     shadcn primitives address colours by these names. Mapped onto the tokens
+     above so the primitives are correct out of the box and no screen has to
+     restyle them. Note `--color-primary` is now the ACCENT: that is what makes
+     <Button variant="default"> render as a real primary action instead of
+     navy-on-navy. */
+  --color-background: var(--surface-base);
+  --color-foreground: var(--fg);
+  --color-card: var(--surface-1);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--surface-2);
+  --color-popover-foreground: var(--fg);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-fg);
+  --color-secondary: var(--surface-sunken);
+  --color-secondary-foreground: var(--fg);
+  --color-muted: var(--surface-sunken);
+  --color-muted-foreground: var(--fg-muted);
+  --color-destructive: var(--danger-solid);
+  --color-destructive-foreground: var(--on-solid);
+  --color-border: var(--border);
+  --color-border-interactive: var(--border-interactive);
+  --color-input: var(--border-interactive);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--surface-sidebar);
+  --color-sidebar-foreground: var(--fg);
+  --color-sidebar-primary: var(--accent);
+  --color-sidebar-primary-foreground: var(--accent-fg);
+  --color-sidebar-accent: var(--surface-1);
+  --color-sidebar-accent-foreground: var(--fg);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--ring);
 }
 
-:root {
-  --radius: 0.625rem;
-  /* DGMARQ Brand Colors */
-  --primary: #041536;        /* Main backgrounds, headers, navbars */
-  --secondary: #060318;       /* Sidebar, footer, secondary backgrounds */
-  --accent: #0E51E2;         /* Buttons, links, highlights, interactive elements */
-  
-  /* Derived colors for better contrast */
-  --background: #041536;
-  --foreground: #ffffff;
-  --card: #0a1f47;
-  --card-foreground: #ffffff;
-  --popover: #0a1f47;
-  --popover-foreground: #ffffff;
-  --primary-foreground: #ffffff;
-  --secondary-foreground: #ffffff;
-  --muted: #1a2d5a;
-  --muted-foreground: #a0aec0;
-  --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #1a2d5a;
-  --input: #1a2d5a;
-  --ring: #0E51E2;
-  --chart-1: #0E51E2;
-  --chart-2: #3b82f6;
-  --chart-3: #60a5fa;
-  --chart-4: #93c5fd;
-  --chart-5: #dbeafe;
-  --sidebar: #060318;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #0E51E2;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0a1f47;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1a2d5a;
-  --sidebar-ring: #0E51E2;
-  --shadow-0xl: 0 0 8px rgba(14, 100, 220, 0.15)
+/* ============================================================================
+   PANEL SURFACE — the product page's "Trusted & Secure" panel, as real Tailwind
+   utilities (v4 `@utility`, so `hover:` / `md:` / `dark:` all still work; a
+   plain `.class` would not compose with variants).
+
+   Source of truth, lifted verbatim from ProductDetail:
+     fill   linear-gradient(135deg, rgba(23,42,164,.18), rgba(14,159,226,.08))
+     rim    1px solid rgba(14,159,226,.20)
+     scan   linear-gradient(90deg, transparent, rgba(14,159,226,.50), transparent)
+   rgb(23,42,164) is --accent-deep and rgb(14,159,226) is --brand-cyan, so the
+   dashboard and the product page share one value rather than two copies.
+
+   WHY THE VARIABLE: `panel-grad` reads `--panel-stop` for its first colour and
+   `panel-tone-*` only SETS that variable. Two classes that both wrote
+   `background-image` would collide — tailwind-merge cannot dedupe custom
+   utilities, so which one won would come down to stylesheet order. Splitting
+   fill from colour makes the combination order-independent.
+   ========================================================================== */
+@utility panel-grad {
+  /* background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--panel-stop, var(--color-accent-deep)) var(--panel-a1, 18%), transparent),
+    color-mix(in srgb, var(--panel-stop-2, var(--color-brand-cyan)) var(--panel-a2, 8%), transparent)
+  ); */
+  background: transparent;
 }
 
-.dark {
-  /* Dark mode uses same brand colors but with adjusted brightness */
-  --background: #041536;
-  --foreground: #ffffff;
-  --card: #0a1f47;
-  --card-foreground: #ffffff;
-  --popover: #0a1f47;
-  --popover-foreground: #ffffff;
-  --primary: #041536;
-  --primary-foreground: #ffffff;
-  --secondary: #060318;
-  --secondary-foreground: #ffffff;
-  --muted: #1a2d5a;
-  --muted-foreground: #a0aec0;
-  --accent: #0E51E2;
-  --accent-foreground: #ffffff;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #1a2d5a;
-  --input: #1a2d5a;
-  --ring: #0E51E2;
-  --chart-1: #0E51E2;
-  --chart-2: #3b82f6;
-  --chart-3: #60a5fa;
-  --chart-4: #93c5fd;
-  --chart-5: #dbeafe;
-  --sidebar: #060318;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #0E51E2;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0a1f47;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1a2d5a;
-  --sidebar-ring: #0E51E2;
+/* panel-tone-success, panel-tone-warning, … — any colour in the theme. */
+@utility panel-tone-* {
+  --panel-stop: --value(--color- *);
+}
+
+/* The INNER-tile recipe, as opposed to the outer panel above. On the product
+   page the panel is a 135deg indigo→cyan gradient, but each tile inside it is a
+   FLAT 6% wash of its own colour with an 18% border — which is what makes four
+   tiles read as four different things. `panel-tile` collapses both gradient
+   stops onto the tone at 6%, so `panel-grad` paints a flat tint.
+
+   It only sets variables — it never writes `background-image` itself. That is
+   deliberate: two custom utilities both setting background-image would collide,
+   and tailwind-merge cannot dedupe custom utilities, so the winner would come
+   down to stylesheet order. */
+@utility panel-tile {
+  --panel-stop-2: var(--panel-stop, var(--color-accent-deep));
+  --panel-a1: 6%;
+  --panel-a2: 6%;
+  /* Border follows the tone at the tile's 18%, instead of the panel's cyan. */
+  --panel-rim-c: var(--panel-stop, var(--color-accent-deep));
+  --panel-rim-a: 18%;
+}
+
+/* Variable-driven for the same reason as panel-grad: a plain `border-<tone>/18`
+   from a consumer could not beat this, because tailwind-merge does not know
+   `panel-rim` and `border-*` are the same thing — both would apply and
+   stylesheet order would decide. Now the rim follows whatever the tone sets. */
+@utility panel-rim {
+  border-color: color-mix(
+    in srgb,
+    var(--panel-rim-c, var(--color-brand-cyan)) var(--panel-rim-a, 20%),
+    transparent
+  );
+}
+
+/* The 1px lit edge along the top. Uses ::before, which the Card `hud` variant
+   also uses — so this is for surfaces that are not hud cards. */
+@utility panel-scan {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--color-brand-cyan) 50%, transparent),
+      transparent
+    );
+  }
+}
+
+/* ============================================================================
+   HUD CORNER BRACKETS — the product page's signature chrome.
+
+   Source of truth is ProductDetail.css, which has TWO bracket treatments, and
+   the difference is the point:
+     `.fx-corner`  — 14px arms, always lit. One per page, on the price card.
+     `.of-corner2` — 9px arms, `opacity: 0` -> `.85` on `.of-row:hover`. Dozens
+                     per page, on the offer rows.
+   The dashboard follows the ROW rule: brackets are a hover response, not
+   permanent decoration. At rest the HUD identity is carried by `shadow-hud` and
+   the cyan rim; the brackets answer the pointer.
+
+   They belong to the thing being POINTED AT — a tile, a list row, a table row —
+   and deliberately NOT to the panel or table that contains it. A panel is not a
+   target: hovering any row is also hovering the panel, so bracketing both meant
+   pointing at one order and watching the whole card light up instead.
+
+   `--hud-arm` / `--hud-inset` size them: 14px arms suit a tile, 9px suit the
+   height of a row.
+
+   There it costs FOUR extra `<span>`s per surface. Here it is background layers
+   on ONE ::after — same drawing, no DOM, and it animates as a single element.
+
+   The reveal is written as plain `&:hover`, NOT Tailwind's `hover:` variant —
+   which matters, because that variant compiles to `@media (hover: hover)` and
+   would make these dead on a touch device. Raw `:hover` still fires on tap, so
+   one rule covers pointer and touch. There is deliberately no `@media
+   (hover: none)` fallback lighting them permanently: that turned every row on a
+   phone into permanent decoration, which is the thing this design rejects.
+
+   These are the only custom utilities the HUD look needs. Everything else it
+   does (cyan micro-labels, gradient numerals, the glow rim) is expressible in
+   plain merge-aware Tailwind, and is written that way ON PURPOSE: a custom
+   @utility setting `box-shadow` or `font-size` cannot be deduped by
+   tailwind-merge against `shadow-*`/`text-*`, so the winner comes down to
+   stylesheet order — the same trap documented on `panel-grad` above. `::after`
+   collides with nothing, so bracket utilities are safe.
+
+   Pairs with `overflow-hidden` freely: the brackets are inset, never clipped.
+   ========================================================================== */
+@utility hud-corners {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: var(--hud-inset, 6px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+    background-image: var(--hud-bracket), var(--hud-bracket), var(--hud-bracket),
+      var(--hud-bracket), var(--hud-bracket), var(--hud-bracket),
+      var(--hud-bracket), var(--hud-bracket);
+    background-repeat: no-repeat;
+    /* Horizontal arm, then vertical arm, for each corner in turn. */
+    background-size: var(--hud-arm, 14px) 1.5px, 1.5px var(--hud-arm, 14px),
+      var(--hud-arm, 14px) 1.5px, 1.5px var(--hud-arm, 14px),
+      var(--hud-arm, 14px) 1.5px, 1.5px var(--hud-arm, 14px),
+      var(--hud-arm, 14px) 1.5px, 1.5px var(--hud-arm, 14px);
+    background-position: left top, left top, right top, right top, left bottom,
+      left bottom, right bottom, right bottom;
+  }
+  &:hover::after {
+    opacity: 0.85;
+  }
+}
+
+/* The row pair: `hud-corners-start` brackets the left end of a row and
+   `hud-corners-end` the right end, so hovering a table row lights up its two
+   sides — `.of-corner2`'s 9px arms, on the first and last cell.
+
+   Why the cells and not the `<tr>`: an absolutely-positioned ::after on a table
+   ROW is a layout gamble (the generated box would otherwise be wrapped in an
+   anonymous table-cell), and a table row is the single most-repeated element in
+   this app. A `<td>` is an ordinary containing block, so this is boring and
+   safe — and it puts the brackets exactly where the request wants them, at the
+   row's ends rather than around its whole box.
+
+   The reveal is `:hover > &`, i.e. the PARENT being hovered. Not written as
+   `tr:hover` — nothing here needs to know it is in a table — and not as
+   Tailwind `group-hover/row:after:opacity-*` at the call site, because that
+   would put the hidden and revealed states in two different variant groups
+   whose stylesheet order is not guaranteed. One utility, one source of truth.
+   ========================================================================== */
+@utility hud-corners-start {
+  position: relative;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: var(--hud-inset, 5px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+    background-image: var(--hud-bracket), var(--hud-bracket), var(--hud-bracket),
+      var(--hud-bracket);
+    background-repeat: no-repeat;
+    background-size: var(--hud-arm, 9px) 1.5px, 1.5px var(--hud-arm, 9px),
+      var(--hud-arm, 9px) 1.5px, 1.5px var(--hud-arm, 9px);
+    background-position: left top, left top, left bottom, left bottom;
+  }
+  :hover > &::after {
+    opacity: 0.85;
+  }
+}
+
+/* ::before, where `hud-corners-start` uses ::after — NOT symmetry for its own
+   sake. A one-cell row (an empty state or a skeleton spanning every column) is
+   simultaneously :first-child and :last-child, so it receives BOTH utilities;
+   on the same pseudo-element one would silently erase the other and the row
+   would show two brackets instead of four. Different pseudos, both survive. */
+@utility hud-corners-end {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: var(--hud-inset, 5px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+    background-image: var(--hud-bracket), var(--hud-bracket), var(--hud-bracket),
+      var(--hud-bracket);
+    background-repeat: no-repeat;
+    background-size: var(--hud-arm, 9px) 1.5px, 1.5px var(--hud-arm, 9px),
+      var(--hud-arm, 9px) 1.5px, 1.5px var(--hud-arm, 9px);
+    background-position: right top, right top, right bottom, right bottom;
+  }
+  :hover > &::before {
+    opacity: 0.85;
+  }
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    @apply bg-background text-foreground font-sans;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
-  /* Ensure all text uses Poppins */
-  h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea, select, label {
-    font-family: 'Poppins', sans-serif;
-  }
-  
-  /* Custom Scrollbar Styling for Sidebar */
-  aside nav::-webkit-scrollbar {
-    width: 6px;
+
+  /* Motion budget: 150–200ms ease-out on hover/state change only. Anything
+     that opts in to a transition gets this timing unless it says otherwise. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
-  aside nav::-webkit-scrollbar-track {
-    background: transparent;
+  /* Sidebar scrollbar. Was three inline `style={{ scrollbarColor }}` objects
+     duplicated across the Admin/Seller/User sidebars. */
+  aside nav {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
-
+  aside nav::-webkit-scrollbar { width: 6px; }
+  aside nav::-webkit-scrollbar-track { background: transparent; }
   aside nav::-webkit-scrollbar-thumb {
-    background-color: #4B5563;
+    background-color: var(--scrollbar-thumb);
     border-radius: 3px;
   }
-
-  aside nav::-webkit-scrollbar-thumb:hover {
-    background-color: #6B7280;
+  aside nav:hover::-webkit-scrollbar-thumb {
+    background-color: var(--border-interactive);
   }
 
-  /* Hide scrollbar for horizontal navigation */
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
 }
 
-
-
-
-
+/* ============================================================================
+   Brand utilities that are NOT Tailwind utility-name collisions.
+   The removed ones — `.bg-primary`, `.max-w-sm`, `.bg-blue-2…6`, `.text-26`,
+   `.rounded-21`, `.gap-7-5`, `.font-inter`, `.btn-show-more` — shadowed stock
+   Tailwind names or were dead. `.bg-primary` overriding the `bg-primary`
+   utility was the single most dangerous line in the codebase.
+   ========================================================================== */
 .bg-blue {
   background-image: linear-gradient(to right, #172AA4, #0E71E2);
 }
-
-.bg-orange{
+.bg-orange {
   background-color: #F05F00;
 }
-.bg-primary {
-  background-color: #060318;
-}
-.bg-blue-2 {
-  background-color: #0E092C;
-}
-.bg-blue-3 {
-  background-color: #07173D;
-}
-.bg-blue-4 {
-  background-color: #041536;
-}
-.bg-blue-5 {
-  background-color: #09214F;
-}
-.bg-blue-6 {
-  background-color: #172AA4;
-}
 .font-poppins {
-  font-family: Poppins, sans-serif;
+  font-family: var(--font-sans);
 }
-
-.font-inter {
-  font-family: Inter, sans-serif;
-}
-.max-w-1260
-{
+.max-w-1260 {
   max-width: 1260px;
-}
-.max-w-sm
-{
-  max-width: 150px;
-}
-
-.gap-7-5{
-  gap: 30px;
-}
-
-.text-26{
-  font-size: 26px;
-}
-
-.rounded-21{
-  border-radius: 21px;
-}
-
-/* Show More Button Style for Software Page */
-.btn-show-more {
-  width: 164px;
-  height: 43px;
-  border-radius: 9px;
-  padding: 10px 40px;
-  gap: 10px;
-  background: rgba(240, 95, 0, 0.1); /* #F05F001A */
-  border: 1px solid;
-  border-image-source: linear-gradient(90deg, #F05F00 0%, #FF7216 100%);
-  border-image-slice: 1;
-  color: #F05F00;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
-
-.btn-show-more:hover {
-  background: rgba(240, 95, 0, 0.2);
-  color: #FF7216;
-  transform: translateY(-1px);
-}
-
-.btn-show-more:focus {
-  outline: none;
-  ring: 2px;
-  ring-color: #F05F00;
-  ring-opacity: 0.5;
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -303,45 +662,39 @@
 }
 .seller-collapse > div { overflow: hidden; min-height: 0; }
 
-@media (prefers-reduced-motion: reduce) {
-  .seller-step-forward, .seller-step-back, .seller-fade-in,
-  .seller-shake, .seller-pop-check { animation: none; }
-}
-
 /* Tame the react-country-state-city default CSS so it does not leak into the
    page; we render our own styled dropdowns and only import the lib's data
    helpers, but the stylesheet ships a few global rules we neutralise here. */
 .stdropdown-container { border: none !important; }
 
-/* PayPal CardFields Dark Theme Styling */
+/* PayPal CardFields dark theming. PayPal renders these inputs inside a
+   cross-origin iframe we cannot style with utilities, so this stays raw CSS. */
 .paypal-card-field-container {
-  background-color: rgba(31, 41, 55, 0.5) !important; /* bg-gray-800/50 */
-  border-color: #4b5563 !important; /* border-gray-600 */
+  background-color: var(--surface-sunken) !important;
+  border-color: var(--border-interactive) !important;
 }
 
 .paypal-card-field-container iframe {
   background-color: transparent !important;
 }
 
-/* Autofill override for dark theme */
 .paypal-card-field-container input:-webkit-autofill,
 .paypal-card-field-container input:-webkit-autofill:hover,
 .paypal-card-field-container input:-webkit-autofill:focus,
 .paypal-card-field-container input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px rgba(31, 41, 55, 0.5) inset !important;
-  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0 30px var(--surface-sunken) inset !important;
+  -webkit-text-fill-color: var(--fg) !important;
   background-color: transparent !important;
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* Additional styling for PayPal CardFields inputs */
 .paypal-card-field-container * {
-  color: #ffffff !important;
+  color: var(--fg) !important;
 }
 
 .paypal-card-field-container input::placeholder,
 .paypal-card-field-container input::-webkit-input-placeholder {
-  color: #9ca3af !important;
+  color: var(--fg-muted) !important;
   opacity: 1 !important;
 }
 
@@ -375,6 +728,21 @@
   --animate-oc-pop-in: ocPopIn 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-oc-fade: ocFade 0.22s ease;
   --animate-oc-rise: ocRise 0.3s cubic-bezier(0.2, 0.7, 0.3, 1);
+  /* Status pill settle — plays when a socket-driven refetch changes a status. */
+  --animate-status-settle: statusSettle 0.2s ease-out both;
+
+  /* ── Dashboard motion ─────────────────────────────────────────────────────
+     Entrance animations run on MOUNT ONLY. They are attached to the route
+     shell and the KPI grid, never to a row inside a list — a socket refetch or
+     a page change must not re-animate data the user is already reading. All of
+     it is neutralised by the global prefers-reduced-motion block above. */
+  --animate-dash-in: dashIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-dash-rise: dashRise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Skeletons: a travelling sheen reads as "loading" far better than a pulse,
+     which on a dark UI just looks like a flickering block. */
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  /* Ambient drift on the backdrop glow. Very slow and very low contrast. */
+  --animate-aurora: aurora 24s ease-in-out infinite;
 }
 
 /* The mockup's sweep runs 200% → -200%: the highlight enters off-screen-right
@@ -396,3 +764,371 @@
 @keyframes ocPopIn { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: scale(1); } }
 @keyframes ocFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ocRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes statusSettle { from { opacity: 0.45; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+@keyframes dashIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes dashRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { from { background-position: -180% 0; } to { background-position: 180% 0; } }
+@keyframes aurora {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.5; }
+  50%      { transform: translate3d(3%, -4%, 0) scale(1.12); opacity: 0.75; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Sidebar nav — the public header's command bar (.fx-cmd-* in Header.css),
+   translated to a vertical list.
+
+   Written as real CSS rather than Tailwind arbitrary values on purpose: both
+   pieces below need syntax the arbitrary-value escaper mangles — a multi-stop
+   gradient (the space before each stop position is eaten) and an alpha modifier
+   inside a box-shadow colour (`/40` is passed through verbatim, which is not a
+   valid colour). Header.css states the same effects the same way.
+   ──────────────────────────────────────────────────────────────────────────── */
+.nav-item {
+  position: relative;
+}
+
+/* Active: accent pill fading downward + inner hairline + outer glow.
+   Values match .fx-cmd-spot in Header.css. */
+.nav-item[aria-current='page'],
+.nav-item.is-active {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--accent) 40%, transparent),
+    color-mix(in oklab, var(--accent) 10%, transparent)
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--accent-on-dark) 40%, transparent),
+    0 8px 22px -8px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+/* The header's glowing underline, rotated to a left edge and faded at both ends
+   so it reads as lit rather than as a border. */
+.nav-item[aria-current='page']::before,
+.nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--accent) 28%,
+    var(--accent-2) 72%,
+    transparent
+  );
+  box-shadow: 0 0 12px color-mix(in oklab, var(--accent) 85%, transparent);
+  pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Primary button — the public header's "DGMARQ Plus" capsule (.fx-plus).
+
+   Real CSS for the same reason as the nav: multi-stop gradients and alpha-in-
+   shadow are what the Tailwind arbitrary-value escaper mangles.
+
+   White text bottoms out at 5.25:1 across the whole ramp. The darkest stop sits
+   at only 1.36:1 against a card, so the top light-catch and the drop shadow are
+   load-bearing — they are what define the control's boundary (WCAG 1.4.11), not
+   decoration.
+   ──────────────────────────────────────────────────────────────────────────── */
+.btn-brand {
+  background: linear-gradient(
+    135deg,
+    var(--accent-deep) 0%,
+    var(--accent) 46%,
+    var(--accent-2-deep) 100%
+  );
+  box-shadow:
+    0 10px 28px -10px color-mix(in oklab, var(--accent-2-deep) 65%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 0.22);
+}
+
+.btn-brand:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow:
+    0 14px 34px -10px color-mix(in oklab, var(--accent-2-deep) 80%, transparent),
+    inset 0 1px 0 rgb(255 255 255 / 0.3);
+}
+
+/* The header's sheen. Opt-in ONLY (`<Button shine>`): the header has a single
+   Plus capsule, whereas a dashboard screen can show five primary buttons at
+   once — five white streaks sweeping on a shared 5s loop reads as a fault, and
+   each one is a repeating repaint. Reserve it for a single hero CTA. */
+.btn-brand--shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-brand--shine::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: -130%;
+  width: 55%;
+  z-index: -1;
+  background: linear-gradient(120deg, transparent, rgb(255 255 255 / 0.4), transparent);
+  transform: skewX(-18deg);
+  animation: btnSheen 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes btnSheen {
+  0%, 62% { left: -130%; }
+  82%, 100% { left: 140%; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tab bar — the closest analogue to the public header's command bar, because it
+   IS the same shape: a short row of items in a recessed track. So this one gets
+   the full treatment, including the diagonal gradient hairline border and the
+   glowing underline in its original orientation.
+
+   Item count is low here (3–4), so the uppercase micro-type from the header is
+   appropriate — unlike the sidebar's 15-item column.
+   ──────────────────────────────────────────────────────────────────────────── */
+.tab-bar {
+  position: relative;
+  border-radius: var(--radius-xl);
+  padding: 5px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--surface-2) 70%, transparent),
+    color-mix(in oklab, var(--surface-sunken) 88%, transparent)
+  );
+  /* Top light-catch, inner bottom shade, outer drop — the depth recipe from
+     .fx-cmd. This is what makes it read as a physical well. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    inset 0 -12px 26px rgb(4 9 22 / 0.45),
+    0 12px 34px -14px rgb(0 0 0 / 0.4);
+}
+
+/* 1px diagonal gradient border, blue -> violet -> faded, drawn with the
+   mask-composite trick so it sits exactly on the rounded edge. */
+.tab-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    120deg,
+    color-mix(in oklab, var(--accent) 55%, transparent),
+    color-mix(in oklab, var(--accent-2) 40%, transparent) 48%,
+    color-mix(in oklab, var(--accent) 12%, transparent)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.tab-item[data-state='active'] {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--accent) 42%, transparent),
+    color-mix(in oklab, var(--accent) 12%, transparent)
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--accent-on-dark) 40%, transparent),
+    0 8px 22px -8px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+/* The header's glowing underline, kept horizontal here. */
+.tab-item[data-state='active']::after {
+  content: '';
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent),
+    var(--accent-2),
+    transparent
+  );
+  box-shadow: 0 0 12px color-mix(in oklab, var(--accent) 85%, transparent);
+  pointer-events: none;
+}
+
+/* The bottom nav sits at the foot of the screen, so its lit edge belongs on the
+   TOP of the item rather than the left. Same gradient, rotated. */
+.nav-item--top[aria-current='page']::before {
+  left: 22%;
+  right: 22%;
+  top: 0;
+  bottom: auto;
+  width: auto;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent) 28%,
+    var(--accent-2) 72%,
+    transparent
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Row hover.
+
+   Card-style lists (orders, the seller action queue, the inventory picker) each
+   had invented their own hover — one tinted the background, one lit the border,
+   one did nothing. This is the single treatment, and it matches TableRow so a
+   list and a table feel like the same thing.
+
+   The accent edge is drawn with an inset box-shadow rather than a border or a
+   pseudo-element, so it costs no layout and can never shift the row.
+   ──────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   HUD SPOTLIGHT — the menu's active treatment, as a hover response.
+
+   `.tab-item[data-state='active']` below is the source: an accent wash fading
+   downward, a 1px inset ring, an outer glow, and a gradient beam along the
+   bottom edge that fades out at both ends. Pointing at a KPI tile or a row now
+   produces exactly that, so "selected in the menu" and "pointing at a row" are
+   the same visual idea rather than two inventions.
+
+   Unlayered real CSS, like `.nav-item` / `.tab-item` / `.btn-brand` above, for
+   two reasons: multi-stop gradients and alpha-inside-a-box-shadow are what the
+   Tailwind arbitrary-value escaper mangles (see the note on .nav-item), and
+   unlayered rules beat `@layer utilities` regardless of specificity — which is
+   what lets this deterministically replace the Card's own
+   `hover:shadow-[var(--elevation-hover)]` instead of racing it.
+
+   TWO classes because pseudo-elements are not free everywhere:
+     `.hud-spot`     divs and links — the beam is a ::before.
+     `.hud-spot-row` a <tr> — an absolutely-positioned pseudo-element on a table
+                     ROW is a layout gamble (the generated box would otherwise be
+                     wrapped in an anonymous cell), and a row is the most
+                     repeated element in the app. Background layers on the row
+                     are boring and safe, so the beam is drawn as one.
+   ──────────────────────────────────────────────────────────────────────────── */
+/* `.row-link` is listed alongside so every dashboard list row already in the app
+   picks the treatment up without a single JSX change — it IS the row the request
+   was pointing at. Its old hover (a flat surface-2 wash plus a 2px left edge) is
+   gone rather than layered underneath: the beam and ring now carry the state,
+   and two markers for one thing is what made it look busy. */
+.hud-spot,
+.row-link {
+  /* The hovered row brackets itself. `@apply` rather than a second copy of the
+     drawing, so `hud-corners` stays the one definition — and because this is the
+     shared list row, every dashboard list gets brackets from this single edit.
+     9px arms: a 14px arm is taller than half a row and reads as a box, not a
+     corner. (`position: relative` comes with the utility.) */
+  @apply hud-corners;
+  --hud-arm: 9px;
+  --hud-inset: 5px;
+  /* 250ms on exactly the properties hover moves. Declared here rather than left
+     to the Card's own `duration-200` so a tile, a list row and a table row all
+     settle at the same speed — the brief's one consistent design language. */
+  transition:
+    border-color 250ms ease-out,
+    box-shadow 250ms ease-out,
+    transform 250ms ease-out,
+    background-color 250ms ease-out;
+}
+/* ::before, not ::after: ::after belongs to `hud-corners`, which every surface
+   carrying this class also carries. */
+.hud-spot::before,
+.row-link::before {
+  content: '';
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  /* 0, not the tab bar's -1px: a Glass Card clips to its own rounded box, so a
+     beam hanging outside it would be cut in half. */
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--hud-spot-beam);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--accent) 85%, transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  pointer-events: none;
+}
+.hud-spot:hover,
+.row-link:hover {
+  background-image: var(--hud-spot-fill);
+  /* The menu's ring and accent glow, over the deepened premium shadow — the
+     brief's "border glow increases, shadow becomes deeper" as one layered stack
+     rather than a second, brighter effect swapped in. */
+  box-shadow: var(--hud-spot-ring), var(--elevation-hud-hover);
+  /* 2px lift, no scaling. */
+  transform: translateY(-2px);
+}
+.hud-spot:hover::before,
+.row-link:hover::before {
+  opacity: 1;
+}
+
+/* The row carries the beam, its bloom and the outer glow. It does NOT carry the
+   wash or the 1px ring — those go on the cells, and the reason is geometry:
+   `border-radius` does not apply to a <tr>, so a full-bleed wash there paints
+   square corners that poke out past the row's rounded border. A cell's radius
+   does clip its own background, so the wash is exact there.
+
+   Cells paint ON TOP of rows (CSS tables paint rows before cells), which is why
+   the cell wash below stops 3px short of the bottom: that strip is what lets
+   this beam show through. */
+.hud-spot-row:hover {
+  background-image: var(--hud-spot-beam), var(--hud-spot-bloom);
+  background-repeat: no-repeat;
+  background-size: 68% 3px, 68% 12px;
+  background-position: bottom center, bottom center;
+  /* Accent glow over the deepened premium shadow, matching `.hud-spot` above.
+     The 1px ring is NOT here — it is the cells' border colour, so it follows the
+     row's rounded corners instead of cutting across them. */
+  box-shadow: 0 8px 22px -8px color-mix(in oklab, var(--accent) 70%, transparent),
+    var(--elevation-hud-hover);
+  transform: translateY(-2px);
+}
+.hud-spot-row:hover > * {
+  background-image: var(--hud-spot-fill);
+  background-repeat: no-repeat;
+  background-size: 100% calc(100% - 3px);
+  background-position: top center;
+  /* The menu's 1px inset ring, as the row box's own border — so it follows the
+     rounded corners instead of cutting across them. */
+  border-color: color-mix(in oklab, var(--accent-on-dark) 40%, transparent);
+}
+
+/* Bordered variants (the action queue, the offer picker) light their edge too. */
+.row-link:hover:where([class*='border-']) {
+  border-color: color-mix(in oklab, var(--accent-on-dark) 55%, transparent);
+}
+
+/* Hairline between groups, fading at both ends — as between the header's items. */
+.nav-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--border-interactive) 55%, transparent),
+    transparent
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Dashboard staggering.
+
+   A CSS-variable delay rather than an inline style per item, so the stagger is
+   one declaration and the markup stays clean. Capped at the 8th child: past
+   that the delay is longer than the animation and late items read as broken.
+   ──────────────────────────────────────────────────────────────────────────── */
+.stagger > * { animation: dashRise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }
+.stagger > *:nth-child(n + 7) { animation-delay: 340ms; }

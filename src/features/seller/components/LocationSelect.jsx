@@ -28,6 +28,7 @@ const LocationSelect = ({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const wrapRef = useRef(null);
+  const searchRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
@@ -44,10 +45,16 @@ const LocationSelect = ({
 
   const isDisabled = disabled || loading;
 
+  // Focus the filter when the popup opens — same effect autoFocus had, but it
+  // only fires on an explicit open rather than on every mount.
+  useEffect(() => {
+    if (open) searchRef.current?.focus();
+  }, [open]);
+
   return (
     <div className="space-y-1.5" ref={wrapRef}>
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-gray-200">
+        <label htmlFor={id} className="block text-sm font-medium text-fg">
           {label}
         </label>
       )}
@@ -60,33 +67,34 @@ const LocationSelect = ({
           className={cn(
             'flex h-11 w-full items-center justify-between rounded-lg border bg-white/[0.03] px-3.5 text-left text-sm transition-colors outline-none',
             'focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40',
-            error ? 'border-destructive seller-shake' : 'border-gray-600 hover:border-gray-500',
+            error ? 'border-destructive seller-shake' : 'border-border-interactive hover:border-gray-500',
             isDisabled && 'cursor-not-allowed opacity-50',
           )}
         >
-          <span className={cn('truncate', selected ? 'text-white' : 'text-gray-500')}>
+          <span className={cn('truncate', selected ? 'text-fg' : 'text-fg-subtle')}>
             {loading ? 'Loading…' : selected ? selected.name : placeholder}
           </span>
           <ChevronDown
-            className={cn('h-4 w-4 flex-shrink-0 text-gray-400 transition-transform', open && 'rotate-180')}
+            className={cn('h-4 w-4 flex-shrink-0 text-fg-muted transition-transform', open && 'rotate-180')}
           />
         </button>
 
         {open && !isDisabled && (
-          <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-gray-600 bg-[#0a1f47] shadow-2xl seller-fade-in">
-            <div className="flex items-center gap-2 border-b border-gray-700 px-3">
-              <Search className="h-4 w-4 text-gray-400" />
+          <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-border-interactive bg-popover shadow-2xl seller-fade-in">
+            <div className="flex items-center gap-2 border-b border-border px-3">
+              <Search className="h-4 w-4 text-fg-muted" />
               <input
-                autoFocus
+                ref={searchRef}
+                aria-label={`Search ${label || 'options'}`}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search…"
-                className="h-10 w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
+                className="h-10 w-full bg-transparent text-sm text-fg placeholder:text-fg-subtle outline-none"
               />
             </div>
             <ul className="max-h-60 overflow-y-auto py-1">
               {filtered.length === 0 ? (
-                <li className="px-3.5 py-2.5 text-sm text-gray-500">No matches</li>
+                <li className="px-3.5 py-2.5 text-sm text-fg-subtle">No matches</li>
               ) : (
                 filtered.map((o) => (
                   <li key={o.id}>
@@ -99,7 +107,7 @@ const LocationSelect = ({
                       }}
                       className={cn(
                         'flex w-full items-center justify-between px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-accent/20',
-                        o.id === value ? 'text-accent' : 'text-gray-200',
+                        o.id === value ? 'text-accent-on-dark' : 'text-fg',
                       )}
                     >
                       <span className="truncate">{o.name}</span>

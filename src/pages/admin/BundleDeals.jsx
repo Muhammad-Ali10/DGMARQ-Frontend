@@ -10,7 +10,7 @@ import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Plus, Edit, X, Trash2, Package, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { EmptyState } from '@components/common/EmptyState';
 import { showSuccess, showApiError, showError, showWarning } from '@utils/toast';
@@ -276,9 +276,9 @@ const BundleDeals = () => {
         </Button>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">All Bundle Deals</CardTitle>
+          <CardTitle>All Bundle Deals</CardTitle>
         </CardHeader>
         <CardContent>
           {bundles.length === 0 ? (
@@ -286,7 +286,7 @@ const BundleDeals = () => {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <Table>
+                <Table variant="hud">
                   <TableHeader>
                     <TableRow className="border-gray-700">
                       <TableHead className="text-gray-300">Title</TableHead>
@@ -385,7 +385,7 @@ const BundleDeals = () => {
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent size="lg" className="bg-primary border-gray-700">
+        <DialogContent size="lg" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Create Bundle Deal</DialogTitle>
           </DialogHeader>
@@ -416,14 +416,14 @@ const BundleDeals = () => {
                     products.products
                       .filter((p) => !selectedProducts.find((sp) => sp._id === p._id))
                       .map((product) => (
-                        <div
+                        <button type="button"
                           key={product._id}
                           className="p-3 cursor-pointer hover:bg-secondary/50 border-b border-gray-700"
                           onClick={() => handleProductSelect(product)}
                         >
                           <div className="font-medium text-white">{product.name}</div>
                           <div className="text-sm text-gray-400">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</div>
-                        </div>
+                        </button>
                       ))
                   ) : (
                     <div className="p-4 text-center text-gray-400">No products found</div>
@@ -507,7 +507,7 @@ const BundleDeals = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent size="lg" className="bg-primary border-gray-700">
+        <DialogContent size="lg" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Bundle Deal</DialogTitle>
           </DialogHeader>
@@ -538,14 +538,14 @@ const BundleDeals = () => {
                     products.products
                       .filter((p) => !selectedProducts.find((sp) => (sp._id || sp) === p._id))
                       .map((product) => (
-                        <div
+                        <button type="button"
                           key={product._id}
                           className="p-3 cursor-pointer hover:bg-secondary/50 border-b border-gray-700"
                           onClick={() => handleProductSelect(product)}
                         >
                           <div className="font-medium text-white">{product.name}</div>
                           <div className="text-sm text-gray-400">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</div>
-                        </div>
+                        </button>
                       ))
                   ) : (
                     <div className="p-4 text-center text-gray-400">No products found</div>

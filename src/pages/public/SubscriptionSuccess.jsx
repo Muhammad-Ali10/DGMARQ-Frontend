@@ -32,7 +32,7 @@ const SubscriptionSuccess = () => {
   if (confirmMutation.isPending) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-12 h-12 text-accent animate-spin" />
+        <Loader2 className="w-12 h-12 text-accent-on-dark animate-spin" />
         <h2 className="text-2xl font-semibold text-white">Activating your subscription...</h2>
         <p className="text-gray-400 text-center max-w-md">
           Please wait while we confirm your payment with PayPal. This usually takes just a few seconds.
@@ -44,7 +44,7 @@ const SubscriptionSuccess = () => {
   if (error) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-4">
-        <Card className="bg-primary border-gray-700 max-w-md w-full">
+        <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <CardTitle className="text-red-400 flex flex-col items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-red-900/20 flex items-center justify-center">
@@ -73,7 +73,7 @@ const SubscriptionSuccess = () => {
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center p-4">
-      <Card className="bg-primary border-gray-700 max-w-md w-full">
+      <Card className="max-w-md w-full">
         <CardHeader className="text-center">
           <CardTitle className="text-green-400 flex flex-col items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-green-900/20 flex items-center justify-center">

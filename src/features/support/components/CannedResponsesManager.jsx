@@ -80,11 +80,11 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg" className="bg-primary border-gray-700">
+      <DialogContent size="lg" className="">
         <DialogHeader>
-          <DialogTitle className="text-white">Canned Responses</DialogTitle>
-          <DialogDescription className="text-gray-400">
-            Reusable reply templates. Type a shortcut like <span className="font-mono text-accent">/greeting</span> in the chat to insert one.
+          <DialogTitle className="text-fg">Canned Responses</DialogTitle>
+          <DialogDescription className="text-fg-muted">
+            Reusable reply templates. Type a shortcut like <span className="font-mono text-accent-on-dark">/greeting</span> in the chat to insert one.
           </DialogDescription>
         </DialogHeader>
 
@@ -92,25 +92,25 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
           {/* List */}
           <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
             {isLoading ? (
-              <p className="text-gray-400 text-sm">Loading…</p>
+              <p className="text-fg-muted text-sm">Loading…</p>
             ) : items.length === 0 ? (
-              <p className="text-gray-400 text-sm">No canned responses yet.</p>
+              <p className="text-fg-muted text-sm">No canned responses yet.</p>
             ) : (
               items.map((item) => (
-                <div key={item._id} className="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <div key={item._id} className="rounded-lg border border-brand-cyan/12 bg-brand-cyan/3 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        {item.shortcut && <span className="text-accent text-xs font-mono">{item.shortcut}</span>}
-                        <span className="text-white text-sm font-medium truncate">{item.title}</span>
+                        {item.shortcut && <span className="text-accent-on-dark text-xs font-mono">{item.shortcut}</span>}
+                        <span className="text-fg text-sm font-medium truncate">{item.title}</span>
                       </div>
-                      <p className="text-gray-400 text-xs mt-0.5 line-clamp-2">{item.message}</p>
+                      <p className="text-fg-muted text-xs mt-0.5 line-clamp-2">{item.message}</p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <button type="button" onClick={() => startEdit(item)} className="text-gray-400 hover:text-white p-1" title="Edit">
+                      <button type="button" onClick={() => startEdit(item)} className="text-fg-muted hover:text-white p-1" title="Edit">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => deleteMut.mutate(item._id)} className="text-gray-400 hover:text-red-400 p-1" title="Delete">
+                      <button type="button" onClick={() => deleteMut.mutate(item._id)} className="text-fg-muted hover:text-red-400 p-1" title="Delete">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -121,52 +121,52 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
           </div>
 
           {/* Form */}
-          <form onSubmit={submit} className="space-y-3 bg-gray-900 rounded-lg p-3 border border-gray-700">
+          <form onSubmit={submit} className="space-y-3 bg-surface-sunken rounded-lg p-3 border border-border">
             <div className="flex items-center justify-between">
-              <h4 className="text-white text-sm font-semibold">{editingId ? 'Edit response' : 'New response'}</h4>
+              <h4 className="text-fg text-sm font-semibold">{editingId ? 'Edit response' : 'New response'}</h4>
               {editingId && (
-                <button type="button" onClick={reset} className="text-gray-400 hover:text-white text-xs flex items-center gap-1">
+                <button type="button" onClick={reset} className="text-fg-muted hover:text-white text-xs flex items-center gap-1">
                   <X className="h-3 w-3" /> Cancel
                 </button>
               )}
             </div>
             <div className="space-y-1">
-              <Label className="text-gray-300 text-xs">Title</Label>
+              <Label className="text-fg-muted text-xs">Title</Label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 placeholder="Greeting"
-                className="bg-gray-800 border-gray-700 text-white"
+                className="bg-surface-2 border-border text-fg"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-gray-300 text-xs">Shortcut</Label>
+                <Label className="text-fg-muted text-xs">Shortcut</Label>
                 <Input
                   value={form.shortcut}
                   onChange={(e) => setForm((f) => ({ ...f, shortcut: e.target.value }))}
                   placeholder="/greeting"
-                  className="bg-gray-800 border-gray-700 text-white font-mono"
+                  className="bg-surface-2 border-border text-fg font-mono"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-gray-300 text-xs">Category</Label>
+                <Label className="text-fg-muted text-xs">Category</Label>
                 <Input
                   value={form.category}
                   onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                   placeholder="general"
-                  className="bg-gray-800 border-gray-700 text-white"
+                  className="bg-surface-2 border-border text-fg"
                 />
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-gray-300 text-xs">Message</Label>
+              <Label className="text-fg-muted text-xs">Message</Label>
               <Textarea
                 value={form.message}
                 onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                 rows={4}
                 placeholder="Hi! Thank you for contacting DGMarq support…"
-                className="bg-gray-800 border-gray-700 text-white"
+                className="bg-surface-2 border-border text-fg"
               />
             </div>
             <Button type="submit" disabled={createMut.isPending || updateMut.isPending || !form.title.trim() || !form.message.trim()} className="w-full">

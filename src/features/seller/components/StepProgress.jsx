@@ -26,9 +26,9 @@ const StepProgress = ({ steps, current, onStepClick }) => {
                   onClick={() => clickable && onStepClick(i)}
                   className={cn(
                     'flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold transition-all duration-300',
-                    isCompleted && 'border-green-500 bg-green-500 text-white',
-                    isActive && 'border-accent bg-accent text-white shadow-[0_0_0_4px_rgba(14,81,226,0.25)]',
-                    !isCompleted && !isActive && 'border-gray-600 bg-transparent text-gray-500',
+                    isCompleted && 'border-green-500 bg-green-500 text-fg',
+                    isActive && 'border-accent bg-accent text-fg shadow-[0_0_0_4px_rgba(14,81,226,0.25)]',
+                    !isCompleted && !isActive && 'border-border-interactive bg-transparent text-fg-subtle',
                     clickable && 'cursor-pointer hover:scale-105',
                   )}
                   aria-label={step.label}
@@ -38,7 +38,7 @@ const StepProgress = ({ steps, current, onStepClick }) => {
                 <span
                   className={cn(
                     'mt-2 hidden text-xs font-medium sm:block whitespace-nowrap',
-                    isActive ? 'text-white' : isCompleted ? 'text-green-400' : 'text-gray-500',
+                    isActive ? 'text-fg' : isCompleted ? 'text-success' : 'text-fg-subtle',
                   )}
                 >
                   {step.label}
@@ -47,7 +47,7 @@ const StepProgress = ({ steps, current, onStepClick }) => {
 
               {/* Connecting line */}
               {i < steps.length - 1 && (
-                <div className="mx-2 h-0.5 flex-1 rounded-full bg-gray-700 sm:-mt-6">
+                <div className="mx-2 h-0.5 flex-1 rounded-full bg-surface-2 sm:-mt-6">
                   <div
                     className={cn(
                       'h-full rounded-full bg-green-500 transition-all duration-500',
@@ -62,7 +62,7 @@ const StepProgress = ({ steps, current, onStepClick }) => {
       </div>
 
       {/* Mobile: show active step label below numbers */}
-      <p className="mt-3 text-center text-sm font-medium text-white sm:hidden">
+      <p className="mt-3 text-center text-sm font-medium text-fg sm:hidden">
         Step {current + 1} of {steps.length}: {steps[current]?.label}
       </p>
     </div>

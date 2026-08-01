@@ -394,7 +394,7 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15">
-              <Upload className="w-5 h-5 text-accent" />
+              <Upload className="w-5 h-5 text-accent-on-dark" />
             </div>
             <div>
               <DialogTitle className="text-lg font-semibold">Upload Inventory</DialogTitle>
@@ -409,13 +409,13 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                <Key className="w-5 h-5 text-accent" />
+                <Key className="w-5 h-5 text-accent-on-dark" />
               </div>
               <div>
-                <Label htmlFor="product" className="text-white text-base font-semibold">
+                <Label htmlFor="product" className="text-fg text-base font-semibold">
                   Select Product
                 </Label>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-fg-muted mt-0.5">
                   Choose the product you want to upload inventory for
                 </p>
               </div>
@@ -454,10 +454,10 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                         />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
+                        <p className="text-sm font-medium text-fg truncate">
                           {product.name}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <div className="flex items-center gap-2 text-xs text-fg-muted">
                           <span>{product.productType === 'LICENSE_KEY' ? 'License Key' : 'Account'}</span>
                           <span>•</span>
                           <span>Stock: {product.availableKeysCount || 0}</span>
@@ -465,7 +465,7 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                       </div>
                     </div>
                     {isSelected && (
-                      <Check className="h-4 w-4 text-accent ml-2 shrink-0" />
+                      <Check className="h-4 w-4 text-accent-on-dark ml-2 shrink-0" />
                     )}
                   </div>
                 )}
@@ -476,30 +476,30 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                 <div className="flex items-start gap-3">
                   <div className={`p-2.5 rounded-lg ${detectedUploadType === 'LICENSE_KEY' ? 'bg-blue-500/20' : 'bg-green-500/20'}`}>
                     {detectedUploadType === 'LICENSE_KEY' ? (
-                      <Key className="w-5 h-5 text-blue-400" />
+                      <Key className="w-5 h-5 text-info" />
                     ) : (
-                      <User className="w-5 h-5 text-green-400" />
+                      <User className="w-5 h-5 text-success" />
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="text-base font-bold text-white mb-2">
+                    <p className="text-base font-bold text-fg mb-2">
                       {selectedProduct.name}
                     </p>
                     <div className="flex flex-wrap gap-4 text-sm">
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-400">Type:</span>
-                        <span className="text-white font-medium">
+                        <span className="text-fg-muted">Type:</span>
+                        <span className="text-fg font-medium">
                           {detectedUploadType === 'LICENSE_KEY' ? 'License Key' : 'Account-Based'}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-400">Current Stock:</span>
-                        <span className="text-white font-bold text-lg">{selectedProduct.availableKeysCount || 0}</span>
+                        <span className="text-fg-muted">Current Stock:</span>
+                        <span className="text-fg font-bold text-lg">{selectedProduct.availableKeysCount || 0}</span>
                       </div>
                       {selectedProduct.totalKeysCount !== undefined && (
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-400">Total:</span>
-                          <span className="text-white font-medium">{selectedProduct.totalKeysCount}</span>
+                          <span className="text-fg-muted">Total:</span>
+                          <span className="text-fg font-medium">{selectedProduct.totalKeysCount}</span>
                         </div>
                       )}
                     </div>
@@ -515,13 +515,13 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                    <Upload className="w-5 h-5 text-accent" />
+                    <Upload className="w-5 h-5 text-accent-on-dark" />
                   </div>
                   <div>
-                    <Label className="text-white text-base font-semibold">
+                    <Label className="text-fg text-base font-semibold">
                       Upload Method
                     </Label>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-fg-muted mt-0.5">
                       Choose how you want to provide the data
                     </p>
                   </div>
@@ -531,7 +531,7 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                     type="button"
                     variant={uploadMethod === 'textarea' ? 'default' : 'outline'}
                     onClick={() => setUploadMethod('textarea')}
-                    className={`h-11 ${uploadMethod === 'textarea' ? 'bg-accent hover:bg-accent/90 text-white shadow-md shadow-accent/20' : 'border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white'}`}
+                    className={`h-11 ${uploadMethod === 'textarea' ? 'bg-accent hover:bg-accent/90 text-fg shadow-md shadow-accent/20' : 'border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white'}`}
                   >
                     <FileText className="w-5 h-5 mr-2" />
                     Paste Data
@@ -540,7 +540,7 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                     type="button"
                     variant={uploadMethod === 'file' ? 'default' : 'outline'}
                     onClick={() => setUploadMethod('file')}
-                    className={`h-11 ${uploadMethod === 'file' ? 'bg-accent hover:bg-accent/90 text-white shadow-md shadow-accent/20' : 'border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white'}`}
+                    className={`h-11 ${uploadMethod === 'file' ? 'bg-accent hover:bg-accent/90 text-fg shadow-md shadow-accent/20' : 'border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white'}`}
                   >
                     <Upload className="w-5 h-5 mr-2" />
                     Upload File
@@ -551,10 +551,10 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
               {/* Bulk Data Input - Dynamic based on product type */}
               <div className="space-y-3">
                 <div>
-                  <Label className="text-white text-sm font-medium">
+                  <Label className="text-fg text-sm font-medium">
                     {detectedUploadType === 'LICENSE_KEY' ? 'License Keys' : 'Account Credentials'}
                   </Label>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-fg-muted mt-1">
                     {detectedUploadType === 'LICENSE_KEY' 
                       ? 'Enter your license keys below, one per line'
                       : 'Enter account credentials in CSV or JSON format (email/email password/username ID/username password)'}
@@ -570,10 +570,15 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                         : 'Enter accounts, one per line:\nemail@example.com,emailPassword,usernameId,usernamePassword\n\nLegacy:\nemail@example.com,password\n\nOr JSON format:\n{"email":"email@example.com","emailPassword":"emailPass","usernameId":"gameUser","usernamePassword":"gamePass"}'
                     }
                     rows={14}
-                    className="bg-white/[0.03] border-white/[0.08] text-white font-mono text-sm placeholder:text-gray-500 resize-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-xl"
+                    className="bg-white/[0.03] border-white/[0.08] text-fg font-mono text-sm placeholder:text-gray-500 resize-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-xl"
                   />
                 ) : (
+                  // Drag-and-drop is an ENHANCEMENT: the same action is always
+                  // reachable via the labelled file input inside, which is
+                  // keyboard-operable. This wrapper only carries drop handlers,
+                  // so `presentation` is the honest role.
                   <div
+                    role="presentation"
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
@@ -586,6 +591,7 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                     <input
                       ref={fileInputRef}
                       type="file"
+                      aria-label="Choose a key file to upload"
                       accept=".txt,.csv,.json"
                       onChange={handleFileInput}
                       className="hidden"
@@ -593,23 +599,23 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                     />
                     <div className="space-y-4">
                       <div className="flex flex-col items-center gap-3">
-                        <div className={`p-4 rounded-full ${isDragging ? 'bg-accent/20' : 'bg-gray-700/50'}`}>
-                          <Upload className={`w-8 h-8 ${isDragging ? 'text-accent' : 'text-gray-400'}`} />
+                        <div className={`p-4 rounded-full ${isDragging ? 'bg-accent/20' : 'bg-surface-2/50'}`}>
+                          <Upload className={`w-8 h-8 ${isDragging ? 'text-accent-on-dark' : 'text-fg-muted'}`} />
                         </div>
                         <div>
-                          <p className="text-white font-medium mb-1">
+                          <p className="text-fg font-medium mb-1">
                             {isDragging ? 'Drop your file here' : 'Drag and drop your file here'}
                           </p>
-                          <p className="text-sm text-gray-400">
+                          <p className="text-sm text-fg-muted">
                             or{' '}
                             <label
                               htmlFor="file-upload"
-                              className="text-accent hover:underline cursor-pointer"
+                              className="text-accent-on-dark hover:underline cursor-pointer"
                             >
                               browse files
                             </label>
                           </p>
-                          <p className="text-xs text-gray-500 mt-2">
+                          <p className="text-xs text-fg-subtle mt-2">
                             Supports .txt, .csv, .json files
                           </p>
                         </div>
@@ -618,11 +624,11 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                         <div className="p-3 bg-green-900/20 rounded-lg border border-green-700/50">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <FileCheck className="w-5 h-5 text-green-500" />
+                              <FileCheck className="w-5 h-5 text-success" />
                               <div className="text-left">
-                                <p className="text-sm font-medium text-white">{fileName}</p>
-                                <p className="text-xs text-gray-400">
-                                  <span className="font-semibold text-white">{itemCount}</span> items detected
+                                <p className="text-sm font-medium text-fg">{fileName}</p>
+                                <p className="text-xs text-fg-muted">
+                                  <span className="font-semibold text-fg">{itemCount}</span> items detected
                                 </p>
                               </div>
                             </div>
@@ -637,7 +643,7 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                                   fileInputRef.current.value = '';
                                 }
                               }}
-                              className="text-gray-400 hover:text-white"
+                              className="text-fg-muted hover:text-white"
                             >
                               <X className="w-4 h-4" />
                             </Button>
@@ -650,14 +656,14 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                 {itemCount > 0 && (
                   <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04]">
                     <div className="p-2 bg-green-500/20 rounded-lg">
-                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      <CheckCircle2 className="w-5 h-5 text-success" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-white">
-                        <span className="text-lg font-bold text-green-400">{itemCount}</span>{' '}
+                      <p className="text-sm font-semibold text-fg">
+                        <span className="text-lg font-bold text-success">{itemCount}</span>{' '}
                         {detectedUploadType === 'LICENSE_KEY' ? 'keys' : 'accounts'} ready to upload
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-fg-muted mt-0.5">
                         All items validated and ready for processing
                       </p>
                     </div>
@@ -666,19 +672,19 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                 {validationErrors.length > 0 && (
                   <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/[0.04]">
                     <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                      <AlertCircle className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-red-400 mb-2">
+                        <p className="text-sm font-semibold text-danger mb-2">
                           Validation Errors ({validationErrors.length})
                         </p>
                         <ul className="space-y-1 max-h-32 overflow-y-auto">
                           {validationErrors.slice(0, 5).map((error, index) => (
-                            <li key={index} className="text-xs text-red-300">
+                            <li key={index} className="text-xs text-danger">
                               • {error}
                             </li>
                           ))}
                           {validationErrors.length > 5 && (
-                            <li className="text-xs text-red-400 italic">
+                            <li className="text-xs text-danger italic">
                               ... and {validationErrors.length - 5} more errors
                             </li>
                           )}
@@ -692,13 +698,13 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
               <div className="p-4 rounded-xl border border-blue-500/15 bg-blue-500/[0.04]">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <Info className="w-5 h-5 text-blue-400" />
+                    <Info className="w-5 h-5 text-info" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-white mb-2">
+                    <p className="text-sm font-semibold text-fg mb-2">
                       {detectedUploadType === 'LICENSE_KEY' ? 'License Key Format Guide' : 'Account Credentials Format Guide'}
                     </p>
-                    <div className="space-y-2 text-xs text-gray-300">
+                    <div className="space-y-2 text-xs text-fg-muted">
                       {detectedUploadType === 'LICENSE_KEY' ? (
                         <>
                           <p>• Enter one license key per line</p>
@@ -708,16 +714,16 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                         </>
                       ) : (
                         <>
-                          <p className="font-medium text-white mb-1">Preferred CSV Format:</p>
-                          <code className="block p-2 bg-gray-800 rounded text-green-400 mb-2">
+                          <p className="font-medium text-fg mb-1">Preferred CSV Format:</p>
+                          <code className="block p-2 bg-surface-2 rounded text-success mb-2">
                             email@example.com,emailPassword123,usernameId,usernamePassword123
                           </code>
-                          <p className="font-medium text-white mb-1">Legacy CSV (email-only login):</p>
-                          <code className="block p-2 bg-gray-800 rounded text-green-400 mb-2">
+                          <p className="font-medium text-fg mb-1">Legacy CSV (email-only login):</p>
+                          <code className="block p-2 bg-surface-2 rounded text-success mb-2">
                             email@example.com,password123
                           </code>
-                          <p className="font-medium text-white mb-1">JSON Format:</p>
-                          <code className="block p-2 bg-gray-800 rounded text-green-400">
+                          <p className="font-medium text-fg mb-1">JSON Format:</p>
+                          <code className="block p-2 bg-surface-2 rounded text-success">
                             {'{"email":"email@example.com","emailPassword":"emailPass","usernameId":"gameUser","usernamePassword":"gamePass"}'}
                           </code>
                           <p className="mt-2">• One account per line</p>
@@ -733,7 +739,7 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
 
           {!detectedUploadType && selectedProductId && (
             <div className="p-3 bg-yellow-900/20 border border-yellow-700 rounded">
-              <p className="text-xs text-yellow-400">
+              <p className="text-xs text-warning">
                 Unable to detect product type. Please ensure the product has a valid type set.
               </p>
             </div>
@@ -742,9 +748,9 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
           {processing && (
             <div className="p-4 rounded-xl border border-accent/20 bg-accent/[0.04]">
               <div className="flex items-center gap-3">
-                <Loader2 className="w-5 h-5 text-accent animate-spin shrink-0" />
+                <Loader2 className="w-5 h-5 text-accent-on-dark animate-spin shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-fg">
                     Processing upload in the background…
                   </p>
                   {progress?.total ? (
@@ -755,14 +761,14 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                           style={{ width: `${Math.min(100, Math.round((progress.processed / progress.total) * 100))}%` }}
                         />
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-fg-muted mt-1">
                         {progress.processed} / {progress.total} processed · {progress.inserted} added
                       </p>
                     </>
                   ) : (
-                    <p className="text-xs text-gray-400 mt-1">Starting…</p>
+                    <p className="text-xs text-fg-muted mt-1">Starting…</p>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-fg-subtle mt-1">
                     You can close this dialog — the upload will continue.
                   </p>
                 </div>
@@ -771,12 +777,12 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
           )}
 
           <div className="flex items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
-            <div className="flex items-center gap-2 text-sm text-gray-400">
+            <div className="flex items-center gap-2 text-sm text-fg-muted">
               {itemCount > 0 && (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className="w-4 h-4 text-success" />
                   <span className="text-xs">
-                    <span className="font-semibold text-white">{itemCount}</span> items ready
+                    <span className="font-semibold text-fg">{itemCount}</span> items ready
                   </span>
                 </>
               )}
@@ -786,7 +792,7 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white px-5"
+                className="border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white px-5"
                 disabled={uploadMutation.isPending}
               >
                 Cancel

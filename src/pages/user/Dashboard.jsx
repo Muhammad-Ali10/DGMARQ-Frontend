@@ -1,304 +1,264 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { userAPI, notificationAPI, walletAPI, subscriptionAPI } from '@services/api';
 import { Link } from 'react-router-dom';
+import { userAPI, notificationAPI, walletAPI, subscriptionAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
-import { Badge } from '@components/ui/badge';
-import { StatusBadge } from '@components/common/StatusBadge';
-import { EmptyState } from '@components/common/EmptyState';
-import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { Button } from '@components/ui/button';
-import { Loading, ErrorMessage } from '@components/ui/loading';
-import { ShoppingCart, Bell, Heart, Package, DollarSign, Eye, TrendingUp, Store, Wallet, Sparkles } from 'lucide-react';
+import { Skeleton } from '@components/ui/skeleton';
+import { StatusBadge } from '@components/common/StatusBadge';
+import { DeliveryTypeBadge } from '@components/common/DeliveryTypeBadge';
+import { EmptyState } from '@components/common/EmptyState';
+import { ErrorState } from '@components/common/ErrorState';
+import { StatCard, StatCardGrid } from '@components/common/StatCard';
+import { StatCardGridSkeleton, OrderListSkeleton } from '@components/common/Skeletons';
+import SafeImage from '@components/ui/safe-image';
+import { ShoppingCart, Bell, Heart, Sparkles, Store, Wallet, ArrowRight } from 'lucide-react';
 import { getOrderItemProductName } from '@utils/orderItem';
+import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
+import useCurrency from '@hooks/useCurrency';
 
+const RECENT_ORDER_LIMIT = 5;
+
+/**
+ * Buyer dashboard. The job this screen does is "where is my key, and is it going
+ * to work?", so the order list is the hero and everything above it stays thin.
+ *
+ * KPI discipline — four tiles, down from eight. Three of the originals were
+ * REMOVED rather than relabelled because they showed wrong numbers: Total Spent,
+ * Completed Orders and Pending Orders were each derived by reducing a five-row
+ * page of orders, so a buyer with 40 orders saw the lifetime spend of their most
+ * recent five. Computing them correctly needs a server-side aggregate no
+ * endpoint exposes, and a wrong number is worse than an absent one. Total Orders
+ * survives because it reads `pagination.total`, which is a real count.
+ *
+ * No trend deltas and no sparklines: nothing in the API returns a prior-period
+ * figure or a time series, and a fabricated trend would be worse than none.
+ *
+ * Every section owns its own query state. The previous version gated the whole
+ * route on `ordersLoading || notifLoading || wishlistLoading || walletLoading`,
+ * so the slowest of four independent requests blocked all of them behind one
+ * full-page spinner.
+ */
 const UserDashboard = () => {
-  const { roles } = useSelector((state) => state.auth);
-  const normalizedRoles = Array.isArray(roles) && roles.length > 0
-    ? roles.map(r => String(r).toLowerCase().trim())
-    : [];
+  const { user, roles } = useSelector((state) => state.auth);
+  const { format } = useCurrency();
+
+  const normalizedRoles = Array.isArray(roles) ? roles.map((r) => String(r).toLowerCase().trim()) : [];
   const hasSellerRole = normalizedRoles.includes('seller');
-  const { data: ordersData, isLoading: ordersLoading } = useQuery({
+  const firstName = String(user?.name || '').trim().split(' ')[0];
+
+  const ordersQuery = useQuery({
     queryKey: ['user-orders-summary'],
-    queryFn: () => userAPI.getMyOrders({ page: 1, limit: 5 }).then(res => res.data.data),
+    queryFn: () =>
+      userAPI.getMyOrders({ page: 1, limit: RECENT_ORDER_LIMIT }).then((res) => res.data.data),
   });
 
-  const { data: unreadCount = 0, isLoading: notifLoading } = useQuery({
+  const notificationsQuery = useQuery({
     queryKey: ['notification-unread-count'],
     queryFn: () => notificationAPI.getUnreadCount().then((res) => res.data?.data?.unreadCount ?? 0),
   });
 
-  const { data: wishlist, isLoading: wishlistLoading } = useQuery({
+  const wishlistQuery = useQuery({
     queryKey: ['wishlist'],
     queryFn: async () => {
       const response = await userAPI.getWishlist();
       const data = response.data.data;
-      if (Array.isArray(data)) {
-        return { products: [] };
-      }
-      return data;
+      // The endpoint returns a bare array when the wishlist is empty.
+      return Array.isArray(data) ? { products: [] } : data;
     },
   });
 
-  const { data: walletData, isLoading: walletLoading, refetch: refetchWallet } = useQuery({
+  const walletQuery = useQuery({
     queryKey: ['wallet-balance'],
-    queryFn: async () => {
-      try {
-        const response = await walletAPI.getBalance();
-        const data = response.data?.data || response.data || {};
-        return {
-          balance: data.balance || 0,
-          balanceFormatted: data.balanceFormatted || (data.balance ? `$${parseFloat(data.balance).toFixed(2)}` : '$0.00'),
-          currency: data.currency || 'USD'
-        };
-      } catch {
-        return { balance: 0, balanceFormatted: '$0.00', currency: 'USD' };
-      }
-    },
-    retry: 1, // Only retry once
-    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    queryFn: () => walletAPI.getBalance().then((res) => res.data?.data ?? res.data ?? {}),
+    retry: 1,
+    refetchOnWindowFocus: true,
   });
 
-  // M20: DGMARQ Plus points balance (null data when not a subscriber / no points).
-  const { data: pointsData } = useQuery({
+  // M20: DGMARQ Plus points. Null when the buyer is not a subscriber.
+  const pointsQuery = useQuery({
     queryKey: ['plus-points'],
-    queryFn: () => subscriptionAPI.getMyPoints().then((r) => r.data?.data || null).catch(() => null),
-    staleTime: 60000,
+    queryFn: () => subscriptionAPI.getMyPoints().then((r) => r.data?.data ?? null),
+    staleTime: 60_000,
   });
 
-  const isLoading = ordersLoading || notifLoading || wishlistLoading || walletLoading;
-  const totalSpent = ordersData?.orders?.reduce((sum, order) => {
-    return sum + (order.totalAmount || 0);
-  }, 0) || 0;
-  
-  const completedOrders = ordersData?.orders?.filter(order => order.orderStatus === 'completed').length || 0;
-  const pendingOrders = ordersData?.orders?.filter(order => order.orderStatus === 'pending' || order.orderStatus === 'processing').length || 0;
-
-  const walletBalance = walletData?.balance ?? 0;
-  const walletBalanceFormatted = walletData?.balanceFormatted 
-    || (typeof walletBalance === 'number' ? `$${walletBalance.toFixed(2)}` : '$0.00');
-
-  const statsCards = useMemo(() => ([
-    {
-      id: 'wallet-balance',
-      title: 'Wallet Balance',
-      value: walletBalanceFormatted,
-      icon: Wallet,
-      color: 'text-emerald-500',
-      bgColor: 'bg-emerald-500/10',
-      link: '#', // Wallet page can be added later
-      onClick: (e) => {
-        e.preventDefault();
-        refetchWallet();
-      },
-    },
-    {
-      id: 'plus-points',
-      title: 'Plus Points',
-      value: `${pointsData?.balance ?? 0} pts`,
-      icon: Sparkles,
-      color: 'text-amber-400',
-      bgColor: 'bg-amber-500/10',
-      link: '/dgmarq-plus',
-    },
-    {
-      id: 'total-orders',
-      title: 'Total Orders',
-      value: ordersData?.pagination?.total || 0,
-      icon: ShoppingCart,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
-      link: '/user/orders',
-    },
-    {
-      id: 'total-spent',
-      title: 'Total Spent',
-      value: `$${totalSpent.toFixed(2)}`,
-      icon: DollarSign,
-      color: 'text-green-500',
-      bgColor: 'bg-green-500/10',
-      link: '/user/orders',
-    },
-    {
-      id: 'completed-orders',
-      title: 'Completed Orders',
-      value: completedOrders,
-      icon: Package,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-500/10',
-      link: '/user/orders?status=completed',
-    },
-    {
-      id: 'pending-orders',
-      title: 'Pending Orders',
-      value: pendingOrders,
-      icon: TrendingUp,
-      color: 'text-orange-500',
-      bgColor: 'bg-orange-500/10',
-      link: '/user/orders?status=pending',
-    },
-    {
-      id: 'wishlist-items',
-      title: 'Wishlist Items',
-      value: wishlist?.products?.length || 0,
-      icon: Heart,
-      color: 'text-pink-500',
-      bgColor: 'bg-pink-500/10',
-      link: '/user/wishlist',
-    },
-    {
-      id: 'unread-notifications',
-      title: 'Unread Notifications',
-      value: unreadCount || 0,
-      icon: Bell,
-      color: 'text-yellow-500',
-      bgColor: 'bg-yellow-500/10',
-      link: '/user/notifications',
-    },
-  ]), [walletBalanceFormatted, ordersData, totalSpent, completedOrders, pendingOrders, wishlist, unreadCount, refetchWallet, pointsData]);
-
-  if (isLoading) return <Loading message="Loading dashboard..." />;
+  const orders = ordersQuery.data?.orders ?? [];
+  const walletBalance = Number(walletQuery.data?.balance ?? 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard</h1>
-          <p className="text-gray-400 mt-1">Welcome to your dashboard</p>
+    <div className="space-y-8">
+      {/* ── Header strip: greeting, balance, one primary action ──────────────
+          A single row, so the order list starts near the top of the viewport
+          instead of below 200px of chrome. */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold text-fg">
+            {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
+          </h1>
+          <Link
+            to="/user/wallet"
+            className="mt-1 inline-flex items-center gap-2 rounded-md text-sm text-fg-muted outline-none transition-colors duration-150 ease-out hover:text-fg focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Wallet aria-hidden="true" className="size-4 shrink-0 text-success" />
+            {walletQuery.isPending ? (
+              <Skeleton className="h-4 w-20" />
+            ) : walletQuery.isError ? (
+              <span>Wallet balance unavailable</span>
+            ) : (
+              <>
+                <span className="font-medium tabular-nums text-fg">{format(walletBalance)}</span>
+                <span>wallet balance</span>
+              </>
+            )}
+          </Link>
         </div>
-        {/* Switch to Seller Dashboard Button - Show if user has seller role */}
-        {hasSellerRole && (
-          <div className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {hasSellerRole && (
             <Button
               variant="outline"
               onClick={() => {
                 sessionStorage.removeItem('allowCustomerAccess');
                 window.location.href = '/seller/dashboard';
               }}
-              className="w-full sm:w-auto border-2 border-accent text-white hover:bg-accent/20 hover:border-accent/90 bg-transparent dark:bg-transparent dark:border-accent dark:text-white whitespace-nowrap font-medium shadow-sm"
             >
-              <Store className="h-4 w-4 mr-2" />
-              Switch to Seller Dashboard
+              <Store aria-hidden="true" />
+              Seller dashboard
             </Button>
-          </div>
-        )}
-      </div>
-
-      <StatCardGrid className="sm:grid-cols-2 lg:grid-cols-3">
-        {statsCards.map((stat) => (
-          <StatCard
-            key={stat.id}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
-            iconBg={stat.bgColor}
-            href={stat.link === '#' ? undefined : stat.link}
-            onClick={stat.link === '#' ? stat.onClick : undefined}
-          />
-        ))}
-      </StatCardGrid>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white">Recent Orders</CardTitle>
-            <Link to="/user/orders">
-              <Button variant="ghost" size="sm" className="text-accent hover:text-accent/80">
-                <Eye className="w-4 h-4 mr-1" />
-                View All
-              </Button>
+          )}
+          <Button asChild>
+            <Link to="/search">
+              <ShoppingCart aria-hidden="true" />
+              Browse keys
             </Link>
-          </CardHeader>
-          <CardContent>
-            {ordersData?.orders?.length > 0 ? (
-              <div className="space-y-4">
-                {ordersData.orders.slice(0, 5).map((order) => (
-                  <Link 
-                    key={order._id} 
-                    to={`/user/orders/${order._id}`}
-                    className="block border-b border-gray-700 pb-4 last:border-0 hover:bg-secondary/50 -mx-4 px-4 rounded transition-colors"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex-1">
-                        <p className="font-medium text-white">
-                          Order #{order.orderNumber || order._id.slice(-8)}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          {new Date(order.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </p>
-                        {order.items?.length > 0 && (
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                            {order.items
-                              .map((item) => `${item.qty || 1}x ${getOrderItemProductName(item)}`)
-                              .join(', ')}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right ml-4">
-                        <p className="font-semibold text-white text-lg">${order.totalAmount?.toFixed(2)}</p>
-                        <div className="mt-1"><StatusBadge domain="order" status={order.orderStatus} /></div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={ShoppingCart}
-                title="No orders yet"
-                action={
-                  <Link to="/products">
-                    <Button className="bg-accent hover:bg-blue-700">Start Shopping</Button>
-                  </Link>
-                }
-              />
-            )}
-          </CardContent>
-        </Card>
+          </Button>
+        </div>
+      </header>
 
-        <Card className="bg-primary border-gray-700">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              <Link to="/user/orders">
-                <Button variant="outline" className="w-full border-gray-700 text-gray-300 hover:bg-accent hover:border-accent hover:text-white h-auto py-4 flex flex-col items-center gap-2">
-                  <ShoppingCart className="w-5 h-5" />
-                  <span className="text-sm">My Orders</span>
+      {/* ── KPI row ──────────────────────────────────────────────────────── */}
+      {ordersQuery.isPending || wishlistQuery.isPending || notificationsQuery.isPending ? (
+        <StatCardGridSkeleton count={4} />
+      ) : (
+        <StatCardGrid>
+          <StatCard
+            title="Total orders"
+            value={ordersQuery.data?.pagination?.total ?? 0}
+            icon={ShoppingCart}
+            tone="accent"
+            href="/user/orders"
+          />
+          <StatCard
+            title="Wishlist"
+            value={wishlistQuery.data?.products?.length ?? 0}
+            icon={Heart}
+            tone="danger"
+            href="/user/wishlist"
+          />
+          <StatCard
+            title="Unread notifications"
+            value={notificationsQuery.data ?? 0}
+            icon={Bell}
+            tone="warning"
+            href="/user/notifications"
+          />
+          <StatCard
+            title="Plus points"
+            value={pointsQuery.data?.balance ?? 0}
+            icon={Sparkles}
+            tone="info"
+            description={pointsQuery.data ? 'Redeemable on DGMARQ Plus' : 'Join Plus to start earning'}
+            href="/dgmarq-plus"
+          />
+        </StatCardGrid>
+      )}
+
+      {/* ── Recent orders: the hero of this screen ─────────────────────────
+          `variant="hud"` is the product page's panel chrome — corner brackets,
+          cyan rim bloom, and a micro-cap cyan heading. The page's own layout is
+          untouched; this is the same box, wearing the storefront's look. */}
+      <Card variant="hud">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Recent orders</CardTitle>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/user/orders">
+              View all
+              <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {ordersQuery.isPending ? (
+            <OrderListSkeleton rows={RECENT_ORDER_LIMIT} />
+          ) : ordersQuery.isError ? (
+            <ErrorState
+              compact
+              error={ordersQuery.error}
+              title="Couldn't load your orders"
+              onRetry={() => ordersQuery.refetch()}
+            />
+          ) : orders.length === 0 ? (
+            <EmptyState
+              icon={ShoppingCart}
+              title="No orders yet"
+              description="Your purchases show up here the moment they're delivered — usually within seconds."
+              action={
+                <Button asChild>
+                  <Link to="/search">Browse keys</Link>
                 </Button>
-              </Link>
-              <Link to="/user/wishlist">
-                <Button variant="outline" className="w-full border-gray-700 text-gray-300 hover:bg-accent hover:border-accent hover:text-white h-auto py-4 flex flex-col items-center gap-2">
-                  <Heart className="w-5 h-5" />
-                  <span className="text-sm">Wishlist</span>
-                </Button>
-              </Link>
-              <Link to="/user/notifications">
-                <Button variant="outline" className="w-full border-gray-700 text-gray-300 hover:bg-accent hover:border-accent hover:text-white h-auto py-4 flex flex-col items-center gap-2">
-                  <Bell className="w-5 h-5" />
-                  <span className="text-sm">Notifications</span>
-                  {unreadCount > 0 && (
-                    <Badge className="ml-1 bg-accent text-white">{unreadCount}</Badge>
-                  )}
-                </Button>
-              </Link>
-              <Link to="/user/reviews">
-                <Button variant="outline" className="w-full border-gray-700 text-gray-300 hover:bg-accent hover:border-accent hover:text-white h-auto py-4 flex flex-col items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  <span className="text-sm">My Reviews</span>
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              }
+            />
+          ) : (
+            /* Discrete rows, not a divided list: each order is its own bordered
+               box, the way the product page draws an offer row (`.of-row` at
+               11px radius, ringed 1px in cyan). A hairline divider disappeared
+               against the panel — an order is an object, so it gets edges. */
+            <ul className="space-y-1.5">
+              {orders.map((order) => {
+                const firstItem = order.items?.[0];
+                const image = firstItem?.productId?.images?.[0];
+                const extraCount = (order.items?.length ?? 0) - 1;
+                return (
+                  <li key={order._id}>
+                    <Link
+                      to={`/user/orders/${order._id}`}
+                      className="row-link flex items-center gap-4 rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <SafeImage
+                        src={image}
+                        alt=""
+                        w={56}
+                        className="size-14 shrink-0 rounded-md border border-border object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-fg">
+                          {firstItem
+                            ? getOrderItemProductName(firstItem)
+                            : `Order #${order.orderNumber || order._id.slice(-8)}`}
+                          {extraCount > 0 && <span className="text-fg-muted"> +{extraCount} more</span>}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          {firstItem?.productId?.productType && (
+                            <DeliveryTypeBadge productType={firstItem.productId.productType} />
+                          )}
+                          <span className="text-xs text-fg-subtle" title={formatExactTitle(order.createdAt)}>
+                            {formatRelativeDate(order.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <span className="text-sm font-semibold tabular-nums text-fg">
+                          {format(order.totalAmount)}
+                        </span>
+                        <StatusBadge domain="order" status={order.orderStatus} />
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

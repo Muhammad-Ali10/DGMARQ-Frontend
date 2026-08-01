@@ -3,73 +3,186 @@ import { Card, CardHeader, CardTitle, CardContent } from '@components/ui/card';
 import { cn } from '@lib/utils';
 
 /**
- * Dashboard KPI tile — one component for the two dashboard looks:
- *  - plain (admin / seller): a bare colored icon + optional description.
- *  - boxed + navigable (user): pass `iconBg` to box the icon in a tinted square;
- *    pass `href` to wrap the whole tile in a <Link>, or `onClick` to make it a
- *    clickable card.
+ * Dashboard KPI tile.
+ *
+ * A tile earns its place only if the number drives a decision — see the KPI
+ * discipline note on each dashboard. It shows a value and, where one genuinely
+ * exists, a supporting line. It does NOT show a trend delta or a sparkline:
+ * no endpoint on this platform returns a prior-period figure or a time series,
+ * and a fabricated trend is worse than no trend.
+ *
+ * Interactivity is a real control, not a click handler on a div:
+ *   - `href`    -> renders an <a> (via <Link>) wrapping the card
+ *   - `onClick` -> renders a <button>
+ * Both are keyboard reachable and take the shared focus ring. The previous
+ * `<div onClick>` was neither, and accounted for two of the dashboard's
+ * jsx-a11y warnings.
  *
  * @param {string} title
  * @param {string|number} value
  * @param {React.ElementType} icon - a lucide icon component
- * @param {string} [color] - icon color class (e.g. "text-blue-500")
+ * @param {string} [tone] - semantic tint for the icon: accent|success|warning|danger|info
  * @param {string} [description] - supporting line under the value
- * @param {string} [iconBg] - tint class for the boxed icon (e.g. "bg-blue-500/10")
  * @param {string} [href] - if set, the tile links here
- * @param {() => void} [onClick] - if set (and no href), the tile is clickable
+ * @param {() => void} [onClick] - if set (and no href), the tile is a button
  */
+/**
+ * Tone styling, all Tailwind — no companion stylesheet to keep in sync.
+ *
+ * `panel` is the product page's panel gradient
+ *   linear-gradient(135deg, rgba(23,42,164,.18), rgba(14,159,226,.08))
+ * written as utilities: `from-accent-deep/18` IS rgba(23,42,164,.18) and
+ * `to-brand-cyan/8` IS rgba(14,159,226,.08), so the dashboard and the product
+ * page share one value instead of two copies that can drift. Each tone swaps
+ * only the first stop, which is what lets a tile read as its own status while
+ * staying the same material.
+ *
+ * `bg-linear-135`, not `bg-linear-to-br`: 135deg is exact, whereas "to bottom
+ * right" only equals it on a square — and these tiles are wide.
+ *
+ * The gradient is a background-IMAGE, so the Card's own `bg-card/90` stays
+ * underneath as the background-COLOR. Text contrast never rests on the
+ * gradient alone, and the same is true of the chip's opaque `bg-*-soft` base.
+ */
+/**
+ * HUD chrome, shared by every tile. Hoisted to consts because these strings are
+ * long and are the definition of the look — not something to retype per tile.
+ *
+ * `hud-corners` draws the hover brackets on ::after, `hud-spot` is the menu's
+ * active treatment reused as the hover response (accent wash, inset ring, glowing
+ * beam on ::before), and `shadow-hud` is the resting cyan bloom. See the HUD
+ * blocks in index.css. `hud-spot` is unlayered CSS on purpose, so it wins over
+ * the Card's own `interactive` hover shadow rather than racing it; the lift and
+ * the border change still come from `interactive`.
+ *
+ * `bg-card/50` thins the tile to the product page's `.of-shell` transparency,
+ * overriding the Card's own `bg-card/70` (tailwind-merge keeps the last one).
+ * The tone tint on top of it is a background-IMAGE, so it survives. See the
+ * contrast note on the Card `hud` variant for why sub-0.9 alpha is safe on the
+ * dashboard backdrop and nowhere else.
+ */
+const HUD_TILE = 'hud-corners hud-spot shadow-hud bg-card/50';
+
+/** The cyan micro-label from the product page's panel headers (`.fx-pd4-head`):
+ *  11px / 800 / .13em / uppercase. Colour is --info-fg, NOT the product page's
+ *  literal #7BC5FF: that hex is untokenised and unmeasured, while --info-fg is
+ *  documented at >=4.5:1 on all five surfaces, which 11px text needs. */
+const HUD_LABEL = 'text-[0.6875rem] font-extrabold uppercase tracking-[0.13em] text-info';
+
+/** The gradient numeral (`.fx-price`). The product page's ramp ends on #0e51e2,
+ *  which measures 2.83:1 as text — a live AA failure it gets away with only
+ *  because a price is decoration next to a Buy button. A KPI *is* the content,
+ *  so the ramp is rebuilt from the three tokens that are already proven as text
+ *  on dark: fg (11.63+) -> info (4.5+) -> accent-on-dark (5.41+). Same
+ *  white-to-cyan-to-blue read, no stop below AA.
+ *
+ *  `forced-colors:` restores a solid colour: in forced-colors mode the browser
+ *  drops background-image, and clipped text with `color: transparent` would
+ *  otherwise render invisible. */
+const HUD_VALUE = [
+  'bg-linear-180 from-fg via-info to-accent-on-dark bg-clip-text text-transparent',
+  'forced-colors:bg-none forced-colors:text-fg',
+].join(' ');
+
+const TONES = {
+  // `panel` sets only variables — panel-tile switches the fill to the tile's
+  // flat 6% and the rim to 18%, panel-tone-* picks the colour. No border class
+  // here: panel-rim already follows the tone.
+  accent: {
+    panel: 'panel-tile panel-tone-accent-on-dark',
+    chip: 'bg-accent-on-dark/12 text-accent-on-dark border border-accent-on-dark/25',
+  },
+  success: {
+    panel: 'panel-tile panel-tone-success',
+    chip: 'bg-success/12 text-success border border-success/25',
+  },
+  warning: {
+    panel: 'panel-tile panel-tone-warning',
+    chip: 'bg-warning/12 text-warning border border-warning/25',
+  },
+  danger: {
+    panel: 'panel-tile panel-tone-danger',
+    chip: 'bg-danger/12 text-danger border border-danger/25',
+  },
+  info: {
+    panel: 'panel-tile panel-tone-info',
+    chip: 'bg-info/12 text-info border border-info/25',
+  },
+  neutral: {
+    // No panel-tone-: falls back to --accent-deep, the panel's own stop.
+    panel: 'panel-tile',
+    chip: 'bg-info/12 text-fg-muted border border-info/25',
+  },
+};
+
 export const StatCard = ({
   title,
   value,
   icon: Icon,
-  color = 'text-white',
+  tone = 'neutral',
   description,
-  iconBg,
   href,
   onClick,
   className,
 }) => {
-  const interactive = href || onClick;
+  const interactive = Boolean(href || onClick);
+  const t = TONES[tone] ?? TONES.neutral;
+
   const card = (
     <Card
-      className={cn(
-        'bg-primary border-gray-700',
-        interactive && 'cursor-pointer transition-all duration-300 hover:border-accent hover:shadow-lg hover:shadow-accent/10',
-        className,
-      )}
+      interactive={interactive}
+      className={cn('h-full', t.panel, HUD_TILE, className)}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-gray-300">{title}</CardTitle>
-        {Icon &&
-          (iconBg ? (
-            <div className={cn('p-2 rounded-lg', iconBg)}>
-              <Icon className={cn('h-5 w-5', color)} />
-            </div>
-          ) : (
-            <Icon className={cn('h-4 w-4', color)} />
-          ))}
+        <CardTitle className={HUD_LABEL}>{title}</CardTitle>
+        {Icon && (
+          <div
+            className={cn(
+              'flex size-9 items-center justify-center rounded-md transition-transform duration-200 ease-out',
+              interactive && 'group-hover/card:scale-110',
+              t.chip
+            )}
+          >
+            <Icon aria-hidden="true" className="size-5" />
+          </div>
+        )}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold text-white">{value}</div>
-        {description && <p className="text-xs text-gray-400 mt-1">{description}</p>}
+        <div className={cn('text-xl font-semibold tabular-nums', HUD_VALUE)}>{value}</div>
+        {description && <p className="mt-1 text-xs text-fg-subtle">{description}</p>}
       </CardContent>
     </Card>
   );
 
-  if (href) return <Link to={href}>{card}</Link>;
+  const focus =
+    'block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+
+  if (href) {
+    return (
+      <Link to={href} className={focus}>
+        {card}
+      </Link>
+    );
+  }
   if (onClick) {
     return (
-      <div onClick={onClick} className="cursor-pointer">
+      <button type="button" onClick={onClick} className={cn(focus, 'w-full text-left')}>
         {card}
-      </div>
+      </button>
     );
   }
   return card;
 };
 
-/** Responsive grid wrapper matching the dashboards' 1/2/4-column KPI row. */
+/**
+ * Responsive grid wrapper for the KPI row. Four tiles is the ceiling.
+ *
+ * `stagger` animates the tiles in on MOUNT. It is safe here because the tiles
+ * are swapped for a skeleton while loading, so this plays once when the numbers
+ * first appear — never again on a refetch, and never on a row inside a list.
+ */
 export const StatCardGrid = ({ children, className }) => (
-  <div className={cn('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4', className)}>
+  <div className={cn('stagger grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4', className)}>
     {children}
   </div>
 );

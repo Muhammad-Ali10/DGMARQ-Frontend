@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { TableEmptyRow } from '@components/common/EmptyState';
-import { SearchableSelect } from '@components/ui/searchable-select';
 import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { showSuccess, showApiError } from '@utils/toast';
@@ -167,7 +166,7 @@ const HomepageSlidersManagement = () => {
               Add Slide
             </Button>
           </DialogTrigger>
-          <DialogContent size="lg" className="bg-primary border-gray-700">
+          <DialogContent size="lg" className="">
             <DialogHeader>
               <DialogTitle className="text-white">Add New Slide</DialogTitle>
             </DialogHeader>
@@ -305,13 +304,13 @@ const HomepageSlidersManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">All Homepage Sliders</CardTitle>
+          <CardTitle>All Homepage Sliders</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700">
                   <TableHead className="text-gray-300">Image</TableHead>
@@ -405,7 +404,7 @@ const HomepageSlidersManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent size="lg" className="bg-primary border-gray-700">
+        <DialogContent size="lg" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Homepage Slider</DialogTitle>
           </DialogHeader>

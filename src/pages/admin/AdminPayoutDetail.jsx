@@ -32,8 +32,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { showApiError } from "@utils/toast";
+import { formatUSD } from '@lib/money';
 
-const formatUsd = (n) => `$${Number(n || 0).toFixed(2)}`;
 
 const formatDateTime = (value) => {
   if (!value) return "N/A";
@@ -221,7 +221,7 @@ const AdminPayoutDetail = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
               <Calendar className="w-3.5 h-3.5" /> Order Date
@@ -229,7 +229,7 @@ const AdminPayoutDetail = () => {
             <p className="text-white">{formatDateTime(order?.createdAt)}</p>
           </CardContent>
         </Card>
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
               <User className="w-3.5 h-3.5" /> Buyer
@@ -240,30 +240,30 @@ const AdminPayoutDetail = () => {
             )}
           </CardContent>
         </Card>
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
               <DollarSign className="w-3.5 h-3.5" /> Order Total
             </div>
             <p className="text-white text-lg font-semibold">
-              {formatUsd(order?.grandTotal ?? order?.totalAmount)}
+              {formatUSD(order?.grandTotal ?? order?.totalAmount)}
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
               <DollarSign className="w-3.5 h-3.5" /> Platform Commission
             </div>
             <p className="text-green-400 text-lg font-semibold">
-              {formatUsd(totalPlatformCommission)}
+              {formatUSD(totalPlatformCommission)}
             </p>
           </CardContent>
         </Card>
       </div>
 
       {sellers?.length === 0 && (
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="py-10 text-center text-gray-400">
             No payout lines found for this order.
           </CardContent>
@@ -271,9 +271,9 @@ const AdminPayoutDetail = () => {
       )}
 
       {sellers?.map((seller) => (
-        <Card key={seller.sellerId} className="bg-primary border-gray-700">
+        <Card key={seller.sellerId} variant="hud">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
               <Store className="w-5 h-5" />
               {seller.shopName}
             </CardTitle>
@@ -284,21 +284,6 @@ const AdminPayoutDetail = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* <div className="grid grid-cols-3 gap-4 p-3 rounded-lg bg-secondary border border-gray-700 text-sm">
-              <div>
-                <p className="text-gray-400">Gross</p>
-                <p className="text-white font-semibold">{formatUsd(seller.totalGross)}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Commission</p>
-                <p className="text-white font-semibold">{formatUsd(seller.totalCommission)}</p>
-              </div>
-              <div>
-                <p className="text-gray-400">Net to Seller</p>
-                <p className="text-green-400 font-semibold">{formatUsd(seller.totalNet)}</p>
-              </div>
-            </div> */}
-
             {seller.lines.map((line) => {
               const statusBadge = payoutBadgeProps(line.status);
               const refund = line.refund;
@@ -399,15 +384,15 @@ const AdminPayoutDetail = () => {
                   <div className={`grid grid-cols-2 ${inlineGridCols} gap-3 text-sm`}>
                     <div>
                       <p className="text-gray-400">Gross</p>
-                      <p className="text-white">{formatUsd(originalGross)}</p>
+                      <p className="text-white">{formatUSD(originalGross)}</p>
                     </div>
                     <div>
                       <p className="text-gray-400">Commission</p>
-                      <p className="text-white">{formatUsd(originalCommission)}</p>
+                      <p className="text-white">{formatUSD(originalCommission)}</p>
                     </div>
                     <div>
                       <p className="text-gray-400">Net</p>
-                      <p className="text-green-400 font-semibold">{formatUsd(originalNet)}</p>
+                      <p className="text-green-400 font-semibold">{formatUSD(originalNet)}</p>
                     </div>
 
                     {/* Frozen — currently withheld pending refund review. */}
@@ -415,7 +400,7 @@ const AdminPayoutDetail = () => {
                       <div>
                         <p className="text-gray-400">Frozen</p>
                         <p className="text-cyan-400 font-semibold">
-                          {formatUsd(line.frozenAmount)}
+                          {formatUSD(line.frozenAmount)}
                         </p>
                       </div>
                     )}
@@ -427,7 +412,7 @@ const AdminPayoutDetail = () => {
                       <div>
                         <p className="text-gray-400">Refunded</p>
                         <p className="text-red-400 font-semibold line-through">
-                          {formatUsd(refundedAmount)}
+                          {formatUSD(refundedAmount)}
                         </p>
                       </div>
                     )}
@@ -440,7 +425,7 @@ const AdminPayoutDetail = () => {
                       <div>
                         <p className="text-gray-400">Available</p>
                         <p className="text-green-400 font-semibold">
-                          {formatUsd(availableAmount)}
+                          {formatUSD(availableAmount)}
                         </p>
                       </div>
                     )}
@@ -458,7 +443,7 @@ const AdminPayoutDetail = () => {
                         <p className="text-white font-medium mb-1">
                           {line.status === "frozen"
                             ? "Fully frozen by refund request"
-                            : `Partially frozen: ${formatUsd(line.frozenAmount)} of ${formatUsd(line.netAmount)}`}
+                            : `Partially frozen: ${formatUSD(line.frozenAmount)} of ${formatUSD(line.netAmount)}`}
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-300">
                           <div className="flex items-center gap-1.5">
@@ -475,7 +460,7 @@ const AdminPayoutDetail = () => {
                               <Badge variant={refundBadge.variant} className="text-xs">
                                 {refundBadge.label}
                               </Badge>
-                              <span className="text-gray-400">{formatUsd(refund.refundAmount)}</span>
+                              <span className="text-gray-400">{formatUSD(refund.refundAmount)}</span>
                             </div>
                           )}
                           {refund?.refundDestination && (
@@ -500,7 +485,7 @@ const AdminPayoutDetail = () => {
                         ) : (
                           <Badge variant="warning" className="text-xs">{refund.status}</Badge>
                         )}
-                        <span className="text-white">{formatUsd(refund.refundAmount)}</span>
+                        <span className="text-white">{formatUSD(refund.refundAmount)}</span>
                       </div>
                     </div>
                   )}
@@ -514,8 +499,8 @@ const AdminPayoutDetail = () => {
                           {keyBreakdown.frozenCount === 1 ? "has" : "have"} an active dispute.
                         </p>
                         <p className="text-amber-100/80 mt-0.5">
-                          {formatUsd(line.frozenAmount)} is frozen pending resolution.
-                          {refund?.refundAmount ? ` Refund requested: ${formatUsd(refund.refundAmount)}.` : ""}
+                          {formatUSD(line.frozenAmount)} is frozen pending resolution.
+                          {refund?.refundAmount ? ` Refund requested: ${formatUSD(refund.refundAmount)}.` : ""}
                         </p>
                       </div>
                     </div>
@@ -548,7 +533,7 @@ const AdminPayoutDetail = () => {
                             <CheckCircle2 className="w-4 h-4" /> Available
                           </div>
                           <p className="text-2xl font-semibold text-green-400 mt-1">
-                            {formatUsd(availableAmount)}
+                            {formatUSD(availableAmount)}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             {keyBreakdown.availableCount} of {keyBreakdown.totalKeys} key
@@ -562,7 +547,7 @@ const AdminPayoutDetail = () => {
                               <Snowflake className="w-4 h-4" /> Frozen
                             </div>
                             <p className="text-2xl font-semibold text-cyan-400 mt-1">
-                              {formatUsd(line.frozenAmount)}
+                              {formatUSD(line.frozenAmount)}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
                               {keyBreakdown.frozenCount} of {keyBreakdown.totalKeys} key
@@ -577,7 +562,7 @@ const AdminPayoutDetail = () => {
                               <AlertCircle className="w-4 h-4" /> Refunded
                             </div>
                             <p className="text-2xl font-semibold text-red-400 mt-1">
-                              {formatUsd(keyBreakdown.refundedAmount)}
+                              {formatUSD(keyBreakdown.refundedAmount)}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
                               {keyBreakdown.refundedCount} of {keyBreakdown.totalKeys} key
@@ -599,7 +584,7 @@ const AdminPayoutDetail = () => {
                         </span>
                       </p>
                       <div className="overflow-x-auto rounded-md border border-gray-700">
-                        <Table>
+                        <Table variant="hud">
                           <TableHeader>
                             <TableRow className="border-gray-700 hover:bg-gray-800">
                               <TableHead className="text-gray-300">Key</TableHead>
@@ -624,7 +609,7 @@ const AdminPayoutDetail = () => {
                                       : undefined
                                   }
                                 >
-                                  {formatUsd(row.amount)}
+                                  {formatUSD(row.amount)}
                                 </TableCell>
                                 <TableCell>
                                   {row.status === "available" && (

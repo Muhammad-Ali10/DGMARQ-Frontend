@@ -5,11 +5,13 @@ import { returnRefundAPI } from '@services/api';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Button } from '@components/ui/button';
 import { Label } from '@components/ui/label';
+import { Input } from '@components/ui/input';
 import { Textarea } from '@components/ui/textarea';
 import { SearchableSelect } from '@components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Loader2, AlertCircle, CheckCircle2, ShoppingBag, Package, FileText, Wallet, CreditCard } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
+import { formatUSD } from '@lib/money';
 
 const REFUND_REASONS = [
   'Product not working',
@@ -21,7 +23,6 @@ const REFUND_REASONS = [
   'Other',
 ];
 
-const formatUsd = (n) => `$${Number(n || 0).toFixed(2)}`;
 
 const RefundRequestModal = ({ open, onOpenChange }) => {
   const queryClient = useQueryClient();
@@ -401,7 +402,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15">
-              <FileText className="w-4 h-4 text-accent" />
+              <FileText className="w-4 h-4 text-accent-on-dark" />
             </div>
             <div>
               <DialogTitle className="text-lg font-semibold">Request Refund</DialogTitle>
@@ -417,15 +418,16 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                <FileText className="w-4 h-4 text-accent" />
+                <FileText className="w-4 h-4 text-accent-on-dark" />
               </div>
               <div>
-                <Label className="text-white text-sm font-semibold">Refund Type *</Label>
-                <p className="text-xs text-gray-500 mt-0.5">Regular refund or guest purchase refund.</p>
+                <Label className="text-fg text-sm font-semibold">Refund Type *</Label>
+                <p className="text-xs text-fg-subtle mt-0.5">Regular refund or guest purchase refund.</p>
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               <label
+                htmlFor="refund-type-regular"
                 className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${
                   refundType === 'REGULAR'
                     ? 'border-accent bg-accent/10'
@@ -433,9 +435,11 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 }`}
               >
                 <input
+                  id="refund-type-regular"
                   type="radio"
                   name="refundType"
                   value="REGULAR"
+                  aria-label="Regular refund — a purchase made while signed in"
                   checked={refundType === 'REGULAR'}
                   onChange={() => {
                     setRefundType('REGULAR');
@@ -444,16 +448,17 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                     setGuestSelectedKeyIds([]);
                     setErrors((prev) => ({ ...prev, guest: undefined }));
                   }}
-                  className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
+                  className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-accent-on-dark focus:ring-accent"
                 />
                 <div>
-                  <span className="text-sm font-medium text-white">Regular Refund</span>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <span className="text-sm font-medium text-fg">Regular Refund</span>
+                  <p className="text-xs text-fg-muted mt-0.5">
                     Refund a purchase made while logged into your account.
                   </p>
                 </div>
               </label>
               <label
+                htmlFor="refund-type-guest"
                 className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${
                   refundType === 'GUEST'
                     ? 'border-accent bg-accent/10'
@@ -461,9 +466,11 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 }`}
               >
                 <input
+                  id="refund-type-guest"
                   type="radio"
                   name="refundType"
                   value="GUEST"
+                  aria-label="Guest refund — a purchase made without an account"
                   checked={refundType === 'GUEST'}
                   onChange={() => {
                     setRefundType('GUEST');
@@ -477,18 +484,18 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                       licenseKeys: undefined,
                     }));
                   }}
-                  className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
+                  className="mt-1 rounded-full border-white/10 bg-white/[0.04] text-accent-on-dark focus:ring-accent"
                 />
                 <div>
-                  <span className="text-sm font-medium text-white">Refunding a Guest Purchase</span>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <span className="text-sm font-medium text-fg">Refunding a Guest Purchase</span>
+                  <p className="text-xs text-fg-muted mt-0.5">
                     You bought as a guest and now created an account with the same email.
                   </p>
                 </div>
               </label>
             </div>
             {errors.guest && (
-              <p className="text-sm text-red-400 flex items-center gap-1">
+              <p className="text-sm text-danger flex items-center gap-1">
                 <AlertCircle className="w-4 h-4" />
                 {errors.guest}
               </p>
@@ -500,23 +507,23 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                  <ShoppingBag className="w-4 h-4 text-accent" />
+                  <ShoppingBag className="w-4 h-4 text-accent-on-dark" />
                 </div>
                 <div>
-                  <Label className="text-white text-sm font-semibold">
+                  <Label className="text-fg text-sm font-semibold">
                     Guest Purchase Details *
                   </Label>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-fg-muted mt-0.5">
                     Enter the email and order number used when you bought as a guest.
                   </p>
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label className="text-xs text-gray-300">Purchase Email</Label>
-                  <input
+                  <Label htmlFor="refund-guest-email" className="text-xs text-fg-muted">Purchase email</Label>
+                  <Input
+                    id="refund-guest-email"
                     type="email"
-                    className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-colors"
                     placeholder="email used during purchase"
                     value={guestPurchaseEmail}
                     onChange={(e) => {
@@ -526,10 +533,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-gray-300">Order ID (from your email)</Label>
-                  <input
+                  <Label htmlFor="refund-guest-order" className="text-xs text-fg-muted">Order ID (from your email)</Label>
+                  <Input
+                    id="refund-guest-order"
                     type="text"
-                    className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20 transition-colors"
                     placeholder="e.g. #9VEQ1LFP"
                     value={guestOrderNumber}
                     onChange={(e) => {
@@ -574,13 +581,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             <div className="space-y-3">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                <ShoppingBag className="w-4 h-4 text-accent" />
+                <ShoppingBag className="w-4 h-4 text-accent-on-dark" />
               </div>
               <div>
-                <Label htmlFor="order" className="text-white text-sm font-semibold">
+                <Label htmlFor="order" className="text-fg text-sm font-semibold">
                   Select Order *
                 </Label>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-fg-muted mt-0.5">
                   Choose the order you want to request a refund for
                 </p>
               </div>
@@ -622,26 +629,26 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 return (
                   <div className="flex items-center justify-between w-full">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
+                      <p className="text-sm font-medium text-fg truncate">
                         Order ID {displayId}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                      <div className="flex items-center gap-2 text-xs text-fg-muted mt-0.5">
                         <span>{new Date(order.orderDate).toLocaleDateString()}</span>
                         <span>•</span>
-                        <span className="font-semibold text-white">
+                        <span className="font-semibold text-fg">
                           ${order.orderTotalAmount?.toFixed(2)}
                         </span>
                       </div>
                     </div>
                     {isSelected && (
-                      <CheckCircle2 className="h-4 w-4 text-accent ml-2 shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-accent-on-dark ml-2 shrink-0" />
                     )}
                   </div>
                 );
               }}
             />
             {errors.orderId && (
-              <p className="text-sm text-red-400 flex items-center gap-1">
+              <p className="text-sm text-danger flex items-center gap-1">
                 <AlertCircle className="w-4 h-4" />
                 {errors.orderId}
               </p>
@@ -654,13 +661,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                  <Package className="w-4 h-4 text-accent" />
+                  <Package className="w-4 h-4 text-accent-on-dark" />
                 </div>
                 <div>
-                  <Label htmlFor="product" className="text-white text-sm font-semibold">
+                  <Label htmlFor="product" className="text-fg text-sm font-semibold">
                     Select Product *
                   </Label>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-fg-muted mt-0.5">
                     Choose the product you want to refund from this order
                   </p>
                 </div>
@@ -697,28 +704,28 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                         />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
+                        <p className="text-sm font-medium text-fg truncate">
                           {product.productName}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                        <div className="flex items-center gap-2 text-xs text-fg-muted mt-0.5">
                           <span>Qty: {product.qty}</span>
                           <span>•</span>
                           <span>${product.unitPrice?.toFixed(2)}</span>
                           <span>•</span>
-                          <span className="font-semibold text-white">
+                          <span className="font-semibold text-fg">
                             ${product.lineTotal?.toFixed(2)}
                           </span>
                         </div>
                       </div>
                     </div>
                     {isSelected && (
-                      <CheckCircle2 className="h-4 w-4 text-accent ml-2 shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-accent-on-dark ml-2 shrink-0" />
                     )}
                   </div>
                 )}
               />
               {errors.productId && (
-                <p className="text-sm text-red-400 flex items-center gap-1">
+                <p className="text-sm text-danger flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
                   {errors.productId}
                 </p>
@@ -731,13 +738,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                  <Package className="w-4 h-4 text-accent" />
+                  <Package className="w-4 h-4 text-accent-on-dark" />
                 </div>
                 <div>
-                  <Label className="text-white text-sm font-semibold">
+                  <Label className="text-fg text-sm font-semibold">
                     Select product and key(s) to refund *
                   </Label>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-fg-muted mt-0.5">
                     Only masked keys (last 4 digits) are shown. Select the key(s) that do not work.
                   </p>
                 </div>
@@ -764,15 +771,15 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                             />
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-white truncate">
+                            <p className="text-sm font-medium text-fg truncate">
                               {item.productName}
                             </p>
-                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-fg-muted">
                               <span>Qty: {item.qty}</span>
                               <span>•</span>
                               <span>${item.unitPrice?.toFixed(2)}</span>
                               <span>•</span>
-                              <span className="font-semibold text-white">
+                              <span className="font-semibold text-fg">
                                 ${item.lineTotal?.toFixed(2)}
                               </span>
                             </div>
@@ -785,7 +792,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                           className={
                             isSelectedProduct
                               ? 'bg-accent hover:bg-accent/90'
-                              : 'border-gray-600 text-gray-200'
+                              : 'border-border-interactive text-fg'
                           }
                           onClick={() => {
                             setGuestSelectedProductId(item.productId);
@@ -804,12 +811,12 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                       {isSelectedProduct && (
                         <div className="mt-3 space-y-2">
                           {item.keys.length === 0 ? (
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-fg-muted">
                               No eligible keys for refund on this product.
                             </p>
                           ) : (
                             <>
-                              <p className="text-xs text-gray-300">
+                              <p className="text-xs text-fg-muted">
                                 Select the key(s) that do not work. Only the last 4 digits are shown.
                               </p>
                               <div className="grid gap-2">
@@ -818,6 +825,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                                   return (
                                     <label
                                       key={k.licenseKeyId}
+                                      htmlFor={`guest-key-${k.licenseKeyId}`}
                                       className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-xs ${
                                         checked
                                           ? 'border-accent bg-accent/10'
@@ -826,7 +834,9 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                                     >
                                       <div className="flex items-center gap-3">
                                         <input
+                                          id={`guest-key-${k.licenseKeyId}`}
                                           type="checkbox"
+                                          aria-label={`Select key ${k.licenseKeyId}`}
                                           checked={checked}
                                           onChange={(e) => {
                                             setGuestSelectedKeyIds((prev) =>
@@ -839,13 +849,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                                               licenseKeys: undefined,
                                             }));
                                           }}
-                                          className="h-4 w-4 rounded border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
+                                          className="h-4 w-4 rounded border-white/10 bg-white/[0.04] text-accent-on-dark focus:ring-accent"
                                         />
                                         <div className="flex flex-col">
                                           <span className="font-mono text-xs text-gray-100">
                                             {k.displayKey}
                                           </span>
-                                          <span className="text-[11px] text-gray-400">
+                                          <span className="text-[11px] text-fg-muted">
                                             Issued: {formatIssuedDate(k.issuedAt)}
                                           </span>
                                         </div>
@@ -863,7 +873,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 })}
               </div>
               {errors.licenseKeys && (
-                <p className="text-sm text-red-400 flex items-center gap-1">
+                <p className="text-sm text-danger flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
                   {errors.licenseKeys}
                 </p>
@@ -876,13 +886,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                  <Package className="w-4 h-4 text-accent" />
+                  <Package className="w-4 h-4 text-accent-on-dark" />
                 </div>
                 <div>
-                  <Label className="text-white text-sm font-semibold">
+                  <Label className="text-fg text-sm font-semibold">
                     Select which license(s) to refund *
                   </Label>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-fg-muted mt-0.5">
                     {hasMultipleKeys
                       ? 'Click a card to select that license for refund. Only non-refunded licenses are listed.'
                       : 'One license for this product — it will be included in the refund.'}
@@ -890,7 +900,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 </div>
               </div>
               {keysLoading ? (
-                <p className="text-sm text-gray-400 flex items-center gap-2">
+                <p className="text-sm text-fg-muted flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Loading licenses...
                 </p>
@@ -905,6 +915,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                       return (
                         <label
                           key={keyId}
+                          htmlFor={`refund-key-${keyId}`}
                           className={`block cursor-pointer rounded-xl border-2 p-4 transition-all ${
                             isSelected
                               ? 'border-accent bg-accent/10 ring-2 ring-accent/30'
@@ -913,29 +924,31 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                         >
                           <div className="flex items-start gap-3">
                             <input
+                              id={`refund-key-${keyId}`}
                               type="checkbox"
+                              aria-label={`Select ${productTypeLabel} ${licenseNumber}`}
                               checked={isSelected}
                               onChange={() => toggleKeySelection(keyId)}
-                              className="mt-1 rounded border-white/10 bg-white/[0.04] text-accent focus:ring-accent"
+                              className="mt-1 rounded border-white/10 bg-white/[0.04] text-accent-on-dark focus:ring-accent"
                             />
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <span className="font-semibold text-white">License #{licenseNumber}</span>
-                                <span className="font-mono text-sm text-gray-300">
+                                <span className="font-semibold text-fg">License #{licenseNumber}</span>
+                                <span className="font-mono text-sm text-fg-muted">
                                   {getMaskedLicenseKey(key)}
                                 </span>
                               </div>
-                              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-muted">
                                 <span>Price: ${(key.price ?? 0).toFixed(2)}</span>
                                 <span>Type: {productTypeLabel}</span>
                                 <span>Status: {statusLabel(key.status)}</span>
                                 <span>Issued: {formatIssuedDate(key.issuedAt)}</span>
                               </div>
                               {isSelected && (
-                                <p className="mt-2 text-xs font-medium text-accent">Selected for refund</p>
+                                <p className="mt-2 text-xs font-medium text-accent-on-dark">Selected for refund</p>
                               )}
                             </div>
-                            {isSelected && <CheckCircle2 className="h-5 w-5 shrink-0 text-accent" />}
+                            {isSelected && <CheckCircle2 className="h-5 w-5 shrink-0 text-accent-on-dark" />}
                           </div>
                         </label>
                       );
@@ -958,7 +971,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                     );
                   })()}
                   {errors.licenseKeys && (
-                    <p className="text-sm text-red-400 flex items-center gap-1">
+                    <p className="text-sm text-danger flex items-center gap-1">
                       <AlertCircle className="w-4 h-4 shrink-0" />
                       {errors.licenseKeys}
                     </p>
@@ -973,11 +986,11 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                  <Wallet className="w-4 h-4 text-accent" />
+                  <Wallet className="w-4 h-4 text-accent-on-dark" />
                 </div>
                 <div>
-                  <Label className="text-white text-sm font-semibold">How you'll be refunded</Label>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <Label className="text-fg text-sm font-semibold">How you'll be refunded</Label>
+                  <p className="text-xs text-fg-muted mt-0.5">
                     Choose original payment split or full wallet credit.
                   </p>
                 </div>
@@ -994,10 +1007,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <CreditCard className="mt-0.5 h-4 w-4 text-sky-300" />
+                    <CreditCard className="mt-0.5 h-4 w-4 text-info" />
                     <div>
-                      <p className="text-sm font-semibold text-white">Refund to original payment method</p>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="text-sm font-semibold text-fg">Refund to original payment method</p>
+                      <p className="mt-1 text-xs text-fg-muted">
                         Card goes to card, PayPal goes to PayPal, wallet goes to wallet using the proportional split.
                       </p>
                     </div>
@@ -1013,10 +1026,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <Wallet className="mt-0.5 h-4 w-4 text-emerald-300" />
+                    <Wallet className="mt-0.5 h-4 w-4 text-success" />
                     <div>
-                      <p className="text-sm font-semibold text-white">Refund everything to wallet</p>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="text-sm font-semibold text-fg">Refund everything to wallet</p>
+                      <p className="mt-1 text-xs text-fg-muted">
                         Full refund amount is credited to your DGMARQ wallet after approval.
                       </p>
                     </div>
@@ -1025,13 +1038,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               </div>
 
               {splitLoading && !splitPreview && (
-                <p className="text-sm text-gray-400 flex items-center gap-2">
+                <p className="text-sm text-fg-muted flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Calculating split...
                 </p>
               )}
               {splitError && (
-                <p className="text-sm text-red-400 flex items-center gap-1">
+                <p className="text-sm text-danger flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
                   Could not calculate split. You can still submit; admin will reconcile.
                 </p>
@@ -1040,8 +1053,8 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               {splitPreview && (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">Total refund</span>
-                    <span className="text-sm font-semibold text-white">{formatUsd(totalRefundAmount)}</span>
+                    <span className="text-xs text-fg-muted">Total refund</span>
+                    <span className="text-sm font-semibold text-fg">{formatUSD(totalRefundAmount)}</span>
                   </div>
 
                   {/* Step 12 PART B — refund window expired. Show a warning and
@@ -1049,12 +1062,12 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   {windowExpired && (
                     <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 space-y-1">
                       <div className="flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-amber-300 mt-0.5 shrink-0" />
+                        <AlertCircle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-amber-100">Refund window has expired</p>
                           <p className="text-[11px] text-amber-200/80 mt-0.5">
                             We can no longer return funds to the original payment method. You can still
-                            request a wallet-credit refund of {formatUsd(totalRefundAmount)}; an admin
+                            request a wallet-credit refund of {formatUSD(totalRefundAmount)}; an admin
                             must approve it manually before the credit is applied.
                           </p>
                         </div>
@@ -1065,7 +1078,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   {effectiveWalletPortion > 0 && (
                     <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <Wallet className="w-4 h-4 text-emerald-300" />
+                        <Wallet className="w-4 h-4 text-success" />
                         <div>
                           <p className="text-sm font-medium text-emerald-100">To your wallet</p>
                           <p className="text-[11px] text-emerald-200/70">
@@ -1075,14 +1088,14 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-emerald-100">{formatUsd(effectiveWalletPortion)}</span>
+                      <span className="text-sm font-semibold text-emerald-100">{formatUSD(effectiveWalletPortion)}</span>
                     </div>
                   )}
 
                   {effectiveProviderPortion > 0 && (
                     <div className="flex items-center justify-between rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-sky-300" />
+                        <CreditCard className="w-4 h-4 text-info" />
                         <div>
                           <p className="text-sm font-medium text-sky-100">To original payment method</p>
                           <p className="text-[11px] text-sky-200/70">
@@ -1092,7 +1105,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-sky-100">{formatUsd(effectiveProviderPortion)}</span>
+                      <span className="text-sm font-semibold text-sky-100">{formatUSD(effectiveProviderPortion)}</span>
                     </div>
                   )}
                 </div>
@@ -1103,9 +1116,11 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           {/* Evidence upload (mandatory) */}
           {(selectedProductId || guestSelectedProductId) && (
             <div className="space-y-2">
-              <Label className="text-white text-sm font-semibold">Evidence (required) *</Label>
-              <p className="text-xs text-gray-400">Upload at least one image: error screenshots or proof the product is not working</p>
+              <Label htmlFor="refund-evidence" className="text-sm font-semibold text-fg">Evidence (required)</Label>
+              <p className="text-xs text-fg-muted">Upload at least one image: an error screenshot, or proof the product is not working.</p>
               <input
+                id="refund-evidence"
+                aria-label="Upload evidence images"
                 type="file"
                 accept="image/*"
                 multiple
@@ -1114,11 +1129,11 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   setEvidenceFiles(files);
                   setErrors((e) => ({ ...e, evidence: undefined }));
                 }}
-                className="w-full text-sm text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-white/[0.08] file:bg-white/[0.04] file:text-accent file:font-medium file:cursor-pointer hover:file:bg-white/[0.08] file:transition-colors"
+                className="w-full text-sm text-fg-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-white/[0.08] file:bg-white/[0.04] file:text-accent-on-dark file:font-medium file:cursor-pointer hover:file:bg-white/[0.08] file:transition-colors"
               />
               {evidenceFiles.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs text-gray-400">{evidenceFiles.length} image(s) selected — click to preview</p>
+                  <p className="text-xs text-fg-muted">{evidenceFiles.length} image(s) selected — click to preview</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {evidencePreviewUrls.map((url, idx) => (
                       <button
@@ -1134,7 +1149,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 </div>
               )}
               {errors.evidence && (
-                <p className="text-sm text-red-400 flex items-center gap-1">
+                <p className="text-sm text-danger flex items-center gap-1">
                   <AlertCircle className="w-4 h-4" />
                   {errors.evidence}
                 </p>
@@ -1146,13 +1161,13 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                <FileText className="w-4 h-4 text-accent" />
+                <FileText className="w-4 h-4 text-accent-on-dark" />
               </div>
               <div>
-                <Label htmlFor="reason" className="text-white text-sm font-semibold">
+                <Label htmlFor="reason" className="text-fg text-sm font-semibold">
                   Refund Reason *
                 </Label>
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-fg-muted mt-0.5">
                   Please provide a reason for your refund request
                 </p>
               </div>
@@ -1167,7 +1182,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 setErrors(prev => ({ ...prev, reason: undefined, customReason: undefined }));
               }}
             >
-              <SelectTrigger className="w-full bg-white/[0.03] border-white/[0.08] text-white">
+              <SelectTrigger className="w-full bg-white/[0.03] border-white/[0.08] text-fg">
                 <SelectValue placeholder="Select a reason..." />
               </SelectTrigger>
               <SelectContent>
@@ -1179,7 +1194,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               </SelectContent>
             </Select>
             {errors.reason && (
-              <p className="text-sm text-red-400 flex items-center gap-1">
+              <p className="text-sm text-danger flex items-center gap-1">
                 <AlertCircle className="w-4 h-4" />
                 {errors.reason}
               </p>
@@ -1196,10 +1211,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                   }}
                   placeholder="Please describe your reason for requesting a refund..."
                   rows={4}
-                  className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-gray-500 resize-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-xl"
+                  className="bg-white/[0.03] border-white/[0.08] text-fg placeholder:text-gray-500 resize-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-xl"
                 />
                 {errors.customReason && (
-                  <p className="text-sm text-red-400 flex items-center gap-1">
+                  <p className="text-sm text-danger flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {errors.customReason}
                   </p>
@@ -1210,9 +1225,9 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
 
           {/* Submit Button */}
           <div className="flex items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-fg-muted">
               {isFormValid && (
-                <div className="flex items-center gap-2 text-emerald-400">
+                <div className="flex items-center gap-2 text-success">
                   <CheckCircle2 className="w-4 h-4" />
                   <span className="text-xs font-medium">Ready to submit</span>
                 </div>
@@ -1223,7 +1238,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white px-5"
+                className="border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white px-5"
                 disabled={createRefundMutation.isPending}
               >
                 Cancel
@@ -1255,26 +1270,26 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15">
-                <AlertCircle className="w-4 h-4 text-amber-300" />
+                <AlertCircle className="w-4 h-4 text-warning" />
               </div>
               <div>
                 <DialogTitle className="text-base font-semibold">Refund window has expired</DialogTitle>
-                <DialogDescription className="text-xs text-gray-400 mt-0.5">
+                <DialogDescription className="text-xs text-fg-muted mt-0.5">
                   This refund cannot go back to the original payment method.
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="px-6 py-4 space-y-3 text-sm text-gray-300">
+          <div className="px-6 py-4 space-y-3 text-sm text-fg-muted">
             <p>
               The refund period for this order has ended. We can only credit{' '}
               <span className="font-semibold text-emerald-200">
-                {formatUsd(walletCreditFallback?.refundAmount ?? totalRefundAmount)}
+                {formatUSD(walletCreditFallback?.refundAmount ?? totalRefundAmount)}
               </span>{' '}
               to your wallet, and an admin must approve it manually before the credit is applied.
             </p>
-            <p className="text-xs text-gray-400">Continue with a wallet-credit refund?</p>
+            <p className="text-xs text-fg-muted">Continue with a wallet-credit refund?</p>
           </div>
 
           <div className="flex items-center justify-end gap-3 px-6 pb-5 pt-2">
@@ -1282,7 +1297,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               type="button"
               variant="outline"
               onClick={handleOutOfWindowCancel}
-              className="border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:text-white px-4"
+              className="border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white px-4"
               disabled={createRefundMutation.isPending}
             >
               Cancel

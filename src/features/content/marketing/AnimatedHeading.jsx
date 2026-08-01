@@ -1,4 +1,3 @@
-import React from "react";
 
 export const AnimatedHeading = ({
   eyebrow,
@@ -13,11 +12,11 @@ export const AnimatedHeading = ({
   return (
     <div className={`flex flex-col gap-3 ${alignment}`}>
       {eyebrow && (
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent/80">
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-on-dark/80">
           {eyebrow}
         </span>
       )}
-      <h2 className="relative text-2xl font-semibold leading-tight text-white sm:text-3xl md:text-4xl lg:text-[2.5rem]">
+      <h2 className="relative text-2xl font-semibold leading-tight text-fg sm:text-3xl md:text-4xl lg:text-[2.5rem]">
         <span className="relative">
           {title}
           {highlight && (
@@ -35,7 +34,7 @@ export const AnimatedHeading = ({
         </span>
       </h2>
       {description && (
-        <p className="max-w-2xl text-sm leading-relaxed text-gray-400 sm:text-base">
+        <p className="max-w-2xl text-sm leading-relaxed text-fg-muted sm:text-base">
           {description}
         </p>
       )}

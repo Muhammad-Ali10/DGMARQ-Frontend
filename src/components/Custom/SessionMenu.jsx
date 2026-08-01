@@ -108,7 +108,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
       : 'U';
  
     return (
-      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold border-0 border-accent/50">
+      <div className="w-8 h-8 rounded-full flex items-center justify-center text-fg text-sm font-semibold border-0 border-accent/50">
         {initials}
       </div>
     );
@@ -123,7 +123,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "border-accent text-white hover:bg-accent/10 rounded-lg h-10 mt-1 transition-colors",
+          "border-accent text-fg hover:bg-accent/10 rounded-lg h-10 mt-1 transition-colors",
           isAuthenticated && "p-1.5"
         )}
       >
@@ -141,14 +141,14 @@ const SessionMenu = ({ onItemClick } = {}) => {
       {isOpen && (
         <div
           ref={menuRef}
-          className="absolute top-full right-0 mt-2 w-64 bg-[#041536] border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden"
+          className="absolute top-full right-0 mt-2 w-64 bg-[#041536] border border-border rounded-lg shadow-xl z-50 overflow-hidden"
         >
           {!isAuthenticated ? (
             <div className="py-2">
               {/* Google Login */}
               <button
                 onClick={handleGoogleLogin}
-                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
               >
                 <div className="w-5 h-5 flex items-center justify-center">
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -173,12 +173,12 @@ const SessionMenu = ({ onItemClick } = {}) => {
                 <span className="font-medium">Continue with Google</span>
               </button>
 
-              <div className="border-t border-gray-700 my-1"></div>
+              <div className="border-t border-border my-1"></div>
 
               {/* Login Button */}
               <button
                 onClick={() => handleItemClick(() => navigate('/login'))}
-                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
               >
                 <LogIn className="w-5 h-5" />
                 <span>Login</span>
@@ -187,7 +187,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
               {/* Register Button */}
               <button
                 onClick={() => handleItemClick(() => navigate('/register'))}
-                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
               >
                 <UserPlus className="w-5 h-5" />
                 <span>Register</span>
@@ -196,7 +196,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
               {/* Info Link */}
               <button
                 onClick={() => handleItemClick(() => navigate('/about'))}
-                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-gray-400 hover:text-white"
+                className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg-muted hover:text-white"
               >
                 <Info className="w-5 h-5" />
                 <span>About / Info</span>
@@ -205,12 +205,12 @@ const SessionMenu = ({ onItemClick } = {}) => {
           ) : (
             <div className="py-2">
               {/* User Info Header */}
-              <div className="px-4 py-3 border-b border-gray-700">
+              <div className="px-4 py-3 border-b border-border">
                 <div className="flex items-center gap-3">
                   {getUserDisplay()}
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium truncate">{user?.name || 'User'}</p>
-                    <p className="text-gray-400 text-sm truncate">{user?.email || ''}</p>
+                    <p className="text-fg font-medium truncate">{user?.name || 'User'}</p>
+                    <p className="text-fg-muted text-sm truncate">{user?.email || ''}</p>
                   </div>
                 </div>
               </div>
@@ -228,7 +228,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
                       {hasAdmin && (
                         <button
                           onClick={() => handleItemClick(() => navigate('/admin/dashboard'))}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                         >
                           <LayoutDashboard className="w-5 h-5" />
                           <span>Admin Dashboard</span>
@@ -237,7 +237,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
                       {hasSeller && (
                         <button
                           onClick={() => handleItemClick(() => navigate('/seller/dashboard'))}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                         >
                           <LayoutDashboard className="w-5 h-5" />
                           <span>Seller Dashboard</span>
@@ -247,7 +247,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
                       {(hasSeller || hasAdmin) && (
                         <button
                           onClick={() => handleItemClick(() => navigate('/user/dashboard'))}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                          className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                         >
                           <LayoutDashboard className="w-5 h-5" />
                           <span>Customer Dashboard</span>
@@ -259,7 +259,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
                 return (
                   <button
                     onClick={() => handleItemClick(() => navigate(getDashboardRoute()))}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                   >
                     <LayoutDashboard className="w-5 h-5" />
                     <span>Dashboard</span>
@@ -272,7 +272,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
                 <>
                   <button
                     onClick={() => handleItemClick(() => navigate('/user/orders'))}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                   >
                     <ShoppingBag className="w-5 h-5" />
                     <span>Orders</span>
@@ -281,7 +281,7 @@ const SessionMenu = ({ onItemClick } = {}) => {
                   {/* License Keys Link - Only for customers */}
                   <button
                     onClick={() => handleItemClick(() => navigate('/user/license-keys'))}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                   >
                     <Key className="w-5 h-5" />
                     <span>License Keys</span>
@@ -289,13 +289,13 @@ const SessionMenu = ({ onItemClick } = {}) => {
                 </>
               )}
 
-              <div className="border-t border-gray-700 my-1"></div>
+              <div className="border-t border-border my-1"></div>
 
               {/* Logout Button */}
               <button
                 onClick={handleLogout}
                 disabled={logoutMutation.isPending}
-                className="w-full px-4 py-3 text-left hover:bg-red-500/10 transition-colors flex items-center gap-3 text-red-400 hover:text-red-300 disabled:opacity-50"
+                className="w-full px-4 py-3 text-left hover:bg-red-500/10 transition-colors flex items-center gap-3 text-danger hover:text-red-300 disabled:opacity-50"
               >
                 <LogOut className="w-5 h-5" />
                 <span>{logoutMutation.isPending ? 'Logging out...' : 'Logout'}</span>

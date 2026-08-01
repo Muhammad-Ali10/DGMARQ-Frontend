@@ -76,8 +76,12 @@ export default defineConfig({
           'vendor-state': ['@reduxjs/toolkit', 'react-redux', '@tanstack/react-query'],
           // UI framework
           'vendor-ui': ['lucide-react', 'sonner', 'class-variance-authority', 'clsx', 'tailwind-merge'],
-          // Heavy libraries (zod removed — dependency was unused and uninstalled)
-          'vendor-forms': ['react-hook-form', '@hookform/resolvers'],
+          // NOTE: there was a 'vendor-forms' entry here for react-hook-form +
+          // @hookform/resolvers. Naming them in manualChunks makes Rollup emit
+          // the chunk whether or not anything imports them, so it was building a
+          // 193 KB artifact that no chunk and no HTML referenced. Both packages
+          // have since been uninstalled (zero imports app-wide); reinstall them
+          // AND re-add this line the day the forms actually adopt react-hook-form.
           // Networking
           'vendor-network': ['axios', 'socket.io-client'],
         },

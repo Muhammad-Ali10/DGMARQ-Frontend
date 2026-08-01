@@ -16,7 +16,7 @@ const Hero = () => {
       <div className="w-full py-8 relative overflow-hidden">
         <div className="w-full max-w-1260 mx-auto flex items-end justify-center gap-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="w-[180px] md:w-[259px] h-[280px] md:h-[349px] bg-gray-800 rounded-2xl animate-pulse" />
+            <div key={i} className="w-[180px] md:w-[259px] h-[280px] md:h-[349px] bg-surface-2 rounded-2xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -42,7 +42,7 @@ const Hero = () => {
 
   return (
     <div className="w-full py-8 relative overflow-hidden">
-      <Carousel className="w-full  mx-auto">
+      <Carousel className="w-full mx-auto">
         <CarouselContent className="flex items-end justify-center">
           {sortedSliders.map((slider, index) => {
             const position = slider.slideIndex !== undefined ? slider.slideIndex : slider.order || index;
@@ -65,19 +65,6 @@ const Hero = () => {
                     loading="eager"
                     w={410}
                   />
-                  {/* {isCenter && hasProduct && (
-                    <div className="absolute bottom-0 left-0 w-full bg-blue-800/95 p-4">
-                      <div className="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded inline-block mb-2">
-                        New Release
-                      </div>
-                      <h2 className="text-white font-bold text-lg md:text-2xl leading-tight mb-1">
-                        {product.name?.toUpperCase() || slider.title}
-                      </h2>
-                      <p className="text-gray-300 text-xs md:text-sm">
-                        {product.platform?.name || 'Steam'} · {product.region?.name || 'Global'} · {product.type?.name || 'Key/Account'}
-                      </p>
-                    </div>
-                  )} */}
                 </div>
               </div>
             );

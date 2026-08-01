@@ -72,18 +72,11 @@ function TimelineStep({ title, description, icon, index, isLeft }) {
 
       {/* Center dot – aligned with vertical line */}
       <div
-        className="
-          absolute left-4 md:left-1/2 top-5 md:top-1/2 w-3 h-3 md:-translate-x-1/2 md:-translate-y-1/2
-          rounded-full border-2 border-[#030a14] bg-accent
-          shadow-[0_0_16px_4px_rgba(14,81,226,0.5)]
-          ring-4 ring-accent/20
-          z-10 shrink-0
-          transition-transform duration-300 hover:scale-125 group-hover:scale-125
-        "
+        className="absolute left-4 md:left-1/2 top-5 md:top-1/2 w-3 h-3 md:-translate-x-1/2 md:-translate-y-1/2 rounded-full border-2 border-[#030a14] bg-accent shadow-[0_0_16px_4px_rgba(14,81,226,0.5)] ring-4 ring-accent/20 z-10 shrink-0 transition-transform duration-300 hover:scale-125 group-hover:scale-125"
         aria-hidden
       >
         {icon && (
-          <span className="absolute inset-0 flex items-center justify-center text-white text-[8px] font-bold">
+          <span className="absolute inset-0 flex items-center justify-center text-fg text-[8px] font-bold">
             {icon}
           </span>
         )}
@@ -106,8 +99,8 @@ function TimelineStep({ title, description, icon, index, isLeft }) {
           className="absolute inset-x-0 top-0 h-px rounded-t-xl bg-gradient-to-r from-transparent via-accent/60 to-transparent opacity-80"
           aria-hidden
         />
-        <h3 className="text-lg font-semibold text-white mb-3">{title}</h3>
-        <p className="text-gray-400 text-sm sm:text-base leading-relaxed">{description}</p>
+        <h3 className="text-lg font-semibold text-fg mb-3">{title}</h3>
+        <p className="text-fg-muted text-sm sm:text-base leading-relaxed">{description}</p>
       </div>
     </li>
   );

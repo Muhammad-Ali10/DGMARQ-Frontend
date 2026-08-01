@@ -29,7 +29,6 @@
 .hdr-fx .fx-promo-track { position: relative; height: 50px; min-width: 0; flex: 0 1 auto; }
 .hdr-fx .fx-promo-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; white-space: nowrap; font-weight: 500; font-size: 14.5px; letter-spacing: .012em; opacity: 0; transform: translateY(13px); }
 .hdr-fx .fx-promo-msg.is-live { opacity: 1; transform: translateY(0); transition: opacity .55s ease, transform .55s cubic-bezier(.2,.9,.3,1.1); }
-.hdr-fx .fx-promo-msg.is-out { opacity: 0; transform: translateY(-13px); transition: opacity .5s ease, transform .5s ease; }
 .hdr-fx .fx-promo-em { font-weight: 700; background: linear-gradient(90deg, #7be3ff, #ffffff 45%, #c3a3ff); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 0 18px rgba(123,197,255,0.22); animation: fx-holo 5s linear infinite; }
 @keyframes fx-holo { 0% { background-position: 0% 0; } 100% { background-position: 200% 0; } }
 .hdr-fx .fx-promo-ico { flex-shrink: 0; display: inline-flex; color: #8fd5ff; filter: drop-shadow(0 0 6px rgba(120,210,255,0.55)); }

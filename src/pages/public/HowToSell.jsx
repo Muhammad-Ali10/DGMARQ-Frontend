@@ -69,14 +69,14 @@ const HowToSell = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {createAccount.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">
                     {i + 1}
                   </span>
                   {step}
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs text-accent/90 italic">{createAccount.microcopy}</p>
+            <p className="mt-4 text-xs text-accent-on-dark/90 italic">{createAccount.microcopy}</p>
           </GlowCard>
         </div>
       </SectionWrapper>
@@ -94,11 +94,11 @@ const HowToSell = () => {
             <ul className="space-y-2 text-sm text-gray-400">
               {verification.items.map((item, i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="text-accent">✓</span> {item}
+                  <span className="text-accent-on-dark">✓</span> {item}
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-xs text-accent/90 italic">{verification.microcopy}</p>
+            <p className="mt-4 text-xs text-accent-on-dark/90 italic">{verification.microcopy}</p>
           </GlowCard>
         </div>
       </SectionWrapper>
@@ -116,7 +116,7 @@ const HowToSell = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {listings.items.map((item, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">✓</span> {item}
+                    <span className="text-accent-on-dark">✓</span> {item}
                   </li>
                 ))}
               </ul>
@@ -126,7 +126,7 @@ const HowToSell = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {listings.bestPractices.items.map((item, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">•</span> {item}
+                    <span className="text-accent-on-dark">•</span> {item}
                   </li>
                 ))}
               </ul>
@@ -147,14 +147,14 @@ const HowToSell = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {acceptOrders.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">
                     {i + 1}
                   </span>
                   {step}
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs text-accent/90 italic">{acceptOrders.microcopy}</p>
+            <p className="mt-4 text-xs text-accent-on-dark/90 italic">{acceptOrders.microcopy}</p>
           </GlowCard>
         </div>
       </SectionWrapper>
@@ -171,7 +171,7 @@ const HowToSell = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {deliverGetPaid.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">
                     {i + 1}
                   </span>
                   {step}
@@ -195,14 +195,14 @@ const HowToSell = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {revisionsDisputes.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">
                     {i + 1}
                   </span>
                   {step}
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs text-accent/90 italic">{revisionsDisputes.microcopy}</p>
+            <p className="mt-4 text-xs text-accent-on-dark/90 italic">{revisionsDisputes.microcopy}</p>
           </GlowCard>
         </div>
       </SectionWrapper>
@@ -220,7 +220,7 @@ const HowToSell = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {growReputation.metrics.map((item, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">✓</span> {item}
+                    <span className="text-accent-on-dark">✓</span> {item}
                   </li>
                 ))}
               </ul>
@@ -230,7 +230,7 @@ const HowToSell = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {growReputation.benefits.items.map((item, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">•</span> {item}
+                    <span className="text-accent-on-dark">•</span> {item}
                   </li>
                 ))}
               </ul>

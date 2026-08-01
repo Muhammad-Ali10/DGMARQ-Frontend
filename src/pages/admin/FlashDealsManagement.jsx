@@ -162,7 +162,7 @@ const FlashDealsManagement = () => {
               Create Flash Deal
             </Button>
           </DialogTrigger>
-          <DialogContent size="lg" className="bg-primary border-gray-700">
+          <DialogContent size="lg" className="">
             <DialogHeader>
               <DialogTitle className="text-white">Create Flash Deal</DialogTitle>
             </DialogHeader>
@@ -207,7 +207,7 @@ const FlashDealsManagement = () => {
                         <div className="p-4 text-center text-gray-400">Loading products...</div>
                       ) : products.length > 0 ? (
                         products.map((product) => (
-                          <div
+                          <button type="button"
                             key={product._id}
                             onClick={() => handleProductSelect(product)}
                             className="flex items-center gap-3 p-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
@@ -225,7 +225,7 @@ const FlashDealsManagement = () => {
                                 ${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
                               </div>
                             </div>
-                          </div>
+                          </button>
                         ))
                       ) : (
                         <div className="p-4 text-center text-gray-400">No products found</div>
@@ -289,13 +289,13 @@ const FlashDealsManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">All Flash Deals</CardTitle>
+          <CardTitle>All Flash Deals</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                   <TableRow className="border-gray-700">
                   <TableHead className="text-gray-300">Banner</TableHead>
@@ -398,7 +398,7 @@ const FlashDealsManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent size="lg" className="bg-primary border-gray-700">
+        <DialogContent size="lg" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Flash Deal</DialogTitle>
           </DialogHeader>
@@ -443,7 +443,7 @@ const FlashDealsManagement = () => {
                       <div className="p-4 text-center text-gray-400">Loading products...</div>
                     ) : products.length > 0 ? (
                       products.map((product) => (
-                        <div
+                        <button type="button"
                           key={product._id}
                           onClick={() => handleProductSelect(product)}
                           className="flex items-center gap-3 p-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
@@ -459,7 +459,7 @@ const FlashDealsManagement = () => {
                             <div className="text-white font-medium">{product.name}</div>
                             <div className="text-gray-400 text-sm">${product.price}</div>
                           </div>
-                        </div>
+                        </button>
                       ))
                     ) : (
                       <div className="p-4 text-center text-gray-400">No products found</div>

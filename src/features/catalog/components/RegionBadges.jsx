@@ -12,8 +12,8 @@ import {
 
 
 const toneClass = {
-  buyer: "border-emerald-400/60 bg-emerald-400/10 text-emerald-300",
-  global: "border-emerald-400/50 bg-emerald-400/10 text-emerald-300",
+  buyer: "border-emerald-400/60 bg-emerald-400/10 text-success",
+  global: "border-emerald-400/50 bg-emerald-400/10 text-success",
   neutral: "border-sky-400/40 bg-sky-400/10 text-sky-200",
 };
 
@@ -74,7 +74,7 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
 
   return (
     <span ref={wrapRef} className="relative flex flex-row flex-wrap items-center gap-1.5 align-middle">
-      {showLabel && <p className="text-[10px] md:text-xs font-normal text-white/60">Region:</p>}
+      {showLabel && <p className="text-[10px] md:text-xs font-normal text-fg/60">Region:</p>}
 
       {offer ? visibleChips.map((c) => (
         <span
@@ -93,7 +93,7 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
             type="button"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((v) => !v); }}
             aria-label="Region availability details"
-            className={`inline-flex items-center gap-0.5 rounded-md border border-white/20 bg-black/20 ${sz} font-semibold text-white/70 hover:text-white`}
+            className={`inline-flex items-center gap-0.5 rounded-md border border-white/20 bg-black/20 ${sz} font-semibold text-fg/70 hover:text-white`}
           >
             {extra > 0 ? `+${extra}` : <Info className="h-3 w-3" />}
           </button>
@@ -102,18 +102,18 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
         // Static mode (e.g. inside a clickable row / search suggestion): no popup
         // button so we never nest a <button> inside a <button>.
         extra > 0 && (
-          <span className={`inline-flex items-center gap-0.5 rounded-md border border-white/20 bg-black/20 ${sz} font-semibold text-white/70`}>+{extra}</span>
+          <span className={`inline-flex items-center gap-0.5 rounded-md border border-white/20 bg-black/20 ${sz} font-semibold text-fg/70`}>+{extra}</span>
         )
       )}
 
       {showWarning && verdict !== null && (
         verdict ? (
-          <span className="inline-flex w-full items-center gap-1 text-[10px] font-medium text-emerald-300">
+          <span className="inline-flex w-full items-center gap-1 text-[10px] font-medium text-success">
             <Check className="h-3 w-3" />
             Can activate in {country ? countryName(country) : "your country"}
           </span>
         ) : (
-          <span className="inline-flex w-full items-center gap-1 text-[10px] font-medium text-red-300">
+          <span className="inline-flex w-full items-center gap-1 text-[10px] font-medium text-danger">
             <CircleX className="h-3 w-3" />
             Cannot activate in {country ? countryName(country) : "your country"}
           </span>
@@ -123,65 +123,65 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
       {interactive && open && (
         <div className="absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-sky-500/30 bg-[#04122e] p-3 shadow-2xl">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-semibold text-white">Activation regions</span>
-            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} className="text-gray-400 hover:text-white">
+            <span className="text-sm font-semibold text-fg">Activation regions</span>
+            <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} className="text-fg-muted hover:text-white">
               <X className="h-4 w-4" />
             </button>
           </div>
 
           {availability.unrestricted ? (
-            <p className="text-xs text-gray-300">Available to all buyers — no region restriction.</p>
+            <p className="text-xs text-fg-muted">Available to all buyers — no region restriction.</p>
           ) : (
             <div className="space-y-2 text-xs">
               {detail.global && (
-                <p className="flex items-center gap-1 text-sky-300">
+                <p className="flex items-center gap-1 text-info">
                   <Globe className="h-3.5 w-3.5" /> Global
                 </p>
               )}
               {detail.regionNames.length > 0 && (
                 <div>
-                  <p className="text-gray-400">Regions</p>
-                  <p className="text-white">{detail.regionNames.join(", ")}</p>
+                  <p className="text-fg-muted">Regions</p>
+                  <p className="text-fg">{detail.regionNames.join(", ")}</p>
                 </div>
               )}
               {detail.includedCountries.length > 0 && (
                 <div>
-                  <p className="text-gray-400">Also available in</p>
-                  <p className="text-white">
+                  <p className="text-fg-muted">Also available in</p>
+                  <p className="text-fg">
                     {detail.includedCountries.map((c) => `${countryFlag(c)} ${countryName(c)}`).join(", ")}
                   </p>
                 </div>
               )}
               {detail.excludedCountries.length > 0 && (
                 <div>
-                  <p className="text-red-400">Excluded</p>
-                  <p className="text-red-300">
+                  <p className="text-danger">Excluded</p>
+                  <p className="text-danger">
                     {detail.excludedCountries.map((c) => `${countryFlag(c)} ${countryName(c)}`).join(", ")}
                   </p>
                 </div>
               )}
               {!detail.global && detail.countryCount != null && (
-                <p className="text-gray-500">Total: {detail.countryCount} country(ies)</p>
+                <p className="text-fg-subtle">Total: {detail.countryCount} country(ies)</p>
               )}
             </div>
           )}
 
           <div className="mt-3 border-t border-white/10 pt-2">
             {country ? (
-              <p className={`mb-2 flex items-center gap-1 text-xs ${verdict === false ? "text-red-300" : verdict ? "text-sky-300" : "text-gray-300"}`}>
+              <p className={`mb-2 flex items-center gap-1 text-xs ${verdict === false ? "text-danger" : verdict ? "text-info" : "text-fg-muted"}`}>
                 {verdict === false ? <Ban className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
                 Your country: {countryFlag(country)} {countryName(country)} —{" "}
                 {verdict === false ? "cannot activate here" : "you can activate this"}
               </p>
             ) : (
-              <p className="mb-2 text-xs text-gray-400">Select your country to check compatibility.</p>
+              <p className="mb-2 text-xs text-fg-muted">Select your country to check compatibility.</p>
             )}
             <select
               aria-label="Set your country"
               value={country || ""}
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => { e.stopPropagation(); if (e.target.value) setCountry(e.target.value); }}
-              className="w-full rounded-md border border-gray-700 bg-secondary px-2 py-1.5 text-xs text-white outline-none"
+              className="w-full rounded-md border border-border bg-secondary px-2 py-1.5 text-xs text-fg outline-none"
             >
               <option value="">Change country…</option>
               {allCountries.map((c) => (

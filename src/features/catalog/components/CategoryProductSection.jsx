@@ -105,11 +105,11 @@ const CategoryProductSection = ({
       <div className="max-w-7xl mx-auto px-4">
         {/* Centered Title and Description */}
         <div className="text-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 font-poppins">
+          <h2 className="text-2xl sm:text-3xl font-bold text-fg mb-2 font-poppins">
             {title}
           </h2>
           {description && (
-            <p className="text-sm sm:text-base text-gray-400 font-poppins">
+            <p className="text-sm sm:text-base text-fg-muted font-poppins">
               {description}
             </p>
           )}
@@ -133,7 +133,7 @@ const CategoryProductSection = ({
               <div className="flex justify-center mt-6">
                 <Button
                   asChild
-                  className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-white font-poppins px-6 py-2 rounded-lg"
+                  className="bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-fg font-poppins px-6 py-2 rounded-lg"
                 >
                   <Link to={seeMoreUrl}>See More</Link>
                 </Button>
@@ -142,7 +142,7 @@ const CategoryProductSection = ({
           </>
         ) : (
           <div className="text-center py-12">
-            <p className="text-gray-400">
+            <p className="text-fg-muted">
               No products available in {title.toLowerCase()} at the moment.
             </p>
           </div>

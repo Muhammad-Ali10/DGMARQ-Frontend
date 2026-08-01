@@ -16,7 +16,7 @@ const ProductVerticalCard = ({ product }) => {
 
   return (
     <Link to={`/product/${product.slug || product._id}`} className="block h-full">
-      <Card className="w-full max-w-[382px] h-full flex flex-row items-stretch bg-[#041536] p-3 md:p-4 rounded-21 border-0 text-white font-poppins gap-2 md:gap-2.5 box-border">
+      <Card className="w-full max-w-[382px] h-full flex flex-row items-stretch bg-[#041536] p-3 md:p-4 rounded-2xl border-0 text-fg font-poppins gap-2 md:gap-2.5 box-border">
         {image &&
         image !== PRODUCT_IMAGE_PLACEHOLDER ? (
           <SafeImage
@@ -29,13 +29,13 @@ const ProductVerticalCard = ({ product }) => {
             fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
           />
         ) : (
-          <div className="w-[120px] h-[120px] sm:w-[150px] sm:h-[150px] rounded-2xl shrink-0 bg-gray-700 flex items-center justify-center">
-            <ShoppingCart className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
+          <div className="w-[120px] h-[120px] sm:w-[150px] sm:h-[150px] rounded-2xl shrink-0 bg-surface-2 flex items-center justify-center">
+            <ShoppingCart className="h-8 w-8 sm:h-10 sm:w-10 text-fg-muted" />
           </div>
         )}
         <div className="flex flex-1 min-w-0 flex-col">
           <CardHeader className="p-0 text-start flex-1">
-            <CardTitle className="text-sm font-semibold -tracking-normal truncate">{title}</CardTitle>
+            <CardTitle className="-tracking-normal truncate">{title}</CardTitle>
             <p className="text-sm font-normal -tracking-normal">Platform: <span className="font-bold">{platformName}</span></p>
             <p
               className={cn(
@@ -86,6 +86,4 @@ export default memo(ProductVerticalCard, (prev, next) =>
   prev.product.trendingOffer?.discountPercent === next.product.trendingOffer?.discountPercent &&
   prev.product.trendingOffer?.offerId === next.product.trendingOffer?.offerId
 );
-// Export alias for flexibility
-export { ProductVerticalCard as ProductArticleCard };
 

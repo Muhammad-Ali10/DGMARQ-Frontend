@@ -262,7 +262,7 @@ const TaxonomyManagementPage = ({ config }) => {
               {labels.createButton}
             </Button>
           </DialogTrigger>
-          <DialogContent size="sm" className="bg-primary border-gray-700">
+          <DialogContent size="sm" className="">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">
                 {labels.createDialogTitle}
@@ -316,11 +316,11 @@ const TaxonomyManagementPage = ({ config }) => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700 shadow-xl">
-        <CardHeader className="border-b border-gray-700">
+      <Card variant="hud">
+        <CardHeader className="border-b ">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle className="text-white text-xl font-semibold">
+              <CardTitle>
                 {labels.listTitle}
               </CardTitle>
               <p className="text-sm text-gray-400 mt-1">
@@ -412,7 +412,7 @@ const TaxonomyManagementPage = ({ config }) => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
                   <TableHead className="text-gray-300 font-semibold">
@@ -555,7 +555,7 @@ const TaxonomyManagementPage = ({ config }) => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">
               {labels.editDialogTitle}

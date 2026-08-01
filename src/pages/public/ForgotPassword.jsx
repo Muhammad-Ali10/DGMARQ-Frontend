@@ -38,11 +38,11 @@ const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4 py-12">
-      <Card className="w-full max-w-md bg-primary border-gray-700 shadow-xl">
+      <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
-              <Mail className="w-8 h-8 text-accent" />
+              <Mail className="w-8 h-8 text-accent-on-dark" />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-center text-white">
@@ -82,7 +82,7 @@ const ForgotPassword = () => {
           <div className="mt-6 text-center">
             <Link
               to="/login"
-              className="inline-flex items-center text-sm text-accent hover:text-blue-400 transition-colors"
+              className="inline-flex items-center text-sm text-accent-on-dark hover:text-blue-400 transition-colors"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Login

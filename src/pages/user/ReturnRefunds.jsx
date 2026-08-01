@@ -1,51 +1,50 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { returnRefundAPI } from '@services/api';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useSocket } from '@hooks/useSocket';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { returnRefundAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Badge } from '@components/ui/badge';
-import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Plus, Eye, DollarSign } from 'lucide-react';
-import { RefundRequestModal } from '@features/wallet-payout';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
+import { ErrorState } from '@components/common/ErrorState';
+import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
+import { RefundRequestModal, refundBadgeProps } from '@features/wallet-payout';
+import { useSocket } from '@hooks/useSocket';
+import useCurrency from '@hooks/useCurrency';
+import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
+import { Plus, Eye, ShieldQuestion } from 'lucide-react';
 
-const STATUS_LABELS = {
-  PENDING: 'Pending',
-  SELLER_REVIEW: 'With seller',
-  SELLER_APPROVED: 'Seller approved',
-  SELLER_REJECTED: 'Seller rejected',
-  ADMIN_REVIEW: 'In progress',
-  ADMIN_APPROVED: 'Admin approved',
-  ADMIN_REJECTED: 'Rejected',
-  COMPLETED: 'Completed',
-  WAITING_FOR_MANUAL_REFUND: 'Waiting manual refund',
-  ON_HOLD_INSUFFICIENT_FUNDS: 'On hold',
-  pending: 'Pending',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  completed: 'Completed',
-};
-
-// `sellerId` is populated with `shopName` by the refund endpoints; fall back to a
-// generic label if a populate is ever missed (mirrors OrderDetail's read).
+// `sellerId` is populated with `shopName` by the refund endpoints; fall back to
+// a generic label if a populate is ever missed (mirrors OrderDetail's read).
 const getSellerName = (refund) => refund?.sellerId?.shopName || 'Seller';
 
+const amountOf = (refund) =>
+  Number(refund?.refundAmount ?? refund?.productId?.price ?? 0);
+
+/**
+ * Buyer refund requests.
+ *
+ * The brief asks for an SLA countdown on open tickets. NOT BUILT: the
+ * ReturnRefund model carries no `dueAt`, `respondBy` or `slaHours` field and
+ * there is no escalation timer anywhere in the controller, so there is no
+ * deadline to count down to. Counting down to an invented deadline would set an
+ * expectation the platform does not keep. What is shown instead is real elapsed
+ * time — how long ago it was opened, and when it last moved — which is the
+ * genuinely useful triage signal.
+ */
 const UserReturnRefunds = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
+  const { format } = useCurrency();
 
-  const { data: refundsData, isLoading, isError } = useQuery({
+  const refundsQuery = useQuery({
     queryKey: ['user-refunds'],
-    queryFn: () => returnRefundAPI.getMyRefunds().then(res => res.data.data),
+    queryFn: () => returnRefundAPI.getMyRefunds().then((res) => res.data.data),
   });
 
-  // Phase 6 / Step 12 PART C — refund_executed socket fan-out updates the
-  // buyer's refund list when a status flips.
+  // Phase 6 / Step 12 PART C — refund_executed fan-out updates this list.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const onRefundExecuted = () => {
@@ -56,143 +55,143 @@ const UserReturnRefunds = () => {
     return () => socket.off('refund_executed', onRefundExecuted);
   }, [socket, isConnected, queryClient]);
 
-  const refunds = refundsData?.refunds || [];
+  const refunds = refundsQuery.data?.refunds ?? [];
 
-  const getStatusBadge = (status) => {
-    const variants = {
-      PENDING: 'warning', SELLER_REVIEW: 'warning', SELLER_APPROVED: 'default', SELLER_REJECTED: 'destructive',
-      ADMIN_REVIEW: 'secondary', ADMIN_APPROVED: 'default', ADMIN_REJECTED: 'destructive',
-      COMPLETED: 'success', ON_HOLD_INSUFFICIENT_FUNDS: 'destructive',
-      pending: 'warning', approved: 'default', rejected: 'destructive', completed: 'success', cancelled: 'secondary',
-    };
-    const label = STATUS_LABELS[status] || status;
-    return <Badge variant={variants[status] || 'default'}>{label}</Badge>;
-  };
-
-  if (isLoading) return <Loading message="Loading refunds..." />;
-  if (isError) return <ErrorMessage message="Error loading refunds" />;
-
-  const openDetail = (id) => navigate(`/user/return-refunds/${id}`);
+  const emptyState = (
+    <EmptyState
+      icon={ShieldQuestion}
+      tone="success"
+      title="No refund requests"
+      description="Nothing has gone wrong with your orders. If a key ever fails, open a request here and we'll look into it."
+      action={
+        <Button onClick={() => setIsCreateOpen(true)}>
+          <Plus aria-hidden="true" />
+          Request a refund
+        </Button>
+      }
+    />
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Return/Refund Requests</h1>
-          <p className="text-gray-400 mt-1">Manage your return and refund requests</p>
+    <div className="space-y-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold text-fg">Returns &amp; refunds</h1>
+          <p className="mt-1 text-sm text-fg-muted">
+            Track a request from the moment you open it to the money landing back.
+          </p>
         </div>
-        <Button
-          onClick={() => setIsCreateOpen(true)}
-          className="bg-accent hover:bg-blue-700 w-full sm:w-auto"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Request Refund
+        <Button onClick={() => setIsCreateOpen(true)}>
+          <Plus aria-hidden="true" />
+          Request a refund
         </Button>
-      </div>
+      </header>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">All Refund Requests</CardTitle>
+          <CardTitle>{refunds.length > 0 ? `${refunds.length} requests` : 'Requests'}</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Mobile card view */}
-          <div className="sm:hidden space-y-3">
-            {refunds.length > 0 ? (
-              refunds.map((refund) => (
-                <div
-                  key={refund._id}
-                  className="bg-secondary border border-gray-700 rounded-lg p-4 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-mono text-sm">#{refund._id?.slice(-8)}</span>
-                    {getStatusBadge(refund.status)}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Amount</span>
-                    <span className="text-white font-semibold flex items-center">
-                      <DollarSign className="w-4 h-4 mr-1" />
-                      {refund.refundAmount?.toFixed(2) || refund.productId?.price?.toFixed(2) || '0.00'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Sold by</span>
-                    <span className="text-gray-300 text-sm">{getSellerName(refund)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400 text-sm">Created</span>
-                    <span className="text-gray-300 text-sm">{new Date(refund.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex gap-2 pt-2 border-t border-gray-700">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => openDetail(refund._id)}
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      View
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <EmptyState title="No refund requests found" />
-            )}
-          </div>
-
-          {/* Desktop table view */}
-          <div className="hidden sm:block overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-gray-700">
-                  <TableHead className="text-gray-300">ID</TableHead>
-                  <TableHead className="text-gray-300">Type</TableHead>
-                  <TableHead className="text-gray-300">Sold by</TableHead>
-                  <TableHead className="text-gray-300">Amount</TableHead>
-                  <TableHead className="text-gray-300">Status</TableHead>
-                  <TableHead className="text-gray-300">Created</TableHead>
-                  <TableHead className="text-gray-300">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {refunds.length > 0 ? (
-                  refunds.map((refund) => (
-                    <TableRow key={refund._id} className="border-gray-700">
-                      <TableCell className="text-white font-mono text-sm">{refund._id?.slice(-8)}</TableCell>
-                      <TableCell className="text-gray-400">Refund</TableCell>
-                      <TableCell className="text-gray-300">{getSellerName(refund)}</TableCell>
-                      <TableCell className="text-white font-semibold">
-                        <DollarSign className="w-4 h-4 inline mr-1" />
-                        ${refund.refundAmount?.toFixed(2) || refund.productId?.price?.toFixed(2) || '0.00'}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(refund.status)}</TableCell>
-                      <TableCell className="text-gray-400">{new Date(refund.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openDetail(refund._id)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+          {refundsQuery.isError ? (
+            <ErrorState
+              error={refundsQuery.error}
+              title="Couldn't load your refund requests"
+              onRetry={() => refundsQuery.refetch()}
+            />
+          ) : (
+            <>
+              <div className="hidden md:block">
+                <Table variant="hud">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Request</TableHead>
+                      <TableHead>Sold by</TableHead>
+                      <TableHead numeric>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Opened</TableHead>
+                      <TableHead numeric>Actions</TableHead>
                     </TableRow>
-                  ))
+                  </TableHeader>
+                  <TableBody>
+                    {refundsQuery.isPending ? (
+                      <TableRowsSkeleton rows={5} cols={6} />
+                    ) : refunds.length === 0 ? (
+                      <TableEmptyRow colSpan={6}>{emptyState}</TableEmptyRow>
+                    ) : (
+                      refunds.map((refund) => (
+                        <TableRow key={refund._id}>
+                          <TableCell className="font-mono text-xs">
+                            #{refund._id?.slice(-8)}
+                          </TableCell>
+                          <TableCell>{getSellerName(refund)}</TableCell>
+                          <TableCell numeric className="font-semibold">
+                            {format(amountOf(refund))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge {...refundBadgeProps(refund.status)} />
+                          </TableCell>
+                          <TableCell
+                            className="text-fg-muted"
+                            title={formatExactTitle(refund.createdAt)}
+                          >
+                            {formatRelativeDate(refund.createdAt)}
+                          </TableCell>
+                          <TableCell numeric>
+                            <Button asChild size="sm" variant="outline">
+                              <Link to={`/user/return-refunds/${refund._id}`}>
+                                <Eye aria-hidden="true" />
+                                View
+                              </Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="md:hidden">
+                {refundsQuery.isPending ? (
+                  <CardListSkeleton rows={4} />
+                ) : refunds.length === 0 ? (
+                  emptyState
                 ) : (
-                  <TableEmptyRow colSpan={7}>No refund requests found</TableEmptyRow>
+                  <ul className="space-y-3">
+                    {refunds.map((refund) => (
+                      <li
+                        key={refund._id}
+                        className="rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs text-fg-muted">
+                            #{refund._id?.slice(-8)}
+                          </span>
+                          <Badge {...refundBadgeProps(refund.status)} />
+                        </div>
+                        <p className="mt-2 text-sm font-semibold tabular-nums text-fg">
+                          {format(amountOf(refund))}
+                        </p>
+                        <p className="mt-1 text-xs text-fg-subtle">
+                          {getSellerName(refund)} · opened {formatRelativeDate(refund.createdAt)}
+                        </p>
+                        <Button asChild size="sm" variant="outline" className="mt-3 w-full">
+                          <Link to={`/user/return-refunds/${refund._id}`}>
+                            <Eye aria-hidden="true" />
+                            View request
+                          </Link>
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      <RefundRequestModal
-        open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
-      />
+      <RefundRequestModal open={isCreateOpen} onOpenChange={setIsCreateOpen} />
     </div>
   );
 };

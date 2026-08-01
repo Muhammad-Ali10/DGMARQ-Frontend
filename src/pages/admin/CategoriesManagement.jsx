@@ -219,7 +219,7 @@ const CategoriesManagement = () => {
         <div>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-accent/20 rounded-lg">
-              <FolderTree className="w-6 h-6 text-accent" />
+              <FolderTree className="w-6 h-6 text-accent-on-dark" />
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Categories Management</h1>
@@ -234,7 +234,7 @@ const CategoriesManagement = () => {
               Create Category
             </Button>
           </DialogTrigger>
-          <DialogContent size="sm" className="bg-primary border-gray-700">
+          <DialogContent size="sm" className="">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">Create New Category</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -322,11 +322,11 @@ const CategoriesManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700 shadow-xl">
-        <CardHeader className="border-b border-gray-700">
+      <Card variant="hud">
+        <CardHeader className="border-b ">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle className="text-white text-xl font-semibold">All Categories</CardTitle>
+              <CardTitle>All Categories</CardTitle>
               <p className="text-sm text-gray-400 mt-1">
                 {pagination.totalDocs > 0 ? (
                   <>
@@ -395,7 +395,7 @@ const CategoriesManagement = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
                   <TableHead className="text-gray-300 font-semibold">Image</TableHead>
@@ -559,7 +559,7 @@ const CategoriesManagement = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Edit Category</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -630,7 +630,7 @@ const CategoriesManagement = () => {
 
       {/* Image Update Dialog */}
       <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Update Category Image</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -688,7 +688,7 @@ const CategoriesManagement = () => {
 
       {/* Status Update Dialog */}
       <Dialog open={isStatusOpen} onOpenChange={setIsStatusOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Update Category Status</DialogTitle>
             <DialogDescription className="text-gray-400">

@@ -59,7 +59,7 @@ const Security = () => {
               <ol className="space-y-2 text-sm text-gray-400">
                 {escrow.howItWorks.map((step, i) => (
                   <li key={i} className="flex gap-3">
-                    <span className="shrink-0 w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">{i + 1}</span>
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">{i + 1}</span>
                     {step}
                   </li>
                 ))}
@@ -70,11 +70,11 @@ const Security = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {escrow.benefits.map((benefit, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">✓</span> {benefit}
+                    <span className="text-accent-on-dark">✓</span> {benefit}
                   </li>
                 ))}
               </ul>
-              <p className="mt-4 text-xs text-accent/90 italic">{escrow.microcopy}</p>
+              <p className="mt-4 text-xs text-accent-on-dark/90 italic">{escrow.microcopy}</p>
             </GlowCard>
           </div>
         </div>
@@ -135,7 +135,7 @@ const Security = () => {
               </GlowCard>
             ))}
           </div>
-          <p className="text-center text-accent/90 italic">{paymentInfrastructure.microcopy}</p>
+          <p className="text-center text-accent-on-dark/90 italic">{paymentInfrastructure.microcopy}</p>
         </div>
       </SectionWrapper>
 
@@ -152,7 +152,7 @@ const Security = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {disputeResolution.process.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">{i + 1}</span>
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">{i + 1}</span>
                   {step}
                 </li>
               ))}

@@ -45,8 +45,8 @@ const LazyChatImage = ({ src, alt = 'Attachment', onOpen, className = '' }) => {
     >
       {/* Blur / skeleton placeholder */}
       {!loaded && (
-        <span className="absolute inset-0 flex items-center justify-center animate-pulse bg-gray-700/40">
-          <ImageIcon className="h-6 w-6 text-gray-400" />
+        <span className="absolute inset-0 flex items-center justify-center animate-pulse bg-surface-2/40">
+          <ImageIcon className="h-6 w-6 text-fg-muted" />
         </span>
       )}
       {inView && (

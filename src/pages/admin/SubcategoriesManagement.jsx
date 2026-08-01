@@ -207,7 +207,7 @@ const SubcategoriesManagement = () => {
         <div>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-accent/20 rounded-lg">
-              <Layers className="w-6 h-6 text-accent" />
+              <Layers className="w-6 h-6 text-accent-on-dark" />
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white">Subcategories Management</h1>
@@ -222,7 +222,7 @@ const SubcategoriesManagement = () => {
               Create Subcategory
             </Button>
           </DialogTrigger>
-          <DialogContent size="sm" className="bg-primary border-gray-700">
+          <DialogContent size="sm" className="">
             <DialogHeader>
               <DialogTitle className="text-white text-xl font-semibold">Create New Subcategory</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -310,11 +310,11 @@ const SubcategoriesManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700 shadow-xl">
-        <CardHeader className="border-b border-gray-700">
+      <Card variant="hud">
+        <CardHeader className="border-b ">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle className="text-white text-xl font-semibold">All Subcategories</CardTitle>
+              <CardTitle>All Subcategories</CardTitle>
               <p className="text-sm text-gray-400 mt-1">
                 {pagination.totalDocs > 0 ? (
                   <>
@@ -399,7 +399,7 @@ const SubcategoriesManagement = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
                   <TableHead className="text-gray-300 font-semibold">Name</TableHead>
@@ -543,7 +543,7 @@ const SubcategoriesManagement = () => {
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Edit Subcategory</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -631,7 +631,7 @@ const SubcategoriesManagement = () => {
 
       {/* Status Update Dialog */}
       <Dialog open={isStatusOpen} onOpenChange={setIsStatusOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Update Subcategory Status</DialogTitle>
             <DialogDescription className="text-gray-400">

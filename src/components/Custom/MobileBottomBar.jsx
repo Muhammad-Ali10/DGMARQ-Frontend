@@ -215,7 +215,7 @@ const MobileBottomBar = () => {
       : "U";
 
     return (
-      <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-sm font-semibold border-2 border-accent/50">
+      <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-fg text-sm font-semibold border-2 border-accent/50">
         {initials}
       </div>
     );
@@ -297,9 +297,9 @@ const MobileBottomBar = () => {
       {/* Search Popup */}
       {searchOpen && (
         <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm md:hidden flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#041536] border-2 border-gray-600 rounded-lg shadow-2xl p-4 min-h-[400px] max-h-[85vh] flex flex-col">
+          <div className="w-full max-w-md bg-[#041536] border-2 border-border-interactive rounded-lg shadow-2xl p-4 min-h-[400px] max-h-[85vh] flex flex-col">
             <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-white font-semibold flex-1">
+              <h3 className="text-fg font-semibold flex-1">
                 Search Products
               </h3>
               <Button
@@ -310,7 +310,7 @@ const MobileBottomBar = () => {
                   setSearchQuery("");
                   setShowSearchSuggestions(false);
                 }}
-                className="text-white hover:bg-gray-800"
+                className="text-fg hover:bg-gray-800"
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -321,13 +321,13 @@ const MobileBottomBar = () => {
               className="flex-1 flex flex-col min-h-0"
             >
               <div className="relative flex-1 flex flex-col min-h-0">
-                <div className="flex items-center bg-gray-900/50 border border-accent rounded-lg overflow-hidden mb-3">
+                <div className="flex items-center bg-surface-sunken/50 border border-accent rounded-lg overflow-hidden mb-3">
                   <Input
                     type="text"
                     placeholder="What are you looking for?"
                     value={searchQuery}
                     onChange={handleSearchChange}
-                    className="border-0 bg-transparent text-white placeholder:text-gray-400 focus-visible:ring-0 flex-1 h-12 text-base"
+                    className="border-0 bg-transparent text-fg placeholder:text-gray-400 focus-visible:ring-0 flex-1 h-12 text-base"
                   />
                   <Button
                     type="submit"
@@ -339,9 +339,9 @@ const MobileBottomBar = () => {
 
                 {/* Search Suggestions */}
                 {shouldShowSuggestions && (
-                  <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl overflow-y-auto z-50 min-h-[300px]">
+                  <div className="flex-1 bg-surface-sunken border border-border rounded-lg shadow-xl overflow-y-auto z-50 min-h-[300px]">
                     {searchLoading ? (
-                      <div className="p-4 text-center text-gray-400">
+                      <div className="p-4 text-center text-fg-muted">
                         Searching...
                       </div>
                     ) : searchSuggestions && searchSuggestions.length > 0 ? (
@@ -367,11 +367,11 @@ const MobileBottomBar = () => {
                                 />
                               )}
                               <div className="flex-1 min-w-0">
-                                <div className="text-white font-medium truncate">
+                                <div className="text-fg font-medium truncate">
                                   {product.name}
                                 </div>
                                 {discountPrice && (
-                                  <div className="text-accent text-sm">
+                                  <div className="text-accent-on-dark text-sm">
                                     ${discountPrice.toFixed(2)}
                                   </div>
                                 )}
@@ -390,8 +390,8 @@ const MobileBottomBar = () => {
                                     <span
                                       className={`text-[11px] px-2 py-0.5 rounded ${
                                         product.stock > 0
-                                          ? "bg-green-900/30 text-green-400"
-                                          : "bg-red-900/30 text-red-400"
+                                          ? "bg-green-900/30 text-success"
+                                          : "bg-red-900/30 text-danger"
                                       }`}
                                     >
                                       {product.stock > 0
@@ -404,7 +404,7 @@ const MobileBottomBar = () => {
                         })}
                       </div>
                     ) : debouncedSearchQuery.trim() ? (
-                      <div className="p-4 text-center text-gray-400">
+                      <div className="p-4 text-center text-fg-muted">
                         No products found
                       </div>
                     ) : null}
@@ -421,17 +421,17 @@ const MobileBottomBar = () => {
         <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm md:hidden flex items-center justify-center p-4">
           <div
             ref={accountMenuRef}
-            className="w-full max-w-sm bg-[#041536] border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto"
+            className="w-full max-w-sm bg-[#041536] border border-border rounded-lg shadow-xl z-50 overflow-hidden max-h-[80vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between p-3 border-b border-gray-700">
-              <h3 className="text-white font-semibold">
+            <div className="flex items-center justify-between p-3 border-b border-border">
+              <h3 className="text-fg font-semibold">
                 {isAuthenticated ? "Account" : "Register"}
               </h3>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setAccountMenuOpen(false)}
-                className="text-white hover:bg-gray-800 h-8 w-8"
+                className="text-fg hover:bg-gray-800 h-8 w-8"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -442,7 +442,7 @@ const MobileBottomBar = () => {
                   {/* Google Login */}
                   <button
                     onClick={handleGoogleLogin}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                   >
                     <div className="w-5 h-5 flex items-center justify-center">
                       <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -467,7 +467,7 @@ const MobileBottomBar = () => {
                     <span className="font-medium">Continue with Google</span>
                   </button>
 
-                  <div className="border-t border-gray-700 my-1"></div>
+                  <div className="border-t border-border my-1"></div>
 
                   {/* Login Button */}
                   <button
@@ -475,7 +475,7 @@ const MobileBottomBar = () => {
                       setAccountMenuOpen(false);
                       navigate("/login");
                     }}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                   >
                     <LogIn className="w-5 h-5" />
                     <span>Login</span>
@@ -487,7 +487,7 @@ const MobileBottomBar = () => {
                       setAccountMenuOpen(false);
                       navigate("/register");
                     }}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                   >
                     <UserPlus className="w-5 h-5" />
                     <span>Register</span>
@@ -499,7 +499,7 @@ const MobileBottomBar = () => {
                       setAccountMenuOpen(false);
                       navigate("/about");
                     }}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-gray-400 hover:text-white"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg-muted hover:text-white"
                   >
                     <Info className="w-5 h-5" />
                     <span>About / Info</span>
@@ -508,14 +508,14 @@ const MobileBottomBar = () => {
               ) : (
                 <>
                   {/* User Info Header */}
-                  <div className="px-4 py-3 border-b border-gray-700">
+                  <div className="px-4 py-3 border-b border-border">
                     <div className="flex items-center gap-3">
                       {getUserDisplay()}
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium truncate">
+                        <p className="text-fg font-medium truncate">
                           {user?.name || "User"}
                         </p>
-                        <p className="text-gray-400 text-sm truncate">
+                        <p className="text-fg-muted text-sm truncate">
                           {user?.email || ""}
                         </p>
                       </div>
@@ -528,7 +528,7 @@ const MobileBottomBar = () => {
                       setAccountMenuOpen(false);
                       navigate(getDashboardRoute());
                     }}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                    className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                   >
                     <LayoutDashboard className="w-5 h-5" />
                     <span>Dashboard</span>
@@ -544,7 +544,7 @@ const MobileBottomBar = () => {
                           setAccountMenuOpen(false);
                           navigate("/user/orders");
                         }}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                        className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                       >
                         <ShoppingBag className="w-5 h-5" />
                         <span>Orders</span>
@@ -556,7 +556,7 @@ const MobileBottomBar = () => {
                           setAccountMenuOpen(false);
                           navigate("/user/license-keys");
                         }}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-white"
+                        className="w-full px-4 py-3 text-left hover:bg-gray-800/50 transition-colors flex items-center gap-3 text-fg"
                       >
                         <Key className="w-5 h-5" />
                         <span>License Keys</span>
@@ -564,13 +564,13 @@ const MobileBottomBar = () => {
                     </>
                   )}
 
-                  <div className="border-t border-gray-700 my-1"></div>
+                  <div className="border-t border-border my-1"></div>
 
                   {/* Logout Button */}
                   <button
                     onClick={handleLogout}
                     disabled={logoutMutation.isPending}
-                    className="w-full px-4 py-3 text-left hover:bg-red-500/10 transition-colors flex items-center gap-3 text-red-400 hover:text-red-300 disabled:opacity-50"
+                    className="w-full px-4 py-3 text-left hover:bg-red-500/10 transition-colors flex items-center gap-3 text-danger hover:text-red-300 disabled:opacity-50"
                   >
                     <LogOut className="w-5 h-5" />
                     <span>
@@ -586,20 +586,20 @@ const MobileBottomBar = () => {
 
       {/* Bottom Navigation Bar */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-[100] bg-[#041536] border-t-2 border-gray-600 shadow-2xl md:hidden"
+        className="fixed bottom-0 left-0 right-0 z-[100] bg-[#041536] border-t-2 border-border-interactive shadow-2xl md:hidden"
     
         aria-label="Mobile navigation"
       >
         {/* Section 1 */}
-        <div className="grid grid-cols-4 border-b border-gray-600">
+        <div className="grid grid-cols-4 border-b border-border-interactive">
           <button
             type="button"
             onClick={handleSearchClick}
             className={cn(
               "flex flex-col items-center justify-center gap-1 transition-colors py-2",
               searchOpen || isActive("/search")
-                ? "text-accent"
-                : "text-gray-300 hover:text-white",
+                ? "text-accent-on-dark"
+                : "text-fg-muted hover:text-white",
             )}
             aria-label="Search"
           >
@@ -611,16 +611,16 @@ const MobileBottomBar = () => {
             type="button"
             onClick={handleWishlist}
             className={cn(
-              "relative flex flex-col items-center justify-center gap-1 border-l border-gray-600 transition-colors py-2",
+              "relative flex flex-col items-center justify-center gap-1 border-l border-border-interactive transition-colors py-2",
               isActive("/wishlist")
-                ? "text-accent"
-                : "text-gray-300 hover:text-white",
+                ? "text-accent-on-dark"
+                : "text-fg-muted hover:text-white",
             )}
             aria-label="Wishlist"
           >
             <Heart className="h-5 w-5" strokeWidth={2} />
             {wishlistCount > 0 && (
-              <span className="absolute top-1 right-4 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+              <span className="absolute top-1 right-4 bg-accent text-fg text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
                 {wishlistCount > 9 ? "9+" : wishlistCount}
               </span>
             )}
@@ -631,16 +631,16 @@ const MobileBottomBar = () => {
             type="button"
             onClick={handleCart}
             className={cn(
-              "relative flex flex-col items-center justify-center border-l border-gray-600 gap-1 transition-colors py-2",
+              "relative flex flex-col items-center justify-center border-l border-border-interactive gap-1 transition-colors py-2",
               isActive("/cart")
-                ? "text-accent"
-                : "text-gray-300 hover:text-white",
+                ? "text-accent-on-dark"
+                : "text-fg-muted hover:text-white",
             )}
             aria-label="Cart"
           >
             <ShoppingCart className="h-5 w-5" strokeWidth={2} />
             {cartCount > 0 && (
-              <span className="absolute top-1 right-4 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+              <span className="absolute top-1 right-4 bg-accent text-fg text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
                 {cartCount > 9 ? "9+" : cartCount}
               </span>
             )}
@@ -652,10 +652,10 @@ const MobileBottomBar = () => {
             ref={accountButtonRef}
             onClick={handleAccountClick}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 border-l border-gray-600 transition-colors py-2",
+              "flex flex-col items-center justify-center gap-1 border-l border-border-interactive transition-colors py-2",
               accountMenuOpen || isActive("/account")
-                ? "text-accent"
-                : "text-gray-300 hover:text-white",
+                ? "text-accent-on-dark"
+                : "text-fg-muted hover:text-white",
             )}
             aria-label={isAuthenticated ? "Account" : "Register"}
           >

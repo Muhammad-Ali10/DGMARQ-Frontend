@@ -14,7 +14,7 @@ const PILL_BASE =
 const PILL_TONE = {
   // Buyer's own country — the ticked one.
   buyer: 'border border-[rgba(46,207,176,0.4)] bg-[rgba(46,207,176,0.15)] text-[#2ecfb0]',
-  other: 'border border-white/[0.12] bg-white/[0.06] text-white/[0.62]',
+  other: 'border border-white/[0.12] bg-white/[0.06] text-fg/[0.62]',
   more: 'border border-[rgba(14,159,226,0.3)] bg-[rgba(14,159,226,0.15)] text-[#0e9fe2]',
   global: 'border border-[rgba(46,207,176,0.4)] bg-[rgba(46,207,176,0.15)] text-[#2ecfb0]',
 };
@@ -31,7 +31,7 @@ export const ActivationLine = ({ offer, country }) => {
   if (verdict === null) return null;
 
   return (
-    <span className="flex items-center gap-[5px] text-[11.5px] text-white/60">
+    <span className="flex items-center gap-[5px] text-[11.5px] text-fg/60">
       {verdict ? (
         <>
           <Check className="h-3.5 w-3.5 shrink-0 text-[#22c55e]" strokeWidth={2.5} />

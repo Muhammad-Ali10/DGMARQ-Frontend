@@ -1,282 +1,422 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
-import { sellerAPI } from '@services/api';
+import { Link } from 'react-router-dom';
+import { sellerAPI, offerAPI, returnRefundAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
-import { StatCard, StatCardGrid } from '@components/common/StatCard';
-import { Badge } from '@components/ui/badge';
 import { Button } from '@components/ui/button';
-import { Loading, ErrorMessage } from '@components/ui/loading';
-import { DollarSign, Package, ShoppingCart, TrendingUp, User, RefreshCw, AlertCircle } from 'lucide-react';
+import { Skeleton } from '@components/ui/skeleton';
+import { StatCard, StatCardGrid } from '@components/common/StatCard';
+import { SpecList, SpecRow } from '@components/common/SpecList';
+import { StatCardGridSkeleton } from '@components/common/Skeletons';
+import { StatusBadge } from '@components/common/StatusBadge';
+import { EmptyState } from '@components/common/EmptyState';
+import { ErrorState } from '@components/common/ErrorState';
+import { formatUSD } from '@lib/money';
+import {
+  DollarSign,
+  ShoppingCart,
+  ScaleIcon,
+  Wallet,
+  User,
+  Package,
+  Clock,
+  XCircle,
+  EyeOff,
+  PackageX,
+  MessageSquareWarning,
+  CreditCard,
+  CheckCircle2,
+  ChevronRight,
+} from 'lucide-react';
 
+/** Offers below this are worth flagging before they sell out. */
+const LOW_STOCK_THRESHOLD = 3;
+/** One request covers the queue; anything beyond this is disclosed, not hidden. */
+const OFFER_SCAN_LIMIT = 100;
+
+/**
+ * Seller dashboard — "what am I earning, and what needs me right now?".
+ *
+ * The action queue is the hero, not the KPI row. A number tells a seller how
+ * they did; the queue tells them what to do, which is the reason they opened
+ * the page.
+ *
+ * KPI discipline — four tiles, down from nine, and they are the four the brief
+ * names: Revenue, Keys Sold, Available Balance, Dispute Rate. Removed:
+ *  - "Total Products", which resolved to `Product.countDocuments({ sellerId })`.
+ *    Since the master-catalog rearchitecture sellers own OFFERS, not Products,
+ *    so this read 0 for every seller onboarded after that change. Deleted
+ *    rather than relabelled.
+ *  - Total Revenue and Net Earnings appeared BOTH as tiles and again in the
+ *    "Sales Performance" card directly below. The card is gone; the earnings
+ *    breakdown below now carries only figures the tiles do not.
+ *
+ * No trend deltas and no sparklines: nothing returns a prior-period figure or a
+ * time series, so any trend here would be invented.
+ *
+ * Query cost: the queue adds three requests. Offers are fetched ONCE (not one
+ * request per alert type) and the counts are derived from that single payload.
+ */
 const SellerDashboard = () => {
-  const { data: sellerInfo, isLoading: infoLoading, isError: infoError } = useQuery({
+  const sellerQuery = useQuery({
     queryKey: ['seller-info'],
-    queryFn: () => sellerAPI.getSellerInfo().then(res => res.data.data),
+    queryFn: () => sellerAPI.getSellerInfo().then((res) => res.data.data),
     refetchOnWindowFocus: true,
   });
 
-  const { data: balance, isLoading: balanceLoading, isError: balanceError } = useQuery({
+  const balanceQuery = useQuery({
     queryKey: ['seller-balance'],
-    queryFn: () => sellerAPI.getPayoutBalance().then(res => res.data.data),
+    queryFn: () => sellerAPI.getPayoutBalance().then((res) => res.data.data),
     refetchOnWindowFocus: true,
-    refetchInterval: 30000,
+    refetchInterval: 30_000,
   });
 
-  const { data: performanceMetrics, isLoading: metricsLoading, isError: metricsError } = useQuery({
+  const metricsQuery = useQuery({
     queryKey: ['seller-performance-metrics'],
-    queryFn: () => sellerAPI.getPerformanceMetrics().then(res => res.data.data),
+    queryFn: () => sellerAPI.getPerformanceMetrics().then((res) => res.data.data),
     refetchOnWindowFocus: true,
   });
 
-  // Phase 2: hold-period copy is driven by the live admin setting.
-  const { data: payoutSettings } = useQuery({
+  const settingsQuery = useQuery({
     queryKey: ['public-payout-settings'],
-    queryFn: () => sellerAPI.getPublicPayoutSettings().then(res => res.data.data),
+    queryFn: () => sellerAPI.getPublicPayoutSettings().then((res) => res.data.data),
     staleTime: 5 * 60 * 1000,
   });
-  const holdDays = typeof payoutSettings?.payoutHoldDays === 'number'
-    ? payoutSettings.payoutHoldDays
-    : 15;
 
-  const statsCards = useMemo(() => ([
-    {
-      title: 'Available Balance',
-      value: `$${balance?.available?.toFixed(2) || '0.00'}`,
-      icon: DollarSign,
-      color: 'text-green-500',
-      description: 'Ready to withdraw',
+  // ── Action queue sources ────────────────────────────────────────────────
+  const offersQuery = useQuery({
+    queryKey: ['seller-offers-overview'],
+    queryFn: () => offerAPI.getMyOffers({ limit: OFFER_SCAN_LIMIT }).then((r) => r.data.data),
+    staleTime: 60_000,
+  });
+
+  // Only SELLER_REVIEW actually waits on the seller. limit:1 because we want
+  // pagination.total, not the rows.
+  const disputesQuery = useQuery({
+    queryKey: ['seller-disputes-awaiting'],
+    queryFn: () =>
+      returnRefundAPI
+        .getSellerRefundList({ status: 'SELLER_REVIEW', limit: 1 })
+        .then((r) => r.data.data),
+    staleTime: 60_000,
+  });
+
+  const payoutAccountQuery = useQuery({
+    queryKey: ['seller-payout-account'],
+    queryFn: () => sellerAPI.getMyPayoutAccount().then((r) => r.data.data),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const holdDays =
+    typeof settingsQuery.data?.payoutHoldDays === 'number' ? settingsQuery.data.payoutHoldDays : 15;
+
+  const balance = balanceQuery.data;
+  const metrics = metricsQuery.data;
+  const offers = offersQuery.data?.offers ?? [];
+  const offersTotal = offersQuery.data?.pagination?.total ?? offers.length;
+
+  const counts = {
+    pending: offers.filter((o) => o.status === 'pending').length,
+    rejected: offers.filter((o) => o.status === 'rejected').length,
+    delisted: offers.filter((o) => o.status === 'delisted').length,
+    outOfStock: offers.filter(
+      (o) => ['approved', 'active'].includes(o.status) && (o.availableKeysCount ?? 0) === 0
+    ).length,
+    lowStock: offers.filter(
+      (o) =>
+        ['approved', 'active'].includes(o.status) &&
+        (o.availableKeysCount ?? 0) > 0 &&
+        (o.availableKeysCount ?? 0) <= LOW_STOCK_THRESHOLD
+    ).length,
+  };
+  const disputesAwaiting = disputesQuery.data?.pagination?.total ?? 0;
+  const accounts = Array.isArray(payoutAccountQuery.data)
+    ? payoutAccountQuery.data
+    : payoutAccountQuery.data?.accounts ?? [];
+  const hasVerifiedPayout = accounts.some((a) => a?.status === 'verified');
+
+  const actions = [
+    disputesAwaiting > 0 && {
+      key: 'disputes',
+      icon: MessageSquareWarning,
+      tone: 'danger',
+      title: `${disputesAwaiting} dispute${disputesAwaiting === 1 ? '' : 's'} waiting on you`,
+      body: 'A buyer has opened a refund request. Respond before it escalates to admin review.',
+      to: '/seller/return-refunds',
+      cta: 'Review disputes',
     },
-    {
-      title: 'Pending Balance',
-      value: `$${balance?.pending?.amount?.toFixed(2) || '0.00'}`,
-      icon: TrendingUp,
-      color: 'text-yellow-500',
-      description: `On hold (${holdDays} days)`,
+    counts.outOfStock > 0 && {
+      key: 'oos',
+      icon: PackageX,
+      tone: 'danger',
+      title: `${counts.outOfStock} live listing${counts.outOfStock === 1 ? '' : 's'} out of stock`,
+      body: 'These are visible but unbuyable, and are auto-delisted after 14 days without stock.',
+      to: '/seller/license-keys',
+      cta: 'Add inventory',
     },
-    {
-      title: 'Total Revenue',
-      value: `$${(performanceMetrics?.sales?.totalRevenue || 0).toFixed(2)}`,
-      icon: DollarSign,
-      color: 'text-blue-500',
-      description: 'All-time revenue',
+    counts.rejected > 0 && {
+      key: 'rejected',
+      icon: XCircle,
+      tone: 'danger',
+      title: `${counts.rejected} offer${counts.rejected === 1 ? '' : 's'} rejected`,
+      body: 'Check the rejection reason, fix the listing and resubmit.',
+      to: '/seller/offers',
+      cta: 'View offers',
     },
-    {
-      title: 'Net Earnings',
-      value: `$${(performanceMetrics?.sales?.netEarnings || 0).toFixed(2)}`,
-      icon: TrendingUp,
-      color: 'text-purple-500',
-      description: 'After commission',
-    },
-    {
-      title: 'Total Sales',
-      value: performanceMetrics?.sales?.totalSales || 0,
-      icon: ShoppingCart,
-      color: 'text-indigo-500',
-      description: 'Units sold',
-    },
-    {
-      title: 'Total Products',
-      value: performanceMetrics?.products?.total || sellerInfo?.stats?.totalProducts || 0,
+    counts.lowStock > 0 && {
+      key: 'low',
       icon: Package,
-      color: 'text-cyan-500',
-      description: `${performanceMetrics?.products?.active || 0} active`,
+      tone: 'warning',
+      title: `${counts.lowStock} listing${counts.lowStock === 1 ? '' : 's'} low on stock`,
+      body: `${LOW_STOCK_THRESHOLD} keys or fewer remaining. Restock before you sell out.`,
+      to: '/seller/license-keys',
+      cta: 'Add inventory',
     },
-    {
-      title: 'Total Orders',
-      value: sellerInfo?.stats?.totalOrders || 0,
-      icon: ShoppingCart,
-      color: 'text-pink-500',
-      description: 'All paid orders',
+    counts.delisted > 0 && {
+      key: 'delisted',
+      icon: EyeOff,
+      tone: 'warning',
+      title: `${counts.delisted} listing${counts.delisted === 1 ? '' : 's'} delisted`,
+      body: 'Delisted offers earn nothing. Restocking an out-of-stock offer brings it back automatically.',
+      to: '/seller/offers',
+      cta: 'View offers',
     },
-    {
-      title: 'Average Rating',
-      value: performanceMetrics?.reviews?.averageRating 
-        ? performanceMetrics.reviews.averageRating.toFixed(1)
-        : 'N/A',
-      icon: TrendingUp,
-      color: 'text-orange-500',
-      description: `${performanceMetrics?.reviews?.totalReviews || 0} reviews`,
+    !hasVerifiedPayout &&
+      !payoutAccountQuery.isPending && {
+        key: 'payout',
+        icon: CreditCard,
+        tone: 'warning',
+        title: 'No verified payout method',
+        body: 'You can sell, but you cannot withdraw until a payout method is connected and verified.',
+        to: '/seller/payout-account',
+        cta: 'Connect payout',
+      },
+    counts.pending > 0 && {
+      key: 'pending',
+      icon: Clock,
+      tone: 'info',
+      title: `${counts.pending} offer${counts.pending === 1 ? '' : 's'} awaiting approval`,
+      body: 'Nothing to do — an admin is reviewing these. They go live once approved.',
+      to: '/seller/offers',
+      cta: 'View offers',
     },
-    {
-      title: 'Paid Out',
-      value: `$${(balance?.released?.amount || 0).toFixed(2)}`,
-      icon: RefreshCw,
-      color: 'text-green-400',
-      description: 'Sent to PayPal',
-    },
-  ]), [balance, performanceMetrics, sellerInfo, holdDays]);
-  const isLoading = infoLoading || balanceLoading || metricsLoading;
-  const isError = infoError || balanceError || metricsError;
+  ].filter(Boolean);
 
-  if (isLoading) return <Loading message="Loading seller dashboard..." />;
-  if (isError) return <ErrorMessage message="Error loading seller dashboard" />;
+  const queueLoading = offersQuery.isPending || disputesQuery.isPending;
+  const queueError = offersQuery.isError || disputesQuery.isError;
 
   return (
-    <div className="space-y-6 px-4 sm:px-0">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Seller Dashboard</h1>
-          <p className="text-sm sm:text-base text-gray-400 mt-1">Welcome back, {sellerInfo?.shopName || 'Seller'}</p>
+    <div className="space-y-8">
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold text-fg">
+              {sellerQuery.data?.shopName || 'Your shop'}
+            </h1>
+            {sellerQuery.data?.status && (
+              <StatusBadge domain="sellerAccount" status={sellerQuery.data.status} />
+            )}
+          </div>
+          <p className="mt-1 text-sm text-fg-muted">
+            {offersTotal} listing{offersTotal === 1 ? '' : 's'} on the catalog
+          </p>
         </div>
-        
-        {/* Switch to Customer Dashboard Button - Always show (sellers can shop as customers) */}
-        <div className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button
             variant="outline"
             onClick={() => {
-              // Set flag to allow access to customer dashboard
               sessionStorage.setItem('allowCustomerAccess', 'true');
-              // Use window.location to force full navigation
               window.location.href = '/user/dashboard';
             }}
-            className="w-full sm:w-auto border-2 border-accent text-white hover:bg-accent/20 hover:border-accent/90 bg-transparent dark:bg-transparent dark:border-accent dark:text-white whitespace-nowrap font-medium shadow-sm"
           >
-            <User className="h-4 w-4 mr-2" />
-            Switch to Customer Dashboard
+            <User aria-hidden="true" />
+            Buyer view
+          </Button>
+          <Button asChild>
+            <Link to="/seller/catalog">
+              <Package aria-hidden="true" />
+              List a product
+            </Link>
           </Button>
         </div>
-      </div>
+      </header>
 
-      <StatCardGrid>
-        {statsCards.map((stat) => (
-          <StatCard
-            key={stat.title}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.icon}
-            color={stat.color}
-            description={stat.description}
-          />
-        ))}
-      </StatCardGrid>
-
-      {/* Performance Metrics Section */}
-      {performanceMetrics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="bg-primary border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Sales Performance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Total Revenue</span>
-                  <span className="text-white font-semibold">
-                    ${(performanceMetrics.sales?.totalRevenue || 0).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Net Earnings</span>
-                  <span className="text-green-400 font-semibold">
-                    ${(performanceMetrics.sales?.netEarnings || 0).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Total Commission</span>
-                  <span className="text-yellow-400 font-semibold">
-                    ${(performanceMetrics.sales?.totalCommission || 0).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Total Sales</span>
-                  <span className="text-white font-semibold">
-                    {performanceMetrics.sales?.totalSales || 0} units
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-primary border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Product Statistics
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Total Products</span>
-                  <span className="text-white font-semibold">
-                    {performanceMetrics.products?.total || 0}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Active Products</span>
-                  <span className="text-green-400 font-semibold">
-                    {performanceMetrics.products?.active || 0}
-                  </span>
-                </div>
-                {performanceMetrics.reviews && (
-                  <>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300">Total Reviews</span>
-                      <span className="text-white font-semibold">
-                        {performanceMetrics.reviews.totalReviews || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300">Average Rating</span>
-                      <span className="text-yellow-400 font-semibold">
-                        {performanceMetrics.reviews.averageRating 
-                          ? performanceMetrics.reviews.averageRating.toFixed(1)
-                          : 'N/A'}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Hold Period Information */}
-      {balance?.pending?.amount > 0 && balance?.pending?.daysUntilAvailable > 0 && (
-        <Card className="bg-primary border-gray-700 border-l-4 border-l-yellow-500">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="shrink-0">
-                <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-yellow-500" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-1">Earnings on Hold</h3>
-                <p className="text-gray-300 text-sm">
-                  You have <span className="font-semibold text-yellow-400">${balance.pending.amount.toFixed(2)}</span> on hold. 
-                  Your payout will be available <span className="font-semibold">{balance.pending.daysUntilAvailable} day{balance.pending.daysUntilAvailable > 1 ? 's' : ''}</span> after order completion ({holdDays}-day hold period).
-                  {balance.pending.earliestReleaseDate && (
-                    <span className="block mt-1 text-xs text-gray-400">
-                      Earliest release date: {new Date(balance.pending.earliestReleaseDate).toLocaleDateString()}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {sellerInfo && (
-        <Card className="bg-primary border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-white">Shop Status</CardTitle>
-          </CardHeader>
+      {/* ── KPI row ──────────────────────────────────────────────────────── */}
+      {metricsQuery.isPending || balanceQuery.isPending ? (
+        <StatCardGridSkeleton count={4} />
+      ) : metricsQuery.isError && balanceQuery.isError ? (
+        <Card variant="hud">
           <CardContent>
-            <div className="flex items-center gap-2">
-              <Badge variant={sellerInfo.status === 'approved' ? 'success' : 'warning'}>
-                {sellerInfo.status}
-              </Badge>
-              <span className="text-gray-300">{sellerInfo.shopName}</span>
-            </div>
+            <ErrorState
+              compact
+              error={metricsQuery.error}
+              title="Couldn't load your figures"
+              onRetry={() => {
+                metricsQuery.refetch();
+                balanceQuery.refetch();
+              }}
+            />
           </CardContent>
         </Card>
+      ) : (
+        <StatCardGrid>
+          <StatCard
+            title="Revenue"
+            value={formatUSD(metrics?.sales?.totalRevenue)}
+            icon={DollarSign}
+            tone="success"
+            description="All time, after refunds"
+          />
+          <StatCard
+            title="Keys sold"
+            value={metrics?.sales?.totalSales ?? 0}
+            icon={ShoppingCart}
+            tone="accent"
+            description="Units delivered"
+            href="/seller/orders"
+          />
+          <StatCard
+            title="Available balance"
+            value={formatUSD(balance?.available)}
+            icon={Wallet}
+            tone="info"
+            description="Ready to withdraw"
+            href="/seller/earnings"
+          />
+          <StatCard
+            title="Dispute rate"
+            value={`${metrics?.disputes?.rate ?? 0}%`}
+            icon={ScaleIcon}
+            tone={(metrics?.disputes?.rate ?? 0) > 5 ? 'danger' : 'neutral'}
+            description={`${metrics?.disputes?.count ?? 0} of ${metrics?.disputes?.orders ?? 0} orders`}
+            href="/seller/return-refunds"
+          />
+        </StatCardGrid>
       )}
+
+      {/* ── Action queue: the reason this page exists ────────────────────── */}
+      <Card variant="hud">
+        <CardHeader>
+          <CardTitle>Needs your attention</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {queueLoading ? (
+            <div className="space-y-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : queueError ? (
+            <ErrorState
+              compact
+              error={offersQuery.error || disputesQuery.error}
+              title="Couldn't build your action list"
+              onRetry={() => {
+                offersQuery.refetch();
+                disputesQuery.refetch();
+              }}
+            />
+          ) : actions.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              tone="success"
+              title="You're all caught up"
+              description="No disputes, no stock problems, nothing waiting on approval. Good place to be."
+            />
+          ) : (
+            <ul className="space-y-3">
+              {actions.map(({ key, icon: Icon, tone, title, body, to, cta }) => (
+                <li key={key}>
+                  <Link
+                    to={to}
+                    className="row-link group flex items-start gap-3 rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <div
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-md ${
+                        tone === 'danger'
+                          ? 'bg-danger-soft text-danger'
+                          : tone === 'warning'
+                            ? 'bg-warning-soft text-warning'
+                            : 'bg-info-soft text-info'
+                      }`}
+                    >
+                      <Icon aria-hidden="true" className="size-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-fg">{title}</p>
+                      <p className="mt-0.5 text-xs text-fg-muted">{body}</p>
+                    </div>
+                    <span className="hidden shrink-0 items-center gap-1 self-center text-xs font-medium text-accent-on-dark sm:flex">
+                      {cta}
+                      <ChevronRight aria-hidden="true" className="size-3.5" />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {offersTotal > OFFER_SCAN_LIMIT && (
+            <p className="mt-4 text-xs text-fg-subtle">
+              Stock checks cover your {OFFER_SCAN_LIMIT} most recent listings of {offersTotal}.{' '}
+              <Link to="/seller/offers" className="text-accent-on-dark underline-offset-4 hover:underline">
+                See all offers
+              </Link>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Earnings breakdown: only figures the tiles do NOT show ───────── */}
+      <Card variant="hud">
+        <CardHeader>
+          <CardTitle>Earnings breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {balanceQuery.isPending || metricsQuery.isPending ? (
+            <div className="space-y-3">
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-5 w-full" />
+              ))}
+            </div>
+          ) : (
+            <SpecList>
+              <SpecRow
+                label="On hold"
+                hint={`Released ${holdDays} days after each order completes`}
+                value={formatUSD(balance?.pending?.amount)}
+                tone="warning"
+              />
+              {balance?.frozen?.amount > 0 && (
+                <SpecRow
+                  label="Frozen"
+                  hint={`${balance.frozen.count} line(s) paused by refund requests`}
+                  value={formatUSD(balance.frozen.amount)}
+                  tone="info"
+                />
+              )}
+              <SpecRow
+                label="Platform commission"
+                hint="Deducted from gross revenue"
+                value={formatUSD(metrics?.sales?.totalCommission)}
+              />
+              <SpecRow
+                label="Net earnings"
+                hint="Your share, all time"
+                value={formatUSD(metrics?.sales?.netEarnings)}
+                tone="success"
+              />
+              <SpecRow label="Paid out" hint="Lifetime, sent to your account" value={formatUSD(balance?.released?.amount)} />
+            </SpecList>
+          )}
+
+          <Button asChild variant="outline" className="mt-4 w-full sm:w-auto">
+            <Link to="/seller/earnings">Go to earnings &amp; payouts</Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

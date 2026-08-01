@@ -45,11 +45,11 @@ const MicrosoftCard = ({ product, width }) => {
         <div className="relative z-10 flex flex-col h-full p-6 sm:p-8 justify-end">
           {/* Product Title Section */}
           <div>
-            <h3 className="text-xl  sm:text-2xl md:text-3xl font-bold text-white leading-tight mb-1.5 sm:mb-2">
+            <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-fg leading-tight mb-1.5 sm:mb-2">
               {mainTitle}
             </h3>
             {subtitle && (
-              <p className="text-sm sm:text-base md:text-lg text-white/95 font-medium">
+              <p className="text-sm sm:text-base md:text-lg text-fg/95 font-medium">
                 {subtitle}
               </p>
             )}
@@ -57,7 +57,7 @@ const MicrosoftCard = ({ product, width }) => {
 
           {/* Bottom Info */}
           <div className="pt-2">
-            <div className="space-y-1 text-xs sm:text-sm text-white/85 font-normal">
+            <div className="space-y-1 text-xs sm:text-sm text-fg/85 font-normal">
               <p>Platform: <span className="font-semibold">{platformName}</span></p>
               <p>Type: <span className="font-semibold">{typeName}</span></p>
               <p>Region: <span className="font-semibold">{regionName}</span></p>

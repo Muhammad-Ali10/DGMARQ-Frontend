@@ -28,15 +28,15 @@ const SectionRow = ({ section }) => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">{section.title}</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-fg mb-2">{section.title}</h2>
             {section.subtitle && (
-              <p className="text-sm sm:text-base text-gray-400">{section.subtitle}</p>
+              <p className="text-sm sm:text-base text-fg-muted">{section.subtitle}</p>
             )}
           </div>
           <Button
             asChild
             variant="outline"
-            className="border-accent text-accent hover:bg-accent/10 shrink-0"
+            className="border-accent text-accent-on-dark hover:bg-accent/10 shrink-0"
           >
             <Link to={searchUrl}>Show More</Link>
           </Button>

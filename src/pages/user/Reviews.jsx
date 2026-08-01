@@ -2,15 +2,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI, reviewAPI } from '@services/api';
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Card, CardContent } from '@components/ui/card';
 import { EmptyState } from '@components/common/EmptyState';
 import { Button } from '@components/ui/button';
-import { Badge } from '@components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
-import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Star, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Skeleton } from '@components/ui/skeleton';
+import { Textarea } from '@components/ui/textarea';
+import { ErrorState } from '@components/common/ErrorState';
+import { Star, Edit, Trash2 } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
 import { Pagination } from '@components/common/Pagination';
 import SafeImage from '@components/ui/safe-image';
@@ -133,8 +134,23 @@ const UserReviews = () => {
     addPhotoMutation.mutate({ reviewId, formData });
   };
 
-  if (isLoading) return <Loading message="Loading reviews..." />;
-  if (isError) return <ErrorMessage message="Failed to load your reviews. Please try again." />;
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <ErrorState
+        title="Couldn't load your reviews"
+        onRetry={() => queryClient.invalidateQueries({ queryKey: ['user-reviews'] })}
+      />
+    );
+  }
 
   const reviews = reviewsData?.reviews || [];
   const pagination = reviewsData?.pagination || {};
@@ -142,12 +158,12 @@ const UserReviews = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">My Reviews</h1>
-        <p className="text-gray-400 mt-1">Manage your product reviews</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-fg">My Reviews</h1>
+        <p className="text-fg-muted mt-1">Manage your product reviews</p>
       </div>
 
       {reviews.length === 0 ? (
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="text-center">
             <EmptyState
               icon={Star}
@@ -159,11 +175,11 @@ const UserReviews = () => {
       ) : (
         <div className="space-y-4">
           {reviews.map((review) => (
-            <Card key={review._id} className="bg-primary border-gray-700">
+            <Card key={review._id} variant="hud">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <h3 className="text-white font-semibold text-lg mb-2">
+                    <h3 className="text-fg font-semibold text-lg mb-2">
                       {review.productId?.name || review.product?.name || 'Product'}
                     </h3>
                     <div className="flex items-center space-x-2 mb-2">
@@ -171,13 +187,13 @@ const UserReviews = () => {
                         <Star
                           key={i}
                           className={`w-5 h-5 ${
-                            i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'
+                            i < review.rating ? 'text-warning fill-warning' : 'text-fg-subtle'
                           }`}
                         />
                       ))}
-                      <span className="text-gray-400 text-sm ml-2">({review.rating}/5)</span>
+                      <span className="text-fg-muted text-sm ml-2">({review.rating}/5)</span>
                     </div>
-                    <p className="text-gray-300 mb-3">{review.comment}</p>
+                    <p className="text-fg-muted mb-3">{review.comment}</p>
                     {review.photos && review.photos.length > 0 && (
                       <div className="flex gap-2 mb-3">
                         {review.photos.map((photo, idx) => (
@@ -190,13 +206,13 @@ const UserReviews = () => {
                         ))}
                       </div>
                     )}
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-fg-subtle">
                       {new Date(review.createdAt).toLocaleDateString()}
                     </p>
                     {review.replies && review.replies.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-700">
-                        <p className="text-sm text-gray-400 mb-2">Seller Reply:</p>
-                        <p className="text-gray-300 text-sm">{review.replies[0].replyText}</p>
+                      <div className="mt-3 pt-3 border-t border-brand-cyan/10">
+                        <p className="text-sm text-fg-muted mb-2">Seller Reply:</p>
+                        <p className="text-fg-muted text-sm">{review.replies[0].replyText}</p>
                       </div>
                     )}
                   </div>
@@ -207,70 +223,76 @@ const UserReviews = () => {
                           size="sm"
                           variant="outline"
                           onClick={() => handleUpdate(review)}
-                          className="border-gray-700 text-gray-300"
+                          className="border-border text-fg-muted"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent size="sm" className="bg-primary border-gray-700">
+                      <DialogContent size="sm" variant="hud">
                         <DialogHeader>
-                          <DialogTitle className="text-white">Edit Review</DialogTitle>
-                          <DialogDescription className="text-gray-400">
+                          <DialogTitle className="text-fg">Edit Review</DialogTitle>
+                          <DialogDescription className="text-fg-muted">
                             Update your review rating and comment
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
                           <div className="space-y-2">
-                            <Label className="text-gray-300">Rating</Label>
-                            <div className="flex gap-2">
+                            <p className="text-sm text-fg-muted" id={`rating-label-${review._id}`}>
+                              Rating
+                            </p>
+                            <div
+                              className="flex gap-1"
+                              role="radiogroup"
+                              aria-labelledby={`rating-label-${review._id}`}
+                            >
                               {[1, 2, 3, 4, 5].map((rating) => (
                                 <button
                                   key={rating}
                                   type="button"
+                                  role="radio"
+                                  aria-checked={editRating === rating}
+                                  aria-label={`${rating} star${rating === 1 ? '' : 's'}`}
                                   onClick={() => setEditRating(rating)}
-                                  className={`p-2 rounded ${
-                                    editRating >= rating
-                                      ? 'text-yellow-400'
-                                      : 'text-gray-600'
+                                  className={`rounded p-2 outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring ${
+                                    editRating >= rating ? 'text-warning' : 'text-fg-subtle'
                                   }`}
                                 >
                                   <Star
-                                    className={`w-6 h-6 ${
-                                      editRating >= rating ? 'fill-yellow-400' : ''
-                                    }`}
+                                    aria-hidden="true"
+                                    className={`size-6 ${editRating >= rating ? 'fill-warning' : ''}`}
                                   />
                                 </button>
                               ))}
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="editComment" className="text-gray-300">Comment</Label>
-                            <textarea
+                            <Label htmlFor="editComment" className="text-fg-muted">Comment</Label>
+                            <Textarea
                               id="editComment"
                               value={editComment}
                               onChange={(e) => setEditComment(e.target.value)}
-                              className="w-full px-3 py-2 bg-secondary border border-gray-700 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent"
                               rows={4}
                               required
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="reviewPhoto" className="text-gray-300">Add Photo</Label>
+                            <Label htmlFor="reviewPhoto" className="text-fg-muted">Add Photo</Label>
                             <Input
                               id="reviewPhoto"
                               type="file"
                               accept="image/*"
+                              aria-label="Attach a photo to this review"
                               onChange={(e) => {
                                 const file = e.target.files[0];
                                 if (file) handleAddPhoto(review._id, file);
                               }}
-                              className="bg-secondary border-gray-700 text-white"
+                              className="bg-secondary"
                             />
                           </div>
                           <Button
                             onClick={handleSaveUpdate}
                             disabled={updateMutation.isPending}
-                            className="w-full bg-accent hover:bg-blue-700"
+                            className="w-full "
                           >
                             {updateMutation.isPending ? 'Updating...' : 'Update Review'}
                           </Button>

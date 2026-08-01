@@ -1243,14 +1243,14 @@ export const RefundPolicyPageData = {
       num: 4,
       title: "How the Process Works",
       content: [
-        "Refunds follow a staged review:",
+        "Refunds are reviewed and decided by DGMARQ:",
         [
           "You open a request from your order with the reason and any evidence (screenshots, error messages)",
-          "The seller reviews it first and may approve or reject",
-          "If the seller rejects, you can escalate to DGMARQ for an impartial final decision",
+          "DGMARQ reviews the request and makes the final decision — approve or reject",
+          "The seller can view your request and add comments for our team, but cannot approve or reject it",
           "A refund chat keeps you, the seller and our team in one thread until the case closes",
         ],
-        "Once a case is completed or finally rejected, the case and its chat are closed.",
+        "Once a case is completed or rejected, the case and its chat are closed.",
       ],
     },
     {
@@ -1399,8 +1399,8 @@ export const VendorTermsPageData = {
       content: [
         "Vendors participate in the refund process:",
         [
-          "You review buyer refund requests first and may approve or reject with a reason",
-          "Rejected requests can be escalated to DGMARQ, whose decision is final within the platform",
+          "You can view buyer refund requests and submit optional feedback for our team",
+          "DGMARQ reviews every request and makes the final decision — approve or reject",
           "Approved refunds are deducted from your escrowed earnings for that order",
         ],
         "A consistently high dispute rate may lead to account review, delisting or suspension.",

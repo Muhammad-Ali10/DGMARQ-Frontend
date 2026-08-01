@@ -109,7 +109,7 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card border-border shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl sm:text-3xl font-bold text-accent">DGMARQ</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-accent-on-dark">DGMARQ</CardTitle>
           <CardDescription className="text-muted-foreground">
             Sign in to your account to continue
           </CardDescription>
@@ -144,7 +144,7 @@ const Login = () => {
                 <Label htmlFor="password" className="text-foreground">Password</Label>
                 <Link
                   to="/forgot-password"
-                  className="text-sm text-accent hover:text-blue-400 transition-colors"
+                  className="text-sm text-accent-on-dark hover:text-blue-400 transition-colors"
                 >
                   Forgot Password?
                 </Link>
@@ -208,7 +208,7 @@ const Login = () => {
             Don't have an account?{' '}
             <Link
               to="/register"
-              className="text-accent hover:text-blue-400 transition-colors font-medium"
+              className="text-accent-on-dark hover:text-blue-400 transition-colors font-medium"
             >
               Sign up
             </Link>

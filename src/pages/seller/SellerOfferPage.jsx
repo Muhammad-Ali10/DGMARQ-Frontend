@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Badge } from '@components/ui/badge';
-import { Loading, ErrorMessage } from '@components/ui/loading';
+import { FormSkeleton } from '@components/common/Skeletons';
+import { ErrorState } from '@components/common/ErrorState';
+import { SpecRow } from '@components/common/SpecList';
 import SafeImage from '@components/ui/safe-image';
 import OfferRegionSelector from '@features/seller/components/OfferRegionSelector';
 import useCurrency from '@hooks/useCurrency';
@@ -21,16 +23,12 @@ import {
   PRODUCT_IMAGE_PLACEHOLDER,
 } from '@features/catalog/utils/productUtils';
 import { ArrowLeft, Lock, Package, RefreshCw } from 'lucide-react';
-import '../dashboard-fx.css';
 
-// A single read-only "spec" row for the locked product panel.
+// A single read-only "spec" row for the locked product panel. Renders nothing
+// without a value, which is why it wraps SpecRow rather than being replaced by
+// it outright — this panel lists optional attributes.
 const Spec = ({ label, value }) =>
-  value ? (
-    <div className="flex items-start justify-between gap-4 border-b border-gray-800 py-2 last:border-0">
-      <span className="text-sm text-gray-400">{label}</span>
-      <span className="max-w-[60%] text-right text-sm font-medium text-white">{value}</span>
-    </div>
-  ) : null;
+  value ? <SpecRow label={label} value={<span className="max-w-[60%]">{value}</span>} /> : null;
 
 const nameOf = (v) => (typeof v === 'string' ? v : v?.name || '');
 const listNames = (arr) =>
@@ -141,36 +139,51 @@ const SellerOfferPage = () => {
     saveMutation.mutate(payload);
   };
 
-  if (mode === 'edit' && offerQuery.isLoading) return <Loading message="Loading offer…" />;
-  if (mode === 'edit' && offerQuery.isError)
-    return <ErrorMessage message={offerQuery.error?.response?.data?.message || 'Offer not found'} />;
-  if (productQuery.isLoading) return <Loading message="Loading product…" />;
-  if (productQuery.isError || !product)
-    return <ErrorMessage message={productQuery.error?.response?.data?.message || 'Product not found'} />;
+  if (mode === 'edit' && offerQuery.isLoading) return <FormSkeleton fields={4} />;
+  if (mode === 'edit' && offerQuery.isError) {
+    return (
+      <ErrorState
+        error={offerQuery.error}
+        title="Couldn't load this listing"
+        onRetry={() => offerQuery.refetch()}
+      />
+    );
+  }
+  if (productQuery.isLoading) return <FormSkeleton fields={4} />;
+  if (productQuery.isError || !product) {
+    return (
+      <ErrorState
+        error={productQuery.error}
+        title="Couldn't load this product"
+        description="It may have been removed from the catalog since you opened this page."
+        onRetry={() => productQuery.refetch()}
+      />
+    );
+  }
 
   return (
-    <div className="dash-fx space-y-6 px-4 sm:px-0">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" className="border-gray-700" onClick={() => navigate('/seller/offers')}>
+        <Button variant="outline" size="sm" className="border-border" onClick={() => navigate('/seller/offers')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">
+          <h1 className="text-2xl font-bold text-fg sm:text-3xl">
             {mode === 'edit' ? 'Edit offer' : 'List your offer'}
           </h1>
-          <p className="mt-1 text-sm text-gray-400">{getProductName(product)}</p>
+          <p className="mt-1 text-sm text-fg-muted">{getProductName(product)}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* ── Locked product info ─────────────────────────────────────────── */}
-        <Card className="dash-card">
-          <CardHeader className="dash-card-head flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+        <Card variant="hud">
+          <CardHeader className="border-b border-info/15 flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" /> Product details
             </CardTitle>
-            <span className="inline-flex items-center gap-1 rounded-full border border-gray-700 bg-secondary/40 px-2.5 py-1 text-xs text-gray-400">
+            <span className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/40 px-2.5 py-1 text-xs text-fg-muted">
               <Lock className="h-3 w-3" /> Catalog-controlled
             </span>
           </CardHeader>
@@ -180,7 +193,7 @@ const SellerOfferPage = () => {
               <SafeImage
                 src={images[activeImg]}
                 alt={getProductName(product)}
-                className="h-56 w-full rounded-lg border border-gray-700 object-contain bg-secondary/30"
+                className="h-56 w-full rounded-lg border border-border object-contain bg-secondary/30"
                 fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
               />
               {images.length > 1 && (
@@ -191,7 +204,7 @@ const SellerOfferPage = () => {
                       type="button"
                       onClick={() => setActiveImg(i)}
                       className={`h-12 w-12 overflow-hidden rounded border ${
-                        i === activeImg ? 'border-accent' : 'border-gray-700'
+                        i === activeImg ? 'border-accent' : 'border-border'
                       }`}
                     >
                       <SafeImage src={img} alt="" className="h-full w-full object-cover" fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER} />
@@ -220,8 +233,8 @@ const SellerOfferPage = () => {
 
             {product.description && (
               <div className="space-y-1.5">
-                <p className="text-sm font-medium text-gray-300">Description</p>
-                <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border border-gray-800 bg-secondary/20 p-3 text-sm text-gray-300">
+                <p className="text-sm font-medium text-fg-muted">Description</p>
+                <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-secondary/20 p-3 text-sm text-fg-muted">
                   {String(product.description).replace(/<[^>]*>/g, '').trim() || '—'}
                 </div>
               </div>
@@ -230,14 +243,14 @@ const SellerOfferPage = () => {
         </Card>
 
         {/* ── Editable seller fields ──────────────────────────────────────── */}
-        <Card className="dash-card">
-          <CardHeader className="dash-card-head">
-            <CardTitle className="text-lg font-semibold text-white">Your offer</CardTitle>
+        <Card variant="hud">
+          <CardHeader className="border-b border-info/15">
+            <CardTitle>Your offer</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-sm text-gray-300">Price *</Label>
+                <Label className="text-sm text-fg-muted">Price *</Label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
@@ -245,12 +258,12 @@ const SellerOfferPage = () => {
                     step="0.01"
                     value={form.price}
                     onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                    className="border-gray-700 bg-secondary text-white"
+                    className="border-border bg-secondary text-fg"
                   />
                   <select
                     value={form.priceCurrency}
                     onChange={(e) => setForm((f) => ({ ...f, priceCurrency: e.target.value }))}
-                    className="shrink-0 rounded-md border border-gray-700 bg-secondary px-2 text-sm text-white outline-none"
+                    className="shrink-0 rounded-md border border-border bg-secondary px-2 text-sm text-fg outline-none"
                     aria-label="Price currency"
                   >
                     {SUPPORTED_CURRENCIES.map((c) => (
@@ -259,7 +272,7 @@ const SellerOfferPage = () => {
                   </select>
                 </div>
                 {form.priceCurrency !== 'USD' && (
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-fg-muted">
                     {rates?.[form.priceCurrency] > 0 && form.price !== '' && !Number.isNaN(Number(form.price))
                       ? `≈ $${(Number(form.price) / rates[form.priceCurrency]).toFixed(2)} USD — stored & charged in USD (frozen at save)`
                       : 'Stored & charged in USD, converted at save.'}
@@ -267,20 +280,20 @@ const SellerOfferPage = () => {
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm text-gray-300">Discount (%)</Label>
+                <Label className="text-sm text-fg-muted">Discount (%)</Label>
                 <Input
                   type="number"
                   min="0"
                   max="100"
                   value={form.discount}
                   onChange={(e) => setForm((f) => ({ ...f, discount: e.target.value }))}
-                  className="border-gray-700 bg-secondary text-white"
+                  className="border-border bg-secondary text-fg"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm text-gray-300">Region availability</Label>
+              <Label className="text-sm text-fg-muted">Region availability</Label>
               <OfferRegionSelector
                 value={{ regionCodes: form.regionCodes, countries: form.countries, excludedCountries: form.excludedCountries }}
                 onChange={(v) => setForm((f) => ({ ...f, ...v }))}
@@ -290,25 +303,25 @@ const SellerOfferPage = () => {
             {isAccount && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-sm text-gray-300">Account Email</Label>
+                  <Label className="text-sm text-fg-muted">Account Email</Label>
                   <Input
                     value={form.accountEmail}
                     onChange={(e) => setForm((f) => ({ ...f, accountEmail: e.target.value }))}
-                    className="border-gray-700 bg-secondary text-white"
+                    className="border-border bg-secondary text-fg"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm text-gray-300">Website</Label>
+                  <Label className="text-sm text-fg-muted">Website</Label>
                   <Input
                     value={form.accountWebsite}
                     onChange={(e) => setForm((f) => ({ ...f, accountWebsite: e.target.value }))}
-                    className="border-gray-700 bg-secondary text-white"
+                    className="border-border bg-secondary text-fg"
                   />
                 </div>
               </div>
             )}
 
-            <label className="flex items-center gap-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-fg-muted">
               <input
                 type="checkbox"
                 aria-label="Feature this offer"
@@ -319,17 +332,17 @@ const SellerOfferPage = () => {
               Feature this offer (higher commission applies)
             </label>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-fg-subtle">
               {mode === 'create'
                 ? 'After approval you can add inventory (keys/accounts) from “My Offers”. Stock comes from your uploaded inventory.'
                 : 'Manage inventory (keys/accounts) from the License Keys page.'}
             </p>
 
             <div className="flex justify-end gap-3 pt-1">
-              <Button variant="outline" className="border-gray-700" onClick={() => navigate('/seller/offers')}>
+              <Button variant="outline" className="border-border" onClick={() => navigate('/seller/offers')}>
                 Cancel
               </Button>
-              <Button className="bg-accent hover:bg-blue-700" disabled={saveMutation.isPending} onClick={submit}>
+              <Button className="" disabled={saveMutation.isPending} onClick={submit}>
                 {saveMutation.isPending ? (
                   <><RefreshCw className="mr-2 h-4 w-4 animate-spin" />{mode === 'edit' ? 'Saving…' : 'Submitting…'}</>
                 ) : mode === 'edit' ? 'Save changes' : 'Submit for approval'}

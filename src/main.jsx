@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from './components/ui/sonner';
+import { TooltipProvider } from './components/ui/tooltip';
 import { store } from './store/store';
 import { setOnLogoutCallback } from './store/slices/authSlice';
 import App from './App';
@@ -50,7 +51,9 @@ createRoot(document.getElementById('root')).render(
           <HelmetProvider>
             <BrowserRouter>
               <SEOProvider>
-                <App />
+                <TooltipProvider>
+                  <App />
+                </TooltipProvider>
                 <Toaster />
               </SEOProvider>
             </BrowserRouter>

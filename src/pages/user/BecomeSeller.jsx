@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useId, cloneElement, isValidElement } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -16,7 +16,8 @@ import { sellerAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
 import { Checkbox } from '@components/ui/checkbox';
-import { Loading } from '@components/ui/loading';
+import { Textarea } from '@components/ui/textarea';
+import { FormSkeleton } from '@components/common/Skeletons';
 import { cn } from '@/lib/utils';
 import { showApiError } from '@utils/toast';
 
@@ -50,26 +51,45 @@ const ageFrom = (dobStr) => {
 
 /* ── Small inline helpers ───────────────────────────────────────────── */
 
-const Field = ({ label, error, required, children, hint }) => (
-  <div className="space-y-1.5">
-    {label && (
-      <span className="block text-sm font-medium text-gray-200">
-        {label} {required && <span className="text-destructive">*</span>}
-      </span>
-    )}
-    {children}
-    {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
-    {error && <p className="text-xs text-destructive">{error}</p>}
-  </div>
-);
+const Field = ({ label, error, required, children, hint }) => {
+  // A real <label htmlFor> wired to the control. This used to render a bare
+  // <span>, which looked like a label but associated with nothing — clicking it
+  // did not focus the field and screen readers announced the inputs unnamed.
+  const generatedId = useId();
+  // If the child brings its own id, the label must point at THAT one — pointing
+  // at the generated id would leave the pair silently unassociated.
+  const id = (isValidElement(children) && children.props?.id) || generatedId;
+  const hintId = hint ? `${id}-hint` : undefined;
+  const errorId = error ? `${id}-error` : undefined;
+  const control = isValidElement(children)
+    ? cloneElement(children, {
+        id,
+        'aria-describedby': [errorId, hintId].filter(Boolean).join(' ') || undefined,
+        'aria-invalid': error ? true : undefined,
+      })
+    : children;
+
+  return (
+    <div className="space-y-1.5">
+      {label && (
+        <label htmlFor={id} className="block text-sm font-medium text-fg">
+          {label} {required && <span className="text-destructive">*</span>}
+        </label>
+      )}
+      {control}
+      {hint && !error && <p id={hintId} className="text-xs text-fg-subtle">{hint}</p>}
+      {error && <p id={errorId} className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+};
 
 const TextInput = ({ error, ...props }) => (
   <input
     {...props}
     className={cn(
-      'h-11 w-full rounded-lg border bg-white/[0.03] px-3.5 text-sm text-white placeholder:text-gray-500 outline-none transition-colors',
+      'h-11 w-full rounded-lg border bg-surface-sunken px-3.5 text-sm text-fg placeholder:text-fg-subtle outline-none transition-colors',
       'focus:border-accent focus:ring-2 focus:ring-accent/40',
-      error ? 'border-destructive seller-shake' : 'border-gray-600 hover:border-gray-500',
+      error ? 'border-destructive seller-shake' : 'border-border-interactive hover:border-ring',
     )}
   />
 );
@@ -81,12 +101,12 @@ const Collapse = ({ open, children }) => (
 );
 
 const SectionTitle = ({ icon: Icon, title, subtitle }) => (
-  <div className="mb-5 border-b border-gray-700 pb-3">
-    <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
-      {Icon && <Icon className="h-5 w-5 text-accent" />}
+  <div className="mb-5 border-b border-brand-cyan/10 pb-3">
+    <h3 className="flex items-center gap-2 text-lg font-semibold text-fg">
+      {Icon && <Icon className="h-5 w-5 text-accent-on-dark" />}
       {title}
     </h3>
-    {subtitle && <p className="mt-0.5 text-sm text-gray-400">{subtitle}</p>}
+    {subtitle && <p className="mt-0.5 text-sm text-fg-muted">{subtitle}</p>}
   </div>
 );
 
@@ -102,22 +122,22 @@ const FileThumb = ({ file, previewUrl, label }) => {
         <img
           src={previewUrl}
           alt={label}
-          className="h-24 w-24 rounded-lg border border-gray-600 object-cover"
+          className="h-24 w-24 rounded-lg border border-border-interactive object-cover"
         />
       ) : (
-        <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-gray-600 bg-accent/10">
-          <FileText className="h-9 w-9 text-accent" />
+        <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-border-interactive bg-accent/10">
+          <FileText className="h-9 w-9 text-accent-on-dark" />
         </div>
       )}
-      <span className="max-w-[96px] truncate text-[11px] text-gray-400">{file.name}</span>
+      <span className="max-w-[96px] truncate text-[11px] text-fg-muted">{file.name}</span>
     </div>
   );
 };
 
 const SummaryRow = ({ label, value }) => (
   <div className="flex justify-between gap-4 py-1.5 text-sm">
-    <span className="text-gray-400">{label}</span>
-    <span className="text-right font-medium text-white">{value || '—'}</span>
+    <span className="text-fg-muted">{label}</span>
+    <span className="text-right font-medium text-fg">{value || '—'}</span>
   </div>
 );
 
@@ -315,7 +335,7 @@ const BecomeSeller = () => {
   );
 
   /* ── Loading / already-applied / success short-circuits ── */
-  if (isLoadingStatus) return <Loading message="Checking seller status..." />;
+  if (isLoadingStatus) return <FormSkeleton fields={4} />;
 
   if (submitted) return <SuccessScreen onDashboard={() => navigate('/user/dashboard')} />;
 
@@ -327,13 +347,13 @@ const BecomeSeller = () => {
   return (
     <div className="mx-auto w-full max-w-[720px] px-1 py-2 sm:py-4">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold text-white sm:text-3xl">Become a Seller</h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <h1 className="text-2xl font-bold text-fg sm:text-3xl">Become a Seller</h1>
+        <p className="mt-1 text-sm text-fg-muted">
           Complete the steps below to apply. It only takes a few minutes.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-gray-700 bg-[#0a1f47] p-5 shadow-2xl sm:p-8">
+      <div className="rounded-2xl border border-brand-cyan/25 bg-surface-1 p-5 shadow-hud sm:p-8">
         <div className="mb-8 px-1 sm:px-2">
           <StepProgress steps={STEPS} current={step} onStepClick={goToStep} />
         </div>
@@ -448,11 +468,11 @@ const BecomeSeller = () => {
                           'flex flex-col items-center gap-2 rounded-xl border-2 p-5 transition-all duration-200',
                           active
                             ? 'border-accent bg-accent/10 shadow-[0_0_0_3px_rgba(14,81,226,0.18)]'
-                            : 'border-gray-600 bg-white/[0.02] hover:border-accent/60 hover:bg-accent/[0.04]',
+                            : 'border-border-interactive bg-surface-sunken hover:border-accent/60 hover:bg-accent/[0.04]',
                         )}
                       >
-                        <opt.icon className={cn('h-8 w-8', active ? 'text-accent' : 'text-gray-400')} />
-                        <span className={cn('text-sm font-medium', active ? 'text-white' : 'text-gray-300')}>
+                        <opt.icon className={cn('h-8 w-8', active ? 'text-accent-on-dark' : 'text-fg-muted')} />
+                        <span className={cn('text-sm font-medium', active ? 'text-fg' : 'text-fg-muted')}>
                           {opt.label}
                         </span>
                       </button>
@@ -514,12 +534,11 @@ const BecomeSeller = () => {
               </Field>
 
               <Field label="Store Description" hint="Briefly describe what you sell (optional).">
-                <textarea
+                <Textarea
                   value={form.description}
                   onChange={setField('description')}
                   rows={3}
                   placeholder="What does your store offer?"
-                  className="w-full rounded-lg border border-gray-600 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-gray-500 outline-none transition-colors hover:border-gray-500 focus:border-accent focus:ring-2 focus:ring-accent/40"
                 />
               </Field>
 
@@ -532,12 +551,12 @@ const BecomeSeller = () => {
               </Field>
 
               <Field label="Additional Notes" hint="Anything else you'd like the review team to know (optional).">
-                <textarea
+                <Textarea
                   value={form.additionalNotes}
                   onChange={setField('additionalNotes')}
                   rows={3}
                   placeholder="e.g. supported email host for account-type products, sourcing details, or any other notes"
-                  className="w-full rounded-lg border border-gray-600 bg-white/[0.03] px-3.5 py-2.5 text-sm text-white placeholder:text-gray-500 outline-none transition-colors hover:border-gray-500 focus:border-accent focus:ring-2 focus:ring-accent/40"
+                  className="w-full rounded-lg border border-border-interactive bg-surface-sunken px-3.5 py-2.5 text-sm text-fg placeholder:text-fg-subtle outline-none transition-colors hover:border-ring focus:border-accent focus:ring-2 focus:ring-accent/40"
                 />
               </Field>
 
@@ -547,14 +566,14 @@ const BecomeSeller = () => {
                     <select
                       value={form.taxIdType}
                       onChange={setField('taxIdType')}
-                      className="h-11 w-full appearance-none rounded-lg border border-gray-600 bg-white/[0.03] px-3.5 pr-9 text-sm text-white outline-none transition-colors hover:border-gray-500 focus:border-accent focus:ring-2 focus:ring-accent/40"
+                      className="h-11 w-full appearance-none rounded-lg border border-border-interactive bg-surface-sunken px-3.5 pr-9 text-sm text-fg outline-none transition-colors hover:border-ring focus:border-accent focus:ring-2 focus:ring-accent/40"
                     >
                       <option value="" className="bg-[#0a1f47]">Select type</option>
                       {TAX_ID_TYPES.map((t) => (
                         <option key={t} value={t} className="bg-[#0a1f47]">{t}</option>
                       ))}
                     </select>
-                    <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-gray-400" />
+                    <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-fg-muted" />
                   </div>
                 </Field>
 
@@ -631,11 +650,18 @@ const BecomeSeller = () => {
                 )}
               </ReviewCard>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-700 bg-white/[0.02] p-4">
+              <label
+                htmlFor="become-seller-confirm"
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4"
+              >
                 <span className="mt-0.5">
-                  <Checkbox checked={confirmed} onCheckedChange={setConfirmed} />
+                  <Checkbox
+                    id="become-seller-confirm"
+                    checked={confirmed}
+                    onCheckedChange={setConfirmed}
+                  />
                 </span>
-                <span className="text-sm text-gray-300">
+                <span className="text-sm text-fg-muted">
                   I confirm all information provided is accurate and complete.
                 </span>
               </label>
@@ -644,14 +670,14 @@ const BecomeSeller = () => {
         </div>
 
         {/* Controls */}
-        <div className="mt-8 flex items-center justify-between border-t border-gray-700 pt-5">
+        <div className="mt-8 flex items-center justify-between border-t border-brand-cyan/10 pt-5">
           {step > 0 ? (
             <Button
               type="button"
               variant="outline"
               onClick={goBack}
               disabled={applyMutation.isPending}
-              className="border-gray-600 bg-transparent text-gray-200 hover:bg-white/5"
+              className="border-border-interactive bg-transparent text-fg hover:bg-surface-2"
             >
               <ChevronLeft className="mr-1 h-4 w-4" /> Back
             </Button>
@@ -663,7 +689,7 @@ const BecomeSeller = () => {
             <Button
               type="button"
               onClick={goNext}
-              className="bg-accent text-white hover:bg-accent/90"
+              className="bg-accent text-fg hover:bg-accent/90"
             >
               Next <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
@@ -672,7 +698,7 @@ const BecomeSeller = () => {
               type="button"
               onClick={handleSubmit}
               disabled={!confirmed || applyMutation.isPending}
-              className="min-w-[170px] bg-accent text-white hover:bg-accent/90"
+              className="min-w-[170px] bg-accent text-fg hover:bg-accent/90"
             >
               {applyMutation.isPending ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…</>
@@ -689,34 +715,34 @@ const BecomeSeller = () => {
 
 /* ── Review card ── */
 const ReviewCard = ({ title, icon: Icon, onEdit, children }) => (
-  <div className="rounded-xl border border-gray-700 bg-white/[0.02] p-4">
-    <div className="mb-2 flex items-center justify-between border-b border-gray-700/70 pb-2">
-      <h4 className="flex items-center gap-2 text-sm font-semibold text-white">
-        {Icon && <Icon className="h-4 w-4 text-accent" />} {title}
+  <div className="rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4">
+    <div className="mb-2 flex items-center justify-between border-b border-brand-cyan/10 pb-2">
+      <h4 className="flex items-center gap-2 text-sm font-semibold text-fg">
+        {Icon && <Icon className="h-4 w-4 text-accent-on-dark" />} {title}
       </h4>
       <button
         type="button"
         onClick={onEdit}
-        className="flex items-center gap-1 text-xs text-accent hover:underline"
+        className="flex items-center gap-1 text-xs text-accent-on-dark hover:underline"
       >
         <Pencil className="h-3 w-3" /> Edit
       </button>
     </div>
-    <div className="divide-y divide-gray-800">{children}</div>
+    <div className="divide-y divide-border">{children}</div>
   </div>
 );
 
 /* ── Success screen ── */
 const SuccessScreen = ({ onDashboard }) => (
   <div className="mx-auto flex max-w-[560px] flex-col items-center justify-center px-4 py-16 text-center">
-    <div className="seller-pop-check mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-500/15">
-      <CheckCircle2 className="h-14 w-14 text-green-500" strokeWidth={2.2} />
+    <div className="seller-pop-check mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-success-soft">
+      <CheckCircle2 className="h-14 w-14 text-success" strokeWidth={2.2} />
     </div>
-    <h1 className="text-2xl font-bold text-white sm:text-3xl">Application Submitted!</h1>
-    <p className="mt-3 text-gray-400">
+    <h1 className="text-2xl font-bold text-fg sm:text-3xl">Application Submitted!</h1>
+    <p className="mt-3 text-fg-muted">
       We&apos;ll review your application within 2-3 business days and notify you once a decision has been made.
     </p>
-    <Button onClick={onDashboard} className="mt-8 bg-accent text-white hover:bg-accent/90">
+    <Button onClick={onDashboard} className="mt-8 bg-accent text-fg hover:bg-accent/90">
       Go to Dashboard
     </Button>
   </div>
@@ -764,24 +790,24 @@ const AlreadyApplied = ({ seller }) => {
   };
 
   const colorMap = {
-    yellow: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500',
-    green: 'bg-green-500/10 border-green-500/30 text-green-500',
-    red: 'bg-red-500/10 border-red-500/30 text-red-500',
+    yellow: 'bg-warning-soft border-warning/35 text-warning',
+    green: 'bg-success-soft border-success/35 text-success',
+    red: 'bg-danger-soft border-danger/35 text-danger',
   };
   const Icon = banner.icon;
 
   return (
     <div className="mx-auto w-full max-w-[720px] px-1 py-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white sm:text-3xl">Become a Seller</h1>
-        <p className="mt-1 text-gray-400">Your seller application status</p>
+        <h1 className="text-2xl font-bold text-fg sm:text-3xl">Become a Seller</h1>
+        <p className="mt-1 text-fg-muted">Your seller application status</p>
       </div>
 
-      <div className="rounded-2xl border border-gray-700 bg-[#0a1f47] p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between rounded-xl bg-white/[0.03] p-4">
+      <div className="rounded-2xl border border-brand-cyan/25 bg-surface-1 p-6 shadow-hud">
+        <div className="mb-5 flex items-center justify-between rounded-xl bg-surface-sunken p-4">
           <div>
-            <p className="text-sm text-gray-400">Store Name</p>
-            <p className="text-lg font-semibold text-white">{seller.shopName}</p>
+            <p className="text-sm text-fg-muted">Store Name</p>
+            <p className="text-lg font-semibold text-fg">{seller.shopName}</p>
           </div>
           <Badge variant={status === 'active' ? 'success' : status === 'banned' ? 'destructive' : 'warning'}>
             {status === 'active' ? 'Approved' : status === 'banned' ? 'Rejected' : 'Pending Review'}
@@ -793,7 +819,7 @@ const AlreadyApplied = ({ seller }) => {
             <Icon className="mt-0.5 h-5 w-5 flex-shrink-0" />
             <div>
               <p className="font-semibold">{banner.title}</p>
-              <p className="mt-1 text-sm text-gray-300">{banner.text}</p>
+              <p className="mt-1 text-sm text-fg-muted">{banner.text}</p>
               {status === 'active' && (
                 <Button className="mt-3 bg-accent hover:bg-accent/90" onClick={refreshThenGoToSeller}>
                   Go to Seller Dashboard
@@ -813,8 +839,8 @@ const AlreadyApplied = ({ seller }) => {
             { label: 'ID Type', value: seller.idType === 'drivers_license' ? "Driver's License" : seller.idType === 'passport' ? 'Passport' : null, icon: CreditCard },
           ].filter((f) => f.value).map((f) => (
             <div key={f.label}>
-              <p className="text-xs text-gray-400">{f.label}</p>
-              <p className="mt-0.5 text-sm text-white">{f.value}</p>
+              <p className="text-xs text-fg-muted">{f.label}</p>
+              <p className="mt-0.5 text-sm text-fg">{f.value}</p>
             </div>
           ))}
         </div>

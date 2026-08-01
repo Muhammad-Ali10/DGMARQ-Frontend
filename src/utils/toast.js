@@ -62,16 +62,6 @@ export const showWarning = (message, description = null) => {
 };
 
 /**
- * Show info toast
- */
-export const showInfo = (message, description = null) => {
-  toast.info(message, {
-    description,
-    duration: 2000,
-  });
-};
-
-/**
  * Show loading toast (returns dismiss function)
  */
 export const showLoading = (message) => {
@@ -117,22 +107,4 @@ export const showApiError = (error, defaultMessage = 'An error occurred', force 
     description = 'Please check your internet connection';
   }
   showError(message, description, force);
-};
-
-/**
- * Show API success message
- */
-export const showApiSuccess = (response, defaultMessage = 'Operation successful') => {
-  const message = response?.data?.message || defaultMessage;
-  showSuccess(message);
-};
-
-export default {
-  success: showSuccess,
-  error: showError,
-  warning: showWarning,
-  info: showInfo,
-  loading: showLoading,
-  apiError: showApiError,
-  apiSuccess: showApiSuccess,
 };

@@ -69,14 +69,14 @@ const HowToBuy = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {createAccount.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">
                     {i + 1}
                   </span>
                   {step}
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs text-accent/90 italic">{createAccount.microcopy}</p>
+            <p className="mt-4 text-xs text-accent-on-dark/90 italic">{createAccount.microcopy}</p>
           </GlowCard>
         </div>
       </SectionWrapper>
@@ -95,7 +95,7 @@ const HowToBuy = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {browseListings.features.map((item, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">✓</span> {item}
+                    <span className="text-accent-on-dark">✓</span> {item}
                   </li>
                 ))}
               </ul>
@@ -105,7 +105,7 @@ const HowToBuy = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {browseListings.filters.map((item, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">•</span> {item}
+                    <span className="text-accent-on-dark">•</span> {item}
                   </li>
                 ))}
               </ul>
@@ -126,14 +126,14 @@ const HowToBuy = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {checkout.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">
                     {i + 1}
                   </span>
                   {step}
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs text-accent/90 italic">{checkout.microcopy}</p>
+            <p className="mt-4 text-xs text-accent-on-dark/90 italic">{checkout.microcopy}</p>
           </GlowCard>
         </div>
       </SectionWrapper>
@@ -150,7 +150,7 @@ const HowToBuy = () => {
             <ul className="space-y-2 text-sm text-gray-400">
               {trackOrder.items.map((item, i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="text-accent">✓</span> {item}
+                  <span className="text-accent-on-dark">✓</span> {item}
                 </li>
               ))}
             </ul>
@@ -171,14 +171,14 @@ const HowToBuy = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {reviewDelivery.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">
                     {i + 1}
                   </span>
                   {step}
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs text-accent/90 italic">{reviewDelivery.microcopy}</p>
+            <p className="mt-4 text-xs text-accent-on-dark/90 italic">{reviewDelivery.microcopy}</p>
           </GlowCard>
         </div>
       </SectionWrapper>
@@ -195,14 +195,14 @@ const HowToBuy = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {dispute.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                  <span className="shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">
                     {i + 1}
                   </span>
                   {step}
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-xs text-accent/90 italic">{dispute.microcopy}</p>
+            <p className="mt-4 text-xs text-accent-on-dark/90 italic">{dispute.microcopy}</p>
           </GlowCard>
         </div>
       </SectionWrapper>

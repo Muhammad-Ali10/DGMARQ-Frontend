@@ -29,7 +29,6 @@ import {
 } from 'lucide-react';
 import { SearchInput } from '@components/common/SearchInput';
 import { Pagination } from '@components/common/Pagination';
-import '../dashboard-fx.css';
 
 const PRODUCT_TYPES = ['LICENSE_KEY', 'ACCOUNT_BASED', 'GIFT', 'ACTIVATION_LINK'];
 
@@ -249,11 +248,11 @@ const MasterCatalogManagement = () => {
   if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Error loading catalog'} />;
 
   return (
-    <div className="dash-fx space-y-6 px-4 sm:px-0">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="dash-icon-chip"><Package className="w-6 h-6" /></div>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-info/40 bg-info-soft text-info"><Package className="w-6 h-6" /></div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Master Catalog</h1>
             <p className="text-sm text-gray-400 mt-1">Create, import and manage master products. Sellers list offers against these.</p>
@@ -263,16 +262,16 @@ const MasterCatalogManagement = () => {
           <Button variant="outline" className="border-gray-700" onClick={() => { setImportOpen(true); setImportResult(null); setImportFile(null); }}>
             <Upload className="w-4 h-4 mr-2" /> Import JSON
           </Button>
-          <Button className="dash-primary" onClick={openCreate}>
+          <Button onClick={openCreate}>
             <Plus className="w-4 h-4 mr-2" /> Add Product
           </Button>
         </div>
       </div>
 
-      <Card className="dash-card">
-        <CardHeader className="dash-card-head">
+      <Card variant="hud">
+        <CardHeader className="border-b border-info/15">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <CardTitle className="text-white text-xl font-semibold">
+            <CardTitle>
               {pagination.totalDocs} master {pagination.totalDocs === 1 ? 'product' : 'products'}
             </CardTitle>
             <SearchInput
@@ -293,7 +292,7 @@ const MasterCatalogManagement = () => {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <Table>
+                <Table variant="hud">
                   <TableHeader>
                     <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
                       <TableHead className="text-gray-300 font-semibold">Product</TableHead>
@@ -362,10 +361,10 @@ const MasterCatalogManagement = () => {
 
       {/* ── Import modal ── */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="bg-primary border-gray-700 max-w-lg">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold flex items-center gap-2">
-              <FileJson className="w-5 h-5 text-accent" /> Import Catalog (JSON)
+              <FileJson className="w-5 h-5 text-accent-on-dark" /> Import Catalog (JSON)
             </DialogTitle>
             <DialogDescription className="text-gray-400">
               Upload a .json array. Missing categories/genres/etc. are auto-created. Re-importing the same file updates instead of duplicating (dedup by kinguinId).
@@ -422,7 +421,7 @@ const MasterCatalogManagement = () => {
 
       {/* ── Create / Edit modal ── */}
       <Dialog open={formOpen} onOpenChange={(o) => (o ? setFormOpen(true) : closeForm())}>
-        <DialogContent className="bg-primary border-gray-700 max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">{editingId ? 'Edit Master Product' : 'Add Master Product'}</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -497,7 +496,7 @@ const MasterCatalogManagement = () => {
 
       {/* ── Delete confirm modal ── */}
       <Dialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
-        <DialogContent className="bg-primary border-gray-700 max-w-md">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Delete Master Product</DialogTitle>
             <DialogDescription className="text-gray-400">

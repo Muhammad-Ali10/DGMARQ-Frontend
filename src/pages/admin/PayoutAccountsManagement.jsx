@@ -94,9 +94,9 @@ const PayoutAccountsManagement = () => {
         </div>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">Search Sellers</CardTitle>
+          <CardTitle>Search Sellers</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
@@ -110,13 +110,13 @@ const PayoutAccountsManagement = () => {
         </CardContent>
       </Card>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">All Sellers Payout Accounts</CardTitle>
+          <CardTitle>All Sellers Payout Accounts</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700">
                   <TableHead className="text-gray-300">Seller</TableHead>
@@ -214,7 +214,7 @@ const PayoutAccountsManagement = () => {
       </Card>
 
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent size="md" className="bg-primary border-gray-700">
+        <DialogContent size="md" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Payout methods — {viewSeller?.seller?.shopName || viewSeller?.seller?.userId?.name || ''}</DialogTitle>
           </DialogHeader>
@@ -242,7 +242,7 @@ const PayoutAccountsManagement = () => {
       </Dialog>
 
       <Dialog open={isBlockOpen} onOpenChange={setIsBlockOpen}>
-        <DialogContent size="sm" className="bg-primary border-gray-700">
+        <DialogContent size="sm" className="">
           <DialogHeader>
             <DialogTitle className="text-white">
               {selectedAccount?.status === 'blocked' ? 'Unblock' : 'Block'}{' '}

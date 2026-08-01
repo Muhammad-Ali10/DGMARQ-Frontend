@@ -50,7 +50,7 @@ const ContactUs = () => {
               <GlowCard key={i}>
                 <span className="text-3xl mb-4 block">{channel.icon}</span>
                 <h3 className="text-base font-semibold text-white mb-2">{channel.title}</h3>
-                <p className="text-sm font-medium text-accent">{channel.detail}</p>
+                <p className="text-sm font-medium text-accent-on-dark">{channel.detail}</p>
                 {channel.sub && (
                   <p className="text-xs text-gray-400 mt-2">{channel.sub}</p>
                 )}
@@ -74,7 +74,7 @@ const ContactUs = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {buyerAssistance.map((item, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">✓</span> {item}
+                    <span className="text-accent-on-dark">✓</span> {item}
                   </li>
                 ))}
               </ul>
@@ -84,7 +84,7 @@ const ContactUs = () => {
               <ul className="space-y-2 text-sm text-gray-400">
                 {sellerAssistance.map((item, i) => (
                   <li key={i} className="flex gap-2">
-                    <span className="text-accent">✓</span> {item}
+                    <span className="text-accent-on-dark">✓</span> {item}
                   </li>
                 ))}
               </ul>
@@ -105,7 +105,7 @@ const ContactUs = () => {
             <ol className="space-y-2 text-sm text-gray-400">
               {escalation.steps.map((step, i) => (
                 <li key={i} className="flex gap-3">
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">{i + 1}</span>
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent-on-dark text-xs font-bold">{i + 1}</span>
                   {step}
                 </li>
               ))}
@@ -124,7 +124,7 @@ const ContactUs = () => {
           />
           <a
             href={`mailto:${businessInquiries.email}`}
-            className="inline-flex items-center justify-center rounded-xl border border-accent/50 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent transition-transform hover:-translate-y-0.5 hover:border-accent hover:bg-accent/20"
+            className="inline-flex items-center justify-center rounded-xl border border-accent/50 bg-accent/10 px-6 py-3 text-sm font-semibold text-accent-on-dark transition-transform hover:-translate-y-0.5 hover:border-accent hover:bg-accent/20"
           >
             {businessInquiries.email}
           </a>

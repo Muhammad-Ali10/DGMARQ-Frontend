@@ -14,25 +14,25 @@ const PlusPromoSection = () => (
 
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4 p-5 sm:p-6">
           <div className="shrink-0 rounded-2xl bg-accent/20 p-3">
-            <Sparkles className="h-7 w-7 text-accent" />
+            <Sparkles className="h-7 w-7 text-accent-on-dark" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg sm:text-xl font-bold text-white font-poppins">
-              DGMARQ <span className="text-accent">Plus</span>
+            <h2 className="text-lg sm:text-xl font-bold text-fg font-poppins">
+              DGMARQ <span className="text-accent-on-dark">Plus</span>
             </h2>
-            <p className="mt-1 text-xs sm:text-sm text-white/70">
+            <p className="mt-1 text-xs sm:text-sm text-fg/70">
               Subscribe once, save on every purchase — automatic member discount
               at checkout, on top of any sale price.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+            <span className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent-on-dark">
               <BadgePercent className="h-3.5 w-3.5" />
               Member discount on all orders
             </span>
             <Link
               to="/dgmarq-plus"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-fg transition-colors hover:bg-accent/90"
             >
               Get Plus
               <ArrowRight className="h-4 w-4" />

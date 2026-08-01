@@ -47,7 +47,7 @@ const AuthCallback = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary to-secondary">
       <div className="text-center">
-        <Loader2 className="w-12 h-12 mx-auto mb-4 text-accent animate-spin" />
+        <Loader2 className="w-12 h-12 mx-auto mb-4 text-accent-on-dark animate-spin" />
         <p className="text-white">Completing authentication...</p>
       </div>
     </div>

@@ -7,7 +7,7 @@ import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { toast } from 'sonner';
-import { Search, Check, Upload, Image as ImageIcon, Save } from 'lucide-react';
+import { Search, Check, Upload, Save } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
 
 const UpcomingReleasesManagement = () => {
@@ -182,9 +182,9 @@ const UpcomingReleasesManagement = () => {
           const selectedProduct = selectedProducts[slotNumber] || slotData?.product;
 
           return (
-            <Card key={slotNumber} className="bg-primary border-gray-700">
+            <Card key={slotNumber} variant="hud">
               <CardHeader>
-                <CardTitle className="text-white">Slot {slotNumber}</CardTitle>
+                <CardTitle>Slot {slotNumber}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Product Selection */}
@@ -211,7 +211,7 @@ const UpcomingReleasesManagement = () => {
                           <div className="p-4 text-center text-gray-400">Loading...</div>
                         ) : products.length > 0 ? (
                           products.map((product) => (
-                            <div
+                            <button type="button"
                               key={product._id}
                               onClick={() => handleProductSelect(slotNumber, product)}
                               className="p-3 hover:bg-gray-700 cursor-pointer flex items-center justify-between"
@@ -229,8 +229,8 @@ const UpcomingReleasesManagement = () => {
                                   <p className="text-gray-400 text-xs">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</p>
                                 </div>
                               </div>
-                              {selectedProduct?._id === product._id && <Check className="w-4 h-4 text-accent" />}
-                            </div>
+                              {selectedProduct?._id === product._id && <Check className="w-4 h-4 text-accent-on-dark" />}
+                            </button>
                           ))
                         ) : (
                           <div className="p-4 text-center text-gray-400">No products found</div>

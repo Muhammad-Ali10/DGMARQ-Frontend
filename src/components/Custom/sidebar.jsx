@@ -1,7 +1,5 @@
-import React from "react";
-import { NavLink, Link } from "react-router-dom";
+import { NavLink, Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logout } from "@store/slices/authSlice";
 import { authAPI } from "@services/api";
@@ -25,7 +23,6 @@ import {
   Heart,
   CreditCard,
   MessageSquare,
-  Percent,
   FolderTree,
   Layers,
   Monitor,
@@ -38,11 +35,8 @@ import {
   Gamepad2,
   Tag,
   Zap,
-  Gift,
   Image,
-  Flame,
-  Award,
-  AlertTriangle,
+  Flame,
   RotateCcw,
   Repeat,
   Bell,
@@ -50,7 +44,6 @@ import {
   User,
   Star,
   Boxes,
-  Plus,
   LogOut,
   Calendar,
   Clock,
@@ -63,7 +56,7 @@ const SidebarLogo = () => {
   return (
     <Link
       to="/"
-      className="flex items-center gap-2 px-6 py-4 hover:opacity-80 transition-opacity border-b border-border"
+      className="flex items-center gap-2 border-b border-border/60 px-6 py-4 outline-none transition-opacity duration-150 ease-out hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
       <SafeImage
         src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
@@ -96,9 +89,7 @@ const LogoutButton = () => {
   return (
     <Button
       variant="ghost"
-      className={cn(
-        "w-full justify-start text-gray-300 hover:text-white hover:bg-red-500/20 text-red-400 hover:text-red-300"
-      )}
+      className="w-full justify-start text-danger hover:bg-danger-soft hover:text-danger"
       onClick={() => logoutMutation.mutate()}
       disabled={logoutMutation.isPending}
     >
@@ -110,61 +101,125 @@ const LogoutButton = () => {
 
 const SidebarBadge = ({ count }) =>
   count > 0 ? (
-    <span className="ml-auto bg-red-500 text-white text-[10px] font-semibold rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
+    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-danger-solid px-1 text-[10px] font-semibold text-on-solid">
       {count > 9 ? '9+' : count}
     </span>
   ) : null;
 
+/**
+ * Nav item, styled after the public header's command bar (`.fx-cmd-*` in
+ * Header.css) so the dashboard reads as the same product.
+ *
+ * Taken from it: the accent gradient pill fading downward, the inner hairline,
+ * the outer glow, the periwinkle icons that gain a drop-shadow, and the
+ * blue -> violet edge bar (there a glowing underline, here rotated to a left
+ * edge). Those values are matched, not approximated.
+ *
+ * Deliberately NOT taken:
+ *   - the recessed container. That bar's look comes from being a well with
+ *     items floating in it; wrapping the sidebar in one would re-block the
+ *     backdrop we just made flow through it.
+ *   - uppercase labels. Fine for 5 items in a row, but this list is 13-15 items
+ *     stacked, and all-caps removes word-shape recognition, which is what makes
+ *     a vertical list scannable. Caps stay on the section headers only.
+ *   - the sliding hover spotlight. In the header it is the ONLY highlight
+ *     (`onMouseEnter={moveSpot}` — it tracks the cursor, it does not show the
+ *     current page). A sidebar has to show where you are, and a bar racing up
+ *     and down 15 items would compete with that.
+ */
+const ITEM_BASE = [
+  "nav-item group/nav flex items-center rounded-md px-3 py-2.5 text-sm font-medium",
+  "outline-none transition-[color,background-color,box-shadow] duration-200 ease-out",
+  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+  "pointer-coarse:min-h-11",
+];
+
+// The pill, hairline, glow and left edge bar live in index.css under
+// `.nav-item` — see the note there on why they cannot be Tailwind arbitrary
+// values. NavLink already sets aria-current="page" on the active route, so the
+// stylesheet keys off that: the accessible attribute IS the styling hook, and
+// the two can never disagree.
+const ITEM_ACTIVE = ["text-fg"];
+
+const ITEM_IDLE = [
+  "text-fg-muted hover:bg-surface-2/60 hover:text-fg",
+];
+
 const SidebarItem = ({ to, icon: Icon, children, onClick, badge = 0 }) => {
+  const icon = Icon && (
+    <Icon
+      aria-hidden="true"
+      className={cn(
+        "mr-3 size-5 shrink-0 transition-[color,filter] duration-200 ease-out",
+        // Periwinkle at rest, full accent + glow on hover — the header's
+        // drop-shadow(0 0 6px) treatment.
+        "text-accent-on-dark/70",
+        "group-hover/nav:text-accent-on-dark group-hover/nav:[filter:drop-shadow(0_0_6px_var(--accent))]"
+      )}
+    />
+  );
+
   if (onClick) {
     return (
-      <Button
-        variant="ghost"
-        className={cn(
-          "w-full justify-start text-gray-300 hover:text-white hover:bg-accent/20"
-        )}
-        onClick={onClick}
-      >
-        <Icon className="mr-3 h-5 w-5" />
+      <button type="button" onClick={onClick} className={cn(ITEM_BASE, ITEM_IDLE, "w-full text-left")}>
+        {icon}
         {children}
         <SidebarBadge count={badge} />
-      </Button>
+      </button>
     );
   }
 
   return (
     <NavLink
       to={to}
-      className={({ isActive }) =>
-        cn(
-          "flex items-center px-4 py-3 text-sm font-medium rounded-md transition-colors duration-200",
-          isActive
-            ? "bg-accent text-white"
-            : "text-gray-300 hover:text-white hover:bg-gray-700"
-        )
-      }
+      className={({ isActive }) => cn(ITEM_BASE, isActive ? ITEM_ACTIVE : ITEM_IDLE)}
     >
-      {Icon && <Icon className="mr-3 h-5 w-5" />}
-      {children}
-      <SidebarBadge count={badge} />
+      {({ isActive }) => (
+        <>
+          {Icon && (
+            <Icon
+              aria-hidden="true"
+              className={cn(
+                "mr-3 size-5 shrink-0 transition-[color,filter] duration-200 ease-out",
+                isActive
+                  ? "text-accent-on-dark [filter:drop-shadow(0_0_6px_var(--accent))]"
+                  : "text-accent-on-dark/70 group-hover/nav:text-accent-on-dark group-hover/nav:[filter:drop-shadow(0_0_6px_var(--accent))]"
+              )}
+            />
+          )}
+          {children}
+          <SidebarBadge count={badge} />
+        </>
+      )}
     </NavLink>
   );
 };
 
+/**
+ * Group heading. This is where the header bar's uppercase micro-type belongs —
+ * a handful of headings, not every item.
+ */
+const SidebarSection = ({ label, children }) => (
+  <div className="pt-4">
+    {/* Hairline that fades at both ends, as between the header's nav items. */}
+    <div aria-hidden="true" className="nav-divider mb-2" />
+    {label && (
+      <p className="px-3 pb-1 text-[11px] font-semibold tracking-[0.07em] text-fg-subtle uppercase">
+        {label}
+      </p>
+    )}
+    {children}
+  </div>
+);
+
 export const AdminSidebar = () => {
   return (
-    <aside className="w-64 bg-secondary h-full flex flex-col shadow-lg border-r border-border">
+    <aside className="flex h-full w-64 flex-col border-r border-border bg-transparent">
       {/* Logo at Top */}
       <SidebarLogo />
 
       {/* Scrollable Menu */}
-      <nav
-        className="flex-1 overflow-y-auto px-6 py-4 space-y-2"
-        style={{
-          scrollbarWidth: "thin",
-          scrollbarColor: "#4B5563 transparent",
-        }}
-      >
+      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
         <SidebarItem to="/admin/dashboard" icon={LayoutDashboard}>
           Dashboard
         </SidebarItem>
@@ -198,10 +253,7 @@ export const AdminSidebar = () => {
         <SidebarItem to="/admin/analytics" icon={BarChart3}>
           Analytics
         </SidebarItem>
-        <div className="pt-2 border-t border-gray-700">
-          <p className="text-xs text-gray-500 uppercase px-4 py-2">
-            Category Management
-          </p>
+        <SidebarSection label="Category Management">
           <SidebarItem to="/admin/categories" icon={FolderTree}>
             Categories
           </SidebarItem>
@@ -229,9 +281,8 @@ export const AdminSidebar = () => {
           <SidebarItem to="/admin/types" icon={Tag}>
             Types
           </SidebarItem>
-        </div>
-        <div className="pt-2 border-t border-gray-700">
-          <p className="text-xs text-gray-500 uppercase px-4 py-2">Marketing</p>
+        </SidebarSection>
+        <SidebarSection label="Marketing">
           <SidebarItem to="/admin/flash-deals" icon={Zap}>
             Flash Deals
           </SidebarItem>
@@ -253,11 +304,8 @@ export const AdminSidebar = () => {
           <SidebarItem to="/admin/coupons" icon={Ticket}>
             Coupons
           </SidebarItem>
-        </div>
-        <div className="pt-2 border-t border-gray-700">
-          <p className="text-xs text-gray-500 uppercase px-4 py-2">
-            Management
-          </p>
+        </SidebarSection>
+        <SidebarSection label="Management">
           <SidebarItem to="/admin/return-refund" icon={RotateCcw}>
             Return/Refund
           </SidebarItem>
@@ -267,14 +315,14 @@ export const AdminSidebar = () => {
           <SidebarItem to="/admin/payout-accounts" icon={Wallet}>
             Payout Accounts
           </SidebarItem>
-        </div>
+        </SidebarSection>
         <SidebarItem to="/admin/settings" icon={Settings}>
           Settings
         </SidebarItem>
       </nav>
 
       {/* Logout Button at Bottom */}
-      <div className="flex-shrink-0 p-6 pt-0 border-t border-gray-700">
+      <div className="shrink-0 border-t border-border p-4">
         <LogoutButton />
       </div>
     </aside>
@@ -284,18 +332,12 @@ export const AdminSidebar = () => {
 export const SellerSidebar = () => {
 
   return (
-    <aside className="w-64 bg-secondary h-full flex flex-col shadow-lg border-r border-border">
+    <aside className="flex h-full w-64 flex-col border-r border-border bg-transparent">
       {/* Logo at Top */}
       <SidebarLogo />
 
       {/* Scrollable Menu */}
-      <nav
-        className="flex-1 overflow-y-auto px-6 py-4 space-y-2"
-        style={{
-          scrollbarWidth: "thin",
-          scrollbarColor: "#4B5563 transparent",
-        }}
-      >
+      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
         <SidebarItem to="/seller/dashboard" icon={LayoutDashboard}>
           Dashboard
         </SidebarItem>
@@ -341,15 +383,15 @@ export const SellerSidebar = () => {
         <SidebarItem to="/seller/reviews" icon={Star}>
           Reviews
         </SidebarItem>
-        <div className="pt-2 border-t border-gray-700">
+        <SidebarSection>
           <SidebarItem to="/seller/profile" icon={User}>
             Profile
           </SidebarItem>
-        </div>
+        </SidebarSection>
       </nav>
 
       {/* Logout Button at Bottom */}
-      <div className="flex-shrink-0 p-6 pt-0 border-t border-gray-700">
+      <div className="shrink-0 border-t border-border p-4">
         <LogoutButton />
       </div>
     </aside>
@@ -367,18 +409,12 @@ export const UserSidebar = () => {
   }
 
   return (
-    <aside className="w-64 bg-secondary h-full flex flex-col shadow-lg border-r border-border">
+    <aside className="flex h-full w-64 flex-col border-r border-border bg-transparent">
       {/* Logo at Top */}
       <SidebarLogo />
 
       {/* Scrollable Menu */}
-      <nav
-        className="flex-1 overflow-y-auto px-6 py-4 space-y-2"
-        style={{
-          scrollbarWidth: "thin",
-          scrollbarColor: "#4B5563 transparent",
-        }}
-      >
+      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
         <SidebarItem to="/user/dashboard" icon={LayoutDashboard}>
           Dashboard
         </SidebarItem>
@@ -387,6 +423,9 @@ export const UserSidebar = () => {
         </SidebarItem>
         <SidebarItem to="/user/wishlist" icon={Heart}>
           Wishlist
+        </SidebarItem>
+        <SidebarItem to="/user/wallet" icon={Wallet}>
+          Wallet
         </SidebarItem>
         <SidebarItem to="/user/reviews" icon={BarChart3}>
           Reviews
@@ -421,7 +460,7 @@ export const UserSidebar = () => {
       </nav>
 
       {/* Logout Button at Bottom */}
-      <div className="flex-shrink-0 p-6 pt-0 border-t border-gray-700">
+      <div className="shrink-0 border-t border-border p-4">
         <LogoutButton />
       </div>
     </aside>

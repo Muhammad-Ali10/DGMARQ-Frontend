@@ -36,7 +36,9 @@ const PAYOUT_STATUS_DEFS = {
   available: { label: 'Available', variant: 'default' },
   released: { label: 'Released', variant: 'success' },
   hold: { label: 'On hold', variant: 'secondary' },
-  frozen: { label: 'Frozen', variant: 'warning' },
+  // 'info', not 'warning': frozen money is paused pending a refund review and
+  // is returned in full if the request is rejected. Nothing is wrong yet.
+  frozen: { label: 'Frozen', variant: 'info' },
   failed: { label: 'Failed', variant: 'destructive' },
   blocked: { label: 'Blocked', variant: 'destructive' },
   // Forward-compatible withdrawal lifecycle states (Phase 5 will populate these end-to-end).
@@ -46,6 +48,11 @@ const PAYOUT_STATUS_DEFS = {
   processing: { label: 'Processing', variant: 'secondary' },
   sent: { label: 'Sent', variant: 'success' },
   rejected: { label: 'Rejected', variant: 'destructive' },
+  failed_with_retry: { label: 'Retrying', variant: 'warning' },
+  // Derived per-row states (see splitPayoutRow on the seller Earnings screen):
+  // a payout line whose keys are a MIX of available / frozen / refunded.
+  partial: { label: 'Partial', variant: 'warning' },
+  refunded: { label: 'Refunded', variant: 'destructive' },
 };
 
 const FALLBACK = { label: 'Unknown', variant: 'default' };
@@ -91,5 +98,14 @@ export const getPayoutStatusDisplay = (status) => {
  */
 export const payoutBadgeProps = (status) => {
   const { label, variant } = getPayoutStatusDisplay(status);
+  return { variant, children: label };
+};
+
+/**
+ * Same convenience for refund statuses. Added so user/ReturnRefunds could drop
+ * its own partial copy of the label + variant tables and read from here instead.
+ */
+export const refundBadgeProps = (status) => {
+  const { label, variant } = getRefundStatusDisplay(status);
   return { variant, children: label };
 };

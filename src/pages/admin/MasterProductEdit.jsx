@@ -43,14 +43,14 @@ const extractList = (res) => {
 
 // ── Presentational helpers (module-scoped → stable identity) ──
 const Section = ({ icon: Icon, title, desc, children, className = '' }) => (
-  <Card className={`bg-primary border-gray-700 shadow-sm ${className}`}>
+  <Card variant="hud" className={className}>
     <CardHeader className="border-b border-gray-700/70 py-4">
       <div className="flex items-start gap-3">
-        <div className="p-2 rounded-lg bg-accent/15 text-accent shrink-0">
+        <div className="p-2 rounded-lg bg-accent/15 text-accent-on-dark shrink-0">
           <Icon className="h-5 w-5" />
         </div>
         <div>
-          <CardTitle className="text-white text-base font-semibold">{title}</CardTitle>
+          <CardTitle>{title}</CardTitle>
           {desc && <p className="text-xs text-gray-400 mt-0.5">{desc}</p>}
         </div>
       </div>
@@ -219,7 +219,7 @@ const MasterProductEdit = () => {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wide text-accent/80 font-medium">Master Catalog</p>
+            <p className="text-xs uppercase tracking-wide text-accent-on-dark/80 font-medium">Master Catalog</p>
             <h1 className="text-xl sm:text-2xl font-bold text-white truncate">{form.name || 'Edit Master Product'}</h1>
           </div>
         </div>
@@ -299,7 +299,7 @@ const MasterProductEdit = () => {
                 </div>
               ))}
               {visibleCount < 5 && (
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border-2 border-dashed border-gray-600 flex flex-col items-center justify-center text-gray-400 hover:border-accent hover:text-accent hover:bg-accent/5 cursor-pointer transition">
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border-2 border-dashed border-gray-600 flex flex-col items-center justify-center text-gray-400 hover:border-accent hover:text-accent-on-dark hover:bg-accent/5 cursor-pointer transition">
                   <ImagePlus className="w-5 h-5" />
                   <span className="text-[10px] mt-1 font-medium">Add</span>
                 </button>

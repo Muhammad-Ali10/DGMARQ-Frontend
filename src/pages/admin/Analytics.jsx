@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { analyticsAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Users, ShoppingCart, DollarSign, TrendingUp, Package, Eye, Heart } from 'lucide-react';
+import { Users, ShoppingCart, DollarSign, Package, Eye, Heart } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
 
 const Analytics = () => {
@@ -127,9 +127,9 @@ const Analytics = () => {
             {realtimeCards.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <Card key={index} className="bg-primary border-gray-700">
+                <Card key={index} variant="hud">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
+                    <CardTitle className="text-gray-300">{stat.title}</CardTitle>
                     <Icon className={`h-4 w-4 ${stat.color}`} />
                   </CardHeader>
                   <CardContent>
@@ -153,9 +153,9 @@ const Analytics = () => {
             {dashboardCards.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <Card key={index} className="bg-primary border-gray-700">
+                <Card key={index} variant="hud">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-300">{stat.title}</CardTitle>
+                    <CardTitle className="text-gray-300">{stat.title}</CardTitle>
                     <Icon className={`h-4 w-4 ${stat.color}`} />
                   </CardHeader>
                   <CardContent>
@@ -173,9 +173,9 @@ const Analytics = () => {
 
       {/* Top Products */}
       {topProducts && Array.isArray(topProducts) && topProducts.length > 0 && (
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardHeader>
-            <CardTitle className="text-white">Top Products by Sales</CardTitle>
+            <CardTitle>Top Products by Sales</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -193,7 +193,7 @@ const Analytics = () => {
                       #{index + 1} {product.productId?.name || product.name || 'Unknown Product'}
                     </span>
                   </div>
-                  <span className="text-accent font-semibold">
+                  <span className="text-accent-on-dark font-semibold">
                     {product.salesCount || product.sales || 0} sales
                   </span>
                 </div>
@@ -204,7 +204,7 @@ const Analytics = () => {
       )}
 
       {(!topProducts || (Array.isArray(topProducts) && topProducts.length === 0)) && !isLoading && (
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="py-8 text-center text-gray-400">
             No top products data available yet.
           </CardContent>

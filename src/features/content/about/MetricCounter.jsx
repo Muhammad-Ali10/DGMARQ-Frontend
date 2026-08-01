@@ -28,11 +28,11 @@ export default function MetricCounter({ value, suffix = '', label }) {
 
   return (
     <div ref={ref} className="text-center">
-      <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tabular-nums">
+      <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-fg tabular-nums">
         {display}
         {suffix}
       </div>
-      <div className="mt-1 text-sm sm:text-base text-gray-400 font-medium">
+      <div className="mt-1 text-sm sm:text-base text-fg-muted font-medium">
         {label}
       </div>
     </div>

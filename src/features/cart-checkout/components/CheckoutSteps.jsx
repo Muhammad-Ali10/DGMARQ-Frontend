@@ -34,13 +34,13 @@ const LBL_BASE =
 // Per-state tones for the badge + label.
 const NUM_TONE = {
   active:
-    "bg-[linear-gradient(135deg,#0e51e2,#3a74f0)] text-white " +
+    "bg-[linear-gradient(135deg,#0e51e2,#3a74f0)] text-fg " +
     "shadow-[0_4px_16px_rgba(14,81,226,0.55),0_0_0_1px_rgba(120,180,255,0.6),inset_0_1px_0_rgba(255,255,255,0.3)]",
   done: "bg-[rgba(14,81,226,0.18)] border-[1.5px] border-[rgba(58,155,245,0.7)] text-[#3a9bf5]",
   todo: "bg-transparent border-[1.5px] border-[rgba(255,255,255,0.14)] text-[rgba(255,255,255,0.35)]",
 };
 const LBL_TONE = {
-  active: "text-white",
+  active: "text-fg",
   done: "text-[rgba(255,255,255,0.85)]",
   todo: "text-[rgba(255,255,255,0.38)]",
 };

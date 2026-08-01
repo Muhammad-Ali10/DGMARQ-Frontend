@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authAPI } from '@services/api';
@@ -10,7 +10,7 @@ import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
-import { Loading } from '@components/ui/loading';
+import { FormSkeleton, CardListSkeleton } from '@components/common/Skeletons';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
 import { User, Lock, Mail, Camera, Shield, Link2, Unlink, Trash2, LogOut, CheckCircle, XCircle, Smartphone } from 'lucide-react';
@@ -31,6 +31,7 @@ const UserProfile = () => {
   const [previewImage, setPreviewImage] = useState(user?.profileImage || '');
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [otp, setOtp] = useState('');
+  const otpInputRef = useRef(null);
   const [showUnlinkGoogleModal, setShowUnlinkGoogleModal] = useState(false);
   const [showUnlinkFacebookModal, setShowUnlinkFacebookModal] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
@@ -124,46 +125,46 @@ const UserProfile = () => {
     }
   };
 
-  if (isLoading) return <Loading message="Loading profile..." />;
+  if (isLoading) return <FormSkeleton fields={5} />;
 
   const currentUser = profileData || user;
 
   return (
-    <div className="space-y-6 px-4 sm:px-0">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white">Profile Settings</h1>
-        <p className="text-gray-400 mt-1">Manage your account information and preferences</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-fg">Profile Settings</h1>
+        <p className="text-fg-muted mt-1">Manage your account information and preferences</p>
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-primary border-gray-700">
-          <TabsTrigger value="profile" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+        <TabsList className="grid w-full grid-cols-5 bg-surface-sunken border-border">
+          <TabsTrigger value="profile" className="">
             <User className="w-4 h-4 mr-2" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="password" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+          <TabsTrigger value="password" className="">
             <Lock className="w-4 h-4 mr-2" />
             Password
           </TabsTrigger>
-          <TabsTrigger value="security" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+          <TabsTrigger value="security" className="">
             <Shield className="w-4 h-4 mr-2" />
             Security
           </TabsTrigger>
-          <TabsTrigger value="sessions" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+          <TabsTrigger value="sessions" className="">
             <Smartphone className="w-4 h-4 mr-2" />
             Sessions
           </TabsTrigger>
-          <TabsTrigger value="account" className="data-[state=active]:bg-accent data-[state=active]:text-white">
+          <TabsTrigger value="account" className="">
             <Trash2 className="w-4 h-4 mr-2" />
             Account
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white">Profile Information</CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardTitle>Profile Information</CardTitle>
+              <CardDescription className="text-fg-muted">
                 Update your profile information and profile picture
               </CardDescription>
             </CardHeader>
@@ -178,12 +179,13 @@ const UserProfile = () => {
                     />
                     <label
                       htmlFor="profileImage"
-                      className="absolute bottom-0 right-0 bg-accent text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition-colors"
+                      className="absolute bottom-0 right-0 bg-accent text-fg p-2 rounded-full cursor-pointer hover:bg-accent/90 transition-colors"
                     >
                       <Camera className="w-4 h-4" />
             </label>
             <input
                       id="profileImage"
+                      aria-label="Upload a profile photo"
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
@@ -194,19 +196,19 @@ const UserProfile = () => {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-gray-300">Name</Label>
+                    <Label htmlFor="name" className="text-fg-muted">Name</Label>
                     <Input
                       id="name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-                      className="bg-secondary border-gray-700 text-white"
+                      className="bg-secondary border-border text-fg"
                       placeholder="Enter your name"
             />
           </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-gray-300">
+                    <Label htmlFor="email" className="text-fg-muted">
                       <Mail className="w-4 h-4 inline mr-2" />
               Email
                     </Label>
@@ -215,16 +217,16 @@ const UserProfile = () => {
               type="email"
                       value={currentUser?.email || ''}
               disabled
-                      className="bg-secondary border-gray-700 text-gray-400"
+                      className="bg-secondary border-border text-fg-muted"
             />
-                    <p className="text-xs text-gray-500">Email cannot be changed</p>
+                    <p className="text-xs text-fg-subtle">Email cannot be changed</p>
                   </div>
           </div>
 
                 <Button
             type="submit"
             disabled={updateProfileMutation.isPending}
-                  className="w-full bg-accent hover:bg-blue-700"
+                  className="w-full"
           >
             {updateProfileMutation.isPending ? 'Updating...' : 'Update Profile'}
                 </Button>
@@ -234,49 +236,49 @@ const UserProfile = () => {
         </TabsContent>
 
         <TabsContent value="password">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white">Change Password</CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardTitle>Change Password</CardTitle>
+              <CardDescription className="text-fg-muted">
                 Update your password to keep your account secure
               </CardDescription>
             </CardHeader>
             <CardContent>
           <form onSubmit={handlePasswordUpdate} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="oldPassword" className="text-gray-300">Current Password</Label>
+                  <Label htmlFor="oldPassword" className="text-fg-muted">Current Password</Label>
                   <Input
                     id="oldPassword"
                 type="password"
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
-                    className="bg-secondary border-gray-700 text-white"
+                    className="bg-secondary border-border text-fg"
                     placeholder="Enter current password"
                 required
               />
             </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="newPassword" className="text-gray-300">New Password</Label>
+                  <Label htmlFor="newPassword" className="text-fg-muted">New Password</Label>
                   <Input
                     id="newPassword"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                    className="bg-secondary border-gray-700 text-white"
+                    className="bg-secondary border-border text-fg"
                     placeholder="Enter new password"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-gray-300">Confirm New Password</Label>
+                  <Label htmlFor="confirmPassword" className="text-fg-muted">Confirm New Password</Label>
                   <Input
                     id="confirmPassword"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-secondary border-gray-700 text-white"
+                    className="bg-secondary border-border text-fg"
                     placeholder="Confirm new password"
                 required
               />
@@ -285,7 +287,7 @@ const UserProfile = () => {
                 <Button
               type="submit"
               disabled={updatePasswordMutation.isPending}
-                  className="w-full bg-accent hover:bg-blue-700"
+                  className="w-full"
             >
               {updatePasswordMutation.isPending ? 'Updating...' : 'Update Password'}
                 </Button>
@@ -295,10 +297,10 @@ const UserProfile = () => {
         </TabsContent>
 
         <TabsContent value="security">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white">Security Settings</CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardTitle>Security Settings</CardTitle>
+              <CardDescription className="text-fg-muted">
                 Manage email verification, OAuth accounts, and email change
               </CardDescription>
             </CardHeader>
@@ -307,18 +309,18 @@ const UserProfile = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-white font-medium">Email Verification</h3>
-                    <p className="text-sm text-gray-400">
+                    <h3 className="text-fg font-medium">Email Verification</h3>
+                    <p className="text-sm text-fg-muted">
                       {currentUser?.emailVerified ? 'Your email is verified' : 'Verify your email address'}
                     </p>
                   </div>
                   {currentUser?.emailVerified ? (
-                    <Badge variant="success" className="bg-green-600">
+                    <Badge variant="success" className="bg-success-solid">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Verified
                     </Badge>
                   ) : (
-                    <Badge variant="warning" className="bg-yellow-600">
+                    <Badge variant="warning" className="bg-warning-solid">
                       <XCircle className="w-3 h-3 mr-1" />
                       Unverified
                     </Badge>
@@ -329,26 +331,35 @@ const UserProfile = () => {
                     <Button
                       onClick={() => sendOTPMutation.mutate()}
                       disabled={sendOTPMutation.isPending}
-                      className="bg-accent hover:bg-blue-700"
+                      className=""
                     >
                       {sendOTPMutation.isPending ? 'Sending...' : 'Send Email Verification OTP'}
                     </Button>
                     
                     {/* OTP Verification Dialog */}
                     <Dialog open={otpDialogOpen} onOpenChange={setOtpDialogOpen}>
-                      <DialogContent size="sm" className="bg-primary border-gray-700">
+                      <DialogContent
+                        size="sm"
+                        onOpenAutoFocus={(e) => {
+                          e.preventDefault();
+                          otpInputRef.current?.focus();
+                        }}
+                      >
                         <DialogHeader>
-                          <DialogTitle className="text-white">Enter Verification OTP</DialogTitle>
-                          <DialogDescription className="text-gray-400">
+                          <DialogTitle className="text-fg">Enter Verification OTP</DialogTitle>
+                          <DialogDescription className="text-fg-muted">
                             Please enter the 6-digit OTP sent to your email address ({currentUser?.email})
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 mt-4">
                           <div className="space-y-2">
-                            <Label htmlFor="otp" className="text-gray-300">OTP Code</Label>
+                            <Label htmlFor="otp" className="text-fg-muted">OTP Code</Label>
                             <Input
                               id="otp"
+                              ref={otpInputRef}
                               type="text"
+                              inputMode="numeric"
+                              autoComplete="one-time-code"
                               maxLength={6}
                               value={otp}
                               onChange={(e) => {
@@ -357,11 +368,10 @@ const UserProfile = () => {
                                   setOtp(value);
                                 }
                               }}
-                              className="bg-secondary border-gray-700 text-white text-center text-2xl tracking-widest font-mono"
+                              className="text-center font-mono text-xl tracking-widest"
                               placeholder="000000"
-                              autoFocus
                             />
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-fg-subtle">
                               Enter the 6-digit code from your email. OTP expires in 10 minutes.
                             </p>
                           </div>
@@ -375,7 +385,7 @@ const UserProfile = () => {
                                 verifyOTPMutation.mutate({ otp });
                               }}
                               disabled={verifyOTPMutation.isPending || otp.length !== 6}
-                              className="flex-1 bg-accent hover:bg-blue-700"
+                              className="flex-1"
                             >
                               {verifyOTPMutation.isPending ? 'Verifying...' : 'Verify OTP'}
                             </Button>
@@ -385,7 +395,7 @@ const UserProfile = () => {
                                 setOtpDialogOpen(false);
                                 setOtp('');
                               }}
-                              className="border-gray-700 text-gray-300 hover:bg-secondary"
+                              className="border-border text-fg-muted hover:bg-secondary"
                             >
                               Cancel
                             </Button>
@@ -398,7 +408,7 @@ const UserProfile = () => {
                                 sendOTPMutation.mutate();
                               }}
                               disabled={sendOTPMutation.isPending}
-                              className="text-sm text-gray-400 hover:text-gray-300"
+                              className="text-sm text-fg-muted hover:text-fg"
                             >
                               Resend OTP
                             </Button>
@@ -411,17 +421,17 @@ const UserProfile = () => {
               </div>
 
               {/* OAuth Accounts */}
-              <div className="space-y-4 border-t border-gray-700 pt-4">
-                <h3 className="text-white font-medium">Connected Accounts</h3>
+              <div className="space-y-4 border-t border-brand-cyan/10 pt-4">
+                <h3 className="text-fg font-medium">Connected Accounts</h3>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                     <div className="flex items-center space-x-2">
-                      <Link2 className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-300">Google</span>
+                      <Link2 className="w-4 h-4 text-fg-muted" />
+                      <span className="text-fg-muted">Google</span>
                     </div>
                     {currentUser?.googleId ? (
                       <div className="flex items-center space-x-2">
-                        <Badge variant="success" className="bg-green-600">Connected</Badge>
+                        <Badge variant="success" className="bg-success-solid">Connected</Badge>
                         <Button
                           size="sm"
                           variant="destructive"
@@ -437,7 +447,7 @@ const UserProfile = () => {
                         onClick={() => {
                           window.location.href = `${API_BASE_URL}/user/auth/google`;
                         }}
-                        className="bg-accent hover:bg-blue-700"
+                        className=""
                       >
                         <Link2 className="w-3 h-3 mr-1" />
                         Link
@@ -446,12 +456,12 @@ const UserProfile = () => {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                     <div className="flex items-center space-x-2">
-                      <Link2 className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-300">Facebook</span>
+                      <Link2 className="w-4 h-4 text-fg-muted" />
+                      <span className="text-fg-muted">Facebook</span>
                     </div>
                     {currentUser?.facebookId ? (
                       <div className="flex items-center space-x-2">
-                        <Badge variant="success" className="bg-green-600">Connected</Badge>
+                        <Badge variant="success" className="bg-success-solid">Connected</Badge>
                         <Button
                           size="sm"
                           variant="destructive"
@@ -467,7 +477,7 @@ const UserProfile = () => {
                         onClick={() => {
                           window.location.href = `${API_BASE_URL}/user/auth/facebook`;
                         }}
-                        className="bg-accent hover:bg-blue-700"
+                        className=""
                       >
                         <Link2 className="w-3 h-3 mr-1" />
                         Link
@@ -478,8 +488,8 @@ const UserProfile = () => {
               </div>
 
               {/* Change Email */}
-              <div className="space-y-4 border-t border-gray-700 pt-4">
-                <h3 className="text-white font-medium">Change Email</h3>
+              <div className="space-y-4 border-t border-brand-cyan/10 pt-4">
+                <h3 className="text-fg font-medium">Change Email</h3>
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -500,28 +510,28 @@ const UserProfile = () => {
                   className="space-y-4"
                 >
                   <div className="space-y-2">
-                    <Label htmlFor="newEmail" className="text-gray-300">New Email</Label>
+                    <Label htmlFor="newEmail" className="text-fg-muted">New Email</Label>
                     <Input
                       id="newEmail"
                       name="newEmail"
                       type="email"
-                      className="bg-secondary border-gray-700 text-white"
+                      className="bg-secondary border-border text-fg"
                       placeholder="Enter new email"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-gray-300">Current Password</Label>
+                    <Label htmlFor="password" className="text-fg-muted">Current Password</Label>
                     <Input
                       id="password"
                       name="password"
                       type="password"
-                      className="bg-secondary border-gray-700 text-white"
+                      className="bg-secondary border-border text-fg"
                       placeholder="Enter password to confirm"
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full bg-accent hover:bg-blue-700">
+                  <Button type="submit" className="w-full">
                     Request Email Change
                   </Button>
                 </form>
@@ -531,10 +541,10 @@ const UserProfile = () => {
         </TabsContent>
 
         <TabsContent value="sessions">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white">Active Sessions</CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardTitle>Active Sessions</CardTitle>
+              <CardDescription className="text-fg-muted">
                 Manage your active login sessions across devices
               </CardDescription>
             </CardHeader>
@@ -552,31 +562,31 @@ const UserProfile = () => {
         </TabsContent>
 
         <TabsContent value="account">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white">Account Management</CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardTitle>Account Management</CardTitle>
+              <CardDescription className="text-fg-muted">
                 Delete your account permanently
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="p-4 bg-red-900/20 border border-red-700 rounded-lg">
-                  <h3 className="text-red-400 font-medium mb-2">Danger Zone</h3>
-                  <p className="text-sm text-gray-400 mb-4">
+                <div className="p-4 bg-danger-soft border border-danger/35 rounded-lg">
+                  <h3 className="text-danger font-medium mb-2">Danger Zone</h3>
+                  <p className="text-sm text-fg-muted mb-4">
                     Once you delete your account, there is no going back. Please be certain.
                   </p>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="destructive" className="bg-red-600 hover:bg-red-700">
+                      <Button variant="destructive">
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Account
                       </Button>
                     </DialogTrigger>
-                    <DialogContent size="sm" className="bg-primary border-gray-700">
+                    <DialogContent size="sm" className="">
                       <DialogHeader>
-                        <DialogTitle className="text-white">Delete Account</DialogTitle>
-                        <DialogDescription className="text-gray-400">
+                        <DialogTitle className="text-fg">Delete Account</DialogTitle>
+                        <DialogDescription className="text-fg-muted">
                           This action cannot be undone. Please enter your password to confirm.
                         </DialogDescription>
                       </DialogHeader>
@@ -592,17 +602,17 @@ const UserProfile = () => {
                         className="space-y-4"
                       >
                         <div className="space-y-2">
-                          <Label htmlFor="deletePassword" className="text-gray-300">Password</Label>
+                          <Label htmlFor="deletePassword" className="text-fg-muted">Password</Label>
                           <Input
                             id="deletePassword"
                             name="password"
                             type="password"
-                            className="bg-secondary border-gray-700 text-white"
+                            className="bg-secondary border-border text-fg"
                             placeholder="Enter your password"
                             required
                           />
                         </div>
-                        <Button type="submit" variant="destructive" className="w-full bg-red-600 hover:bg-red-700">
+                        <Button type="submit" variant="destructive" className="w-full">
                           Delete My Account
                         </Button>
                       </form>
@@ -716,12 +726,12 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
     },
   });
 
-  if (isLoading) return <Loading message="Loading sessions..." />;
+  if (isLoading) return <CardListSkeleton rows={3} />;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-fg-muted">
           {sessions?.length || 0} active session(s)
         </p>
         {sessions && sessions.length > 1 && (
@@ -730,7 +740,7 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
             variant="outline"
             onClick={() => setShowRevokeAllSessionsModal(true)}
             disabled={revokeAllMutation.isPending}
-            className="border-gray-700 text-gray-300 hover:bg-secondary"
+            className="border-border text-fg-muted hover:bg-secondary"
           >
             <LogOut className="w-3 h-3 mr-1" />
             Revoke All Others
@@ -744,16 +754,16 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
             className="flex items-center justify-between p-3 bg-secondary rounded-lg"
           >
             <div className="flex items-center space-x-3">
-              <Smartphone className="w-4 h-4 text-gray-400" />
+              <Smartphone className="w-4 h-4 text-fg-muted" />
               <div>
-                <p className="text-white text-sm font-medium">{session.device || 'Unknown Device'}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-fg text-sm font-medium">{session.device || 'Unknown Device'}</p>
+                <p className="text-xs text-fg-muted">
                   {session.ipAddress} • {new Date(session.lastActivity).toLocaleString()}
                 </p>
               </div>
             </div>
             {session.isCurrent ? (
-              <Badge variant="success" className="bg-green-600">Current</Badge>
+              <Badge variant="success" className="bg-success-solid">Current</Badge>
             ) : (
               <Button
                 size="sm"
@@ -763,7 +773,7 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
                   setShowRevokeSessionModal(true);
                 }}
                 disabled={revokeSessionMutation.isPending}
-                className="border-gray-700 text-gray-300 hover:bg-red-900/20"
+                className="text-danger hover:bg-danger-soft"
               >
                 Revoke
               </Button>

@@ -5,7 +5,6 @@ import { productAPI, cartAPI, reviewAPI, userAPI } from '@services/api';
 import { useSEO, generateProductSEO } from '@hooks/useSEO';
 import { Textarea } from '@components/ui/textarea';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { ProductCard } from '@features/catalog';
 import RegionBadges from '@features/catalog/components/RegionBadges';
 import RegionRestrictionModal from '@features/catalog/components/RegionRestrictionModal';
 import ProductTypeNotice, { ProductTypeBadge } from '@features/catalog/components/ProductTypeNotice';
@@ -43,7 +42,7 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { addToGuestCart } from '@features/cart-checkout';
-import { calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
+import { ProductCard, calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
 import SafeImage from '@components/ui/safe-image';
 import './ProductDetail.css';
 
@@ -613,7 +612,10 @@ const ProductDetail = () => {
                   <div style={{ width: 34, height: 34, background: `rgba(${b.c},0.12)`, border: `1px solid rgba(${b.c},0.25)`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{b.icon}</div>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{b.t}</div>
-                    <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.42)', lineHeight: 1.45 }}>{b.s}</div>
+                    {/* Token, not rgba(255,255,255,0.42): that measured 3.78:1
+                        on this surface, under the 4.5:1 AA floor for 10.5px
+                        body text. --fg-muted measures 7.65:1. */}
+                    <div className="text-fg-muted" style={{ fontSize: 10.5, lineHeight: 1.45 }}>{b.s}</div>
                   </div>
                 </div>
               ))}
@@ -658,7 +660,7 @@ const ProductDetail = () => {
               <p className="text-gray-300 text-sm leading-relaxed mb-3 line-clamp-3">
                 {product.description}{' '}
                 <button
-                  className="text-accent text-xs font-medium hover:underline"
+                  className="text-accent-on-dark text-xs font-medium hover:underline"
                   onClick={() => {
                     setOpenAcc((s) => ({ ...s, description: true }));
                     scrollTo('pd-description');
@@ -719,14 +721,15 @@ const ProductDetail = () => {
                     )}
                   </p>
                   {bo && (
-                    <span
+                    <button
+                      type="button"
                       className="trust-link"
                       onClick={() => setRegionModalOpen(true)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, borderRadius: 999, padding: '3px 9px', color: '#ffd166', border: '1px solid rgba(255,209,102,0.35)', background: 'rgba(255,209,102,0.06)', cursor: 'pointer' }}
                     >
                       Check region restrictions
                       <ChevronRight width={10} height={10} />
-                    </span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -822,11 +825,11 @@ const ProductDetail = () => {
               {/* Quantity + more offers */}
               <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, flexShrink: 0 }}>
-                  <button className="flex items-center justify-center text-white hover:text-accent transition-colors disabled:opacity-40" style={{ width: 32, height: 34 }} disabled={quantity <= 1} onClick={() => setQuantity(Math.max(1, quantity - 1))}>
+                  <button className="flex items-center justify-center text-white hover:text-accent-on-dark transition-colors disabled:opacity-40" style={{ width: 32, height: 34 }} disabled={quantity <= 1} aria-label="Decrease quantity" onClick={() => setQuantity(Math.max(1, quantity - 1))}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14" /></svg>
                   </button>
                   <span className="text-white font-semibold text-sm" style={{ width: 26, textAlign: 'center', borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)', height: 34, lineHeight: '34px' }}>{quantity}</span>
-                  <button className="flex items-center justify-center text-white hover:text-accent transition-colors disabled:opacity-40" style={{ width: 32, height: 34 }} disabled={quantity >= (featuredStock || 1)} onClick={() => setQuantity(Math.min(featuredStock || 1, quantity + 1))}>
+                  <button className="flex items-center justify-center text-white hover:text-accent-on-dark transition-colors disabled:opacity-40" style={{ width: 32, height: 34 }} disabled={quantity >= (featuredStock || 1)} aria-label="Increase quantity" onClick={() => setQuantity(Math.min(featuredStock || 1, quantity + 1))}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                   </button>
                 </div>
@@ -911,7 +914,7 @@ const ProductDetail = () => {
             <button
               onClick={handleAddToCart}
               disabled={(!isActivePreorder && (!featuredStock || featuredStock === 0)) || addToCartMutation.isPending}
-              className="inline-flex items-center justify-center gap-2 font-medium bg-primary text-white hover:opacity-90 rounded-md px-6 w-full h-12 text-lg disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 font-medium bg-background text-white hover:opacity-90 rounded-md px-6 w-full h-12 text-lg disabled:opacity-50"
             >
               <ShoppingCart className="h-5 w-5" />
               {addToCartMutation.isPending ? 'Adding...' : isActivePreorder ? 'Pre-order — Add to Cart' : 'Add to Cart'}
@@ -1257,8 +1260,8 @@ const ProductDetail = () => {
               <h3 className="text-white font-semibold mb-4">Write a Review</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="text-white text-sm mb-2 block">Select Order</label>
-                  <select value={selectedOrderId} onChange={(e) => setSelectedOrderId(e.target.value)} className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white">
+                  <label htmlFor="rv-order" className="text-white text-sm mb-2 block">Select Order</label>
+                  <select id="rv-order" value={selectedOrderId} onChange={(e) => setSelectedOrderId(e.target.value)} className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-white">
                     <option value="">Select an order...</option>
                     {userOrders.map((order) => (
                       <option key={order._id} value={order._id}>Order #{order._id.toString().slice(-8)} - {formatDate(order.createdAt)}</option>
@@ -1266,23 +1269,31 @@ const ProductDetail = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-white text-sm mb-2 block">Rating</label>
-                  <div className="flex items-center gap-2">
+                  <p id="pd-review-rating-label" className="text-white text-sm mb-2 block">Rating</p>
+                  <div className="flex items-center gap-2" role="radiogroup" aria-labelledby="pd-review-rating-label">
                     {[1, 2, 3, 4, 5].map((rating) => (
-                      <button key={rating} type="button" onClick={() => setReviewRating(rating)} className="focus:outline-none">
-                        <Star className={`h-6 w-6 ${rating <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
+                      <button
+                        key={rating}
+                        type="button"
+                        role="radio"
+                        aria-checked={reviewRating === rating}
+                        aria-label={`${rating} star${rating === 1 ? '' : 's'}`}
+                        onClick={() => setReviewRating(rating)}
+                        className="rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Star aria-hidden="true" className={`h-6 w-6 ${rating <= reviewRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'}`} />
                       </button>
                     ))}
                     {reviewRating > 0 && <span className="text-gray-400 text-sm ml-2">{reviewRating} {reviewRating === 1 ? 'star' : 'stars'}</span>}
                   </div>
                 </div>
                 <div>
-                  <label className="text-white text-sm mb-2 block">Comment</label>
-                  <Textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} placeholder="Share your experience with this product..." className="min-h-[100px] bg-gray-900 border-gray-700 text-white" maxLength={1000} />
+                  <label htmlFor="pd-review-comment" className="text-white text-sm mb-2 block">Comment</label>
+                  <Textarea id="pd-review-comment" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} placeholder="Share your experience with this product..." className="min-h-[100px] bg-gray-900 border-gray-700 text-white" maxLength={1000} />
                   <p className="text-gray-500 text-xs mt-1">{reviewComment.length}/1000 characters {reviewComment.trim().length > 0 && reviewComment.trim().length < 10 && '(min 10 required)'}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={handleSubmitReview} disabled={submitReviewMutation.isPending || !selectedOrderId || reviewRating === 0 || !reviewComment.trim() || reviewComment.trim().length < 10} className="inline-flex items-center justify-center gap-2 flex-1 bg-primary text-white rounded-md h-10 disabled:opacity-50">
+                  <button onClick={handleSubmitReview} disabled={submitReviewMutation.isPending || !selectedOrderId || reviewRating === 0 || !reviewComment.trim() || reviewComment.trim().length < 10} className="inline-flex items-center justify-center gap-2 flex-1 bg-background text-white rounded-md h-10 disabled:opacity-50">
                     <Send className="h-4 w-4" /> {submitReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
                   </button>
                   <button onClick={() => { setShowReviewForm(false); setReviewRating(0); setReviewComment(''); setSelectedOrderId(''); }} className="border border-gray-600 rounded-md px-4 text-white hover:bg-white/5">Cancel</button>

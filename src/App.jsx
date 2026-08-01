@@ -27,6 +27,7 @@ const OrderComplete = lazy(() => import("./pages/public/OrderComplete"));
 const DGMarketPlus = lazy(() => import("./pages/public/DGMarketPlus"));
 const Marketplace = lazy(() => import("./pages/public/Marketplace"));
 const Security = lazy(() => import("./pages/public/Security"));
+const NotFound = lazy(() => import("./pages/public/NotFound"));
 const ContactUs = lazy(() => import("./pages/public/ContactUs"));
 const BuyerSupport = lazy(() => import("./pages/public/BuyerSupport"));
 const HowToBuy = lazy(() => import("./pages/public/HowToBuy"));
@@ -115,6 +116,7 @@ const UserDashboard = lazy(() => import("./pages/user/Dashboard"));
 const UserOrders = lazy(() => import("./pages/user/Orders"));
 const OrderDetail = lazy(() => import("./pages/user/OrderDetail"));
 const UserWishlist = lazy(() => import("./pages/user/Wishlist"));
+const UserWallet = lazy(() => import("./pages/user/Wallet"));
 const UserReviews = lazy(() => import("./pages/user/Reviews"));
 const UserProfile = lazy(() => import("./pages/user/Profile"));
 const UserChat = lazy(() => import("./pages/user/Chat"));
@@ -181,6 +183,9 @@ function App() {
           <Route path="/subcategory/:subcategoryId" element={<SubcategoryListing />} />
           <Route path="/subscription/success" element={<SubscriptionSuccess />} />
           <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
+          {/* Catch-all. Must stay last inside PublicLayout so an unmatched URL
+              still renders with the header/footer and a route back out. */}
+          <Route path="*" element={<NotFound />} />
         </Route>
 
         <Route
@@ -265,6 +270,7 @@ function App() {
           <Route path="orders" element={<UserOrders />} />
           <Route path="orders/:orderId" element={<OrderDetail />} />
           <Route path="wishlist" element={<UserWishlist />} />
+          <Route path="wallet" element={<UserWallet />} />
           <Route path="reviews" element={<UserReviews />} />
           <Route path="profile" element={<UserProfile />} />
           <Route path="become-seller" element={<BecomeSeller />} />

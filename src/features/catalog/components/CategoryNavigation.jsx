@@ -174,9 +174,9 @@ const CategoryNavigation = ({ scrollOffset = 140 }) => {
   }, []);
 
   return (
-    <div className="w-full border-gray-700">
+    <div className="w-full border-border">
       <div className="container mx-auto px-3 py-2.5">
-        <div className="border border-gray-700 rounded-lg overflow-hidden">
+        <div className="border border-border rounded-lg overflow-hidden">
           <nav
             ref={navRef}
             className="flex items-center overflow-x-auto scrollbar-hide"
@@ -193,18 +193,18 @@ const CategoryNavigation = ({ scrollOffset = 140 }) => {
                     onClick={() => scrollToSection(item.id)}
                     className={cn(
                       'px-2 sm:px-2.5 py-1.5 sm:py-2 text-sm sm:text-base capitalize font-medium tracking-tight whitespace-nowrap transition-all duration-200',
-                      'hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-[#07142E] rounded',
+                      'hover:text-accent-on-dark focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-[#07142E] rounded',
                       'touch-manipulation',
                       activeItem === item.id
-                        ? 'text-accent font-semibold'
-                        : 'text-gray-300 hover:text-accent'
+                        ? 'text-accent-on-dark font-semibold'
+                        : 'text-fg-muted hover:text-accent-on-dark'
                     )}
                     aria-label={`Scroll to ${item.label} section`}
                   >
                     {item.label}
                   </button>
                   {index < menuItems.length - 1 && (
-                    <span className="text-gray-600 mx-1 select-none">|</span>
+                    <span className="text-fg-subtle mx-1 select-none">|</span>
                   )}
                 </div>
               ))}

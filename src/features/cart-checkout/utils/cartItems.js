@@ -2,11 +2,6 @@
 // stay in lockstep. Auth lines come from the server cart (populated product),
 // guest lines from localStorage, which carries a thinner subset of the fields.
 
-// Delivery is derived from productType (owner-locked): everything we sell is
-// delivered instantly. The mockup's Manual/"5–30 min" variants belong to
-// in-game top-up/boosting/player-trade, which this marketplace doesn't model.
-export const DELIVERY_LABEL = "Instant";
-
 // The design prints a short human type ("Key"), not the raw enum
 // ("LICENSE_KEY"). Unknown values fall back to a de-underscored form.
 const PRODUCT_TYPE_LABEL = {

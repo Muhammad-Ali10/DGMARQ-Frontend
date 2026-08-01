@@ -29,7 +29,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 const ProductCard = memo(({ product }) => {
-  console.log(product)
   const queryClient = useQueryClient();
   const { discountPrice, discountPercentage, originalPrice } =
     calculateProductPrice(product);
@@ -125,7 +124,7 @@ const ProductCard = memo(({ product }) => {
     <Link to={`/product/${product.slug || product._id}`} className="block h-full ">
       <Card
         className={cn(
-          "group w-full max-w-[196px] mx-auto h-full flex flex-col bg-[#041536] p-3 md:p-4 rounded-21 text-white font-poppins gap-2.5 box-border transition duration-200 border",
+          "group w-full max-w-[196px] mx-auto h-full flex flex-col bg-[#041536] p-3 md:p-4 rounded-2xl text-fg font-poppins gap-2.5 box-border transition duration-200 border",
           // Hover glow matches the border colour: red when the buyer can't
           // activate (red border), blue otherwise.
           verdict === false
@@ -145,8 +144,8 @@ const ProductCard = memo(({ product }) => {
               fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
             />
           ) : (
-            <div className="w-full aspect-square rounded-2xl bg-gray-700 flex items-center justify-center">
-              <ShoppingCart className="h-8 w-8 md:h-12 md:w-12 text-gray-400" />
+            <div className="w-full aspect-square rounded-2xl bg-surface-2 flex items-center justify-center">
+              <ShoppingCart className="h-8 w-8 md:h-12 md:w-12 text-fg-muted" />
             </div>
           )}
           {product.isFeatured && (
@@ -165,7 +164,7 @@ const ProductCard = memo(({ product }) => {
             <Heart
               className={cn(
                 "h-4 w-4",
-                wishlisted ? "fill-red-500 text-red-500" : "text-white"
+                wishlisted ? "fill-red-500 text-danger" : "text-fg"
               )}
             />
           </button>
@@ -176,14 +175,14 @@ const ProductCard = memo(({ product }) => {
             onClick={handleAddToCart}
             disabled={cartBusy}
             aria-label="Add to cart"
-            className="absolute bottom-2 right-2 z-10 p-2 rounded-full bg-accent text-white shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
+            className="absolute bottom-2 right-2 z-10 p-2 rounded-full bg-accent text-fg shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
           >
             <ShoppingCart className="h-4 w-4" />
           </button>
         </div>
 
         <CardHeader className="p-0 flex-1 min-h-0">
-          <CardTitle className="text-xs md:text-sm font-semibold -tracking-normal truncate">
+          <CardTitle className="text-xs md:text-sm -tracking-normal truncate">
             {title}
           </CardTitle>
           <p className="text-xs md:text-sm font-normal -tracking-normal">

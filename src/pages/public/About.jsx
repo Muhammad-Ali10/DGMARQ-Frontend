@@ -3,8 +3,6 @@ import { useInView } from '@hooks/useInView';
 import {
   SectionWrapper,
   AnimatedHeading,
-  GridContainer,
-  GlowCard,
   MetricCounter,
   TechCard,
   RoadmapTimeline,
@@ -53,10 +51,6 @@ export default function About() {
       {/* [1] IMMERSIVE HERO */}
       <section className="relative min-h-[85vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />
-        {/* <GridContainer />
-        <div className="absolute inset-0 bg-gradient-to-b from-accent/5 via-transparent to-secondary/30" />
-        <div className="absolute top-1/2 left-1/2 w-[600px] h-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/5 blur-[120px] pointer-events-none" />
-        <CornerBrackets /> */}
 
         <div
           ref={heroRef}
@@ -89,10 +83,6 @@ export default function About() {
 
       {/* [2] ECOSYSTEM ARCHITECTURE - Premium Visual Flow */}
       <SectionWrapper className="relative overflow-hidden">
-        {/* Background accent circles */}
-        {/* <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/5 rounded-full blur-[100px] pointer-events-none" /> */}
-        
         <div className="max-w-7xl mx-auto relative z-10">
           <AnimatedHeading className="mb-20 text-center">
             Ecosystem Architecture
@@ -514,7 +504,7 @@ function PhilosophyCard({ item, index }) {
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent rounded-t-xl" />
           
           {/* Number badge */}
-          <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-accent text-xs font-bold backdrop-blur-sm">
+          <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center text-accent-on-dark text-xs font-bold backdrop-blur-sm">
             {index + 1}
           </div>
           

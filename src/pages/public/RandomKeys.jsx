@@ -1,16 +1,8 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { categoryAPI } from '@services/api';
-import { ProductListingLayout } from '@features/catalog';
+import { ProductListingLayout, useActiveCategories } from '@features/catalog';
 
 const RandomKeys = () => {
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories', 'random-key'],
-    queryFn: async () => {
-      const response = await categoryAPI.getCategories({ isActive: true, limit: 100 });
-      return response.data.data;
-    },
-  });
+  const { data: categoriesData } = useActiveCategories(['categories', 'random-key']);
 
   const randomKeysCategory = useMemo(() => {
     if (!categoriesData?.docs) return null;

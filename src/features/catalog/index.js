@@ -13,3 +13,4 @@ export { default as PlusPromoSection } from './components/PlusPromoSection';
 export { default as CustomHomepageSections } from './components/CustomHomepageSections';
 export { default as ProductTypeNotice, ProductTypeBadge } from './components/ProductTypeNotice';
 export * from './utils/productUtils';
+export { useActiveCategories } from './hooks/useActiveCategories';

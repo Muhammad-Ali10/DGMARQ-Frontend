@@ -60,7 +60,7 @@ const Footer = () => {
   };
 
   return (
-    <div className="ftr-fx flex flex-col w-full text-white">
+    <div className="ftr-fx flex flex-col w-full text-fg">
       {/* Why DGMARQ band */}
       <div className="wdb">
         <div className="wdb-brand">

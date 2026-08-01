@@ -26,15 +26,22 @@ const ImageLightbox = ({ src, alt = 'Attachment', onClose }) => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
-      onClick={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
+      aria-label={alt || 'Image preview'}
     >
+      {/* Click-to-dismiss scrim, behind the content. As its own layer the image
+          no longer needs a stopPropagation to avoid closing itself. */}
+      <div
+        role="presentation"
+        className="absolute inset-0 bg-black/90"
+        onClick={onClose}
+      />
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
+        className="absolute top-4 right-4 z-10 text-fg/80 transition-colors hover:text-fg"
         aria-label="Close image"
       >
         <X className="h-7 w-7" />
@@ -42,8 +49,7 @@ const ImageLightbox = ({ src, alt = 'Attachment', onClose }) => {
       <img
         src={src}
         alt={alt}
-        className="max-h-[90vh] max-w-[90vw] object-contain rounded shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        className="relative max-h-[90vh] max-w-[90vw] rounded object-contain shadow-2xl"
       />
     </div>,
     document.body

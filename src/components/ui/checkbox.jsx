@@ -25,14 +25,17 @@ const Checkbox = React.forwardRef(({ className, checked, onCheckedChange, ...pro
         checked={isChecked}
         onChange={handleChange}
         className={cn(
-          "h-4 w-4 shrink-0 rounded-sm border-2 border-gray-400 bg-transparent ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all cursor-pointer appearance-none",
-          isChecked && "bg-blue-600 border-blue-600",
+          "h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-sm border-2 border-input bg-surface-sunken",
+          "transition-[background-color,border-color,box-shadow] duration-150 ease-out",
+          "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          isChecked && "border-accent bg-accent",
           className
         )}
         {...props}
       />
       {isChecked && (
-        <Check className="absolute h-3 w-3 text-white pointer-events-none" strokeWidth={3} />
+        <Check className="pointer-events-none absolute h-3 w-3 text-accent-foreground" strokeWidth={3} />
       )}
     </div>
   );

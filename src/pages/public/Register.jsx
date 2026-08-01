@@ -116,7 +116,7 @@ const Register = () => {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card border-border shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl sm:text-3xl font-bold text-accent">DGMARQ</CardTitle>
+          <CardTitle className="text-2xl sm:text-3xl font-bold text-accent-on-dark">DGMARQ</CardTitle>
           <CardDescription className="text-muted-foreground">
             Create a new account to get started
           </CardDescription>
@@ -240,7 +240,7 @@ const Register = () => {
             Already have an account?{' '}
             <Link
               to="/login"
-              className="text-accent hover:text-blue-400 transition-colors font-medium"
+              className="text-accent-on-dark hover:text-blue-400 transition-colors font-medium"
             >
               Sign in
             </Link>

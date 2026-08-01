@@ -447,7 +447,7 @@ const Checkout = () => {
   if (cartError && !checkoutId) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
-        <Card className="bg-[#041536] border-gray-700 max-w-md w-full mx-4">
+        <Card className="bg-[#041536] max-w-md w-full mx-4">
           <CardContent className="py-12 px-6 text-center">
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-900/20 flex items-center justify-center">
               <AlertCircle className="w-10 h-10 text-red-400" />
@@ -483,7 +483,7 @@ const Checkout = () => {
     return (
       <div className="min-h-[60vh] py-12">
         <div className="max-w-2xl mx-auto px-4">
-          <Card className="bg-[#041536] border-gray-700">
+          <Card className="bg-[#041536] ">
             <CardContent className="py-12 px-6 text-center">
               <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-900/20 flex items-center justify-center">
                 <XCircle className="w-10 h-10 text-red-400" />
@@ -522,7 +522,7 @@ const Checkout = () => {
     return (
       <div className="min-h-[60vh] py-12">
         <div className="max-w-2xl mx-auto px-4">
-          <Card className="bg-[#041536] border-gray-700">
+          <Card className="bg-[#041536] ">
             <CardHeader>
               <CardTitle className="text-white">Checkout Status</CardTitle>
             </CardHeader>
@@ -736,7 +736,7 @@ const Checkout = () => {
 
           {cart?.bundleDeal && (
             <div className={PANEL} style={{ padding: '16px 18px' }}>
-              <p className="text-sm font-medium text-accent">🎉 Bundle Deal Applied!</p>
+              <p className="text-sm font-medium text-accent-on-dark">🎉 Bundle Deal Applied!</p>
               <p className="mt-1 text-xs text-gray-400">{cart.bundleDeal.title}</p>
             </div>
           )}
@@ -754,6 +754,7 @@ const Checkout = () => {
                 <label htmlFor="co-email" className="mb-[6px] block text-[12px] font-semibold text-white/60">Email <span className="text-[#ff7676]">*</span></label>
                 <input
                   id="co-email"
+                  aria-label="Email"
                   type="email"
                   placeholder="you@example.com"
                   autoComplete="email"
@@ -916,7 +917,7 @@ const Checkout = () => {
 
             {userSubscription?.hasSubscription && Math.floor(totalBeforeFee * 3) > 0 && (
               <div className="mb-4 flex items-center justify-between rounded-lg border border-accent/30 bg-accent/10 px-3 py-2">
-                <span className="flex items-center gap-1.5 text-sm text-accent">
+                <span className="flex items-center gap-1.5 text-sm text-accent-on-dark">
                   <Sparkles className="h-4 w-4" />
                   DGMARQ Plus reward
                 </span>

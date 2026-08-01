@@ -70,10 +70,11 @@ const CurrencyLanguageModal = ({ open, onClose }) => {
   };
 
   const fieldCls =
-    "w-full appearance-none rounded-lg border border-white/15 bg-[#0a1938] px-3 py-2.5 text-sm text-white outline-none focus:border-accent";
+    "w-full appearance-none rounded-lg border border-white/15 bg-[#0a1938] px-3 py-2.5 text-sm text-fg outline-none focus:border-accent";
 
   return (
     <div
+      role="presentation"
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
@@ -82,19 +83,19 @@ const CurrencyLanguageModal = ({ open, onClose }) => {
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-4 top-4 text-white/60 transition-colors hover:text-white"
+          className="absolute right-4 top-4 text-fg/60 transition-colors hover:text-white"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <h3 className="text-lg font-bold text-white">Update your settings</h3>
-        <p className="mt-1 text-sm text-white/55">
+        <h3 className="text-lg font-bold text-fg">Update your settings</h3>
+        <p className="mt-1 text-sm text-fg/55">
           Set your preferred region, language, and the currency.
         </p>
 
         {/* Region */}
         <div className="mt-5">
-          <label htmlFor="clm-region" className="mb-1.5 block text-sm text-white/70">Region</label>
+          <label htmlFor="clm-region" className="mb-1.5 block text-sm text-fg/70">Region</label>
           <div className="flex items-center gap-2.5">
             {pendingRegion && (
               <img
@@ -121,7 +122,7 @@ const CurrencyLanguageModal = ({ open, onClose }) => {
 
         {/* Language */}
         <div className="mt-4">
-          <label htmlFor="clm-lang" className="mb-1.5 block text-sm text-white/70">Language</label>
+          <label htmlFor="clm-lang" className="mb-1.5 block text-sm text-fg/70">Language</label>
           <select
             id="clm-lang"
             value={pendingLang}
@@ -136,7 +137,7 @@ const CurrencyLanguageModal = ({ open, onClose }) => {
 
         {/* Currency */}
         <div className="mt-4">
-          <label htmlFor="clm-currency" className="mb-1.5 block text-sm text-white/70">Currency</label>
+          <label htmlFor="clm-currency" className="mb-1.5 block text-sm text-fg/70">Currency</label>
           <select
             id="clm-currency"
             value={pendingCurrency}
@@ -155,14 +156,14 @@ const CurrencyLanguageModal = ({ open, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white/80 transition-colors hover:bg-white/5"
+            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-fg/80 transition-colors hover:bg-white/5"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-fg transition-opacity hover:opacity-90"
           >
             Save
           </button>

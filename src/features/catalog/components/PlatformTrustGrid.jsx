@@ -8,21 +8,21 @@ const TILES = [
     title: "DGMARQ",
     text: "Trusted digital marketplace for games, software & more",
     grad: "from-[#172AA4]/40 to-[#0E9FE2]/20",
-    iconColor: "text-sky-300",
+    iconColor: "text-info",
   },
   {
     icon: Globe,
     title: "Global",
     text: "Keys and accounts available worldwide, region-checked for you",
     grad: "from-emerald-600/30 to-teal-500/10",
-    iconColor: "text-emerald-300",
+    iconColor: "text-success",
   },
   {
     icon: ShieldCheck,
     title: "Dispute Protection",
     text: "Escrow-backed orders with a fair refund & dispute process",
     grad: "from-amber-600/30 to-orange-500/10",
-    iconColor: "text-amber-300",
+    iconColor: "text-warning",
   },
   {
     icon: Zap,
@@ -46,8 +46,8 @@ const PlatformTrustGrid = () => (
               <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${iconColor}`} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm sm:text-base font-semibold text-white">{title}</p>
-              <p className="mt-0.5 text-[11px] sm:text-xs leading-snug text-white/60">{text}</p>
+              <p className="text-sm sm:text-base font-semibold text-fg">{title}</p>
+              <p className="mt-0.5 text-[11px] sm:text-xs leading-snug text-fg/60">{text}</p>
             </div>
           </div>
         ))}

@@ -200,7 +200,7 @@ const TrendingOffersManagement = () => {
               Create Trending Offer
             </Button>
           </DialogTrigger>
-          <DialogContent size="lg" className="bg-primary border-gray-700">
+          <DialogContent size="lg" className="">
             <DialogHeader>
               <DialogTitle className="text-white">Create Trending Offer</DialogTitle>
             </DialogHeader>
@@ -249,7 +249,7 @@ const TrendingOffersManagement = () => {
                           products.map((product) => {
                             const isSelected = formData.products.some(p => (p._id || p) === product._id);
                             return (
-                              <div
+                              <button type="button"
                                 key={product._id}
                                 onClick={() => toggleProductSelection(product)}
                                 className={`p-3 hover:bg-gray-700 cursor-pointer flex items-center justify-between ${
@@ -269,8 +269,8 @@ const TrendingOffersManagement = () => {
                                     <p className="text-gray-400 text-xs">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</p>
                                   </div>
                                 </div>
-                                {isSelected && <Check className="w-4 h-4 text-accent" />}
-                              </div>
+                                {isSelected && <Check className="w-4 h-4 text-accent-on-dark" />}
+                              </button>
                             );
                           })
                         ) : (
@@ -327,13 +327,13 @@ const TrendingOffersManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">All Trending Offers</CardTitle>
+          <CardTitle>All Trending Offers</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700">
                   <TableHead className="text-gray-300">Products</TableHead>
@@ -412,7 +412,7 @@ const TrendingOffersManagement = () => {
       </Card>
 
 <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-      <DialogContent size="lg" className="bg-primary border-gray-700">
+      <DialogContent size="lg" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Trending Offer</DialogTitle>
           </DialogHeader>
@@ -461,7 +461,7 @@ const TrendingOffersManagement = () => {
                         products.map((product) => {
                           const isSelected = formData.products.some(p => (p._id || p) === product._id);
                           return (
-                            <div
+                            <button type="button"
                               key={product._id}
                               onClick={() => toggleProductSelection(product)}
                               className={`p-3 hover:bg-gray-700 cursor-pointer flex items-center justify-between ${
@@ -481,8 +481,8 @@ const TrendingOffersManagement = () => {
                                   <p className="text-gray-400 text-xs">${product.price} · {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}</p>
                                 </div>
                               </div>
-                              {isSelected && <Check className="w-4 h-4 text-accent" />}
-                            </div>
+                              {isSelected && <Check className="w-4 h-4 text-accent-on-dark" />}
+                            </button>
                           );
                         })
                       ) : (

@@ -1,7 +1,10 @@
-import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+// Matched to Input: same surface, same border token, same hover/focus ladder.
+// The stock version carried `dark:` variants that never applied (this app has
+// no `.dark` class on the root) and had no hover state at all — nothing
+// happened until the field took focus.
 function Textarea({
   className,
   ...props
@@ -10,7 +13,14 @@ function Textarea({
     <textarea
       data-slot="textarea"
       className={cn(
-        "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "flex field-sizing-content min-h-16 w-full rounded-md border border-input bg-surface-sunken px-3 py-2",
+        "text-base text-fg md:text-sm",
+        "placeholder:text-fg-subtle selection:bg-primary selection:text-primary-foreground",
+        "outline-none transition-[color,border-color,box-shadow] duration-150 ease-out",
+        "hover:border-ring",
+        "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        "aria-invalid:border-danger aria-invalid:ring-2 aria-invalid:ring-danger/30",
         className
       )}
       {...props} />

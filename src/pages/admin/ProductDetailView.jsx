@@ -119,9 +119,9 @@ const ProductDetailView = () => {
         {/* Main Product Info */}
         <div className="lg:col-span-2 space-y-6">
           {/* Basic Information */}
-          <Card className="bg-primary border-gray-700">
-            <CardHeader className="border-b border-gray-700">
-              <CardTitle className="text-white flex items-center gap-2">
+          <Card variant="hud">
+            <CardHeader className="border-b ">
+              <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
                 Product Information
               </CardTitle>
@@ -297,9 +297,9 @@ const ProductDetailView = () => {
 
           {/* Images */}
           {product?.images && product.images.length > 0 && (
-            <Card className="bg-primary border-gray-700">
-              <CardHeader className="border-b border-gray-700">
-                <CardTitle className="text-white flex items-center gap-2">
+            <Card variant="hud">
+              <CardHeader className="border-b ">
+                <CardTitle className="flex items-center gap-2">
                   <ImageIcon className="h-5 w-5" />
                   Product Images
                 </CardTitle>
@@ -324,9 +324,9 @@ const ProductDetailView = () => {
             so there is no product-level "Seller Information" card. */}
         <div className="space-y-6">
           {/* Category & Attributes */}
-          <Card className="bg-primary border-gray-700">
-            <CardHeader className="border-b border-gray-700">
-              <CardTitle className="text-white flex items-center gap-2">
+          <Card variant="hud">
+            <CardHeader className="border-b ">
+              <CardTitle className="flex items-center gap-2">
                 <Tag className="h-5 w-5" />
                 Categories & Attributes
               </CardTitle>
@@ -370,9 +370,9 @@ const ProductDetailView = () => {
           </Card>
 
           {/* Additional Info */}
-          <Card className="bg-primary border-gray-700">
-            <CardHeader className="border-b border-gray-700">
-              <CardTitle className="text-white flex items-center gap-2">
+          <Card variant="hud">
+            <CardHeader className="border-b ">
+              <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
                 Additional Information
               </CardTitle>
@@ -404,9 +404,9 @@ const ProductDetailView = () => {
       </div>
 
       {/* Sellers & Offers listed against this master product */}
-      <Card className="bg-primary border-gray-700">
-        <CardHeader className="border-b border-gray-700">
-          <CardTitle className="text-white flex items-center gap-2">
+      <Card variant="hud">
+        <CardHeader className="border-b ">
+          <CardTitle className="flex items-center gap-2">
             <Store className="h-5 w-5" />
             Sellers &amp; Offers
             {offers.length > 0 && (
@@ -424,7 +424,7 @@ const ProductDetailView = () => {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table variant="hud">
                 <TableHeader>
                   <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
                     <TableHead className="text-gray-300">Seller</TableHead>
@@ -450,7 +450,7 @@ const ProductDetailView = () => {
                               variant="link"
                               size="sm"
                               onClick={() => navigate(`/admin/sellers/${o.sellerId._id}`)}
-                              className="text-accent p-0 h-auto text-xs"
+                              className="text-accent-on-dark p-0 h-auto text-xs"
                             >
                               View
                             </Button>
@@ -499,7 +499,7 @@ const ProductDetailView = () => {
 
       {/* Reject offer dialog */}
       <Dialog open={!!rejecting} onOpenChange={(o) => { if (!o) { setRejecting(null); setReason(''); } }}>
-        <DialogContent className="bg-primary border-gray-700">
+        <DialogContent className="">
           <DialogHeader>
             <DialogTitle className="text-white text-xl font-semibold">Reject Offer</DialogTitle>
             <DialogDescription className="text-gray-400">

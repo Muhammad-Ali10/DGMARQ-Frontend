@@ -52,9 +52,9 @@ const OrdersManagement = () => {
         <p className="text-sm sm:text-base text-gray-400 mt-1">View and manage all orders</p>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-white">All Orders</CardTitle>
+          <CardTitle>All Orders</CardTitle>
           <Select value={status || "all"} onValueChange={(value) => { setStatus(value === "all" ? "" : value); setPage(1); }}>
             <SelectTrigger className="w-48 bg-gray-800 border-gray-700 text-white">
               <SelectValue placeholder="All Status" />
@@ -75,7 +75,7 @@ const OrdersManagement = () => {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <Table>
+                <Table variant="hud">
                   <TableHeader>
                     <TableRow className="border-gray-700 hover:bg-gray-800">
                       <TableHead className="text-gray-300">Order ID</TableHead>

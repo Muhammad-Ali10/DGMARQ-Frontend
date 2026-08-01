@@ -26,7 +26,7 @@ const PaymentLogos = () => (
       </span>
     </span>
     <span className={CHIP} title="Visa">
-      <span className="text-[11px] font-extrabold italic tracking-wide text-white/80">VISA</span>
+      <span className="text-[11px] font-extrabold italic tracking-wide text-fg/80">VISA</span>
     </span>
     <span className={CHIP} title="Mastercard">
       <svg width="27" height="17" viewBox="0 0 38 24" aria-hidden="true">

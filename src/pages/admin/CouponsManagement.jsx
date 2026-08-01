@@ -99,7 +99,7 @@ const CouponsManagement = () => {
               Create Coupon
             </Button>
           </DialogTrigger>
-          <DialogContent size="lg" className="bg-primary border-gray-700">
+          <DialogContent size="lg" className="">
             <DialogHeader>
               <DialogTitle className="text-white">Create Coupon</DialogTitle>
             </DialogHeader>
@@ -202,13 +202,13 @@ const CouponsManagement = () => {
         </Dialog>
       </div>
 
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white">All Coupons</CardTitle>
+          <CardTitle>All Coupons</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table variant="hud">
               <TableHeader>
                 <TableRow className="border-gray-700">
                   <TableHead className="text-gray-300">Code</TableHead>
@@ -290,7 +290,7 @@ const CouponsManagement = () => {
       </Card>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent size="lg" className="bg-primary border-gray-700">
+        <DialogContent size="lg" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Coupon</DialogTitle>
           </DialogHeader>

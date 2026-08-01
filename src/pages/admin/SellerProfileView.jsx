@@ -36,7 +36,7 @@ const DocumentTile = ({ url, label }) => {
         </div>
       ) : (
         <div className="flex h-32 flex-col items-center justify-center p-4 text-center">
-          <FileText className="mb-2 h-8 w-8 text-accent" />
+          <FileText className="mb-2 h-8 w-8 text-accent-on-dark" />
           <p className="text-sm text-white">{label}</p>
           <p className="mt-1 text-xs text-gray-400">Click to view</p>
         </div>
@@ -94,7 +94,7 @@ const SellerProfileView = () => {
       </div>
 
       {/* Seller Header Card */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-6">
             {seller?.shopLogo && (
@@ -110,7 +110,7 @@ const SellerProfileView = () => {
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                    <Store className="h-6 w-6 text-accent" />
+                    <Store className="h-6 w-6 text-accent-on-dark" />
                     {seller?.shopName}
                   </h2>
                   <p className="text-gray-400 mt-1">{seller?.description || 'No description provided'}</p>
@@ -143,18 +143,18 @@ const SellerProfileView = () => {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Total Products</p>
                 <p className="text-2xl sm:text-3xl font-bold text-white mt-2">{stats.productCount || 0}</p>
               </div>
-              <Package className="h-10 w-10 text-accent" />
+              <Package className="h-10 w-10 text-accent-on-dark" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -165,7 +165,7 @@ const SellerProfileView = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -177,7 +177,7 @@ const SellerProfileView = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -194,9 +194,9 @@ const SellerProfileView = () => {
       {/* Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Shop Information */}
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
               <Store className="h-5 w-5" />
               Shop Information
             </CardTitle>
@@ -238,9 +238,9 @@ const SellerProfileView = () => {
         </Card>
 
         {/* User Information */}
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5" />
               User Information
             </CardTitle>
@@ -279,9 +279,9 @@ const SellerProfileView = () => {
       </div>
 
       {/* Identity & KYC Verification */}
-      <Card className="bg-primary border-gray-700">
+      <Card variant="hud">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Identity &amp; KYC Verification
           </CardTitle>
@@ -363,9 +363,9 @@ const SellerProfileView = () => {
 
       {/* Shop Banner */}
       {seller?.shopBanner && (
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
               <ImageIcon className="h-5 w-5" />
               Shop Banner
             </CardTitle>
@@ -382,9 +382,9 @@ const SellerProfileView = () => {
 
       {/* KYC Documents */}
       {seller?.kycDocs && seller.kycDocs.length > 0 && (
-        <Card className="bg-primary border-gray-700">
+        <Card variant="hud">
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
               KYC Documents
             </CardTitle>

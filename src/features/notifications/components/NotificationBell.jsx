@@ -96,9 +96,9 @@ const NotificationBell = () => {
     account: ShieldAlert, subscription: CreditCard,
   };
   const ICON_COLORS = {
-    chat: 'text-blue-400', order: 'text-green-400', payout: 'text-yellow-400',
-    refund: 'text-orange-400', review: 'text-purple-400', support: 'text-cyan-400',
-    wishlist: 'text-pink-400', product: 'text-emerald-400', account: 'text-red-400',
+    chat: 'text-info', order: 'text-success', payout: 'text-warning',
+    refund: 'text-warning', review: 'text-purple-400', support: 'text-info',
+    wishlist: 'text-pink-400', product: 'text-success', account: 'text-danger',
     subscription: 'text-indigo-400',
   };
 
@@ -110,7 +110,7 @@ const NotificationBell = () => {
         className="relative flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-700/50 transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
         aria-label="Notifications"
       >
-        <Bell className="w-5 h-5 text-gray-300" />
+        <Bell className="w-5 h-5 text-fg-muted" />
         {unreadCount > 0 && (
           <Badge
             variant="destructive"
@@ -125,15 +125,15 @@ const NotificationBell = () => {
         <div
           ref={dropdownRef}
           className={cn(
-            'absolute right-0 mt-2 w-80 sm:w-96 bg-[#041536] border border-gray-700 rounded-lg shadow-xl z-50',
+            'absolute right-0 mt-2 w-80 sm:w-96 bg-[#041536] border border-border rounded-lg shadow-xl z-50',
             'max-h-[28rem] overflow-hidden flex flex-col'
           )}
         >
           {/* Header */}
-          <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+          <div className="p-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Bell className="w-5 h-5 text-accent" />
-              <h3 className="text-white font-semibold text-sm">Notifications</h3>
+              <Bell className="w-5 h-5 text-accent-on-dark" />
+              <h3 className="text-fg font-semibold text-sm">Notifications</h3>
               {unreadCount > 0 && (
                 <Badge variant="destructive" className="text-xs">{unreadCount} new</Badge>
               )}
@@ -142,7 +142,7 @@ const NotificationBell = () => {
               <button
                 onClick={toggleSound}
                 title={soundOn ? 'Sound on — click to mute' : 'Sound off — click to enable'}
-                className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-white rounded transition-colors"
+                className="h-7 w-7 flex items-center justify-center text-fg-muted hover:text-white rounded transition-colors"
               >
                 {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
               </button>
@@ -150,12 +150,12 @@ const NotificationBell = () => {
                 <button
                   onClick={handleMarkAll}
                   title="Mark all as read"
-                  className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-white rounded transition-colors"
+                  className="h-7 w-7 flex items-center justify-center text-fg-muted hover:text-white rounded transition-colors"
                 >
                   <CheckCheck className="h-4 w-4" />
                 </button>
               )}
-              <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-7 w-7 text-gray-400 hover:text-white">
+              <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-7 w-7 text-fg-muted hover:text-white">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -164,48 +164,50 @@ const NotificationBell = () => {
           {/* List */}
           <div className="overflow-y-auto flex-1">
             {sortedNotifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
+              <div className="p-8 text-center text-fg-muted">
                 <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p className="text-sm">No notifications</p>
-                <p className="text-xs text-gray-500 mt-1">New notifications will appear here</p>
+                <p className="text-xs text-fg-subtle mt-1">New notifications will appear here</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-700">
                 {sortedNotifications.map((notification) => {
                   const IconComponent = ICONS[notification.type] || Bell;
-                  const iconColor = ICON_COLORS[notification.type] || 'text-gray-400';
+                  const iconColor = ICON_COLORS[notification.type] || 'text-fg-muted';
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
                       className={cn(
-                        'p-4 hover:bg-gray-700/50 cursor-pointer transition-colors group',
+                        'block w-full p-4 text-left transition-colors hover:bg-surface-2 group',
+                        'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
                         !notification.isRead && 'bg-accent/5'
                       )}
                     >
                       <div className="flex items-start gap-3">
                         <div className={cn(
-                          'w-10 h-10 rounded-full bg-gray-700/50 flex items-center justify-center flex-shrink-0',
+                          'w-10 h-10 rounded-full bg-surface-2/50 flex items-center justify-center flex-shrink-0',
                           !notification.isRead && 'bg-accent/20'
                         )}>
                           <IconComponent className={cn('w-5 h-5', iconColor)} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-1">
-                            <p className="text-white font-medium text-sm truncate">{notification.title}</p>
-                            <span className="text-gray-400 text-xs flex-shrink-0">{formatTime(notification.timestamp)}</span>
+                            <p className="text-fg font-medium text-sm truncate">{notification.title}</p>
+                            <span className="text-fg-muted text-xs flex-shrink-0">{formatTime(notification.timestamp)}</span>
                           </div>
-                          <p className="text-gray-300 text-sm line-clamp-2">{notification.message}</p>
+                          <p className="text-fg-muted text-sm line-clamp-2">{notification.message}</p>
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); removeNotification(notification.notificationId || notification.id); }}
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-600 rounded"
                           aria-label="Remove notification"
                         >
-                          <X className="w-4 h-4 text-gray-400" />
+                          <X className="w-4 h-4 text-fg-muted" />
                         </button>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -214,10 +216,10 @@ const NotificationBell = () => {
 
           {/* Footer */}
           {sortedNotifications.length > 0 && (
-            <div className="p-3 border-t border-gray-700">
+            <div className="p-3 border-t border-border">
               <button
                 onClick={() => { setIsOpen(false); navigate(getNotificationsRoute()); }}
-                className="w-full text-center text-accent hover:text-accent/80 text-sm font-medium py-2"
+                className="w-full text-center text-accent-on-dark hover:text-accent-on-dark/80 text-sm font-medium py-2"
               >
                 View All Notifications
               </button>

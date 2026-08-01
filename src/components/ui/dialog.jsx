@@ -1,4 +1,3 @@
-import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
@@ -36,7 +35,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm",
         className
       )}
       {...props} />
@@ -67,7 +66,7 @@ function DialogContent({
         className={cn(
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-top-[2%] data-[state=open]:slide-in-from-top-[2%]",
           "fixed top-[50%] left-[50%] z-[100] w-full max-w-[calc(100%-1.5rem)] translate-x-[-50%] translate-y-[-50%]",
-          "rounded-2xl border border-white/[0.08] bg-[#0a1a3a] shadow-2xl shadow-black/40",
+          "rounded-2xl border border-border bg-popover text-popover-foreground shadow-e3",
           "px-0 py-0 duration-200 outline-none max-h-[90vh] overflow-hidden flex flex-col",
           sizeClass,
           className
@@ -77,7 +76,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-gray-400 transition-all hover:bg-white/[0.12] hover:text-white focus:outline-none focus:ring-2 focus:ring-accent/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
+            className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-md bg-surface-sunken text-fg-muted transition-colors duration-150 ease-out hover:bg-surface-2 hover:text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover pointer-coarse:h-11 pointer-coarse:w-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
             <XIcon />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
@@ -94,7 +93,7 @@ function DialogHeader({
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1.5 px-6 pt-6 pb-4 border-b border-white/[0.06] shrink-0", className)}
+      className={cn("flex flex-col gap-1.5 px-6 pt-6 pb-4 border-b border-border shrink-0", className)}
       {...props} />
   );
 }
@@ -107,7 +106,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center border-t border-white/[0.06] px-6 py-4 shrink-0 bg-white/[0.02]",
+        "flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center border-t border-border px-6 py-4 shrink-0 bg-surface-sunken/60",
         className
       )}
       {...props} />
@@ -133,7 +132,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold text-white", className)}
+      className={cn("text-lg leading-none font-semibold text-fg", className)}
       {...props} />
   );
 }
@@ -145,7 +144,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-sm text-gray-400 mt-1", className)}
+      className={cn("text-sm text-fg-muted mt-1", className)}
       {...props} />
   );
 }

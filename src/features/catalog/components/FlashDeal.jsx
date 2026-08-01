@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { flashDealAPI, cartAPI } from '@services/api';
 import { ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
-import { Loading } from '@components/ui/loading';
 import { useSelector } from 'react-redux';
 import { addToGuestCart } from '@features/cart-checkout';
 import { getPlatformName, getTypeName } from '../utils/productUtils';
@@ -133,7 +132,7 @@ const FlashDeal = () => {
   };
 
   return (
-    <div className="bg-blue  rounded-lg p-6 flex flex-col items-center justify-center gap-4 max-w-md mx-auto">
+    <div className="bg-blue rounded-lg p-6 flex flex-col items-center justify-center gap-4 max-w-md mx-auto">
       {/* Banner Image */}
       {activeDeal?.banner && (
         <div className="w-full mb-2">
@@ -146,7 +145,7 @@ const FlashDeal = () => {
         </div>
       )}
       
-      <h2 className="text-2xl font-bold font-poppins text-center text-white">
+      <h2 className="text-2xl font-bold font-poppins text-center text-fg">
         Flash Deal{" "}
         {timeLeft.status === "Coming Soon"
           ? "Starts in"
@@ -159,7 +158,7 @@ const FlashDeal = () => {
       <div className="flex justify-between items-center w-full">
         {["hours", "minutes", "seconds"].map((key, i) => (
           <React.Fragment key={key}>
-            <div className="w-[90px] h-[78px] bg-white/10 text-white px-1 flex flex-col items-center justify-center">
+            <div className="w-[90px] h-[78px] bg-white/10 text-fg px-1 flex flex-col items-center justify-center">
               <div className="text-3xl font-bold font-poppins">
                 {String(timeLeft[key]).padStart(2, "0")}
               </div>
@@ -168,7 +167,7 @@ const FlashDeal = () => {
               </div>
             </div>
             {i < 2 && (
-              <div className="text-white text-2xl sm:text-4xl font-bold">:</div>
+              <div className="text-fg text-2xl sm:text-4xl font-bold">:</div>
             )}
           </React.Fragment>
         ))}
@@ -183,7 +182,7 @@ const FlashDeal = () => {
             className="w-full h-[169px] rounded-3xl z-0"
             fallbackSrc="/placeholder-image.png"
           />
-          <div className="text-base font-normal font-poppins flex flex-col -mt-12 ml-2.5 absolute z-50 text-white rounded-lg bg-blue  w-[99px] h-[70px] px-3.5 py-1">
+          <div className="text-base font-normal font-poppins flex flex-col -mt-12 ml-2.5 absolute z-50 text-fg rounded-lg bg-blue w-[99px] h-[70px] px-3.5 py-1">
             Save{" "}
             <span className="text-xl font-bold font-poppins text-center">
               $ {(parseFloat(actualPrice) - parseFloat(discountPrice)).toFixed(2)}
@@ -193,31 +192,23 @@ const FlashDeal = () => {
       </div>
 
       {/* Product Title & Info */}
-      <div className="flex flex-col w-full mt-6 text-white font-poppins">
+      <div className="flex flex-col w-full mt-6 text-fg font-poppins">
         <h3 className="text-[22px] leading-[26px] font-semibold">{title}</h3>
-        {/* <div className="flex justify-between items-center mt-1">
-          <div className="text-white text-sm font-normal">
-            Left: <span className="font-bold">{left || 0}</span>
-          </div>
-          <div className="bg-orange text-white px-4 py-2 rounded-21 border-[#D55603] border">
-            Sold {sold || 0}
-          </div>
-        </div> */}
       </div>
 
       {/* Pricing */}
       <div className="mt-auto pt-4 bg-white/10 text-center font-poppins p-3 w-full">
-        <div className="text-white text-2xl font-semibold">
+        <div className="text-fg text-2xl font-semibold">
           $ {parseFloat(discountPrice).toFixed(2)}
         </div>
-        <del className="text-white/60 text-xs font-normal p-3">
+        <del className="text-fg/60 text-xs font-normal p-3">
           $ {parseFloat(actualPrice).toFixed(2)}
         </del>
       </div>
 
       {/* Buy Button */}
       <button
-        className="w-full bg-orange flex items-center justify-center gap-2 p-3 rounded-21 border border-[#D55603] text-white font-medium font-poppins cursor-pointer hover:bg-[#D55603] transition-colors"
+        className="w-full bg-orange flex items-center justify-center gap-2 p-3 rounded-2xl border border-[#D55603] text-fg font-medium font-poppins cursor-pointer hover:bg-[#D55603] transition-colors"
         onClick={handleBuyNow}
       >
         <ShoppingCart />

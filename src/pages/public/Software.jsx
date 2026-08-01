@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { categoryAPI } from '@services/api';
-import { ProductListingLayout } from '@features/catalog';
+import { ProductListingLayout, useActiveCategories } from '@features/catalog';
 import { useSEO } from '@hooks/useSEO';
 
 const Software = () => {
@@ -11,13 +9,8 @@ const Software = () => {
     canonical: '/software',
     useDefaults: false,
   });
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories', 'Software'],
-    queryFn: async () => {
-      const response = await categoryAPI.getCategories({ isActive: true, limit: 100 });
-      return response.data.data;
-    },
-  });
+
+  const { data: categoriesData } = useActiveCategories(['categories', 'Software']);
 
   const softwareCategory = useMemo(() => {
     if (!categoriesData?.docs) return null;
@@ -29,12 +22,10 @@ const Software = () => {
   }, [categoriesData]);
 
   return (
-    <>
-      <ProductListingLayout
-        lockedCategoryId={softwareCategory?._id}
-        pageTitle="Software"
-      />
-    </>
+    <ProductListingLayout
+      lockedCategoryId={softwareCategory?._id}
+      pageTitle="Software"
+    />
   );
 };
 

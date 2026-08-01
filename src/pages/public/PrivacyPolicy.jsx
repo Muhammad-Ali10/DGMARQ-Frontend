@@ -37,7 +37,7 @@ const PrivacyPolicy = () => {
           <p className="text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
             {hero.subtext}
           </p>
-          <p className="text-sm text-accent/90">{hero.effectiveDate}</p>
+          <p className="text-sm text-accent-on-dark/90">{hero.effectiveDate}</p>
         </div>
       </SectionWrapper>
 

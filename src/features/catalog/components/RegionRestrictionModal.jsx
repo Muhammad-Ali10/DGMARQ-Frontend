@@ -55,7 +55,7 @@ const RegionRestrictionModal = ({ offer, open, onClose }) => {
   const isBad = verdict === false;
 
   return (
-    <div className="dg-mback open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div role="presentation" className="dg-mback open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="dg-modal dg-region-modal">
         <span className="dg-cr a" /><span className="dg-cr b" /><span className="dg-cr c" /><span className="dg-cr d" />
         <button className="dg-x" onClick={onClose} aria-label="Close"><X width={16} height={16} /></button>

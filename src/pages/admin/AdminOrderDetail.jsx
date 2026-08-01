@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
 import { StatusBadge } from '@components/common/StatusBadge';
+import { SpecList, SpecRow } from '@components/common/SpecList';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
 import { ArrowLeft, Package, CreditCard, MapPin, Calendar, ExternalLink, DollarSign } from 'lucide-react';
@@ -132,6 +133,10 @@ const AdminOrderDetail = () => {
   };
 
   const commissionTotals = getOrderCommissionTotals();
+  const totalRefunded = (order?.items || []).reduce(
+    (sum, item) => sum + (Number(item.refundedAmount) || 0),
+    0
+  );
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -150,9 +155,9 @@ const AdminOrderDetail = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2">
                 <Package className="w-5 h-5" />
                 Order Items
               </CardTitle>
@@ -231,57 +236,60 @@ const AdminOrderDetail = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-gray-300 border-t border-gray-700 pt-3">
-                        <div className="flex justify-between">
-                          <span>Normal platform commission:</span>
-                          <span>${breakdown.normalCommission.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Featured extra commission:</span>
-                          <span>
-                            {breakdown.featuredExtraCommission > 0
+                      <SpecList className="mt-3 grid grid-cols-1 gap-x-6 border-t border-brand-cyan/10 pt-1 sm:grid-cols-2">
+                        <SpecRow
+                          label="Normal platform commission"
+                          value={`$${breakdown.normalCommission.toFixed(2)}`}
+                        />
+                        <SpecRow
+                          label="Featured extra commission"
+                          value={
+                            breakdown.featuredExtraCommission > 0
                               ? `$${breakdown.featuredExtraCommission.toFixed(2)}`
-                              : '$0.00'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Total platform commission:</span>
-                          <span>${breakdown.totalCommission.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Seller net earnings:</span>
-                          <span>${breakdown.sellerEarning.toFixed(2)}</span>
-                        </div>
+                              : '$0.00'
+                          }
+                        />
+                        <SpecRow
+                          label="Total platform commission"
+                          value={`$${breakdown.totalCommission.toFixed(2)}`}
+                        />
+                        <SpecRow
+                          label="Seller net earnings"
+                          value={`$${breakdown.sellerEarning.toFixed(2)}`}
+                          tone="success"
+                        />
                         {(item.refundedAmount > 0 || item.refunded) && (
                           <>
-                            <div className="flex justify-between text-amber-400">
-                              <span>Refunded amount:</span>
-                              <span>-${(item.refundedAmount || 0).toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between text-amber-400">
-                              <span>Refunded seller amount:</span>
-                              <span>-${(item.refundedSellerAmount || 0).toFixed(2)}</span>
-                            </div>
+                            <SpecRow
+                              label="Refunded amount"
+                              value={`-$${(item.refundedAmount || 0).toFixed(2)}`}
+                              tone="warning"
+                            />
+                            <SpecRow
+                              label="Refunded seller amount"
+                              value={`-$${(item.refundedSellerAmount || 0).toFixed(2)}`}
+                              tone="warning"
+                            />
                           </>
                         )}
                         {payoutLine && (
                           <>
-                            <div className="flex justify-between items-center">
-                              <span>Payout status:</span>
-                              {(() => {
+                            <SpecRow
+                              label="Payout status"
+                              value={(() => {
                                 const props = payoutBadgeProps(payoutLine.displayStatus || payoutLine.status);
                                 return <Badge variant={props.variant}>{props.label}</Badge>;
                               })()}
-                            </div>
+                            />
                             {payoutLine.holdUntil && (
-                              <div className="flex justify-between">
-                                <span>Release date:</span>
-                                <span>{new Date(payoutLine.holdUntil).toLocaleDateString()}</span>
-                              </div>
+                              <SpecRow
+                                label="Release date"
+                                value={new Date(payoutLine.holdUntil).toLocaleDateString()}
+                              />
                             )}
                           </>
                         )}
-                      </div>
+                      </SpecList>
                       {sellerId && (
                         <div className="border-t border-gray-700 pt-4">
                           <p className="text-sm text-gray-400 mb-2">Sold by</p>
@@ -313,9 +321,9 @@ const AdminOrderDetail = () => {
           </Card>
 
           {order.shippingAddress && (
-            <Card className="bg-primary border-gray-700">
+            <Card variant="hud">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                   <MapPin className="w-5 h-5" />
                   Shipping Address
                 </CardTitle>
@@ -339,116 +347,103 @@ const AdminOrderDetail = () => {
         </div>
 
         <div className="space-y-6">
-          <Card className="bg-primary border-gray-700">
+          <Card variant="hud">
             <CardHeader>
-              <CardTitle className="text-white">Order Summary</CardTitle>
+              <CardTitle>Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Order Status:</span>
-                  <StatusBadge domain="order" status={order.orderStatus} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Payment Status:</span>
-                  <StatusBadge domain="payment" status={order.paymentStatus} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Order Date:
-                  </span>
-                  <span className="text-white">
-                    {new Date(order.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                {order.userId && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Customer:</span>
-                    <span className="text-white">
-                      {order.userId.name ?? order.userId.email ?? '—'}
+              <SpecList>
+                <SpecRow
+                  label="Order status"
+                  value={<StatusBadge domain="order" status={order.orderStatus} />}
+                />
+                <SpecRow
+                  label="Payment status"
+                  value={<StatusBadge domain="payment" status={order.paymentStatus} />}
+                />
+                <SpecRow
+                  label={
+                    <span className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Order date
                     </span>
-                  </div>
+                  }
+                  value={new Date(order.createdAt).toLocaleDateString()}
+                />
+                {order.userId && (
+                  <SpecRow
+                    label="Customer"
+                    value={order.userId.name ?? order.userId.email ?? '—'}
+                  />
                 )}
                 {order.updatedAt && order.updatedAt !== order.createdAt && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Last Updated:</span>
-                    <span className="text-white">
-                      {new Date(order.updatedAt).toLocaleDateString()}
-                    </span>
-                  </div>
+                  <SpecRow
+                    label="Last updated"
+                    value={new Date(order.updatedAt).toLocaleDateString()}
+                  />
                 )}
-              </div>
-
-              <div className="border-t border-gray-700 pt-4 space-y-2">
-                <div className="flex justify-between text-gray-400">
-                  <span>Subtotal:</span>
-                  <span>${order.subtotal?.toFixed(2) || order.totalAmount?.toFixed(2)}</span>
-                </div>
+                <SpecRow
+                  label="Subtotal"
+                  value={`$${order.subtotal?.toFixed(2) || order.totalAmount?.toFixed(2)}`}
+                />
                 {order.shippingCost > 0 && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Shipping:</span>
-                    <span>${order.shippingCost.toFixed(2)}</span>
-                  </div>
+                  <SpecRow label="Shipping" value={`$${order.shippingCost.toFixed(2)}`} />
                 )}
-                {order.tax > 0 && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Tax:</span>
-                    <span>${order.tax.toFixed(2)}</span>
-                  </div>
-                )}
+                {order.tax > 0 && <SpecRow label="Tax" value={`$${order.tax.toFixed(2)}`} />}
                 {order.discount > 0 && (
-                  <div className="flex justify-between text-green-400">
-                    <span>Discount:</span>
-                    <span>-${order.discount.toFixed(2)}</span>
-                  </div>
+                  <SpecRow
+                    label="Discount"
+                    value={`-$${order.discount.toFixed(2)}`}
+                    tone="success"
+                  />
                 )}
                 {order.buyerHandlingFee > 0 && (
-                  <div className="flex justify-between text-gray-400">
-                    <span>Buyer Protection Fee:</span>
-                    <span>${order.buyerHandlingFee.toFixed(2)}</span>
-                  </div>
+                  <SpecRow
+                    label="Buyer protection fee"
+                    value={`$${order.buyerHandlingFee.toFixed(2)}`}
+                  />
                 )}
-                {(() => {
-                  const totalRefunded = (order.items || []).reduce(
-                    (sum, item) => sum + (Number(item.refundedAmount) || 0),
-                    0
-                  );
-                  return totalRefunded > 0 ? (
-                    <div className="flex justify-between text-amber-400">
-                      <span>Refunded:</span>
-                      <span>-${totalRefunded.toFixed(2)}</span>
-                    </div>
-                  ) : null;
-                })()}
-                <div className="flex justify-between text-white font-bold text-lg pt-2 border-t border-gray-700">
-                  <span>{order.grandTotal != null ? 'Grand Total:' : 'Total:'}</span>
-                  <span>${(order.grandTotal ?? order.totalAmount)?.toFixed(2)}</span>
-                </div>
-              </div>
+                {totalRefunded > 0 && (
+                  <SpecRow
+                    label="Refunded"
+                    value={`-$${totalRefunded.toFixed(2)}`}
+                    tone="warning"
+                  />
+                )}
+                <SpecRow
+                  emphasis
+                  label={order.grandTotal != null ? 'Grand total' : 'Total'}
+                  value={`$${(order.grandTotal ?? order.totalAmount)?.toFixed(2)}`}
+                />
+              </SpecList>
 
-              <div className="pt-4 border-t border-gray-700 space-y-2">
-                <p className="text-sm text-gray-300 font-semibold">Commission & Earnings Breakdown</p>
-                <div className="flex justify-between text-gray-400 text-sm">
-                  <span>Normal platform commission:</span>
-                  <span>${commissionTotals.normalCommission.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-gray-400 text-sm">
-                  <span>Featured extra commission:</span>
-                  <span>
-                    {commissionTotals.featuredExtraCommission > 0
-                      ? `$${commissionTotals.featuredExtraCommission.toFixed(2)}`
-                      : '$0.00'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-gray-100 font-medium text-sm">
-                  <span>Total platform commission:</span>
-                  <span>${commissionTotals.totalCommission.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-gray-100 font-medium text-sm">
-                  <span>Seller net earnings:</span>
-                  <span>${commissionTotals.sellerEarning.toFixed(2)}</span>
-                </div>
+              <div>
+                <p className="mb-1 text-xs font-extrabold tracking-[0.13em] text-info uppercase">
+                  Commission &amp; earnings breakdown
+                </p>
+                <SpecList>
+                  <SpecRow
+                    label="Normal platform commission"
+                    value={`$${commissionTotals.normalCommission.toFixed(2)}`}
+                  />
+                  <SpecRow
+                    label="Featured extra commission"
+                    value={
+                      commissionTotals.featuredExtraCommission > 0
+                        ? `$${commissionTotals.featuredExtraCommission.toFixed(2)}`
+                        : '$0.00'
+                    }
+                  />
+                  <SpecRow
+                    label="Total platform commission"
+                    value={`$${commissionTotals.totalCommission.toFixed(2)}`}
+                  />
+                  <SpecRow
+                    label="Seller net earnings"
+                    value={`$${commissionTotals.sellerEarning.toFixed(2)}`}
+                    tone="success"
+                  />
+                </SpecList>
               </div>
 
               {order.paymentMethod && (

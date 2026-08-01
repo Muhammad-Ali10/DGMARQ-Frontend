@@ -171,17 +171,17 @@ const MessageList = ({
       >
         {isLoadingOlder && (
           <div className="flex justify-center py-2">
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            <Loader2 className="h-4 w-4 animate-spin text-fg-muted" />
           </div>
         )}
         {!hasMore && messages.length > 0 && (
-          <div className="text-center text-[11px] text-gray-500 py-2">
+          <div className="text-center text-[11px] text-fg-subtle py-2">
             Beginning of the conversation
           </div>
         )}
 
         {messages.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-gray-400 text-sm text-center px-4">
+          <div className="h-full flex items-center justify-center text-fg-muted text-sm text-center px-4">
             {emptyText}
           </div>
         ) : (
@@ -211,7 +211,7 @@ const MessageList = ({
                 >
                   {showDay && (
                     <div className="flex justify-center my-3">
-                      <span className="text-[11px] text-gray-300 bg-gray-800/80 px-3 py-0.5 rounded-full">
+                      <span className="text-[11px] text-fg-muted bg-surface-2/80 px-3 py-0.5 rounded-full">
                         {dayText}
                       </span>
                     </div>
@@ -235,7 +235,7 @@ const MessageList = ({
         <button
           type="button"
           onClick={() => scrollToBottom('smooth')}
-          className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-accent text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-lg hover:opacity-90 transition-opacity"
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-accent text-fg text-xs font-medium px-3 py-1.5 rounded-full shadow-lg hover:opacity-90 transition-opacity"
         >
           New messages <ChevronDown className="h-3.5 w-3.5" />
         </button>

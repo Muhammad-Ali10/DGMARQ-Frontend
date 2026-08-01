@@ -252,10 +252,10 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
 
   function getRoleBadgeColor(role) {
     switch (role) {
-      case 'admin': return 'bg-red-500/20 text-red-400';
-      case 'seller': return 'bg-amber-500/20 text-amber-400';
-      case 'customer': return 'bg-blue-500/20 text-blue-400';
-      default: return 'bg-gray-500/20 text-gray-400';
+      case 'admin': return 'bg-red-500/20 text-danger';
+      case 'seller': return 'bg-amber-500/20 text-warning';
+      case 'customer': return 'bg-blue-500/20 text-info';
+      default: return 'bg-gray-500/20 text-fg-muted';
     }
   }
 
@@ -276,11 +276,11 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] bg-white/[0.03]">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15">
-          <MessageSquare className="w-4 h-4 text-accent" />
+          <MessageSquare className="w-4 h-4 text-accent-on-dark" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white">Refund Chat</p>
-          <p className="text-xs text-gray-500">
+          <p className="text-sm font-medium text-fg">Refund Chat</p>
+          <p className="text-xs text-fg-subtle">
             {isConnected ? (
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -303,12 +303,12 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
         style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(14, 81, 226, 0.03) 0%, transparent 50%)' }}
       >
         {isLoading ? (
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-400 py-8">
+          <div className="flex items-center justify-center gap-2 text-sm text-fg-muted py-8">
             <Loader2 className="w-5 h-5 animate-spin" />
             Loading messages...
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-8 text-fg-subtle">
             <MessageSquare className="w-10 h-10 mb-2 opacity-30" />
             <p className="text-sm">No messages yet</p>
             <p className="text-xs mt-1">Start the conversation</p>
@@ -318,7 +318,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
             if (item.type === 'date') {
               return (
                 <div key={`date-${idx}`} className="flex justify-center py-2">
-                  <span className="px-3 py-1 text-[11px] font-medium text-gray-400 bg-white/[0.05] rounded-full">
+                  <span className="px-3 py-1 text-[11px] font-medium text-fg-muted bg-white/[0.05] rounded-full">
                     {item.date}
                   </span>
                 </div>
@@ -333,7 +333,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
             if (system) {
               return (
                 <div key={m._id} className="flex justify-center py-1">
-                  <div className="px-4 py-1.5 text-xs text-gray-400 bg-white/[0.04] rounded-full border border-white/[0.04] max-w-[80%] text-center">
+                  <div className="px-4 py-1.5 text-xs text-fg-muted bg-white/[0.04] rounded-full border border-white/[0.04] max-w-[80%] text-center">
                     {m.message}
                   </div>
                 </div>
@@ -359,7 +359,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
                   )}
 
                   {m.message && (
-                    <p className={`text-[13px] sm:text-sm leading-relaxed break-words ${own ? 'text-white' : 'text-gray-200'}`}>
+                    <p className={`text-[13px] sm:text-sm leading-relaxed break-words ${own ? 'text-fg' : 'text-fg'}`}>
                       {m.message}
                     </p>
                   )}
@@ -386,13 +386,13 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
                   )}
 
                   <div className={`flex items-center gap-1 mt-1 ${own ? 'justify-end' : 'justify-start'}`}>
-                    <span className={`text-[10px] ${own ? 'text-white/60' : 'text-gray-500'}`}>
+                    <span className={`text-[10px] ${own ? 'text-fg/60' : 'text-fg-subtle'}`}>
                       {formatTime(m.createdAt)}
                     </span>
                     {own && (
                       optimistic
-                        ? <Loader2 className="w-3 h-3 animate-spin text-white/50" />
-                        : <CheckCheck className="w-3.5 h-3.5 text-white/60" />
+                        ? <Loader2 className="w-3 h-3 animate-spin text-fg/50" />
+                        : <CheckCheck className="w-3.5 h-3.5 text-fg/60" />
                     )}
                   </div>
                 </div>
@@ -406,7 +406,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
       {/* Input area */}
       {locked ? (
         <div className="border-t border-white/[0.06] px-4 py-3 text-center">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-fg-subtle">
             This refund request is closed — the chat is locked.
           </p>
         </div>
@@ -419,7 +419,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
                   <SafeImage src={item.preview} alt={item.file.name} className="w-full h-full object-cover" />
                   <button
                     type="button"
-                    className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/70 text-white hover:bg-black/90 transition-colors"
+                    className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/70 text-fg hover:bg-black/90 transition-colors"
                     onClick={() => removeImage(item.id)}
                   >
                     <X className="w-3 h-3" />
@@ -432,6 +432,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
           <input
             ref={fileInputRef}
             type="file"
+            aria-label="Attach an image to this message"
             accept="image/jpeg,image/png,image/webp"
             multiple
             className="hidden"
@@ -443,7 +444,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={addMessageMutation.isPending || selectedImages.length >= MAX_FILES}
-              className="shrink-0 p-2.5 rounded-full text-gray-400 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+              className="shrink-0 p-2.5 rounded-full text-fg-muted hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-40"
             >
               <ImagePlus className="w-5 h-5" />
             </button>
@@ -451,12 +452,13 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
             <div className="flex-1 relative">
               <textarea
                 ref={textareaRef}
+                aria-label="Message"
                 value={localMessage}
                 onChange={(e) => setLocalMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
                 rows={1}
-                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-2xl px-3.5 py-2.5 text-[13px] sm:text-sm text-white placeholder:text-gray-500 resize-none focus:outline-none focus:border-accent/50 transition-colors max-h-24 overflow-y-auto"
+                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-2xl px-3.5 py-2.5 text-[13px] sm:text-sm text-fg placeholder:text-gray-500 resize-none focus:outline-none focus:border-accent/50 transition-colors max-h-24 overflow-y-auto"
                 style={{ minHeight: '40px' }}
               />
             </div>
@@ -465,7 +467,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
               type="button"
               onClick={handleSend}
               disabled={addMessageMutation.isPending || (!localMessage.trim() && selectedImages.length === 0)}
-              className="shrink-0 p-2.5 rounded-full bg-accent hover:bg-accent/80 text-white transition-colors disabled:opacity-40 disabled:hover:bg-accent"
+              className="shrink-0 p-2.5 rounded-full bg-accent hover:bg-accent/80 text-fg transition-colors disabled:opacity-40 disabled:hover:bg-accent"
             >
               {addMessageMutation.isPending ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -477,7 +479,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
         </div>
       ) : (
         <div className="border-t border-white/[0.06] px-4 py-3 text-center">
-          <p className="text-xs text-gray-500">You can only reply when admin requests your input.</p>
+          <p className="text-xs text-fg-subtle">You can only reply when admin requests your input.</p>
         </div>
       )}
     </div>
