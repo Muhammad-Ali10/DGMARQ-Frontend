@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { extractList } from '@lib/apiList';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -41,22 +42,17 @@ const BATCH_SIZE = 50;
 
 // Robustly pull a list out of any of the taxonomy/list response shapes the
 // backend uses ({ docs }, { genres }, { categories }, a bare array, …).
-const extractList = (res) => {
-  const d = res?.data?.data;
-  if (Array.isArray(d)) return d;
-  if (Array.isArray(d?.docs)) return d.docs;
-  if (d && typeof d === 'object') {
-    const arr = Object.values(d).find((v) => Array.isArray(v));
-    if (arr) return arr;
-  }
-  return [];
-};
 
 const EMPTY_FORM = {
   name: '', categoryId: '', subCategoryId: '', platform: '', genre: '',
   mode: '', device: '', theme: '', type: '', productType: 'LICENSE_KEY',
   publishers: '', developers: '', releaseDate: '', activationDetails: '',
   systemRequirements: '', description: '',
+  // M21: a product can only become a pre-order here or on the edit screen.
+  // The API has accepted both fields all along, but no screen ever sent them —
+  // so no pre-order could be created, and the whole release / escrow /
+  // auto-refund pipeline behind them was unreachable.
+  isPreorder: false, preorderReleaseDate: '',
 };
 
 const selectCls = 'w-full bg-secondary border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent';
@@ -239,6 +235,13 @@ const MasterCatalogManagement = () => {
   const submitForm = () => {
     if (!form.name.trim()) { toast.warning('Product name is required'); return; }
     if (!form.categoryId) { toast.warning('Category is required'); return; }
+    // A pre-order with no release date can never release and never auto-refund,
+    // so buyers' escrowed payments would sit held indefinitely. The API rejects
+    // it too; this just says so before the round trip.
+    if (form.isPreorder && !form.preorderReleaseDate) {
+      toast.warning('A pre-order needs a release date');
+      return;
+    }
     saveMutation.mutate();
   };
 
@@ -474,6 +477,47 @@ const MasterCatalogManagement = () => {
             <div className="space-y-1.5">
               <Label className="text-gray-300 text-sm">System Requirements</Label>
               <Textarea value={form.systemRequirements} onChange={setField('systemRequirements')} className="bg-secondary border-gray-700 text-white min-h-[70px]" />
+            </div>
+
+            {/* M21 — PRE-ORDER. Deliberately separated from the "Release Date"
+                field above: that one is catalogue metadata, this one drives
+                delivery, escrow and auto-refund. Confusing the two is exactly
+                how a product ships without the pipeline behind it. */}
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/6 p-4">
+              <div className="flex items-start gap-3">
+                <input
+                  id="createIsPreorder"
+                  type="checkbox"
+                  aria-label="Sell as a pre-order"
+                  checked={form.isPreorder}
+                  onChange={(e) => setForm((f) => ({ ...f, isPreorder: e.target.checked }))}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-amber-500"
+                />
+                <div className="min-w-0">
+                  <label htmlFor="createIsPreorder" className="block cursor-pointer text-sm font-semibold text-amber-200">
+                    Sell as a pre-order
+                  </label>
+                  <p className="mt-1 text-xs text-amber-100/70">
+                    Buyers pay now and the money is held — no key is delivered until the
+                    release date below. On that date the system delivers automatically and
+                    the product becomes a standard listing. If no seller has stock within
+                    24 hours of release, every buyer is refunded to their wallet.
+                  </p>
+                </div>
+              </div>
+
+              {form.isPreorder && (
+                <div className="mt-4 max-w-xs space-y-1.5">
+                  <Label className="text-gray-300 text-sm">
+                    Release date<span className="text-red-400 ml-0.5">*</span>
+                  </Label>
+                  <Input type="date" value={form.preorderReleaseDate} onChange={setField('preorderReleaseDate')} className="bg-secondary border-gray-700 text-white" />
+                  <p className="text-xs text-amber-100/60">
+                    This is the date delivery fires on. Without it the pre-order can never
+                    release, and buyers&apos; payments would stay held.
+                  </p>
+                </div>
+              )}
             </div>
 
             {!editingId && (

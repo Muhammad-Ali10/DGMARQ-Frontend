@@ -1,30 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { Lock, Mail, ShieldCheck, User, UserPlus } from 'lucide-react';
 import { Button } from '@components/ui/button';
-import { Input } from '@components/ui/input';
-import { Label } from '@components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/card';
+import AuthShell from '@components/common/AuthShell';
+import AuthField from '@components/common/AuthField';
+import AuthDivider from '@components/common/AuthDivider';
+import SocialAuthButtons from '@components/common/SocialAuthButtons';
+import PasswordStrengthMeter from '@components/common/PasswordStrengthMeter';
 import { authAPI } from '@services/api';
-import { API_ORIGIN } from '@lib/config';
 import { showSuccess, showApiError } from '@utils/toast';
-import { Chrome, Gamepad2, MessagesSquare, Wallet } from 'lucide-react';
+import { describeAuthError } from '@lib/socialAuth';
+import { scorePassword } from '@lib/passwordPolicy';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// The backend takes a single `name` (2-50 chars); the mockup asks for first and
+// last separately. Joining here keeps the design without touching the API
+// contract — and trimming first means "  Ali  " + "" cannot produce a name that
+// is whitespace or 51 characters long.
+const joinName = (first, last) => [first.trim(), last.trim()].filter(Boolean).join(' ');
 
 const Register = () => {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useSelector((state) => state.auth);
+
+  const oauthError = describeAuthError(searchParams);
 
   useEffect(() => {
     if (isAuthenticated && window.location.pathname === '/register') {
       navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate]);
+
+  const strength = useMemo(() => scorePassword(password), [password]);
+
+  const emailState = email ? (EMAIL_RE.test(email) ? 'ok' : 'error') : null;
+  const confirmState = confirmPassword ? (confirmPassword === password ? 'ok' : 'error') : null;
+  const name = joinName(firstName, lastName);
 
   const registerMutation = useMutation({
     mutationFn: async (data) => {
@@ -36,218 +57,188 @@ const Register = () => {
       navigate('/login', { replace: true });
     },
     onError: (err) => {
-      try {
-        const errorData = err.response?.data;
-        let errorMessage = 'Registration failed. Please check your input and try again.';
-        
-        if (errorData) {
-          if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-            errorMessage = errorData.errors
-              .map((error) => {
-                if (typeof error === 'object' && error.message) {
-                  const fieldName = error.field ? error.field.charAt(0).toUpperCase() + error.field.slice(1) + ': ' : '';
-                  return `${fieldName}${error.message}`;
-                }
-                return typeof error === 'string' ? error : 'Invalid input';
-              })
-              .join('. ');
-          } else if (errorData.message) {
-            errorMessage = errorData.message;
-          } else if (errorData.error) {
-            errorMessage = errorData.error;
-          }
+      const errorData = err.response?.data;
+      let errorMessage = 'Registration failed. Please check your input and try again.';
+
+      if (errorData) {
+        if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          errorMessage = errorData.errors
+            .map((item) => {
+              if (typeof item === 'object' && item.message) {
+                const fieldName = item.field
+                  ? item.field.charAt(0).toUpperCase() + item.field.slice(1) + ': '
+                  : '';
+                return `${fieldName}${item.message}`;
+              }
+              return typeof item === 'string' ? item : 'Invalid input';
+            })
+            .join('. ');
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
         }
-        if (typeof errorMessage !== 'string') {
-          errorMessage = 'Registration failed. Please check your input and try again.';
-        }
-        
-        setError(errorMessage);
-        showApiError(err, 'Registration failed');
-      } catch {
-        setError('Registration failed. Please try again.');
       }
+
+      setError(errorMessage);
+      showApiError(err, 'Registration failed');
     },
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+
+    // Ordered so the message names the FIRST thing wrong going down the form,
+    // rather than whichever check happens to be written first.
     if (name.length < 2 || name.length > 50) {
-      setError('Name must be between 2 and 50 characters');
+      setError('Please enter your name (between 2 and 50 characters in total).');
       return;
     }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (!EMAIL_RE.test(email)) {
+      setError('Please enter a valid email address.');
       return;
     }
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
-    if (!passwordRegex.test(password)) {
-      setError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+    if (!strength.isValid) {
+      setError(`Your password still needs: ${strength.firstUnmet.label.toLowerCase()}.`);
       return;
     }
-
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
+      setError('Passwords do not match.');
       return;
     }
 
-    try {
-      registerMutation.mutate({ name, email, password });
-    } catch {
-      setError('Registration failed. Please try again.');
-    }
+    registerMutation.mutate({ name, email, password });
   };
 
-  const handleGoogleLogin = () => {
-    window.location.href = `${API_ORIGIN}/api/v1/user/auth/google`;
-  };
-
-  const socialLogin = (provider) => {
-    window.location.href = `${API_ORIGIN}/api/v1/user/auth/${provider}`;
-  };
+  const shownError = error || oauthError;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-card border-border shadow-xl">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl sm:text-3xl font-bold text-accent-on-dark">DGMARQ</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Create a new account to get started
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && typeof error === 'string' && error.length > 0 && (
-            <div
-              role="alert"
-              aria-live="polite"
-              className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm"
-            >
-              {error}
-            </div>
+    <AuthShell
+      title="Create your account to get started"
+      hudTag="New Account"
+      width="md"
+    >
+      {shownError && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="mb-4 rounded-md border border-danger/25 bg-danger-soft p-3 text-sm text-danger"
+        >
+          {shownError}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="grid grid-cols-2 gap-2.5">
+          <AuthField
+            id="firstName"
+            label="First Name"
+            icon={User}
+            placeholder="First name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+            autoComplete="given-name"
+            state={firstName.trim() ? 'ok' : null}
+          />
+          <AuthField
+            id="lastName"
+            label="Last Name"
+            icon={User}
+            placeholder="Last name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            autoComplete="family-name"
+            state={lastName.trim() ? 'ok' : null}
+          />
+        </div>
+
+        <AuthField
+          id="email"
+          label="Email"
+          type="email"
+          icon={Mail}
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+          state={emailState}
+          hint={emailState === 'error' ? 'Enter a valid email address' : undefined}
+        />
+
+        <div className="mb-3.5">
+          <AuthField
+            id="password"
+            label="Password"
+            type="password"
+            icon={Lock}
+            placeholder="Min 8 chars, mixed case, number, symbol"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+            wrapperClassName="mb-0"
+          />
+          {password && (
+            <PasswordStrengthMeter score={strength.score} label={strength.label} />
           )}
+          {password && !strength.isValid && (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-fg-subtle">
+              Still needs: {strength.firstUnmet.label.toLowerCase()}
+            </p>
+          )}
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-foreground">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter your full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                minLength={2}
-                maxLength={50}
-                className="bg-input text-foreground border-border"
-              />
-            </div>
+        <AuthField
+          id="confirmPassword"
+          label="Confirm Password"
+          type="password"
+          icon={ShieldCheck}
+          placeholder="Confirm your password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          autoComplete="new-password"
+          state={confirmState}
+          hint={
+            confirmState === 'ok'
+              ? 'Passwords match'
+              : confirmState === 'error'
+                ? 'Passwords do not match'
+                : undefined
+          }
+        />
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-input text-foreground border-border"
-              />
-            </div>
+        <p className="mb-4 text-center text-[11.5px] leading-relaxed text-fg-subtle">
+          By creating an account you agree to our{' '}
+          <Link to="/terms" className="text-accent-on-dark hover:underline">
+            Terms of Service
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" className="text-accent-on-dark hover:underline">
+            Privacy Policy
+          </Link>
+        </p>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password (min 6 chars, 1 uppercase, 1 lowercase, 1 number)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="bg-input text-foreground border-border"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Password must contain at least one uppercase letter, one lowercase letter, and one number
-              </p>
-            </div>
+        <Button type="submit" disabled={registerMutation.isPending} className="w-full" size="lg">
+          <UserPlus className="size-[18px]" aria-hidden="true" />
+          {registerMutation.isPending ? 'Creating account...' : 'Create Account'}
+        </Button>
+      </form>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-                className="bg-input text-foreground border-border"
-              />
-            </div>
+      <AuthDivider className="my-5">Or sign up with</AuthDivider>
 
-            <Button
-              type="submit"
-              disabled={registerMutation.isPending}
-              className="w-full"
-              size="lg"
-            >
-              {registerMutation.isPending ? 'Creating account...' : 'Create Account'}
-            </Button>
-          </form>
+      <SocialAuthButtons layout="grid" />
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogleLogin}
-              className="w-full mt-4"
-              size="lg"
-            >
-              <Chrome className="mr-2 h-5 w-5" />
-              Continue with Google
-            </Button>
-
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('steam')} title="Continue with Steam">
-                <Gamepad2 className="h-5 w-5" />
-              </Button>
-              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('discord')} title="Continue with Discord">
-                <MessagesSquare className="h-5 w-5" />
-              </Button>
-              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('paypal')} title="Continue with PayPal">
-                <Wallet className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link
-              to="/login"
-              className="text-accent-on-dark hover:text-blue-400 transition-colors font-medium"
-            >
-              Sign in
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <p className="mt-6 border-t border-accent/10 pt-4.5 text-center text-[13px] text-fg-subtle">
+        Already have an account?{' '}
+        <Link to="/login" className="font-medium text-accent-on-dark hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </AuthShell>
   );
 };
 

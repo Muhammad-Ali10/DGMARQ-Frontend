@@ -11,6 +11,14 @@ export { default as ProductListingLayout } from './components/ProductListingLayo
 export { default as PlatformTrustGrid } from './components/PlatformTrustGrid';
 export { default as PlusPromoSection } from './components/PlusPromoSection';
 export { default as CustomHomepageSections } from './components/CustomHomepageSections';
+export { default as ProductRowSection } from './components/ProductRowSection';
+export { default as SubcategoryRail } from './components/SubcategoryRail';
 export { default as ProductTypeNotice, ProductTypeBadge } from './components/ProductTypeNotice';
 export * from './utils/productUtils';
 export { useActiveCategories } from './hooks/useActiveCategories';
+export {
+  default as useWishlist,
+  WISHLIST_QUERY_KEY,
+  WISHLIST_IDS_KEY,
+  wishlistPageKey,
+} from './hooks/useWishlist';

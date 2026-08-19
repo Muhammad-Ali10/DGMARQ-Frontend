@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { Lock, LogIn, Mail } from 'lucide-react';
 import { setCredentials } from '@store/slices/authSlice';
 import { Button } from '@components/ui/button';
-import { Input } from '@components/ui/input';
-import { Label } from '@components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/card';
+import AuthShell from '@components/common/AuthShell';
+import AuthField from '@components/common/AuthField';
+import SocialAuthButtons from '@components/common/SocialAuthButtons';
+import AuthDivider from '@components/common/AuthDivider';
 import api from '@lib/axios';
-import { API_ORIGIN } from '@lib/config';
-import { Chrome, Gamepad2, MessagesSquare, Wallet } from 'lucide-react';
+import { describeAuthError } from '@lib/socialAuth';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -17,7 +18,13 @@ const Login = () => {
   const [error, setError] = useState('');
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useSelector((state) => state.auth);
+
+  // The OAuth flows redirect back here with ?error=... on failure. Nothing used
+  // to read it, so a declined Google consent screen returned the user to a login
+  // page that said nothing about what had just happened.
+  const oauthError = describeAuthError(searchParams);
 
   useEffect(() => {
     if (isAuthenticated && window.location.pathname === '/login') {
@@ -69,7 +76,7 @@ const Login = () => {
     onError: (err) => {
       const errorData = err.response?.data;
       let errorMessage = 'Login failed';
-      
+
       if (errorData) {
         if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
           errorMessage = errorData.errors
@@ -86,7 +93,7 @@ const Login = () => {
           errorMessage = errorData.error;
         }
       }
-      
+
       setError(errorMessage);
     },
   });
@@ -97,125 +104,70 @@ const Login = () => {
     loginMutation.mutate({ email, password });
   };
 
-  const handleGoogleLogin = () => {
-    window.location.href = `${API_ORIGIN}/api/v1/user/auth/google`;
-  };
-
-  const socialLogin = (provider) => {
-    window.location.href = `${API_ORIGIN}/api/v1/user/auth/${provider}`;
-  };
+  const shownError = error || oauthError;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-card border-border shadow-xl">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl sm:text-3xl font-bold text-accent-on-dark">DGMARQ</CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Sign in to your account to continue
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error && (
-            <div
-              role="alert"
-              aria-live="polite"
-              className="mb-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded-md text-sm"
-            >
-              {typeof error === 'string' ? error : 'Login failed. Please check your credentials.'}
-            </div>
-          )}
+    <AuthShell title="Sign in to your account to continue" hudTag="Secure Session">
+      {shownError && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="mb-4 rounded-md border border-danger/25 bg-danger-soft p-3 text-sm text-danger"
+        >
+          {typeof shownError === 'string' ? shownError : 'Login failed. Please check your credentials.'}
+        </div>
+      )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="bg-input text-foreground border-border"
-              />
-            </div>
+      <form onSubmit={handleSubmit} noValidate>
+        <AuthField
+          id="email"
+          label="Email"
+          type="email"
+          icon={Mail}
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+        />
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-foreground">Password</Label>
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-accent-on-dark hover:text-blue-400 transition-colors"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-input text-foreground border-border"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loginMutation.isPending}
-              className="w-full"
-              size="lg"
-            >
-              {loginMutation.isPending ? 'Logging in...' : 'Login'}
-            </Button>
-          </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogleLogin}
-              className="w-full mt-4"
-              size="lg"
-            >
-              <Chrome className="mr-2 h-5 w-5" />
-              Continue with Google
-            </Button>
-
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('steam')} title="Continue with Steam">
-                <Gamepad2 className="h-5 w-5" />
-              </Button>
-              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('discord')} title="Continue with Discord">
-                <MessagesSquare className="h-5 w-5" />
-              </Button>
-              <Button type="button" variant="outline" size="lg" onClick={() => socialLogin('paypal')} title="Continue with PayPal">
-                <Wallet className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
+        <AuthField
+          id="password"
+          label="Password"
+          type="password"
+          icon={Lock}
+          placeholder="Enter your password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          autoComplete="current-password"
+          labelAside={
             <Link
-              to="/register"
-              className="text-accent-on-dark hover:text-blue-400 transition-colors font-medium"
+              to="/forgot-password"
+              className="text-[11px] font-normal text-accent-on-dark transition-opacity hover:underline hover:opacity-100"
             >
-              Sign up
+              Forgot password?
             </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          }
+        />
+
+        <Button type="submit" disabled={loginMutation.isPending} className="mt-1 w-full" size="lg">
+          <LogIn className="size-[18px]" aria-hidden="true" />
+          {loginMutation.isPending ? 'Logging in...' : 'Login'}
+        </Button>
+      </form>
+
+      <AuthDivider className="my-5">Or continue with</AuthDivider>
+
+      <SocialAuthButtons layout="grid" />
+
+      <p className="mt-6 border-t border-accent/10 pt-4.5 text-center text-[13px] text-fg-subtle">
+        Don't have an account?{' '}
+        <Link to="/register" className="font-medium text-accent-on-dark hover:underline">
+          Sign up
+        </Link>
+      </p>
+    </AuthShell>
   );
 };
 

@@ -47,6 +47,8 @@ const CategoryListing = lazy(() => import("./pages/public/CategoryListing"));
 const SubcategoryListing = lazy(() => import("./pages/public/SubcategoryListing"));
 const ForgotPassword = lazy(() => import("./pages/public/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/public/ResetPassword"));
+// AUDIT FIX (DEAD-8): the backend has always mailed a link here; the route did not exist.
+const VerifyEmailChange = lazy(() => import("./pages/public/VerifyEmailChange"));
 const SubscriptionSuccess = lazy(() => import("./pages/public/SubscriptionSuccess"));
 const SubscriptionCancel = lazy(() => import("./pages/public/SubscriptionCancel"));
 
@@ -77,6 +79,7 @@ const TypesManagement = lazy(() => import("./pages/admin/TypesManagement"));
 const FlashDealsManagement = lazy(() => import("./pages/admin/FlashDealsManagement"));
 const HomepageSlidersManagement = lazy(() => import("./pages/admin/HomepageSlidersManagement"));
 const HomepageSectionsManagement = lazy(() => import("./pages/admin/HomepageSectionsManagement"));
+const MenuBuilder = lazy(() => import("./pages/admin/MenuBuilder"));
 const TrendingOffersManagement = lazy(() => import("./pages/admin/TrendingOffersManagement"));
 const UpcomingReleasesManagement = lazy(() => import("./pages/admin/UpcomingReleasesManagement"));
 const UpcomingGamesManagement = lazy(() => import("./pages/admin/UpcomingGamesManagement"));
@@ -115,7 +118,6 @@ const SellerOfferPage = lazy(() => import("./pages/seller/SellerOfferPage"));
 const UserDashboard = lazy(() => import("./pages/user/Dashboard"));
 const UserOrders = lazy(() => import("./pages/user/Orders"));
 const OrderDetail = lazy(() => import("./pages/user/OrderDetail"));
-const UserWishlist = lazy(() => import("./pages/user/Wishlist"));
 const UserWallet = lazy(() => import("./pages/user/Wallet"));
 const UserReviews = lazy(() => import("./pages/user/Reviews"));
 const UserProfile = lazy(() => import("./pages/user/Profile"));
@@ -140,6 +142,16 @@ function App() {
       <Routes>
         <Route path="/auth/callback" element={<AuthCallback />} />
 
+        {/* Auth screens are deliberately OUTSIDE PublicLayout: per the v74
+            mockup they are full-screen, carrying their own backdrop and a "Back
+            to store" chip instead of the site header and footer. Nesting them in
+            the layout would put a full nav, a cart dropdown and a footer around
+            a single centred card. */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
@@ -155,10 +167,7 @@ function App() {
           <Route path="/dgmarq-plus" element={<DGMarketPlus />} />
           <Route path="/about-company" element={<About />} />
           <Route path="/marketplace" element={<Marketplace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email-change" element={<VerifyEmailChange />} />
           <Route path="/security" element={<Security />} />
           <Route path="/contactus" element={<ContactUs />} />
           <Route path="/buyer-support" element={<BuyerSupport />} />
@@ -219,6 +228,7 @@ function App() {
           <Route path="flash-deals" element={<FlashDealsManagement />} />
           <Route path="homepage-sliders" element={<HomepageSlidersManagement />} />
           <Route path="homepage-sections" element={<HomepageSectionsManagement />} />
+          <Route path="menu" element={<MenuBuilder />} />
           <Route path="trending-offers" element={<TrendingOffersManagement />} />
           <Route path="upcoming-releases" element={<UpcomingReleasesManagement />} />
           <Route path="upcoming-games" element={<UpcomingGamesManagement />} />
@@ -269,7 +279,10 @@ function App() {
           <Route path="dashboard" element={<UserDashboard />} />
           <Route path="orders" element={<UserOrders />} />
           <Route path="orders/:orderId" element={<OrderDetail />} />
-          <Route path="wishlist" element={<UserWishlist />} />
+          {/* The wishlist lives at the public /wishlist, which is the single
+              page and the one the header and mobile bar already link to. This
+              redirect keeps old links and bookmarks working. */}
+          <Route path="wishlist" element={<Navigate to="/wishlist" replace />} />
           <Route path="wallet" element={<UserWallet />} />
           <Route path="reviews" element={<UserReviews />} />
           <Route path="profile" element={<UserProfile />} />

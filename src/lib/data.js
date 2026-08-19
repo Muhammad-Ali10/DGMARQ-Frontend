@@ -8,92 +8,6 @@ export const MarketplaceHero = {
     ctaSecondaryUrl: "/user/become-seller",
 };
 
-export const MarketplaceFeaturedProducts = [
-    {
-        id: "cyber-vault-edition",
-        title: "CyberVault: Sovereign Edition",
-        category: "PC Games",
-        price: 59.99,
-        rating: 4.8,
-        ratingCount: 12834,
-        seller: "NovaGrid Digital",
-        sellerId: "novagrid-digital",
-        sellerType: "verified",
-        badges: ["Top Seller", "Limited Edition"],
-        shortDescription:
-            "Story-driven sci‑fi RPG with dynamic co-op, instant key delivery, and lifetime license tied to your DGMARQ account.",
-    },
-    {
-        id: "tactical-ops-pass",
-        title: "Tactical Ops: Year 1 Pass",
-        category: "Game Subscriptions",
-        price: 39.99,
-        rating: 4.7,
-        ratingCount: 9241,
-        seller: "Coreline Interactive",
-        sellerId: "coreline-interactive",
-        sellerType: "publisher",
-        badges: ["Trending"],
-        shortDescription:
-            "Seasonal access, premium battle passes, and ranked rewards delivered as region-aware keys for all supported platforms.",
-    },
-    {
-        id: "creator-suite-pro",
-        title: "CreatorSuite Pro License",
-        category: "Software & Tools",
-        price: 149.0,
-        rating: 4.6,
-        ratingCount: 3120,
-        seller: "Northlight Software",
-        sellerId: "northlight-software",
-        sellerType: "verified",
-        badges: ["Top Seller"],
-        shortDescription:
-            "Full-stack production toolkit for streamers and creators with automated key fulfillment and multi-device activation.",
-    },
-    {
-        id: "universal-game-credit",
-        title: "Universal Game Credit – Global",
-        category: "Gift Cards",
-        price: 25.0,
-        rating: 4.9,
-        ratingCount: 21450,
-        seller: "Gridline Commerce",
-        sellerId: "gridline-commerce",
-        sellerType: "pro-merchant",
-        badges: ["Trending"],
-        shortDescription:
-            "Multi-platform, multi-region credit for supported gaming storefronts with real-time FX conversion at checkout.",
-    },
-    {
-        id: "console-essentials-pack",
-        title: "Console Essentials Pack",
-        category: "Console Keys",
-        price: 69.0,
-        rating: 4.5,
-        ratingCount: 6842,
-        seller: "Orbit Forge",
-        sellerId: "orbit-forge",
-        sellerType: "verified",
-        badges: ["Limited Edition"],
-        shortDescription:
-            "Curated bundle of co-op and competitive titles, optimized for instant delivery across next-gen console ecosystems.",
-    },
-    {
-        id: "system-security-vanguard",
-        title: "System Security Vanguard",
-        category: "Software & Tools",
-        price: 89.0,
-        rating: 4.4,
-        ratingCount: 4912,
-        seller: "Sentinel Labs",
-        sellerId: "sentinel-labs",
-        sellerType: "verified",
-        badges: ["Top Seller"],
-        shortDescription:
-            "Security suite tuned for gaming rigs with real-time protection, license management, and low-latency optimizations.",
-    },
-];
 
 export const MarketplaceCategories = [
     {
@@ -146,58 +60,6 @@ export const MarketplaceCategories = [
     },
 ];
 
-export const MarketplaceSellers = [
-    {
-        id: "nova-systems",
-        name: "Nova Systems Collective",
-        productsSold: 485230,
-        rating: 4.9,
-        isVerified: true,
-        badge: "Enterprise Seller",
-        description:
-            "Specialized in high-volume distribution of AAA titles, Nova Systems runs fully automated fulfillment pipelines with strict latency SLAs.",
-    },
-    {
-        id: "quantum-vault",
-        name: "Quantum Vault Studio",
-        productsSold: 192340,
-        rating: 4.8,
-        isVerified: true,
-        badge: "Publisher",
-        description:
-            "A first-party publisher using DGMARQ as its primary distribution backbone, with regional launch strategies baked into each release.",
-    },
-    {
-        id: "pixel-shift",
-        name: "PixelShift Merchants",
-        productsSold: 132890,
-        rating: 4.7,
-        isVerified: true,
-        badge: "Pro Merchant",
-        description:
-            "Independent merchant collective focused on bundles and long-tail titles, optimized for discoverability via marketplace analytics.",
-    },
-    {
-        id: "gridline-labs",
-        name: "Gridline Labs",
-        productsSold: 98450,
-        rating: 4.8,
-        isVerified: true,
-        badge: "Verified Seller",
-        description:
-            "Offers platform-agnostic game credits, subscriptions, and tools, operating on a tightly monitored risk and payout framework.",
-    },
-    {
-        id: "signal-ops",
-        name: "Signal Ops Digital",
-        productsSold: 76420,
-        rating: 4.6,
-        isVerified: true,
-        badge: "Growth Seller",
-        description:
-            "Scaling vendor leveraging structured payouts, dispute tooling, and analytics to grow a focused portfolio of tactical titles.",
-    },
-];
 
 export const MarketplaceBenefits = {
     buyers: {
@@ -1237,6 +1099,11 @@ export const RefundPolicyPageData = {
           "You purchased for the wrong platform or region despite it being clearly stated on the listing",
           "You changed your mind after the key was revealed or delivered",
         ],
+        // B8: this section previously listed only the reasons a refund is
+        // REFUSED, never that fees are kept when one is granted. A buyer who
+        // paid $98 and received $95 back had nothing to read, so they opened a
+        // ticket instead.
+        "Buyer Protection and checkout fees are not refunded. When a refund is approved you receive the product price you paid; those fees cover the transaction itself and are kept.",
       ],
     },
     {

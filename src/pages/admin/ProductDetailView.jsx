@@ -38,16 +38,6 @@ const ProductDetailView = () => {
     enabled: !!productId,
   });
 
-  const featuredMutation = useMutation({
-    mutationFn: (data) => adminAPI.updateProductFeaturedSettings(productId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-product-details', productId] });
-      toast.success('Featured settings updated');
-    },
-    onError: (err) => {
-      toast.error(err?.response?.data?.message || 'Failed to update featured settings');
-    },
-  });
 
   // Per-offer moderation happens here (the Seller Offers list is just an overview).
   const [rejecting, setRejecting] = useState(null);
@@ -68,6 +58,18 @@ const ProductDetailView = () => {
     mutationFn: ({ offerId, reason }) => offerAPI.adminRejectOffer(offerId, { reason }),
     onSuccess: () => { refreshOffers(); setRejecting(null); setReason(''); toast.success('Offer rejected'); },
     onError: (err) => toast.error(err?.response?.data?.message || 'Reject failed'),
+  });
+
+  const featuredMutation = useMutation({
+    mutationFn: ({ offerId, approve }) => offerAPI.adminDecideFeatured(offerId, { approve }),
+    onSuccess: (res) => {
+      refreshOffers();
+      // Approving flips Product.hasFeaturedOffer through the offer rollup, so
+      // the product header needs refreshing too.
+      queryClient.invalidateQueries({ queryKey: ['admin-product-details', productId] });
+      toast.success(res?.data?.message || 'Updated');
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Could not update featuring'),
   });
 
   const offerStatusVariant = (s) => (s === 'approved' || s === 'active' ? 'success' : s === 'rejected' ? 'destructive' : s === 'pending' ? 'warning' : 'default');
@@ -181,76 +183,6 @@ const ProductDetailView = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 items-end">
-                <div className="space-y-1">
-                  <Label className="text-gray-400">Featured Status</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    {product?.isFeatured ? (
-                      <Badge variant="success" className="text-xs px-2 py-0.5">
-                        Featured
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                        Not Featured
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-gray-400">Featured Extra Commission (%)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      defaultValue={
-                        typeof product?.featuredExtraCommission === 'number'
-                          ? product.featuredExtraCommission
-                          : 10
-                      }
-                      onBlur={(e) => {
-                        const value = e.target.value;
-                        if (value === '' || !product?._id) return;
-                        const num = Number(value);
-                        if (!Number.isFinite(num) || num < 0 || num > 100) {
-                          toast.error('Featured extra commission must be between 0 and 100');
-                          e.target.value =
-                            typeof product.featuredExtraCommission === 'number'
-                              ? String(product.featuredExtraCommission)
-                              : '10';
-                          return;
-                        }
-                        featuredMutation.mutate({
-                          featuredExtraCommission: num,
-                          isFeatured: product.isFeatured ?? false,
-                        });
-                      }}
-                      className="bg-secondary border-gray-700 text-white max-w-[120px] h-9"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={product?.isFeatured ? 'secondary' : 'default'}
-                  size="sm"
-                  disabled={featuredMutation.isPending}
-                  onClick={() => {
-                    if (!product?._id) return;
-                    const nextFeatured = !product.isFeatured;
-                    featuredMutation.mutate({
-                      isFeatured: nextFeatured,
-                      featuredExtraCommission:
-                        typeof product.featuredExtraCommission === 'number'
-                          ? product.featuredExtraCommission
-                          : 10,
-                    });
-                  }}
-                >
-                  {product?.isFeatured ? 'Unmark as Featured' : 'Mark as Featured'}
-                </Button>
-              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -433,6 +365,7 @@ const ProductDetailView = () => {
                     <TableHead className="text-gray-300">Region</TableHead>
                     <TableHead className="text-gray-300">Stock</TableHead>
                     <TableHead className="text-gray-300">Status</TableHead>
+                    <TableHead className="text-gray-300">Featured</TableHead>
                     <TableHead className="text-gray-300 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -474,6 +407,27 @@ const ProductDetailView = () => {
                         <Badge variant={o.availableKeysCount > 0 ? 'success' : 'destructive'}>{o.availableKeysCount || 0}</Badge>
                       </TableCell>
                       <TableCell><Badge variant={offerStatusVariant(o.status)}>{o.status}</Badge></TableCell>
+                      {/* Featuring is a separate, seller-purchased promotion —
+                          its own request/decision cycle alongside listing approval. */}
+                      <TableCell>
+                        {o.featuredStatus === 'approved' ? (
+                          <Badge variant="success">Featured</Badge>
+                        ) : o.featuredStatus === 'pending' ? (
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant="secondary">Requested</Badge>
+                            <Button size="sm" variant="outline" className="h-7 px-2" disabled={featuredMutation.isPending}
+                              onClick={() => featuredMutation.mutate({ offerId: o._id, approve: true })}>
+                              Allow
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400" disabled={featuredMutation.isPending}
+                              onClick={() => featuredMutation.mutate({ offerId: o._id, approve: false })}>
+                              Deny
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-500 text-sm">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         {o.status === 'pending' ? (
                           <div className="flex items-center gap-2 justify-end">

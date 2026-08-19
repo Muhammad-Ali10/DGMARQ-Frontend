@@ -13,9 +13,6 @@ export const productAPI = {
   deleteProduct: (id) => api.delete(`/product/delete-product/${id}`),
   uploadKeys: (productId, keys) => api.post(`/product/${productId}/upload-keys`, { keys }),
   getUploadKeysStatus: (productId, jobId) => api.get(`/product/${productId}/upload-keys/status/${jobId}`),
-  getProductKeys: (id, params) => api.get(`/product/${id}/keys`, { params }),
-  syncStock: (id) => api.post(`/product/${id}/sync-stock`),
-  duplicateProduct: (id) => api.post(`/product/${id}/duplicate`),
 };
 
 export const categoryAPI = {
@@ -34,10 +31,14 @@ export const categoryAPI = {
 
 export const subcategoryAPI = {
   getSubcategories: (params) => api.get('/subcategory/get-subcategories', { params }),
+  // M15: opted-in subcategories for the homepage icon rail (cached, ordered).
+  getHomepageSubcategories: () => api.get('/subcategory/homepage'),
+  updateSubcategoryImage: (subCategoryId, formData) => api.patch(`/subcategory/update-subcategory-image/${subCategoryId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   getSubcategoryById: (subCategoryId) => api.get(`/subcategory/get-subcategory/${subCategoryId}`),
   getSubcategoryBySlug: (categorySlug, subcategorySlug) => api.get(`/subcategory/get-subcategory-by-slug/${categorySlug}/${subcategorySlug}`),
   getSubcategoriesByCategoryId: (categoryId, params) => api.get(`/subcategory/get-subcategories-by-category/${categoryId}`, { params }),
-  getSubcategoriesByCategorySlug: (categorySlug, params) => api.get(`/subcategory/get-subcategories-by-category-slug/${categorySlug}`, { params }),
   createSubcategory: (data) => api.post('/subcategory/create-subcategory', data),
   updateSubcategory: (subCategoryId, data) => api.patch(`/subcategory/update-subcategory/${subCategoryId}`, data),
   updateSubcategoryStatus: (subCategoryId, data) => api.post(`/subcategory/update-subcategory-status/${subCategoryId}`, data),
@@ -54,7 +55,6 @@ export const platformAPI = {
 
 export const deviceAPI = {
   getDevices: (params) => api.get('/device/get-devices', { params }),
-  getDeviceById: (id) => api.get(`/device/get-device/${id}`),
   createDevice: (data) => api.post('/device/create-device', data),
   updateDevice: (id, data) => api.patch(`/device/update-device/${id}`, data),
   toggleDeviceStatus: (id) => api.post(`/device/toggle-device-status/${id}`),
@@ -73,7 +73,6 @@ export const currencyAPI = {
 
 export const regionAPI = {
   getRegions: (params) => api.get('/region/get-regions', { params }),
-  getRegionById: (regionId) => api.get(`/region/get-region/${regionId}`),
   createRegion: (data) => api.post('/region/create-region', data),
   updateRegion: (regionId, data) => api.patch(`/region/update-region/${regionId}`, data),
   deleteRegion: (regionId) => api.delete(`/region/delete-region/${regionId}`),
@@ -140,15 +139,17 @@ export const offerAPI = {
   revealOfferKey: (id, keyId) => api.get(`/offer/${id}/keys/${keyId}/reveal`),
   deleteOfferKey: (id, keyId) => api.delete(`/offer/${id}/keys/${keyId}`),
   syncOfferStock: (id) => api.post(`/offer/${id}/sync-stock`),
+  // Seller asks to be featured (costs extra commission) or withdraws.
+  requestFeatured: (id, featured) => api.post(`/offer/${id}/featured`, { featured }),
   // Admin
   adminGetOffers: (params) => api.get('/offer/admin', { params }),
   adminApproveOffer: (id) => api.post(`/offer/admin/${id}/approve`),
   adminRejectOffer: (id, data) => api.post(`/offer/admin/${id}/reject`, data),
+  adminDecideFeatured: (id, data) => api.post(`/offer/admin/${id}/featured`, data),
 };
 
 export const bestsellerAPI = {
   getBestsellers: (params) => api.get('/bestseller', { params }),
-  getBestsellerByProduct: (productId) => api.get(`/bestseller/product/${productId}`),
 };
 
 export const softwareAPI = {

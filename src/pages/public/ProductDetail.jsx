@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productAPI, cartAPI, reviewAPI, userAPI } from '@services/api';
@@ -42,7 +42,7 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { addToGuestCart } from '@features/cart-checkout';
-import { ProductCard, calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
+import { ProductCard, useWishlist, calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, selectFeaturedOffer, isAllOutOfStock, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
 import SafeImage from '@components/ui/safe-image';
 import './ProductDetail.css';
 
@@ -86,55 +86,28 @@ const ProductDetail = () => {
     }
   }, [product, identifier, navigate]);
 
-  // Wishlist state (real) — only fetched when logged in.
-  const { data: wishlist } = useQuery({
-    queryKey: ['wishlist'],
-    queryFn: async () => {
-      const response = await userAPI.getWishlist();
-      return response.data.data;
-    },
-    enabled: isAuthenticated,
-  });
-
-  const wishlistIds = useMemo(() => {
-    const list = wishlist?.products || [];
-    return new Set(
-      list
-        .map((item) => {
-          const p = item?.productId || item;
-          return (typeof p === 'object' ? p?._id : p)?.toString();
-        })
-        .filter(Boolean)
-    );
-  }, [wishlist]);
-
-  const isWishlisted = !!(product?._id && wishlistIds.has(product._id.toString()));
-
-  const wishlistMutation = useMutation({
-    mutationFn: async ({ productId, add }) =>
-      add ? userAPI.addToWishlist({ productId }) : userAPI.removeFromWishlist({ productId }),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-      toast.success(variables.add ? 'Added to wishlist' : 'Removed from wishlist');
-    },
-    onError: (err) => {
-      toast.error(err?.response?.data?.message || 'Failed to update wishlist');
-    },
-  });
+  // Wishlist state — shared with every ProductCard on the page (including the
+  // related-products row below), so the detail heart and those hearts can never
+  // disagree about the same product.
+  const {
+    isWishlisted: isProductWishlisted,
+    toggle: toggleWishlist,
+    isPending: wishlistPending,
+  } = useWishlist();
+  const isWishlisted = isProductWishlisted(product?._id);
 
   const { data: userOrders } = useQuery({
     queryKey: ['user-orders-for-review', product?._id],
     queryFn: async () => {
       if (!isAuthenticated || !product?._id) return [];
       try {
-        const response = await userAPI.getMyOrders({
-          status: 'completed,PARTIALLY_REFUNDED,partially_completed',
-          limit: 50,
-        });
-        const ordersWithProduct = response.data.data.orders.filter((order) =>
-          order.items?.some((item) => item.productId?._id === product._id || item.productId === product._id)
-        );
-        return ordersWithProduct;
+        // PERF: this used to fetch 50 FULL orders and filter client-side, which
+        // put commissionAmount, sellerEarning and the PayPal capture/payer ids
+        // on the wire of a public product page. The endpoint now answers the
+        // question directly and returns only _id + createdAt per match — the
+        // two fields the order picker below renders.
+        const response = await userAPI.getProductPurchase(product._id);
+        return response.data.data.orders;
       } catch {
         return [];
       }
@@ -312,14 +285,8 @@ const ProductDetail = () => {
     addToCartMutation.mutate({ productId: product._id, qty: 1, sellerId: offer.sellerId });
   };
 
-  const handleToggleWishlist = () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to use your wishlist');
-      navigate('/login');
-      return;
-    }
-    wishlistMutation.mutate({ productId: product._id, add: !isWishlisted });
-  };
+  // The hook owns the signed-out redirect and the optimistic update.
+  const handleToggleWishlist = () => toggleWishlist(product._id);
 
   const handleSubmitReview = () => {
     if (!isAuthenticated) {
@@ -385,12 +352,9 @@ const ProductDetail = () => {
   // drives the whole buy box (price, stock, seller, qty cap, region), so the
   // buyer never adds an un-activatable key by default and never hits a
   // product-total qty cap the chosen seller can't fill.
-  const inStockOffers = (product.offers || []).filter((o) => o.inStock);
-  const featuredOffer = (() => {
-    if (!inStockOffers.length) return product.bestOffer || null;
-    const byPrice = [...inStockOffers].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
-    return byPrice.find((o) => isBuyerCompatible(resolveOfferAvailability(o), buyerCountry) !== false) || byPrice[0];
-  })();
+  const featuredOffer = selectFeaturedOffer(product.offers, product.bestOffer, (o) =>
+    isBuyerCompatible(resolveOfferAvailability(o), buyerCountry)
+  );
   const featuredStock = featuredOffer?.availableKeysCount ?? (product.stock || 0);
 
   const {
@@ -453,6 +417,10 @@ const ProductDetail = () => {
   const typeDisplay = getTypeName(product);
   // M21: unreleased pre-order — buyable without stock, delivered at release.
   const isActivePreorder = product.isPreorder && !product.preorderReleasedAt;
+
+  // CLIENT REQ (out-of-stock automation, requirement 4): "Out of Stock" only
+  // when EVERY live seller is out — see isAllOutOfStock.
+  const allOutOfStock = isAllOutOfStock(product, isActivePreorder);
   const regionName = product.region?.name || null;
 
   // Featured-offer ACTIVATION region (real) → trust card + restrictions modal.
@@ -589,7 +557,8 @@ const ProductDetail = () => {
                     selectedImageIndex === index ? 'border-accent ring-2 ring-accent/50' : 'border-gray-700 hover:border-gray-600'
                   }`}
                 >
-                  <SafeImage src={image} alt={`${product.name} - ${index + 1}`} className="w-full h-full object-cover" fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER} />
+                  {/* AUDIT FIX (PERF-11): five-column gallery thumbs render at ~110px; w= also enables the 1x/2x srcSet. */}
+                  <SafeImage src={image} alt={`${product.name} - ${index + 1}`} className="w-full h-full object-cover" w={128} fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER} />
                 </button>
               ))}
             </div>
@@ -633,7 +602,7 @@ const ProductDetail = () => {
                   <CheckCircle className="h-3 w-3" /> Available
                 </span>
               )}
-              {product.isFeatured && <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-accent text-white text-sm">Featured</span>}
+              {product.hasFeaturedOffer && <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-accent text-white text-sm">Featured</span>}
               {typeDisplay && <span className="inline-flex items-center rounded-full border border-gray-600 px-2 py-0.5 font-medium text-white text-sm">{typeDisplay}</span>}
 
               {/* Trustpilot pill (static) */}
@@ -855,7 +824,7 @@ const ProductDetail = () => {
             {/* RIGHT: wishlist + payments stacked */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignSelf: 'stretch' }}>
               <div className="rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                <button onClick={handleToggleWishlist} disabled={wishlistMutation.isPending} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                <button onClick={handleToggleWishlist} disabled={wishlistPending} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                   <Heart width={24} height={24} style={{ fill: isWishlisted ? '#f472b6' : 'none', stroke: isWishlisted ? '#f472b6' : 'rgba(255,255,255,0.5)', transition: 'all 0.2s' }} />
                   <span className="text-xs" style={{ color: isWishlisted ? '#f472b6' : 'rgba(255,255,255,0.4)', fontSize: 10, whiteSpace: 'nowrap' }}>{isWishlisted ? 'Wishlisted' : 'Wishlist'}</span>
                 </button>
@@ -911,14 +880,44 @@ const ProductDetail = () => {
                 </span>
               </div>
             )}
-            <button
-              onClick={handleAddToCart}
-              disabled={(!isActivePreorder && (!featuredStock || featuredStock === 0)) || addToCartMutation.isPending}
-              className="inline-flex items-center justify-center gap-2 font-medium bg-background text-white hover:opacity-90 rounded-md px-6 w-full h-12 text-lg disabled:opacity-50"
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {addToCartMutation.isPending ? 'Adding...' : isActivePreorder ? 'Pre-order — Add to Cart' : 'Add to Cart'}
-            </button>
+            {/* CLIENT REQ (requirement 4): every seller is out, so the master is
+                out — say so plainly instead of showing a dead grey button. The
+                offers list below still renders, so the buyer can see who sells
+                this and at what price when it returns. */}
+            {allOutOfStock ? (
+              <div className="rounded-lg border border-rose-500/50 bg-rose-500/10 px-4 py-3">
+                <div className="mb-1 flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-rose-300" />
+                  <span className="text-sm font-bold tracking-wide text-rose-200">OUT OF STOCK</span>
+                </div>
+                <p className="mb-3 text-xs leading-relaxed text-rose-100/70">
+                  {(product.sellerCount || 1) === 1
+                    ? 'The seller for this product has sold out.'
+                    : `All ${product.sellerCount} sellers of this product are sold out.`}{' '}
+                  Add it to your wishlist to keep track of it — you will be alerted if the price drops.
+                </p>
+                <button
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistPending}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-rose-400/40 bg-transparent px-4 text-sm font-medium text-rose-100 transition-colors hover:bg-rose-500/15 disabled:opacity-50"
+                >
+                  <Heart
+                    className="h-4 w-4"
+                    style={{ fill: isWishlisted ? '#fda4af' : 'none', stroke: '#fda4af' }}
+                  />
+                  {isWishlisted ? 'On your wishlist' : 'Add to wishlist'}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                disabled={(!isActivePreorder && (!featuredStock || featuredStock === 0)) || addToCartMutation.isPending}
+                className="inline-flex items-center justify-center gap-2 font-medium bg-background text-white hover:opacity-90 rounded-md px-6 w-full h-12 text-lg disabled:opacity-50"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {addToCartMutation.isPending ? 'Adding...' : isActivePreorder ? 'Pre-order — Add to Cart' : 'Add to Cart'}
+              </button>
+            )}
             {isAuthenticated && (product.stock > 0 || isActivePreorder) && (
               <div className="grid grid-cols-2 gap-3">
                 <button

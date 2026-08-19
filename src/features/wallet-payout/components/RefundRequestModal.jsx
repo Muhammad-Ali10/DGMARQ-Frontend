@@ -1056,6 +1056,12 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                     <span className="text-xs text-fg-muted">Total refund</span>
                     <span className="text-sm font-semibold text-fg">{formatUSD(totalRefundAmount)}</span>
                   </div>
+                  {/* B8: say it BEFORE they commit. Fees are correctly withheld,
+                      but nothing told the buyer — so someone who paid $98 and
+                      received $95 opened a ticket to ask where $3 went. */}
+                  <p className="text-xs text-fg-subtle">
+                    This is the product price you paid. Buyer Protection and checkout fees are not refunded.
+                  </p>
 
                   {/* Step 12 PART B — refund window expired. Show a warning and
                       override the proportional split visual to wallet=full. */}

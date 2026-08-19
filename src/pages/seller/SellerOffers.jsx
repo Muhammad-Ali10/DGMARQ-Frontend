@@ -9,15 +9,62 @@ import { Badge } from '@components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import SafeImage from '@components/ui/safe-image';
 import { StatusBadge } from '@components/common/StatusBadge';
+import { PreorderBadge } from '@components/common/PreorderBadge';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { Pagination } from '@components/common/Pagination';
 import { formatUSD } from '@lib/money';
-import { Store, Package, Edit, Trash2, Boxes } from 'lucide-react';
+import { Store, Package, Edit, Trash2, Boxes, Star } from 'lucide-react';
 
 const PAGE_SIZE = 10;
+
+/**
+ * Featured promotion control for one listing.
+ *
+ * Featuring is opt-in because the seller pays for it — an extra commission
+ * percentage on every sale of this offer. The seller requests, an admin decides.
+ */
+const FeaturedCell = ({ offer, rate, onToggle, pending }) => {
+  const status = offer.featuredStatus || 'none';
+
+  if (status === 'approved') {
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant="success">Featured</Badge>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => onToggle(false)}>
+          Stop
+        </Button>
+      </div>
+    );
+  }
+
+  if (status === 'pending') {
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant="secondary">Awaiting review</Badge>
+        <Button size="sm" variant="ghost" disabled={pending} onClick={() => onToggle(false)}>
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <Button size="sm" variant="outline" disabled={pending} onClick={() => onToggle(true)}>
+        <Star aria-hidden="true" className="mr-1.5 h-3.5 w-3.5" />
+        Feature (+{rate}%)
+      </Button>
+      {status === 'rejected' && (
+        <p className="text-xs text-danger">
+          Rejected{offer.featuredRejectionReason ? `: ${offer.featuredRejectionReason}` : ''}
+        </p>
+      )}
+    </div>
+  );
+};
 
 /**
  * The seller's listings against catalog products.
@@ -61,6 +108,18 @@ const SellerOffers = () => {
 
   const offers = offersQuery.data?.offers ?? [];
   const pagination = offersQuery.data?.pagination ?? { page: 1, pages: 1, total: 0 };
+  // Admin-set surcharge for featuring — shown so the seller knows the cost
+  // before opting in.
+  const featuredCommissionPercent = offersQuery.data?.featuredCommissionPercent ?? 10;
+
+  const featuredMutation = useMutation({
+    mutationFn: ({ id, featured }) => offerAPI.requestFeatured(id, featured),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['my-offers'] });
+      toast.success(res?.data?.message || 'Updated');
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Could not update featuring'),
+  });
 
   // Deep-link focus: notifications and emails link here as ?productId=<id> so
   // the seller lands on the relevant offer. Filter to it when it is on this
@@ -154,6 +213,7 @@ const SellerOffers = () => {
                       <TableHead numeric>Your price</TableHead>
                       <TableHead numeric>Stock</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Featured</TableHead>
                       <TableHead numeric>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -161,7 +221,7 @@ const SellerOffers = () => {
                     {offersQuery.isPending ? (
                       <TableRowsSkeleton rows={PAGE_SIZE} cols={5} />
                     ) : displayOffers.length === 0 ? (
-                      <TableEmptyRow colSpan={5}>{emptyState}</TableEmptyRow>
+                      <TableEmptyRow colSpan={6}>{emptyState}</TableEmptyRow>
                     ) : (
                       displayOffers.map((o) => (
                         <TableRow key={o._id}>
@@ -183,6 +243,7 @@ const SellerOffers = () => {
                                 <div className="max-w-xs truncate font-medium text-fg">
                                   {o.productId?.name || '—'}
                                 </div>
+                                <PreorderBadge product={o.productId} className="mt-1 text-xs" />
                                 {o.rejectionReason && o.status === 'rejected' && (
                                   <div
                                     className="max-w-xs truncate text-xs text-danger"
@@ -202,6 +263,16 @@ const SellerOffers = () => {
                           </TableCell>
                           <TableCell>
                             <StatusBadge domain="offer" status={o.status} />
+                          </TableCell>
+                          <TableCell>
+                            <FeaturedCell
+                              offer={o}
+                              rate={featuredCommissionPercent}
+                              onToggle={(featured) =>
+                                featuredMutation.mutate({ id: o._id, featured })
+                              }
+                              pending={featuredMutation.isPending}
+                            />
                           </TableCell>
                           <TableCell numeric>
                             <div className="flex items-center justify-end gap-1">
@@ -259,8 +330,9 @@ const SellerOffers = () => {
                             <p className="mt-1 text-sm tabular-nums text-fg-muted">
                               {formatUSD(o.price)} · {o.availableKeysCount || 0} in stock
                             </p>
-                            <div className="mt-2">
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
                               <StatusBadge domain="offer" status={o.status} />
+                              <PreorderBadge product={o.productId} />
                             </div>
                           </div>
                         </div>

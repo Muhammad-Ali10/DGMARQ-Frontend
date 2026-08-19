@@ -3,7 +3,7 @@ import { getGuestCartCount } from "@features/cart-checkout";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { calculateProductPrice, getProductPath, getPlatformName, getTypeName } from "@features/catalog";
+import { calculateProductPrice, getProductPath, getPlatformName, getTypeName, useWishlist } from "@features/catalog";
 import RegionBadges from "@features/catalog/components/RegionBadges";
 import {
   Search,
@@ -12,27 +12,27 @@ import {
   Menu,
   X,
   ChevronDown,
-  ChevronRight,
   ArrowRight,
-  Star,
   Gift,
   Boxes,
-  MonitorSmartphone,
   Sparkles,
   Zap,
 } from "lucide-react";
 import { Button } from "@components/ui/button";
 import {
   categoryAPI,
-  subcategoryAPI,
   productAPI,
   cartAPI,
-  userAPI,
+  menuAPI,
+  storefrontAPI,
 } from "@services/api";
 import { cn } from "@lib/utils";
+import { getMenuIcon } from "@lib/menuIcons";
+import { resolveTarget } from "@lib/resolveTarget";
 import SessionMenu from "./SessionMenu";
 import SafeImage from "@components/ui/safe-image";
 import { NotificationBell } from "@features/notifications";
+import { useDebounce } from "@hooks/useDebounce";
 import useCurrency from "@hooks/useCurrency";
 import useLanguage from "@hooks/useLanguage";
 import useBuyerCountry from "@hooks/useBuyerCountry";
@@ -52,13 +52,7 @@ const Header = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
-  const [hoveredCategory, setHoveredCategory] = useState(null);
-  const [showCategoriesDropdown, setShowCategoriesDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileCategoriesOpen, setMobileCategoriesOpen] = useState(false);
-  const [expandedCategoryId, setExpandedCategoryId] = useState(null);
-  const [mobileSubcategories, setMobileSubcategories] = useState({});
-  const [categoriesDropdownTimeout, setCategoriesDropdownTimeout] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
   // New futuristic-chrome state
   const [promoIdx, setPromoIdx] = useState(0);
@@ -69,48 +63,42 @@ const Header = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [spot, setSpot] = useState({ left: 0, width: 0, opacity: 0 });
+  // M15: id of the admin menu item whose mega panel is open (null = none).
+  const [openMega, setOpenMega] = useState(null);
+  const [expandedMenuId, setExpandedMenuId] = useState(null);
+  const [searchWordIdx, setSearchWordIdx] = useState(0);
 
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
-  const categoriesDropdownRef = useRef(null);
+  const cmdbarRef = useRef(null);
+  const megaTimeout = useRef(null);
 
-  const { data: categoriesData } = useQuery({
+  // Flat category list — the only thing left that needs it is the search bar's
+  // "All Categories" filter. The Categories mega dropdown that used to drive an
+  // N+1 of per-hover subcategory fetches is gone; the nav is admin-built now.
+  const { data: categories = [] } = useQuery({
     queryKey: ["header-categories"],
-    queryFn: async () => {
-      const response = await categoryAPI.getCategories({ isActive: true, limit: 100 });
-      return response.data.data?.docs || [];
-    },
+    queryFn: () =>
+      categoryAPI
+        .getCategories({ isActive: true, limit: 100 })
+        .then((r) => r.data.data?.docs || []),
     staleTime: 300000,
   });
-  const categories = categoriesData || [];
 
-  const { data: subcategoriesData } = useQuery({
-    queryKey: ["subcategories", hoveredCategory?._id],
-    queryFn: async () => {
-      if (!hoveredCategory?._id) return [];
-      const response = await subcategoryAPI.getSubcategoriesByCategoryId(hoveredCategory._id, { isActive: true, limit: 50 });
-      return response.data.data?.docs || [];
-    },
-    enabled: !!hoveredCategory?._id,
+  // M15: admin-controlled search hints. Empty by default, in which case the
+  // static placeholder below stays exactly as it was.
+  const { data: searchWords = [] } = useQuery({
+    queryKey: ["storefront-config", "search-words"],
+    queryFn: () => storefrontAPI.getConfig().then((r) => r.data.data?.searchWords || []),
+    staleTime: 300000,
   });
-  const subcategories = subcategoriesData || [];
 
-  const [categoriesWithSubcategories, setCategoriesWithSubcategories] = useState({});
-
-  const checkCategoryHasSubcategories = async (categoryId) => {
-    if (categoriesWithSubcategories[categoryId] !== undefined) {
-      return categoriesWithSubcategories[categoryId];
-    }
-    try {
-      const response = await subcategoryAPI.getSubcategoriesByCategoryId(categoryId, { isActive: true, limit: 1 });
-      const hasSubs = (response.data.data?.docs || []).length > 0;
-      setCategoriesWithSubcategories((prev) => ({ ...prev, [categoryId]: hasSubs }));
-      return hasSubs;
-    } catch {
-      setCategoriesWithSubcategories((prev) => ({ ...prev, [categoryId]: false }));
-      return false;
-    }
-  };
+  // The entire command strip. With no items configured the strip is hidden.
+  const { data: adminMenu = [] } = useQuery({
+    queryKey: ["header-menu"],
+    queryFn: () => menuAPI.getMenu().then((r) => r.data.data || []),
+    staleTime: 300000,
+  });
 
   // ONE shared cart query for the whole app: the badge below and the mini-cart
   // flyout both read this cache, so the cart is fetched once (not once per
@@ -136,28 +124,17 @@ const Header = () => {
 
   const cartCount = isAuthenticated ? cart?.items?.length || 0 : guestCartCount;
 
-  const { data: wishlistData } = useQuery({
-    queryKey: ["wishlist", "count"],
-    queryFn: async () => {
-      if (!isAuthenticated) return { count: 0 };
-      try {
-        const response = await userAPI.getWishlist();
-        const wishlist = response.data.data;
-        if (Array.isArray(wishlist)) return { count: wishlist.length };
-        return { count: wishlist?.products?.length || 0 };
-      } catch {
-        return { count: 0 };
-      }
-    },
-    enabled: isAuthenticated,
-  });
-  const wishlistCount = wishlistData?.count || 0;
+  // The badge count comes from the shared wishlist hook, which reads the
+  // ID-ONLY endpoint.
+  //
+  // AUDIT FIX (PERF-10) shared the ['wishlist'] cache entry so this component —
+  // mounted on EVERY route — stopped firing a second request. But it was still
+  // pulling fully-populated product documents just to read `.length`. The
+  // membership endpoint returns ids and a count and nothing else, so the header
+  // now costs a bounded ~12KB at worst instead of a page of products.
+  const { count: wishlistCount } = useWishlist();
 
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   const { data: searchSuggestions, isLoading: searchLoading } = useQuery({
     queryKey: ["search-suggestions", debouncedSearchQuery, selectedCategory],
@@ -191,9 +168,10 @@ const Header = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (categoriesDropdownRef.current && !categoriesDropdownRef.current.contains(event.target)) {
-        setShowCategoriesDropdown(false);
-        setHoveredCategory(null);
+      // Mega panels open on tap too (touch has no hover to leave), so they need
+      // outside-click dismissal.
+      if (cmdbarRef.current && !cmdbarRef.current.contains(event.target)) {
+        setOpenMega(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -207,6 +185,16 @@ const Header = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Rotating search-bar hint. Frozen while the user is typing so the
+  // placeholder never changes under an in-progress search.
+  useEffect(() => {
+    if (searchWords.length <= 1 || searchQuery) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reduce) return;
+    const t = setInterval(() => setSearchWordIdx((i) => (i + 1) % searchWords.length), 3000);
+    return () => clearInterval(t);
+  }, [searchWords.length, searchQuery]);
 
   // Rotating promo banner.
   useEffect(() => {
@@ -237,40 +225,25 @@ const Header = () => {
     setSearchQuery("");
     navigate(getProductPath(product));
   };
-  const handleCategoryHover = async (category) => {
-    setHoveredCategory(category);
-    if (categoriesWithSubcategories[category._id] === undefined) {
-      await checkCategoryHasSubcategories(category._id);
-    }
-  };
-
   const moveSpot = (e) => {
     const el = e.currentTarget;
     setSpot({ left: el.offsetLeft, width: el.offsetWidth, opacity: 1 });
   };
   const hideSpot = () => setSpot((s) => ({ ...s, opacity: 0 }));
 
-  const openCategories = () => {
-    if (categoriesDropdownTimeout) {
-      clearTimeout(categoriesDropdownTimeout);
-      setCategoriesDropdownTimeout(null);
+  // Mega panels open on hover but close on a short delay, so the pointer can
+  // cross the gap between the bar and the panel without it snapping shut.
+  const openMegaPanel = (id) => {
+    if (megaTimeout.current) {
+      clearTimeout(megaTimeout.current);
+      megaTimeout.current = null;
     }
-    setShowCategoriesDropdown(true);
+    setOpenMega(id);
   };
-  const closeCategoriesDelayed = () => {
-    const timeout = setTimeout(() => {
-      setShowCategoriesDropdown(false);
-      setHoveredCategory(null);
-    }, 200);
-    setCategoriesDropdownTimeout(timeout);
+  const closeMegaDelayed = () => {
+    megaTimeout.current = setTimeout(() => setOpenMega(null), 200);
   };
-
-  const navLinks = [
-    { to: "/bestsellers", label: "Bestsellers", icon: <Star /> },
-    { to: "/gift-cards", label: "Gift Cards", icon: <Gift /> },
-    { to: "/random-keys", label: "Random Keys", icon: <Boxes /> },
-    { to: "/software", label: "Software", icon: <MonitorSmartphone /> },
-  ];
+  useEffect(() => () => clearTimeout(megaTimeout.current), []);
 
   return (
     <div className="hdr-fx">
@@ -310,16 +283,37 @@ const Header = () => {
               />
             </Link>
 
-            {/* Mobile menu toggle */}
-            <Button
-              variant="outline"
-              size="icon"
-              className="md:hidden border-accent text-fg hover:bg-accent/10 rounded-lg shrink-0"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </Button>
+            {/* Mobile top-nav actions — wishlist, then the menu toggle.
+                CLIENT REQUIREMENT 1c. The wishlist was reachable on mobile only
+                from the BOTTOM bar; the top bar had the logo and the hamburger
+                and nothing else, and the drawer below had no wishlist entry
+                either. This is the desktop heart (:426) at mobile breakpoints,
+                sharing the same badge count. */}
+            <div className="flex items-center gap-2 md:hidden shrink-0">
+              <button
+                type="button"
+                onClick={() => { navigate("/wishlist"); setMobileMenuOpen(false); }}
+                aria-label="Wishlist"
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-accent text-fg transition-colors hover:bg-accent/10"
+              >
+                <Heart className="h-5 w-5" strokeWidth={2} />
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-semibold text-fg">
+                    {wishlistCount > 9 ? "9+" : wishlistCount}
+                  </span>
+                )}
+              </button>
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-accent text-fg hover:bg-accent/10 rounded-lg"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </Button>
+            </div>
 
             {/* Futuristic search bar — desktop */}
             <div className="hidden md:flex flex-1 mx-4 relative" ref={searchContainerRef}>
@@ -330,7 +324,11 @@ const Header = () => {
                   <input
                     ref={searchInputRef}
                     className="fx-search-input"
-                    placeholder="Search games, software, gift cards…"
+                    placeholder={
+                      searchWords.length > 0
+                        ? `Search “${searchWords[searchWordIdx % searchWords.length]}”…`
+                        : "Search games, software, gift cards…"
+                    }
                     type="text"
                     aria-label="Search products"
                     autoComplete="off"
@@ -448,106 +446,60 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Command strip (sub-nav) — desktop */}
-        <div className="fx-cmdbar container mx-auto" ref={categoriesDropdownRef}>
+        {/* Command strip (sub-nav) — desktop. Fully admin-driven: the previous
+            hardcoded links and the Categories dropdown were removed in favour
+            of the menu built in Admin → Header Menu. With no menu configured
+            the whole strip is hidden rather than rendered empty. */}
+        {adminMenu.length > 0 && (
+        <div className="fx-cmdbar container mx-auto" ref={cmdbarRef}>
           <nav className="fx-cmd" aria-label="Browse the store">
             {/* The spot is a decorative hover highlight, so its pointer handlers
                 live on a presentational wrapper rather than on the <nav>. */}
             <div className="fx-cmd-track" role="presentation" onMouseLeave={hideSpot}>
               <span className="fx-cmd-spot" aria-hidden="true" style={{ left: spot.left, width: spot.width, opacity: spot.opacity }} />
 
-              {/* Categories — opens mega dropdown */}
-              {/* Grouping wrapper. The real control is the <button> inside
-                  (aria-expanded + click + focus); these handlers only route
-                  pointer convenience and bubbled Escape to it. */}
-              <div
-                role="presentation"
-                className="relative"
-                style={{ flex: "1 1 0", minWidth: 0 }}
-                onMouseEnter={openCategories}
-                onMouseLeave={closeCategoriesDelayed}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape" && showCategoriesDropdown) {
-                    setShowCategoriesDropdown(false);
-                    setHoveredCategory(null);
-                  }
-                }}
-              >
-                <button
-                  type="button"
-                  className="fx-cmd-item"
-                  style={{ width: "100%" }}
-                  aria-expanded={showCategoriesDropdown}
-                  aria-haspopup="true"
-                  onMouseEnter={moveSpot}
-                  onFocus={openCategories}
-                  onClick={() =>
-                    showCategoriesDropdown ? setShowCategoriesDropdown(false) : openCategories()
-                  }
-                >
-                  <Menu /> <span className="fx-cmd-label">Categories</span>
-                </button>
+              {/* An item with headings opens a mega panel; one without renders
+                  as a plain link. Either way a missing target renders nothing
+                  rather than a dead <Link>. */}
+              {adminMenu.map((item) => {
+                const Icon = getMenuIcon(item.icon);
+                const headings = item.children || [];
+                const to = resolveTarget(item.target);
 
-                {showCategoriesDropdown && categories.length > 0 && (
+                if (headings.length === 0) {
+                  return to ? (
+                    <Link key={item._id} to={to} className="fx-cmd-item" onMouseEnter={moveSpot}>
+                      <Icon /> <span className="fx-cmd-label">{item.label}</span>
+                    </Link>
+                  ) : null;
+                }
+
+                const isOpen = openMega === item._id;
+                return (
                   <div
-                    className="absolute top-full left-0 bg-surface-sunken border border-border rounded-lg shadow-xl z-50"
-                    style={{ marginTop: 2, width: hoveredCategory && subcategories.length > 0 ? 600 : 300, transition: "width 0.2s ease-in-out" }}
+                    key={item._id}
                     role="presentation"
-                    onMouseEnter={openCategories}
-                    onMouseLeave={closeCategoriesDelayed}
+                    style={{ flex: "1 1 0", minWidth: 0 }}
+                    onMouseEnter={() => openMegaPanel(item._id)}
+                    onMouseLeave={closeMegaDelayed}
+                    onKeyDown={(e) => e.key === "Escape" && setOpenMega(null)}
                   >
-                    <div className="flex min-h-[300px]">
-                      <div className={cn("border-r border-border max-h-[500px] overflow-y-auto", hoveredCategory && subcategories.length > 0 ? "w-2/5" : "w-full")}>
-                        {categories.map((category) => {
-                          const hasSubcategories = categoriesWithSubcategories[category._id] || false;
-                          return (
-                            <button
-                              key={category._id}
-                              type="button"
-                              onMouseEnter={() => handleCategoryHover(category)}
-                              onClick={() => { navigate(`/category/${category.slug || category._id}`); setShowCategoriesDropdown(false); }}
-                              className={cn("w-full px-4 py-3 text-left text-fg hover:bg-gray-800/50 transition-colors flex items-center gap-3 border-b border-border/30 last:border-b-0", hoveredCategory?._id === category._id && "bg-surface-2/50")}
-                            >
-                              {category.image ? (
-                                <SafeImage src={category.image} alt={category.name} className="w-8 h-8 object-cover rounded shrink-0" />
-                              ) : (
-                                <div className="w-8 h-8 bg-surface-2 rounded shrink-0 flex items-center justify-center">
-                                  <Menu className="h-4 w-4 text-fg-muted" />
-                                </div>
-                              )}
-                              <span className="flex-1 text-sm font-medium">{category.name}</span>
-                              {hasSubcategories && <ArrowRight className="h-4 w-4 text-fg-muted shrink-0" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {hoveredCategory && subcategories.length > 0 && (
-                        <div className="w-3/5 max-h-[500px] overflow-y-auto bg-surface-2/10">
-                          <div className="py-2">
-                            {subcategories.map((subcategory) => (
-                              <Link
-                                key={subcategory._id}
-                                to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${hoveredCategory?._id || ""}`}
-                                onClick={() => setShowCategoriesDropdown(false)}
-                                className="flex items-center px-4 py-2.5 hover:bg-gray-800/50 transition-colors group border-b border-border/20 last:border-b-0"
-                              >
-                                <span className="text-fg text-sm group-hover:text-accent-on-dark flex-1">{subcategory.name}</span>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      className={cn("fx-cmd-item", isOpen && "fx-mega-active")}
+                      style={{ width: "100%" }}
+                      aria-expanded={isOpen}
+                      aria-haspopup="true"
+                      onMouseEnter={moveSpot}
+                      onFocus={() => openMegaPanel(item._id)}
+                      onClick={() => (isOpen ? setOpenMega(null) : openMegaPanel(item._id))}
+                    >
+                      <Icon /> <span className="fx-cmd-label">{item.label}</span>
+                      <ChevronDown className="fx-cmd-caret" />
+                    </button>
                   </div>
-                )}
-              </div>
-
-              {/* Other nav links */}
-              {navLinks.map((l) => (
-                <Link key={l.to} to={l.to} className="fx-cmd-item" onMouseEnter={moveSpot}>
-                  {l.icon} <span className="fx-cmd-label">{l.label}</span>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           </nav>
 
@@ -556,7 +508,82 @@ const Header = () => {
             <span className="fx-plus-spark" aria-hidden="true"><Sparkles width={18} height={18} /></span>
             <span className="fx-plus-text">Save more with <strong>DGMARQ&nbsp;Plus</strong></span>
           </button>
+
+          {/* M15: mega panels for admin items with headings. "View All" falls
+              back to the item's own target, so admins rarely set it. */}
+          {adminMenu.map((item) => {
+            const headings = item.children || [];
+            if (headings.length === 0) return null;
+
+            const isOpen = openMega === item._id;
+            const viewAll = resolveTarget(item.viewAllTarget || item.target);
+
+            return (
+              <div
+                key={item._id}
+                className={cn("fx-mega", isOpen && "fx-open")}
+                role="region"
+                aria-label={item.label}
+                onMouseEnter={() => openMegaPanel(item._id)}
+                onMouseLeave={closeMegaDelayed}
+              >
+                <div className="fx-mega-inner">
+                  <div className="fx-mega-panel fx-active">
+                    {headings.map((heading) => {
+                      // A heading pointed at a category becomes the reference's
+                      // clickable group head (icon chip + name + growing
+                      // underline). Without a target it stays a plain label.
+                      const headingTo = resolveTarget(heading.target);
+                      const HeadingIcon = heading.icon ? getMenuIcon(heading.icon) : null;
+
+                      return (
+                      <div key={heading._id} className="fx-mega-col">
+                        {headingTo ? (
+                          <Link className="fx-catgroup-head" to={headingTo} onClick={() => setOpenMega(null)}>
+                            {/* Auto-generated columns carry the category's own
+                                artwork; hand-built ones use a preset glyph. */}
+                            {heading.image ? (
+                              <span className="fx-catgroup-ic">
+                                <SafeImage src={heading.image} alt="" w={64} />
+                              </span>
+                            ) : HeadingIcon ? (
+                              <span className="fx-catgroup-ic"><HeadingIcon /></span>
+                            ) : null}
+                            <span className="fx-catgroup-nm">{heading.label}</span>
+                          </Link>
+                        ) : (
+                          <h4 className="fx-mega-heading">{heading.label}</h4>
+                        )}
+                        <ul className="fx-mega-list">
+                          {(heading.children || []).map((link) => {
+                            const href = resolveTarget(link.target);
+                            if (!href) return null;
+                            return (
+                              <li key={link._id}>
+                                <Link className="fx-mega-link" to={href} onClick={() => setOpenMega(null)}>
+                                  {link.label}
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                      );
+                    })}
+                  </div>
+
+                  {viewAll && (
+                    <Link className="fx-mega-viewall" to={viewAll} onClick={() => setOpenMega(null)}>
+                      View All {item.label}
+                      <ArrowRight width={14} height={14} />
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+        )}
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
@@ -575,78 +602,81 @@ const Header = () => {
                 <Button type="submit" className="h-10 bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" aria-label="Search"><Search className="h-5 w-5" /></Button>
               </form>
 
-              <div className="space-y-2">
-                <button className="w-full flex items-center justify-between text-fg py-2" onClick={() => setMobileCategoriesOpen(!mobileCategoriesOpen)}>
-                  <div className="flex items-center gap-2"><Menu className="h-5 w-5" /><span className="font-medium">Categories</span></div>
-                  <ChevronDown className={cn("h-4 w-4 transition-transform", mobileCategoriesOpen && "rotate-180")} />
-                </button>
+              {/* The same admin menu, as an accordion. No item cap here — the
+                  desktop bar is the only place width is a constraint. */}
+              {adminMenu.map((item) => {
+                const headings = item.children || [];
+                const to = resolveTarget(item.target);
+                const closeAll = () => { setMobileMenuOpen(false); setExpandedMenuId(null); };
 
-                {mobileCategoriesOpen && (
-                  <div className="pl-6 space-y-2">
-                    {categories.map((category) => {
-                      const isExpanded = expandedCategoryId === category._id;
-                      const subs = mobileSubcategories[category._id] || [];
-                      return (
-                        <div key={category._id} className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Link
-                              to={`/category/${category.slug || category._id}`}
-                              onClick={() => { setMobileMenuOpen(false); setMobileCategoriesOpen(false); setExpandedCategoryId(null); }}
-                              className="flex-1 text-fg-muted hover:text-accent-on-dark py-1"
-                            >
-                              {category.name}
-                            </Link>
-                            <button
-                              onClick={async () => {
-                                if (!isExpanded) {
-                                  const hasSubs = await checkCategoryHasSubcategories(category._id);
-                                  if (hasSubs) {
-                                    if (!mobileSubcategories[category._id]) {
-                                      try {
-                                        const response = await subcategoryAPI.getSubcategoriesByCategoryId(category._id, { isActive: true, limit: 50 });
-                                        setMobileSubcategories((prev) => ({ ...prev, [category._id]: response.data.data?.docs || [] }));
-                                      } catch {
-                                        setMobileSubcategories((prev) => ({ ...prev, [category._id]: [] }));
-                                      }
-                                    }
-                                    setExpandedCategoryId(category._id);
-                                  }
-                                } else {
-                                  setExpandedCategoryId(null);
-                                }
-                              }}
-                              className="p-1 text-fg-muted hover:text-accent-on-dark"
-                              aria-label={isExpanded ? "Collapse" : "Expand"}
-                            >
-                              <ChevronRight className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-90")} />
-                            </button>
-                          </div>
-                          {isExpanded && subs.length > 0 && (
-                            <div className="pl-4 space-y-1 border-l-2 border-border ml-2">
-                              {subs.map((subcategory) => (
-                                <Link
-                                  key={subcategory._id}
-                                  to={`/subcategory/${subcategory.slug || subcategory._id}?subCategoryId=${subcategory._id}&categoryId=${category._id}`}
-                                  onClick={() => { setMobileMenuOpen(false); setMobileCategoriesOpen(false); setExpandedCategoryId(null); }}
-                                  className="block text-fg-muted hover:text-accent-on-dark py-1 text-sm"
-                                >
-                                  {subcategory.name}
+                if (headings.length === 0) {
+                  return to ? (
+                    <Link key={item._id} to={to} className="block text-fg hover:text-accent-on-dark py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center" onClick={closeAll}>
+                      {item.label}
+                    </Link>
+                  ) : null;
+                }
+
+                const isExpanded = expandedMenuId === item._id;
+                return (
+                  <div key={item._id} className="space-y-2">
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-between text-fg py-[10px] px-5 bg-[#07142E] rounded-lg"
+                      onClick={() => setExpandedMenuId(isExpanded ? null : item._id)}
+                      aria-expanded={isExpanded}
+                    >
+                      <span className="font-medium">{item.label}</span>
+                      <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="pl-4 space-y-3 border-l-2 border-border ml-2">
+                        {headings.map((heading) => {
+                          const headingTo = resolveTarget(heading.target);
+                          return (
+                          <div key={heading._id} className="space-y-1">
+                            {headingTo ? (
+                              <Link to={headingTo} onClick={closeAll} className="block text-xs font-semibold uppercase tracking-wide text-accent-on-dark">
+                                {heading.label}
+                              </Link>
+                            ) : (
+                              <p className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">{heading.label}</p>
+                            )}
+                            {(heading.children || []).map((link) => {
+                              const href = resolveTarget(link.target);
+                              if (!href) return null;
+                              return (
+                                <Link key={link._id} to={href} onClick={closeAll} className="block text-fg-muted hover:text-accent-on-dark py-1 text-sm">
+                                  {link.label}
                                 </Link>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                              );
+                            })}
+                          </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })}
 
-              {navLinks.map((l) => (
-                <Link key={l.to} to={l.to} className="block text-fg hover:text-accent-on-dark py-[10px] px-5 bg-[#07142E] rounded-lg w-full text-center" onClick={() => setMobileMenuOpen(false)}>
-                  {l.label}
-                </Link>
-              ))}
+              {/* Wishlist in the drawer too: the icon above is easy to miss
+                  next to the hamburger, and the drawer is where a mobile user
+                  goes looking for a named destination. */}
+              <Link
+                to="/wishlist"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-center gap-2 text-fg hover:text-accent-on-dark py-[10px] px-5 bg-[#07142E] rounded-lg w-full"
+              >
+                <Heart className="h-4 w-4" aria-hidden="true" />
+                <span>Wishlist</span>
+                {wishlistCount > 0 && (
+                  <span className="ml-1 rounded-full bg-accent px-2 text-xs font-semibold text-fg">
+                    {wishlistCount}
+                  </span>
+                )}
+              </Link>
 
               <Button onClick={() => { navigate("/dgmarq-plus"); setMobileMenuOpen(false); }} className="w-full bg-gradient-to-r from-[#172AA4] to-[#0E9FE2] text-fg">
                 Save more with DGMARQ Plus

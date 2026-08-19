@@ -465,7 +465,10 @@
     position: absolute;
     inset: var(--hud-inset, 6px);
     pointer-events: none;
-    opacity: 0;
+    /* Rest state is a variable so `hud-corners-lit` can raise it without
+       restating the eight background layers below. Default 0 keeps every
+       existing call site exactly as it was. */
+    opacity: var(--hud-rest, 0);
     transition: opacity 0.2s ease-out;
     background-image: var(--hud-bracket), var(--hud-bracket), var(--hud-bracket),
       var(--hud-bracket), var(--hud-bracket), var(--hud-bracket),
@@ -482,6 +485,19 @@
   &:hover::after {
     opacity: 0.85;
   }
+}
+
+/* Brackets lit at REST, for the one case the hover rule above deliberately
+   excludes. `hud-corners` answers the pointer, which is right for a tile or a
+   list row — the brackets mean "this is the thing you are pointing at". An auth
+   card is not a hover target: it is the only object on the page, and the v74
+   mockup draws its brackets permanently, as chrome rather than as a response.
+
+   Sets ONE variable and nothing else, exactly like `panel-tile` above, so it
+   composes with `hud-corners` (`class="hud-corners hud-corners-lit"`) instead of
+   becoming a second copy of the bracket drawing that could drift from it. */
+@utility hud-corners-lit {
+  --hud-rest: 0.85;
 }
 
 /* The row pair: `hud-corners-start` brackets the left end of a row and

@@ -1,10 +1,9 @@
 import { useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { authAPI } from '@services/api';
-import { API_BASE_URL } from '@lib/config';
+import { authAPI, subscriptionAPI } from '@services/api';
 import { updateUser, logout } from '@store/slices/authSlice';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
@@ -18,6 +17,7 @@ import ConfirmationModal from '@components/common/ConfirmationModal';
 import SafeImage from '@components/ui/safe-image';
 import { showSuccess, showError, showApiError } from '@utils/toast';
 import { toast } from 'sonner';
+import { PROVIDER_LABELS, SOCIAL_PROVIDER_IDS, startSocialAuth } from '@lib/socialAuth';
 
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
@@ -32,8 +32,9 @@ const UserProfile = () => {
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [otp, setOtp] = useState('');
   const otpInputRef = useRef(null);
-  const [showUnlinkGoogleModal, setShowUnlinkGoogleModal] = useState(false);
-  const [showUnlinkFacebookModal, setShowUnlinkFacebookModal] = useState(false);
+  // Which provider the unlink confirmation is asking about (null = closed). One
+  // piece of state for all five, instead of a boolean per provider.
+  const [unlinkTarget, setUnlinkTarget] = useState(null);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [showRevokeAllSessionsModal, setShowRevokeAllSessionsModal] = useState(false);
   const [showRevokeSessionModal, setShowRevokeSessionModal] = useState(false);
@@ -43,6 +44,17 @@ const UserProfile = () => {
     queryKey: ['user-profile'],
     queryFn: () => authAPI.getProfile().then(res => res.data.data),
     enabled: !!user,
+  });
+
+  // Shares the ['plus-points'] key with the dashboard tile, the Plus page and
+  // the checkout redeem control, so all four read one cached answer.
+  // `.catch(null)` because a non-subscriber has no points to show and that is
+  // not an error worth surfacing on the profile screen.
+  const { data: plusPoints } = useQuery({
+    queryKey: ['plus-points'],
+    queryFn: () => subscriptionAPI.getMyPoints().then(res => res.data?.data ?? null).catch(() => null),
+    enabled: !!user,
+    staleTime: 60_000,
   });
 
   const updateProfileMutation = useMutation({
@@ -128,6 +140,15 @@ const UserProfile = () => {
   if (isLoading) return <FormSkeleton fields={5} />;
 
   const currentUser = profileData || user;
+  // AUDIT FIX (INT-14): a provider-only account has no password to confirm with.
+  // `oauthProvider` is part of the profile payload (SAFE_USER_SELECT keeps it);
+  // 'local' — or its absence on legacy rows — means a password is set.
+  const hasPassword = !currentUser?.oauthProvider || currentUser.oauthProvider === 'local';
+  // 'local' is "no social account linked", so it must not match a provider row.
+  const linkedProvider =
+    currentUser?.oauthProvider && currentUser.oauthProvider !== 'local'
+      ? currentUser.oauthProvider
+      : null;
 
   return (
     <div className="space-y-6">
@@ -161,6 +182,35 @@ const UserProfile = () => {
         </TabsList>
 
         <TabsContent value="profile">
+          {/* CLIENT REQ (M20): "Points balance in user profile/dashboard".
+              The dashboard had a tile; the profile had nothing. */}
+          {plusPoints && (
+            <Card variant="hud" className="mb-6">
+              <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
+                <div className="min-w-0">
+                  <p className="text-sm text-fg-muted">DGMARQ Points</p>
+                  <p className={`mt-1 text-3xl font-bold tabular-nums ${plusPoints.inDebt ? 'text-warning' : 'text-fg'}`}>
+                    {plusPoints.balance}
+                    <span className="ml-2 text-base font-medium text-fg-muted">pts</span>
+                  </p>
+                  {/* A negative balance is correct (it is what stops
+                      earn → redeem → cancel being free money) but it needs
+                      explaining, not just displaying. */}
+                  <p className={`mt-1 text-sm ${plusPoints.inDebt ? 'text-warning' : 'text-fg-subtle'}`}>
+                    {plusPoints.inDebt
+                      ? `Adjusted after a refund — earn ${plusPoints.pointsUntilRedeemable} more to redeem again.`
+                      : `Worth $${plusPoints.walletValue.toFixed(2)} in wallet credit · ${plusPoints.pointsPerDollar} points per $1 spent`}
+                  </p>
+                </div>
+                <Button asChild variant="outline">
+                  <Link to="/dgmarq-plus">
+                    {plusPoints.canRedeem ? 'Redeem points' : 'View Plus'}
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <Card variant="hud">
             <CardHeader>
               <CardTitle>Profile Information</CardTitle>
@@ -420,70 +470,55 @@ const UserProfile = () => {
                 )}
               </div>
 
-              {/* OAuth Accounts */}
+              {/* Connected Accounts.
+                  Driven by `oauthProvider` from the profile. This block used to
+                  test `currentUser?.googleId` / `.facebookId`, fields that exist
+                  nowhere in the backend — the User schema stores the link as
+                  `oauthProvider` + `oauthId` — so the check was always falsy and a
+                  Google-linked account permanently showed "Link", never
+                  "Connected". */}
               <div className="space-y-4 border-t border-brand-cyan/10 pt-4">
                 <h3 className="text-fg font-medium">Connected Accounts</h3>
+                {/* Stated plainly because the schema really does allow only one:
+                    `oauthProvider` is a single field, and the backend's
+                    upsertOAuthUser overwrites it on the next social login. */}
+                <p className="text-sm text-fg-subtle">
+                  Your account can be linked to one provider at a time. Linking a new one
+                  replaces the current link.
+                </p>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Link2 className="w-4 h-4 text-fg-muted" />
-                      <span className="text-fg-muted">Google</span>
-                    </div>
-                    {currentUser?.googleId ? (
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="success" className="bg-success-solid">Connected</Badge>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setShowUnlinkGoogleModal(true)}
-                        >
-                          <Unlink className="w-3 h-3 mr-1" />
-                          Unlink
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          window.location.href = `${API_BASE_URL}/user/auth/google`;
-                        }}
-                        className=""
+                  {SOCIAL_PROVIDER_IDS.map((providerId) => {
+                    const isLinked = linkedProvider === providerId;
+                    return (
+                      <div
+                        key={providerId}
+                        className="flex items-center justify-between p-3 bg-secondary rounded-lg"
                       >
-                        <Link2 className="w-3 h-3 mr-1" />
-                        Link
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <Link2 className="w-4 h-4 text-fg-muted" />
-                      <span className="text-fg-muted">Facebook</span>
-                    </div>
-                    {currentUser?.facebookId ? (
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="success" className="bg-success-solid">Connected</Badge>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => setShowUnlinkFacebookModal(true)}
-                        >
-                          <Unlink className="w-3 h-3 mr-1" />
-                          Unlink
-                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Link2 className="w-4 h-4 text-fg-muted" />
+                          <span className="text-fg-muted">{PROVIDER_LABELS[providerId]}</span>
+                        </div>
+                        {isLinked ? (
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="success" className="bg-success-solid">Connected</Badge>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setUnlinkTarget(providerId)}
+                            >
+                              <Unlink className="w-3 h-3 mr-1" />
+                              Unlink
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button size="sm" onClick={() => startSocialAuth(providerId)}>
+                            <Link2 className="w-3 h-3 mr-1" />
+                            Link
+                          </Button>
+                        )}
                       </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          window.location.href = `${API_BASE_URL}/user/auth/facebook`;
-                        }}
-                        className=""
-                      >
-                        <Link2 className="w-3 h-3 mr-1" />
-                        Link
-                      </Button>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -587,28 +622,35 @@ const UserProfile = () => {
                       <DialogHeader>
                         <DialogTitle className="text-fg">Delete Account</DialogTitle>
                         <DialogDescription className="text-fg-muted">
-                          This action cannot be undone. Please enter your password to confirm.
+                          {/* AUDIT FIX (INT-14): an account that signs in with a
+                              social provider has no password, so demanding one
+                              made deletion impossible for those users. */}
+                          {hasPassword
+                            ? 'This action cannot be undone. Please enter your password to confirm.'
+                            : 'This action cannot be undone. Your account signs in with a social provider, so type DELETE to confirm.'}
                         </DialogDescription>
                       </DialogHeader>
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
                           const formData = new FormData(e.target);
-                          const password = formData.get('password');
-                          if (password) {
+                          const value = formData.get(hasPassword ? 'password' : 'confirm');
+                          if (value) {
                             setShowDeleteAccountModal(true);
                           }
                         }}
                         className="space-y-4"
                       >
                         <div className="space-y-2">
-                          <Label htmlFor="deletePassword" className="text-fg-muted">Password</Label>
+                          <Label htmlFor="deletePassword" className="text-fg-muted">
+                            {hasPassword ? 'Password' : 'Type DELETE to confirm'}
+                          </Label>
                           <Input
                             id="deletePassword"
-                            name="password"
-                            type="password"
+                            name={hasPassword ? 'password' : 'confirm'}
+                            type={hasPassword ? 'password' : 'text'}
                             className="bg-secondary border-border text-fg"
-                            placeholder="Enter your password"
+                            placeholder={hasPassword ? 'Enter your password' : 'DELETE'}
                             required
                           />
                         </div>
@@ -626,42 +668,29 @@ const UserProfile = () => {
       </Tabs>
 
       {/* Confirmation Modals */}
+      {/* One unlink confirmation for all five providers — the target provider is
+          the state. Two copies of this existed (Google and Facebook), which is
+          also why Steam, Discord and PayPal had no unlink path at all. */}
       <ConfirmationModal
-        open={showUnlinkGoogleModal}
-        onOpenChange={setShowUnlinkGoogleModal}
-        title="Unlink Google Account"
-        description="Are you sure you want to unlink your Google account?"
-        confirmText="Unlink"
-        cancelText="Cancel"
-        variant="default"
-        onConfirm={() => {
-          authAPI.unlinkOAuth({ provider: 'google' })
-            .then(() => {
-              showSuccess('Google account unlinked');
-              window.location.reload();
-            })
-            .catch((error) => {
-              showApiError(error, 'Failed to unlink Google account');
-            });
+        open={unlinkTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setUnlinkTarget(null);
         }}
-      />
-
-      <ConfirmationModal
-        open={showUnlinkFacebookModal}
-        onOpenChange={setShowUnlinkFacebookModal}
-        title="Unlink Facebook Account"
-        description="Are you sure you want to unlink your Facebook account?"
+        title={`Unlink ${PROVIDER_LABELS[unlinkTarget] || ''} Account`}
+        description={`Are you sure you want to unlink your ${PROVIDER_LABELS[unlinkTarget] || ''} account?`}
         confirmText="Unlink"
         cancelText="Cancel"
         variant="default"
         onConfirm={() => {
-          authAPI.unlinkOAuth({ provider: 'facebook' })
+          const provider = unlinkTarget;
+          const label = PROVIDER_LABELS[provider] || provider;
+          authAPI.unlinkOAuth({ provider })
             .then(() => {
-              showSuccess('Facebook account unlinked');
+              showSuccess(`${label} account unlinked`);
               window.location.reload();
             })
             .catch((error) => {
-              showApiError(error, 'Failed to unlink Facebook account');
+              showApiError(error, `Failed to unlink ${label} account`);
             });
         }}
       />
@@ -675,10 +704,13 @@ const UserProfile = () => {
         cancelText="Cancel"
         variant="destructive"
         onConfirm={() => {
-          const passwordInput = document.getElementById('deletePassword');
-          const password = passwordInput?.value;
-          if (password) {
-            authAPI.deleteAccount({ password })
+          const input = document.getElementById('deletePassword');
+          const value = input?.value;
+          if (value) {
+            // AUDIT FIX (INT-14): password for local accounts, a typed
+            // confirmation for provider-only ones. The backend picks the check
+            // that matches the account rather than assuming a password exists.
+            authAPI.deleteAccount(hasPassword ? { password: value } : { confirm: value })
               .then(() => {
                 dispatch(logout());
                 navigate('/login');

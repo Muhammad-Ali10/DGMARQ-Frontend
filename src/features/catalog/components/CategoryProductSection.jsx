@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@components/ui/button";
 import ProductCard from "./ProductCard";
 import { Loading } from "@components/ui/loading";
+import { useInView } from "@hooks/useInView";
 import { productAPI, categoryAPI, typeAPI } from "@services/api";
 
 const CategoryProductSection = ({
@@ -13,7 +14,13 @@ const CategoryProductSection = ({
   sortBy = "rating",
   limit = 6,
   seeMoreLink,
+  // These all sit far below the fold on the homepage, and each one costs TWO
+  // requests (products + a name→slug lookup for the See More link). Deferring
+  // keeps six calls out of the initial page-load burst.
+  defer = true,
 }) => {
+  const { ref, isInView } = useInView({ rootMargin: "600px", threshold: 0, once: true });
+  const active = !defer || isInView;
   const { data: categoryData } = useQuery({
     queryKey: ["category-by-name-for-slug", categoryName],
     queryFn: async () => {
@@ -30,7 +37,7 @@ const CategoryProductSection = ({
         cat.name.toLowerCase().includes(categoryName.toLowerCase())
       ) || null;
     },
-    enabled: !!categoryName,
+    enabled: active && !!categoryName,
     staleTime: 300000,
   });
 
@@ -49,7 +56,7 @@ const CategoryProductSection = ({
         t.name.toLowerCase().includes(productTypeName.toLowerCase())
       ) || null;
     },
-    enabled: !!productTypeName,
+    enabled: active && !!productTypeName,
     staleTime: 300000,
   });
 
@@ -76,7 +83,7 @@ const CategoryProductSection = ({
         totalDocs: response.data.data?.totalDocs || products.length,
       };
     },
-    enabled: !!categoryName || !!productTypeName,
+    enabled: active && (!!categoryName || !!productTypeName),
     staleTime: 120000,
   });
 
@@ -101,7 +108,7 @@ const CategoryProductSection = ({
   const seeMoreUrl = getSeeMoreLink();
 
   return (
-    <section className="py-16">
+    <section ref={ref} className="py-16">
       <div className="max-w-7xl mx-auto px-4">
         {/* Centered Title and Description */}
         <div className="text-center mb-8">
@@ -116,7 +123,13 @@ const CategoryProductSection = ({
         </div>
 
         {/* Products Grid - Horizontal Layout */}
-        {isLoading ? (
+        {!active ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {Array.from({ length: limit }, (_, i) => (
+              <div key={i} className="h-64 rounded-xl bg-surface-2/40 animate-pulse" />
+            ))}
+          </div>
+        ) : isLoading ? (
           <div className="flex justify-center items-center py-12">
             <Loading message={`Loading ${title.toLowerCase()}...`} />
           </div>

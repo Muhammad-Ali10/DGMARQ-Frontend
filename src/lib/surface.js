@@ -38,14 +38,46 @@ export const GLASS_BLUR = 'backdrop-blur-[18px]';
  *  inner highlight. Defined as `--elevation-hud` in index.css. */
 export const GLASS_SHADOW = 'shadow-hud';
 
-/** 250ms, the slow end of the brief's range, on the four properties that hover
- *  actually moves. Not `transition-all`: that would also animate the background
- *  gradient, which cannot interpolate and would snap anyway. */
-export const GLASS_MOTION =
-  'transition-[border-color,box-shadow,transform,background-color] duration-[250ms] ease-out';
-
 /** Corner radius. ONE value for cards and rows — the brief allows 16-18px for
  *  rows and 18-20px for cards, and 18px is the overlap, which is also the
  *  existing `--radius-2xl` token. Two different radii would be the same drift
  *  the shared recipe exists to prevent. */
 export const GLASS_RADIUS = 'rounded-2xl';
+
+/**
+ * The ambiance grid — the faint "boxes" texture behind every public page, and
+ * the same 48px lattice the v74 mockup draws behind the auth cards.
+ *
+ * A style OBJECT rather than Tailwind classes (the exception to this file's rule
+ * above): it is four comma-separated gradient layers at two different
+ * background-sizes, which an arbitrary-value class cannot express without the
+ * commas tripping the parser.
+ *
+ * Shared because the auth pages sit OUTSIDE PublicLayout (they are full-screen,
+ * per the mockup) and so cannot inherit its backdrop. Two hand-copied lattices
+ * would drift the moment either is tuned.
+ *
+ * @param {boolean} masked  Fade the lattice out toward the edges. The mockup does
+ *   this on the auth pages, where the grid frames a single centred card; the
+ *   full-page layout wants it edge-to-edge behind scrolling content.
+ */
+export const ambianceGridStyle = (masked = false) => ({
+  position: 'fixed',
+  inset: 0,
+  zIndex: 0,
+  pointerEvents: 'none',
+  overflow: 'hidden',
+  backgroundImage: [
+    'linear-gradient(rgba(123,159,255,0.035) 1px, transparent 1px)',
+    'linear-gradient(90deg, rgba(123,159,255,0.035) 1px, transparent 1px)',
+    'linear-gradient(rgba(123,159,255,0.014) 1px, transparent 1px)',
+    'linear-gradient(90deg, rgba(123,159,255,0.014) 1px, transparent 1px)',
+  ].join(', '),
+  backgroundSize: '48px 48px, 48px 48px, 12px 12px, 12px 12px',
+  ...(masked
+    ? {
+        maskImage: 'radial-gradient(ellipse 85% 80% at 50% 50%, black 40%, transparent 100%)',
+        WebkitMaskImage: 'radial-gradient(ellipse 85% 80% at 50% 50%, black 40%, transparent 100%)',
+      }
+    : {}),
+});

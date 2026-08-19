@@ -3,6 +3,7 @@ import Header from '@components/Custom/Header';
 import Footer from "@components/Custom/Footer";
 import { SupportChatWidget } from '@features/support';
 import MobileBottomBar from '@components/Custom/MobileBottomBar';
+import { ambianceGridStyle } from '@lib/surface';
 
 // PERF FIX (FP1): the original upload shipped untransformed (4.4 MB) on every
 // public page. f_auto,q_auto serves WebP at auto quality (~95 KB, verified) —
@@ -15,20 +16,10 @@ const BG_IMAGE_URL =
 
 // Futuristic ambiance grid overlay (the faint "boxes" pattern from the design
 // mockup). Fixed, non-interactive, sits above the bg image and below content.
-const AMBIANCE_STYLE = {
-  position: 'fixed',
-  inset: 0,
-  zIndex: 0,
-  pointerEvents: 'none',
-  overflow: 'hidden',
-  backgroundImage: [
-    'linear-gradient(rgba(123,159,255,0.035) 1px, transparent 1px)',
-    'linear-gradient(90deg, rgba(123,159,255,0.035) 1px, transparent 1px)',
-    'linear-gradient(rgba(123,159,255,0.014) 1px, transparent 1px)',
-    'linear-gradient(90deg, rgba(123,159,255,0.014) 1px, transparent 1px)',
-  ].join(', '),
-  backgroundSize: '48px 48px, 48px 48px, 12px 12px, 12px 12px',
-};
+// The recipe moved to lib/surface.js so the full-screen auth pages — which sit
+// outside this layout and cannot inherit its backdrop — draw the same lattice.
+// Unmasked here: edge-to-edge behind scrolling content.
+const AMBIANCE_STYLE = ambianceGridStyle();
 
 const PublicLayout = () => {
   return (

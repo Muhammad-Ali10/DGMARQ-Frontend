@@ -1,362 +1,230 @@
-import { useMemo, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
-import { userAPI, cartAPI } from '@services/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { userAPI } from '@services/api';
 import { Card, CardContent } from '@components/ui/card';
 import { Button } from '@components/ui/button';
-import { Badge } from '@components/ui/badge';
-import { Heart, ShoppingCart, Trash2, LogIn, ArrowRight, X } from 'lucide-react';
+import { Skeleton } from '@components/ui/skeleton';
+import { EmptyState } from '@components/common/EmptyState';
+import { ErrorState } from '@components/common/ErrorState';
+import { Pagination } from '@components/common/Pagination';
 import ConfirmationModal from '@components/common/ConfirmationModal';
-import SafeImage from '@components/ui/safe-image';
+import { ProductCard, WISHLIST_QUERY_KEY, wishlistPageKey } from '@features/catalog';
 import { showSuccess, showApiError } from '@utils/toast';
-import { calculateProductPrice } from '@features/catalog';
+import { Heart, ShoppingCart, Trash2, LogIn, ArrowRight } from 'lucide-react';
+
+/**
+ * Saved products.
+ *
+ * CLIENT REQUIREMENT 2 — "the wishlist page shows the SAME info as product
+ * cards; reuse ProductCard, do not duplicate card markup".
+ *
+ * This page and the old /user/wishlist page each carried their own hand-written
+ * card. Neither showed the region badges, the offer count or the featured chip
+ * that a real card shows, and the two had drifted into computing the price in
+ * OPPOSITE directions from the same two fields — one multiplied by the discount
+ * to get a sale price, the other divided by it to get a "was" price. Rendering
+ * ProductCard is what actually satisfies the requirement, and it is why the
+ * wishlist now inherits every future card change for free.
+ *
+ * The heart on each card is the remove control — it is already wired to the
+ * shared wishlist cache, so clicking it drops the item from this grid, from the
+ * header badge and from the mobile badge at once. That is why there is no
+ * separate per-card remove button: two controls doing one thing on one card is
+ * how the previous version ended up with a stray X floating outside its card.
+ */
 const Wishlist = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const [showClearModal, setShowClearModal] = useState(false);
 
-  const { data: wishlist, isLoading, isError, error } = useQuery({
-    queryKey: ['wishlist'],
-    queryFn: async () => {
-      const response = await userAPI.getWishlist();
-      const data = response.data.data;
-      // Handle both array and object formats
-      if (Array.isArray(data)) {
-        return { products: data };
-      }
-      return data || { products: [] };
-    },
-    enabled: isAuthenticated, // Only fetch if authenticated
-    retry: false,
+  const [page, setPage] = useState(1);
+
+  const wishlistQuery = useQuery({
+    queryKey: wishlistPageKey(page),
+    queryFn: async () => (await userAPI.getWishlist({ page })).data.data,
+    enabled: isAuthenticated,
+    // Keeps the current page on screen while the next one loads, so paging does
+    // not flash the skeleton grid.
+    placeholderData: keepPreviousData,
   });
 
-  const wishlistItems = useMemo(
-    () => (wishlist?.products || []).map(item => item.productId || item).filter(Boolean),
-    [wishlist]
+  // Unwrap to the product documents ProductCard expects, dropping any entry
+  // whose product failed to populate (a product deleted after it was saved).
+  const products = useMemo(
+    () => (wishlistQuery.data?.products || []).map((i) => i?.productId).filter((p) => p?._id),
+    [wishlistQuery.data]
   );
 
-  const removeItemMutation = useMutation({
-    mutationFn: (productId) => userAPI.removeFromWishlist({ productId }),
-    onSuccess: () => {
-      // PERF FIX (FP4): ['wishlist'] prefix now covers the badge count key.
-      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-      showSuccess('Item removed from wishlist');
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to remove item from wishlist');
-    },
-  });
+  const pagination = wishlistQuery.data?.pagination;
+  const total = pagination?.total ?? 0;
+  const totalPages = pagination?.pages ?? 1;
+  const max = wishlistQuery.data?.max ?? null;
+  const isFull = max != null && total >= max;
 
-  const clearWishlistMutation = useMutation({
+  // Removing the last item on the last page would otherwise strand the user on
+  // an empty page with no way back.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const clearMutation = useMutation({
     mutationFn: () => userAPI.clearWishlist(),
     onSuccess: () => {
-      // PERF FIX (FP4): ['wishlist'] prefix now covers the badge count key.
-      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-      showSuccess('Wishlist cleared successfully');
+      queryClient.invalidateQueries({ queryKey: WISHLIST_QUERY_KEY });
+      setShowClearModal(false);
+      showSuccess('Wishlist cleared');
     },
-    onError: (error) => {
-      showApiError(error, 'Failed to clear wishlist');
-    },
+    onError: (error) => showApiError(error, 'Could not clear your wishlist'),
   });
 
-  const addToCartMutation = useMutation({
-    mutationFn: (productId) => cartAPI.addItem({ productId, qty: 1 }),
-    onSuccess: () => {
-      // PERF FIX (FP4): ['cart'] prefix now covers the badge count key.
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      showSuccess('Item added to cart');
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to add item to cart');
-    },
-  });
-
-  const handleRemoveItem = (productId) => {
-    removeItemMutation.mutate(productId);
-  };
-
-  const handleClearWishlist = () => {
-    setShowClearModal(true);
-  };
-
-  const handleAddToCart = (productId, e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addToCartMutation.mutate(productId);
-  };
-
-  // Not authenticated state
   if (!isAuthenticated) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
-        <Card className="bg-[#041536] max-w-md w-full mx-4">
-          <CardContent className="py-12 px-6 text-center">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-800 flex items-center justify-center">
-              <Heart className="w-10 h-10 text-gray-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-3">Sign in to view your wishlist</h2>
-            <p className="text-gray-400 mb-6">
-              Please log in or create an account to access your wishlist and save your favorite products.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button
-                onClick={() => navigate('/login')}
-                className="bg-accent hover:bg-accent/90 text-white"
-                size="lg"
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                Sign In
-              </Button>
-              <Button
-                onClick={() => navigate('/register')}
-                variant="outline"
-                className="border-accent text-accent-on-dark hover:bg-accent/10"
-                size="lg"
-              >
-                Create Account
-              </Button>
-            </div>
+        <Card className="max-w-md w-full mx-4">
+          <CardContent>
+            <EmptyState
+              icon={Heart}
+              title="Sign in to view your wishlist"
+              description="Log in or create an account to save products and get told when one you saved drops in price."
+              action={
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button onClick={() => navigate('/login')} size="lg">
+                    <LogIn aria-hidden="true" />
+                    Sign in
+                  </Button>
+                  <Button onClick={() => navigate('/register')} variant="outline" size="lg">
+                    Create account
+                  </Button>
+                </div>
+              }
+            />
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-400">Loading your wishlist...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (isError) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center py-12">
-        <Card className="bg-[#041536] max-w-md w-full mx-4">
-          <CardContent className="py-12 px-6 text-center">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-900/20 flex items-center justify-center">
-              <Heart className="w-10 h-10 text-red-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-3">Error loading wishlist</h2>
-            <p className="text-gray-400 mb-6">
-              {error?.response?.data?.message || 'Unable to load your wishlist. Please try again.'}
-            </p>
-            <Button
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['wishlist'] })}
-              className="bg-accent hover:bg-accent/90 text-white"
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Empty wishlist state
-  if (!wishlistItems || wishlistItems.length === 0) {
-    return (
-      <div className="min-h-[60vh] py-12">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">My Wishlist</h1>
-          <p className="text-gray-400 mb-8">Save your favorite products for later</p>
-          
-          <Card className="bg-[#041536] ">
-            <CardContent className="py-16 text-center">
-              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gray-800 flex items-center justify-center">
-                <Heart className="w-12 h-12 text-gray-500" />
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-3">Your wishlist is empty</h2>
-              <p className="text-gray-400 mb-6">Start adding products to your wishlist to see them here.</p>
-              <Button
-                onClick={() => navigate('/search')}
-                className="bg-accent hover:bg-accent/90 text-white"
-                size="lg"
-              >
-                <ArrowRight className="w-4 h-4 mr-2" />
-                Browse Products
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Wishlist with items
   return (
     <div className="min-h-[60vh] py-8">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">My Wishlist</h1>
-            <p className="text-gray-400">
-              {wishlistItems.length} {wishlistItems.length === 1 ? 'item' : 'items'} saved
+        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-fg">My Wishlist</h1>
+            <p className="mt-1 text-fg-muted">
+              {total > 0
+                ? `${total} ${total === 1 ? 'item' : 'items'} saved`
+                : 'Save products for later and we will tell you when the price drops.'}
+              {/* The cap is only worth mentioning once it is in sight. Showing
+                  "3 of 500" to everyone would advertise a limit nobody is near
+                  and make the page feel constrained for no reason. */}
+              {max != null && total > max * 0.8 && (
+                <span className={isFull ? 'text-danger' : 'text-warning'}> · {total} of {max} used</span>
+              )}
             </p>
           </div>
-          {wishlistItems.length > 0 && (
+          {total > 0 && (
             <Button
               variant="outline"
-              size="sm"
-              onClick={handleClearWishlist}
-              disabled={clearWishlistMutation.isPending}
-              className="border-red-500 text-red-400 hover:bg-red-500/10"
+              onClick={() => setShowClearModal(true)}
+              disabled={clearMutation.isPending}
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              {clearWishlistMutation.isPending ? 'Clearing...' : 'Clear All'}
+              <Trash2 aria-hidden="true" />
+              {clearMutation.isPending ? 'Clearing…' : 'Clear all'}
             </Button>
           )}
-        </div>
+        </header>
 
-        {/* Wishlist Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {wishlistItems.map((product) => {
-            if (!product || !product._id) return null;
-
-            const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
-            return (
-              <Card
-                key={product._id}
-                className="bg-[#041536] hover:border-accent/50 transition-all duration-300 group overflow-hidden"
-              >
-                {/* Remove from Wishlist Button */}
-                <div className="absolute top-2 right-2 z-10">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleRemoveItem(product._id)}
-                    disabled={removeItemMutation.isPending}
-                    className="h-8 w-8 p-0 bg-gray-900/80 hover:bg-red-500/20 text-white hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-4 h-4" />
+        {wishlistQuery.isPending ? (
+          // Skeletons match the card's own footprint (square art, 196px cap) so
+          // the grid does not reflow when the real cards arrive.
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {Array.from({ length: 10 }, (_, i) => (
+              <div key={i} className="w-full max-w-[196px] mx-auto space-y-2.5">
+                <Skeleton className="w-full aspect-square rounded-2xl" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-3 w-3/5" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : wishlistQuery.isError ? (
+          <Card>
+            <CardContent>
+              <ErrorState
+                error={wishlistQuery.error}
+                title="Couldn't load your wishlist"
+                onRetry={() => wishlistQuery.refetch()}
+              />
+            </CardContent>
+          </Card>
+        ) : total === 0 ? (
+          <Card>
+            <CardContent>
+              <EmptyState
+                icon={Heart}
+                title="Your wishlist is empty"
+                description="Save a product and you can jump straight back to it — handy for watching a price before you commit."
+                action={
+                  <Button asChild size="lg">
+                    <Link to="/search">
+                      <ShoppingCart aria-hidden="true" />
+                      Browse products
+                    </Link>
                   </Button>
-                </div>
+                }
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {products.map((product) => (
+                <li key={product._id}>
+                  {/* showStock: the one surface that KEEPS sold-out items on
+                      purpose, so it is the one that opts into the treatment. */}
+                  <ProductCard product={product} showStock />
+                </li>
+              ))}
+            </ul>
 
-                {/* Product Image */}
-                <Link to={`/product/${product.slug || product._id}`} className="block">
-                  <div className="relative aspect-video overflow-hidden bg-gray-800">
-                    {product.images && product.images.length > 0 ? (
-                      <SafeImage
-                        src={product.images[0]}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ShoppingCart className="w-12 h-12 text-gray-500" />
-                      </div>
-                    )}
-                    {discountPercentage > 0 && (
-                      <Badge 
-                        variant="destructive" 
-                        className="absolute top-2 left-2"
-                      >
-                        -{discountPercentage.toFixed(0)}%
-                      </Badge>
-                    )}
-                  </div>
+            {/* Self-guards: renders nothing at one page or fewer. */}
+            <div className="mt-8">
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                total={total}
+                totalNoun="saved items"
+              />
+            </div>
+
+            <div className="mt-8 text-center">
+              <Button asChild variant="outline" size="lg">
+                <Link to="/search">
+                  <ArrowRight aria-hidden="true" />
+                  Continue shopping
                 </Link>
-
-                <CardContent className="p-4">
-                  {/* Product Title */}
-                  <Link to={`/product/${product.slug || product._id}`}>
-                    <h3 className="font-semibold text-white text-base mb-2 line-clamp-2 hover:text-accent-on-dark transition-colors min-h-[3rem]">
-                      {product.name}
-                    </h3>
-                  </Link>
-
-                  {/* Category */}
-                  {product.category?.name && (
-                    <p className="text-sm text-gray-400 mb-3">{product.category.name}</p>
-                  )}
-
-                  {/* Price */}
-                  <div className="flex items-center gap-2 mb-4">
-                        <span className="text-accent-on-dark font-bold text-lg">
-                          ${discountPrice.toFixed(2)}
-                        </span>
-                        {discountPercentage > 0 && (
-                          <span className="text-gray-500 line-through text-sm">
-                            ${originalPrice.toFixed(2)}
-                          </span>
-                        )}
-                  </div>
-
-                  {/* Stock Status */}
-                  {product.stock !== undefined && (
-                    <div className="mb-4">
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        product.stock > 0 
-                          ? 'bg-green-900/30 text-green-400' 
-                          : 'bg-red-900/30 text-red-400'
-                      }`}>
-                        {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={(e) => handleAddToCart(product._id, e)}
-                      disabled={!product.stock || product.stock === 0 || addToCartMutation.isPending}
-                      className="flex-1 bg-accent hover:bg-accent/90 text-white"
-                      size="sm"
-                    >
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      {addToCartMutation.isPending ? 'Adding...' : 'Add to Cart'}
-                    </Button>
-                    <Button
-                      onClick={() => handleRemoveItem(product._id)}
-                      disabled={removeItemMutation.isPending}
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-600 text-gray-300 hover:bg-red-500/10 hover:border-red-500 hover:text-red-400"
-                    >
-                      <Heart className="w-4 h-4 fill-current" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Continue Shopping */}
-        <div className="mt-8 text-center">
-          <Button
-            onClick={() => navigate('/search')}
-            variant="outline"
-            className="border-gray-600 text-gray-300 hover:bg-gray-800"
-            size="lg"
-          >
-            <ArrowRight className="w-4 h-4 mr-2" />
-            Continue Shopping
-          </Button>
-        </div>
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       <ConfirmationModal
         open={showClearModal}
         onOpenChange={setShowClearModal}
-        title="Clear Wishlist"
-        description="Are you sure you want to clear your entire wishlist? This action cannot be undone."
-        confirmText="Clear Wishlist"
-        cancelText="Cancel"
+        title="Clear your whole wishlist?"
+        description={`All ${total} saved ${total === 1 ? 'item' : 'items'} will be removed. This cannot be undone.`}
+        confirmText="Clear wishlist"
+        cancelText="Keep them"
         variant="destructive"
-        onConfirm={() => clearWishlistMutation.mutate()}
+        onConfirm={() => clearMutation.mutate()}
       />
     </div>
   );
 };
 
 export default Wishlist;
-

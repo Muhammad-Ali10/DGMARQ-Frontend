@@ -36,7 +36,7 @@ import {
   Tag,
   Zap,
   Image,
-  Flame,
+  Flame,
   RotateCcw,
   Repeat,
   Bell,
@@ -50,6 +50,7 @@ import {
   Library,
   ClipboardList,
   LayoutList,
+  ListTree,
 } from "lucide-react";
 
 const SidebarLogo = () => {
@@ -295,6 +296,9 @@ export const AdminSidebar = () => {
           <SidebarItem to="/admin/homepage-sections" icon={LayoutList}>
             Homepage Sections
           </SidebarItem>
+          <SidebarItem to="/admin/menu" icon={ListTree}>
+            Header Menu
+          </SidebarItem>
           <SidebarItem to="/admin/upcoming-releases" icon={Calendar}>
             Upcoming Releases
           </SidebarItem>
@@ -421,7 +425,7 @@ export const UserSidebar = () => {
         <SidebarItem to="/user/orders" icon={ShoppingCart}>
           Orders
         </SidebarItem>
-        <SidebarItem to="/user/wishlist" icon={Heart}>
+        <SidebarItem to="/wishlist" icon={Heart}>
           Wishlist
         </SidebarItem>
         <SidebarItem to="/user/wallet" icon={Wallet}>

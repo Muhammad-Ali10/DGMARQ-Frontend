@@ -34,5 +34,14 @@ export default defineConfig({
     // The default forks pool intermittently fails to spawn workers on Windows
     // under load ("Timeout waiting for worker to respond"); threads is reliable.
     pool: 'threads',
+    // Vitest's 5s default kills the FIRST async test in a file before its
+    // assertion can settle: that test pays the module-graph import, the jsdom
+    // environment and the react-query client on top of its own work, which on a
+    // loaded machine measured over 6s. It surfaced as a component bug —
+    // "expected aria-pressed=true, received false" — rather than as a timeout,
+    // which is the expensive kind of flake to read. The ceiling is here and the
+    // RTL waiter's is in test/setup.js, deliberately lower, so a genuine hang
+    // fails as a waitFor timeout with a DOM dump instead of a bare test abort.
+    testTimeout: 20_000,
   },
 });

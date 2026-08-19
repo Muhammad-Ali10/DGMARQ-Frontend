@@ -122,7 +122,8 @@ const CHECKOUT_BTN =
   "flex h-[50px] w-full cursor-pointer items-center justify-center gap-[8px] rounded-[12px] border-none " +
   "bg-[linear-gradient(120deg,#0e51e2,#7b2ff7)] font-inherit text-[15.5px] font-extrabold tracking-[0.3px] text-white " +
   "shadow-[0_8px_26px_rgba(123,47,247,0.5),0_0_22px_rgba(168,85,247,0.28)] " +
-  "[transition:filter_0.18s] hover:brightness-[1.08]";
+  "[transition:filter_0.18s] hover:brightness-[1.08] " +
+  "disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:brightness-100";
 const CONTINUE_BTN =
   "mt-[10px] flex h-[44px] w-full cursor-pointer items-center justify-center rounded-[12px] " +
   "border border-[rgba(58,116,240,0.45)] bg-transparent font-inherit text-[13.5px] font-bold text-[#3a9bf5] " +
@@ -229,6 +230,12 @@ const Cart = () => {
   // ── summary (mirrors the mockup's recalc(): protection is a % of the amount
   //    AFTER discounts, the processing fee is flat once per order) ──
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
+  // M21: a pre-order is delivered on release day and a regular item now, and an
+  // order carries ONE delivery state — so the two cannot ship together. The
+  // backend refuses to open a checkout session for a mixed cart; saying so here
+  // means the buyer finds out on the cart page instead of at the payment step.
+  const preorderNames = items.filter((i) => i.isPreorder).map((i) => i.name);
+  const isMixedCart = preorderNames.length > 0 && preorderNames.length < items.length;
   const subtotal = isAuthenticated
     ? cart?.subtotal ?? items.reduce((s, i) => s + i.price * i.qty, 0)
     : guestView.subtotal || items.reduce((s, i) => s + i.price * i.qty, 0);
@@ -404,9 +411,13 @@ const Cart = () => {
             const regionBad = isBuyerCompatible(avail, country) === false;
             return (
             <div key={it.key} className={cardCls(regionBad)}>
+              {/* AUDIT FIX (PERF-11): THUMB caps the thumbnail at 180px wide
+                  (w-[104px] / min-[521px]:w-[180px] above). Without a width prop
+                  this pulled the seller's full-resolution original for every
+                  line item. */}
               <Link to={`/product/${it.slug}`} className={THUMB}>
                 {it.image ? (
-                  <SafeImage src={it.image} alt={it.name} />
+                  <SafeImage src={it.image} alt={it.name} w={180} />
                 ) : (
                   <span className="absolute inset-0 flex items-center justify-center">
                     <ShoppingCart className="h-7 w-7 text-white/20" />
@@ -568,7 +579,29 @@ const Cart = () => {
                 : `Prices shown in ${currency} are approximate — you'll be charged $${grandTotal.toFixed(2)} USD.`}
             </div>
 
-            <button type="button" className={CHECKOUT_BTN} onClick={() => navigate("/checkout")}>
+            {isMixedCart && (
+              <div className="mb-[12px] rounded-[12px] border border-amber-500/40 bg-amber-500/[0.08] px-[14px] py-[12px]">
+                <p className="text-[13px] font-bold text-amber-200">
+                  Pre-orders check out on their own
+                </p>
+                <p className="mt-[4px] text-[12px] leading-[1.5] text-amber-100/75">
+                  {preorderNames.length === 1
+                    ? `"${preorderNames[0]}" is a pre-order`
+                    : `${preorderNames.length} items in your cart are pre-orders`}
+                  {" "}— they&apos;re delivered on release day, so they can&apos;t be bought in the same
+                  order as items delivered now. Remove{" "}
+                  {preorderNames.length === 1 ? "it" : "them"} to check out the rest, or clear the
+                  other items and pre-order on its own.
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className={CHECKOUT_BTN}
+              disabled={isMixedCart}
+              onClick={() => navigate("/checkout")}
+            >
               {/* Design uses a credit-card glyph here, not a shield (v74 5836). */}
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="1" y="4" width="22" height="16" rx="2" />

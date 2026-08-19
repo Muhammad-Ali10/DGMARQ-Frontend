@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { returnRefundAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -12,14 +13,8 @@ import { refundBadgeProps } from '@features/wallet-payout';
 import { formatUSD } from '@lib/money';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
 import { Eye, ShieldCheck } from 'lucide-react';
-
-const displayOrderId = (orderLike) => {
-  if (!orderLike) return '—';
-  const orderNumber = typeof orderLike.orderNumber === 'string' ? orderLike.orderNumber.trim() : '';
-  if (orderNumber) return orderNumber;
-  const raw = orderLike._id?.toString?.() || '';
-  return raw ? raw.slice(-8).toUpperCase() : '—';
-};
+import { getDisplayOrderId } from '@lib/orderDisplay';
+import { useSocket } from '@hooks/useSocket';
 
 /**
  * Refund requests raised against this seller's products.
@@ -33,10 +28,27 @@ const displayOrderId = (orderLike) => {
  * rather than the buyer's display-currency hook.
  */
 const SellerReturnRefunds = () => {
+  const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
+
   const refundsQuery = useQuery({
     queryKey: ['seller-refunds'],
     queryFn: () => returnRefundAPI.getSellerRefundList().then((res) => res.data.data),
   });
+
+  // AUDIT FIX (DEAD-3): this list had NO refund_executed subscription, so a
+  // seller watching it never saw a refund flip — they had to reload. Both
+  // sibling lists (user/ReturnRefunds, admin/ReturnRefundManagement) have the
+  // effect, and so does the seller DETAIL page, which makes this a missed copy
+  // rather than a decision.
+  useEffect(() => {
+    if (!socket || !isConnected) return undefined;
+    const onRefundExecuted = () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-refunds'] });
+    };
+    socket.on('refund_executed', onRefundExecuted);
+    return () => socket.off('refund_executed', onRefundExecuted);
+  }, [socket, isConnected, queryClient]);
 
   const refunds = refundsQuery.data?.refunds ?? [];
 
@@ -94,7 +106,7 @@ const SellerReturnRefunds = () => {
                       refunds.map((refund) => (
                         <TableRow key={refund._id}>
                           <TableCell className="font-mono text-xs">
-                            {displayOrderId(refund.orderId)}
+                            {getDisplayOrderId(refund.orderId, '—')}
                           </TableCell>
                           <TableCell className="max-w-xs truncate">
                             {refund.productId?.name || '—'}
@@ -149,7 +161,7 @@ const SellerReturnRefunds = () => {
                           {formatUSD(refund.refundAmount ?? refund.productId?.price)}
                         </p>
                         <p className="mt-1 text-xs text-fg-subtle">
-                          {displayOrderId(refund.orderId)} · {refund.userId?.name || 'Buyer'} ·{' '}
+                          {getDisplayOrderId(refund.orderId, '—')} · {refund.userId?.name || 'Buyer'} ·{' '}
                           {formatRelativeDate(refund.createdAt)}
                         </p>
                         <Button asChild size="sm" variant="outline" className="mt-3 w-full">

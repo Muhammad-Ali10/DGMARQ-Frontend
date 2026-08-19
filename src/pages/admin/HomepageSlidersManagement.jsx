@@ -8,6 +8,7 @@ import { Label } from '@components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
+import TargetPicker from '@components/common/TargetPicker';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { TableEmptyRow } from '@components/common/EmptyState';
 import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
@@ -40,6 +41,7 @@ const HomepageSlidersManagement = () => {
   const [formData, setFormData] = useState({
     title: '',
     productId: '',
+    target: null,
     slideIndex: 0,
     image: null,
   });
@@ -75,7 +77,7 @@ const HomepageSlidersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['homepage-sliders'] });
       setIsCreateOpen(false);
-      setFormData({ title: '', productId: '', slideIndex: 0, image: null });
+      setFormData({ title: '', productId: '', target: null, slideIndex: 0, image: null });
       setProductSearchQuery('');
     },
   });
@@ -114,6 +116,7 @@ const HomepageSlidersManagement = () => {
     if (formData.productId) {
       formDataToSend.append('productId', formData.productId);
     }
+    formDataToSend.append('target', formData.target ? JSON.stringify(formData.target) : '');
     formDataToSend.append('slideIndex', formData.slideIndex.toString());
     if (formData.image) {
       formDataToSend.append('image', formData.image);
@@ -130,6 +133,7 @@ const HomepageSlidersManagement = () => {
     } else {
       formDataToSend.append('productId', ''); // Clear product if none selected
     }
+    formDataToSend.append('target', formData.target ? JSON.stringify(formData.target) : '');
     formDataToSend.append('slideIndex', formData.slideIndex.toString());
     if (formData.image) {
       formDataToSend.append('image', formData.image);
@@ -142,6 +146,7 @@ const HomepageSlidersManagement = () => {
     setFormData({
       title: slider.title,
       productId: slider.productId?._id || '',
+      target: slider.target || null,
       slideIndex: slider.slideIndex !== undefined ? slider.slideIndex : slider.order || 0,
       image: null,
     });
@@ -280,6 +285,17 @@ const HomepageSlidersManagement = () => {
                   )}
                 </div>
               </div>
+
+              {/* M15: a slide can point somewhere other than a product */}
+              {!formData.productId && (
+                <div className="rounded-lg border border-gray-700 p-3">
+                  <TargetPicker
+                    value={formData.target}
+                    onChange={(target) => setFormData({ ...formData, target })}
+                    label="Where this slide goes (used when no product is selected)"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="image" className="text-gray-300">Image *</Label>
@@ -511,6 +527,17 @@ const HomepageSlidersManagement = () => {
                 )}
               </div>
             </div>
+
+            {/* M15: a slide can point somewhere other than a product */}
+            {!formData.productId && (
+              <div className="rounded-lg border border-gray-700 p-3">
+                <TargetPicker
+                  value={formData.target}
+                  onChange={(target) => setFormData({ ...formData, target })}
+                  label="Where this slide goes (used when no product is selected)"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="edit-image" className="text-gray-300">Update Image (Optional)</Label>

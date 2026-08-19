@@ -26,7 +26,9 @@ const BUYER_ITEMS = [
   { to: '/user/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/user/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/user/license-keys', label: 'Keys', icon: Key },
-  { to: '/user/wishlist', label: 'Wishlist', icon: Heart },
+  // The wishlist is a single page at /wishlist (the storefront route the header
+  // and mobile bar link to), not a dashboard-only one.
+  { to: '/wishlist', label: 'Wishlist', icon: Heart },
   { to: '/user/support', label: 'Support', icon: Headphones },
 ];
 

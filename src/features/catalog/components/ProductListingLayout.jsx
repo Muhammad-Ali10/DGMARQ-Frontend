@@ -16,22 +16,7 @@ import { Skeleton } from '@components/ui/skeleton';
 import { Card } from '@components/ui/card';
 import { Pagination } from '@components/common/Pagination';
 import { ChevronDown, ChevronUp, X, Search, Lock } from 'lucide-react';
-
-const useDebounce = (value, delay) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
+import { useDebounce } from '@hooks/useDebounce';
 
 // Hoisted to module scope so they keep a stable component identity across the
 // parent's renders (otherwise they remount every render -> filter inputs lose
@@ -224,6 +209,10 @@ const ProductListingLayout = ({
   }, [checkboxFilters.subCategoryId, defaultSubCategoryId]);
 
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
+  // Read-only URL flags (no UI control) — set by the homepage's Featured
+  // "See All" and by an admin menu item pointing at upcoming pre-orders.
+  const isFeaturedOnly = searchParams.get('isFeatured') === 'true';
+  const isPreorderOnly = searchParams.get('isPreorder') === 'true';
   const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true');
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
@@ -503,8 +492,19 @@ const ProductListingLayout = ({
       params.sort = sortBy;
     }
 
+    // M15: lets the homepage "Featured Products → See All" land on a real
+    // filtered listing instead of the unfiltered catalogue.
+    if (isFeaturedOnly) {
+      params.isFeatured = 'true';
+    }
+    if (isPreorderOnly) {
+      params.isPreorder = 'true';
+    }
+
     return params;
   }, [
+    isFeaturedOnly,
+    isPreorderOnly,
     page,
     lockedPlatformId,
     effectiveCategoryIds,
@@ -558,9 +558,16 @@ const ProductListingLayout = ({
     if (sortBy !== 'newest') params.set('sort', sortBy);
     if (inStock) params.set('inStock', 'true');
     if (layout !== 'listing') params.set('layout', layout);
+    // This effect rebuilds the querystring from scratch, so the featured flag
+    // has to be re-set or the filter would silently drop on the first
+    // interaction (sort change, pagination, …).
+    if (isFeaturedOnly) params.set('isFeatured', 'true');
+    if (isPreorderOnly) params.set('isPreorder', 'true');
 
     setSearchParams(params, { replace: true });
   }, [
+    isFeaturedOnly,
+    isPreorderOnly,
     page,
     debouncedSearch,
     minPrice,
@@ -1260,6 +1267,7 @@ const ProductListingLayout = ({
                   <option value="price_asc">Price: Low to High</option>
                   <option value="price_desc">Price: High to Low</option>
                   <option value="rating">Highest Rated</option>
+                  <option value="views">Most Viewed</option>
                   <option value="name_asc">Name: A to Z</option>
                   <option value="name_desc">Name: Z to A</option>
                 </select>

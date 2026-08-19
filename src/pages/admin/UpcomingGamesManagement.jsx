@@ -37,12 +37,16 @@ const UpcomingGamesManagement = () => {
   // Fetch products for dropdown
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products-search-upcoming', debouncedSearch],
-    // No adminView: only buyer-purchasable products (approved offer with stock
-    // / live pre-order — pre-orders are exactly what this section curates).
+    // No adminView: only buyer-purchasable products. M21 (req 13): the section
+    // renders unreleased PRE-ORDERS only, so the picker offers exactly that —
+    // `isPreorder=true` already means "and not yet released" server-side
+    // (product.service.js:219). Offering anything else lets an admin curate a
+    // row the homepage will silently drop.
     queryFn: () => productAPI.getProducts({
       search: debouncedSearch,
       limit: 10,
       status: 'active',
+      isPreorder: 'true',
     }).then(res => res.data.data),
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,
   });
@@ -328,11 +332,28 @@ const UpcomingGamesManagement = () => {
                           ${product.price} • {product.platform?.name || 'Digital Product'} •{' '}
                           {product.region?.name || 'GLOBAL'}
                         </p>
-                        {product.status !== 'active' && product.status !== 'approved' && (
-                          <Badge variant="destructive" className="mt-1">
-                            Status: {product.status}
-                          </Badge>
-                        )}
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          {product.status !== 'active' && product.status !== 'approved' && (
+                            <Badge variant="destructive">Status: {product.status}</Badge>
+                          )}
+                          {/* M21: the homepage renders unreleased pre-orders only.
+                              A row that no longer qualifies still sits in this list
+                              but has vanished from the site — say so, rather than
+                              leaving the admin to wonder. */}
+                          {!product.isPreorder ? (
+                            <Badge variant="destructive">Not a pre-order — hidden on the homepage</Badge>
+                          ) : product.preorderReleasedAt ? (
+                            <Badge variant="destructive">Released — hidden on the homepage</Badge>
+                          ) : !product.offersCount ? (
+                            <Badge variant="destructive">No live offers — hidden on the homepage</Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-amber-500/40 text-amber-300">
+                              Releases {product.preorderReleaseDate
+                                ? new Date(product.preorderReleaseDate).toLocaleDateString()
+                                : '—'}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -400,9 +421,10 @@ const UpcomingGamesManagement = () => {
       <Card variant="hud" className="bg-blue-900/20 border-blue-700">
         <CardContent className="pt-6">
           <p className="text-blue-300 text-sm">
-            <strong>Note:</strong> Only the first 6 products will be displayed on the homepage.
-            Use the arrow buttons to reorder products. Only products with status "active" or "approved"
-            will be displayed on the homepage.
+            <strong>Note:</strong> This section shows <strong>unreleased pre-orders only</strong>.
+            A title disappears from it automatically on its release date. Only the first 6 are
+            displayed, in the order below; if fewer than 6 qualify, the remaining slots fill
+            automatically with the pre-orders releasing soonest.
           </p>
         </CardContent>
       </Card>

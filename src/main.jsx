@@ -11,16 +11,30 @@ import { setOnLogoutCallback } from './store/slices/authSlice';
 import App from './App';
 import { SEOProvider } from '@components/common/SEOProvider';
 import ErrorBoundary, { maybeReloadOnChunkError } from '@components/common/ErrorBoundary';
+import { initErrorReporting, captureError } from '@lib/errorReporter';
 import './index.css';
+
+// AUDIT FIX (REL-3): start reporting before the first render. No-op unless
+// VITE_SENTRY_DSN is set, so dev and CI transmit nothing.
+initErrorReporting();
 
 // Global safety net for dynamic-import/chunk load failures that occur outside
 // of React's render tree (e.g. a route chunk failing to fetch after a deploy).
 if (typeof window !== 'undefined') {
   window.addEventListener('error', (event) => {
-    maybeReloadOnChunkError(event?.error || event?.message);
+    if (maybeReloadOnChunkError(event?.error || event?.message)) return;
+    // AUDIT FIX (REL-3): anything that is NOT a stale-chunk error reached this
+    // listener and was silently swallowed. Report it.
+    captureError(event?.error || new Error(String(event?.message || 'window.onerror')), {
+      source: 'window.error',
+    });
   });
   window.addEventListener('unhandledrejection', (event) => {
-    maybeReloadOnChunkError(event?.reason);
+    if (maybeReloadOnChunkError(event?.reason)) return;
+    captureError(
+      event?.reason instanceof Error ? event.reason : new Error(String(event?.reason)),
+      { source: 'unhandledrejection' }
+    );
   });
 }
 

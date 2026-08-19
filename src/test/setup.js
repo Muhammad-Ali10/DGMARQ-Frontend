@@ -3,9 +3,16 @@
 // so we extend Vitest's expect explicitly.
 import { expect, afterEach } from 'vitest';
 import * as matchers from '@testing-library/jest-dom/matchers';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 
 expect.extend(matchers);
+
+// Tests that wait on a react-query round trip (fetch → cache → re-render) do
+// not reliably settle inside RTL's 1s default on a loaded machine, and the
+// failure reads as a wrong value rather than as "not yet". Kept comfortably
+// BELOW vitest's testTimeout (vitest.config.js) so a real hang still fails as a
+// waitFor timeout — which prints the DOM — rather than as a bare test abort.
+configure({ asyncUtilTimeout: 10_000 });
 
 // Unmount React trees between tests.
 afterEach(() => {

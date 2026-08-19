@@ -66,6 +66,25 @@ api.interceptors.request.use(
   }
 );
 
+// A 401 from an endpoint that TAKES credentials means those credentials were
+// wrong — not that an access token expired — so it must not go through the
+// refresh-and-replay path below.
+//
+// It used to. Logging in with a bad password 401'd, got retried via
+// /user/refresh-token, failed there too (no valid refresh cookie), and the
+// interceptor rejected with the REFRESH error — so the login form displayed that
+// endpoint's message, "unauthorize", instead of the real reason. Every failed
+// login also cost a wasted request and dispatched a logout for a session the
+// user did not have.
+const CREDENTIAL_ENDPOINTS = [
+  '/user/login',
+  '/user/register',
+  '/user/refresh-token',
+  '/user/forgot-password',
+  '/user/reset-password',
+];
+const takesCredentials = (url = '') => CREDENTIAL_ENDPOINTS.some((path) => url.includes(path));
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -74,7 +93,11 @@ api.interceptors.response.use(
       const protectedRoutePrefixes = ['/admin', '/seller', '/user'];
       return protectedRoutePrefixes.some(prefix => pathname.startsWith(prefix));
     };
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !takesCredentials(originalRequest?.url)
+    ) {
       originalRequest._retry = true;
 
       const currentPath = window.location.pathname;

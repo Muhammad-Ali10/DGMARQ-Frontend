@@ -10,18 +10,11 @@ import SafeImage from '@components/ui/safe-image';
 import { ErrorState } from '@components/common/ErrorState';
 import { Fact } from '@components/common/SpecList';
 import { RefundChat, isRefundChatLocked, refundBadgeProps } from '@features/wallet-payout';
+import { getDisplayOrderId } from '@lib/orderDisplay';
 import { useSocket } from '@hooks/useSocket';
 import useCurrency from '@hooks/useCurrency';
 import { formatDateTime, formatRelativeDate } from '@lib/datetime';
 import { ArrowLeft, MessagesSquare } from 'lucide-react';
-
-const displayOrderId = (orderLike) => {
-  if (!orderLike) return '—';
-  const orderNumber = typeof orderLike.orderNumber === 'string' ? orderLike.orderNumber.trim() : '';
-  if (orderNumber) return orderNumber;
-  const raw = orderLike._id?.toString?.() || orderLike.orderId?.toString?.() || '';
-  return raw ? raw.slice(-8).toUpperCase() : '—';
-};
 
 /**
  * A buyer's refund request in full.
@@ -115,7 +108,7 @@ const RefundDetail = () => {
         <CardContent className="space-y-6">
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Fact label="Order">
-              <span className="font-mono">#{displayOrderId(refund.orderId)}</span>
+              <span className="font-mono">#{getDisplayOrderId(refund.orderId, '—')}</span>
             </Fact>
             <Fact label="Sold by">{refund.sellerId?.shopName || 'Seller'}</Fact>
             <Fact label="Product">{refund.productId?.name || 'Product'}</Fact>

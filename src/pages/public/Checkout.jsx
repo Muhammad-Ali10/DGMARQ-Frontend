@@ -153,9 +153,14 @@ const TRUST_ROW = "flex items-center gap-[9px] text-[12px] text-white/60 [&_svg]
 
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
-// Mirrors the backend's SUBSCRIPTION_DISCOUNT_RATE (constants.js). Preview only —
-// the server recomputes the real discount when the checkout session is created.
-const SUBSCRIPTION_DISCOUNT_RATE = 0.02;
+// REMOVED (B1): `SUBSCRIPTION_DISCOUNT_RATE = 0.02`.
+//
+// Its comment claimed to mirror a backend constant that does not exist. The
+// real rate is platformConfig.getPlusDiscountPercent() — 5 by default and
+// admin-configurable — so this page previewed a 2% discount while the server
+// charged 5%, and the total shown was never the total taken. There is no
+// replacement constant on purpose: the rate is never a client-side value now,
+// it arrives inside GET /checkout/preview.
 const SUBSCRIPTION_PRICE_LABEL = 'US$9.99/mo';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -210,6 +215,42 @@ const Checkout = () => {
     enabled: isAuthenticated,
     retry: false,
   });
+
+  // M20: Plus points, surfaced HERE rather than only on the Plus page.
+  //
+  // Points are redeemed into wallet credit, which the wallet payment on this
+  // page then spends. That is a perfectly good mechanism, but it was a two-page
+  // errand: nobody knew the points existed, and reaching them meant leaving
+  // checkout. This shows the balance where the buyer is already standing.
+  //
+  // Deliberately NOT a fourth order-level discount — that would pull points into
+  // the pricing stack, the per-line allocation and the refund paths, which is
+  // new risk on the money path for a UX win we can get without it.
+  const { data: pointsData } = useQuery({
+    queryKey: ['plus-points'],
+    queryFn: () => subscriptionAPI.getMyPoints().then(res => res.data?.data ?? null).catch(() => null),
+    enabled: isAuthenticated,
+    retry: false,
+  });
+
+  const redeemPointsMutation = useMutation({
+    mutationFn: (points) => subscriptionAPI.redeemPoints(points),
+    onSuccess: (res) => {
+      toast.success(res.data?.message || 'Points redeemed to your wallet');
+      // The wallet tile and the balance both move, so refresh each.
+      queryClient.invalidateQueries({ queryKey: ['plus-points'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
+    },
+    onError: (error) =>
+      toast.error(error?.response?.data?.message || 'Could not redeem your points'),
+  });
+
+  // Whole multiples of the redemption unit only — anything else is rejected
+  // server-side, so offering it would just produce an error.
+  const redeemableChunk = pointsData?.pointsPerWalletDollar ?? 100;
+  const maxRedeemable = pointsData?.canRedeem
+    ? Math.floor(pointsData.balance / redeemableChunk) * redeemableChunk
+    : 0;
 
   // Feeds <PaymentModal>'s wallet tile — the modal owns the wallet flow itself
   // (it calls payWithWallet, which promotes the session to Wallet server-side).
@@ -328,31 +369,73 @@ const Checkout = () => {
   const youSave = round2(
     items.reduce((s, i) => s + (i.original && i.original > i.price ? (i.original - i.price) * i.qty : 0), 0)
   );
-  const bundleDiscount = isAuthenticated ? cart?.bundleDiscount || 0 : 0;
-  const couponBase = round2(Math.max(0, subtotal - bundleDiscount));
-  const couponDiscount = appliedCoupon
-    ? (appliedCoupon.discountType === 'percentage'
-      ? round2((couponBase * (appliedCoupon.discountValue || 0)) / 100)
-      : Math.min(appliedCoupon.discountAmount || appliedCoupon.discountValue || 0, couponBase))
-    : 0;
-  const previewAfterCoupon = round2(Math.max(0, couponBase - couponDiscount));
-  const subscriptionDiscount = userSubscription?.hasSubscription
-    ? round2(previewAfterCoupon * SUBSCRIPTION_DISCOUNT_RATE)
-    : 0;
-  const totalDiscount = bundleDiscount + subscriptionDiscount + couponDiscount;
-  const totalBeforeFee = round2(Math.max(0, subtotal - totalDiscount));
-
-  // Public endpoint — guests see the same fees as members.
-  const { data: handlingFeeEstimate } = useQuery({
-    queryKey: ['handling-fee-estimate', totalBeforeFee],
-    queryFn: () => checkoutAPI.getHandlingFeeEstimate(totalBeforeFee).then(res => res.data.data),
-    enabled: totalBeforeFee > 0,
+  // ── What this order costs ────────────────────────────────────────────────
+  //
+  // AUDIT FIX (B1): for a signed-in buyer the SERVER prices the cart, using the
+  // same `resolveCartPricing` that prices the real checkout session.
+  //
+  // This page used to derive the whole summary itself — bundle, coupon, the Plus
+  // percentage, fees and points — and its Plus rate was a hardcoded 2% while the
+  // server charged 5%. So the total shown here was never the total taken. Fixing
+  // the constant alone would not hold: any future discount could drift the same
+  // way. Reading the server's answer is what removes the possibility.
+  const { data: preview } = useQuery({
+    queryKey: ['checkout-preview', subtotal, items.length, appliedCoupon?.code ?? null],
+    queryFn: () =>
+      checkoutAPI
+        .getCheckoutPreview({ couponCode: appliedCoupon?.code || undefined })
+        .then((res) => res.data.data),
+    enabled: isAuthenticated && items.length > 0,
     retry: false,
   });
-  const protectionFee = handlingFeeEstimate?.protectionFee ?? 0;
-  const processingFee = handlingFeeEstimate?.processingFee ?? 0;
+
+  // GUESTS keep a local calculation: the preview endpoint reads the caller's own
+  // cart and subscription, neither of which a guest has. A guest can never have
+  // the Plus discount — the field this bug was about — so the only thing derived
+  // here is a coupon, which the server re-validates and recomputes at session
+  // creation anyway. Worth revisiting when guest checkout next gets attention.
+  const guestCouponBase = round2(Math.max(0, subtotal));
+  const guestCouponDiscount = appliedCoupon
+    ? (appliedCoupon.discountType === 'percentage'
+      ? round2((guestCouponBase * (appliedCoupon.discountValue || 0)) / 100)
+      : Math.min(appliedCoupon.discountAmount || appliedCoupon.discountValue || 0, guestCouponBase))
+    : 0;
+  const guestTotalBeforeFee = round2(Math.max(0, subtotal - guestCouponDiscount));
+
+  const bundleDiscount = isAuthenticated ? preview?.bundleDiscount ?? 0 : 0;
+  const couponDiscount = isAuthenticated ? preview?.couponDiscount ?? 0 : guestCouponDiscount;
+  const subscriptionDiscount = isAuthenticated ? preview?.subscriptionDiscount ?? 0 : 0;
+  // The live, admin-configurable Plus rate — the upsell below must never quote a
+  // literal. 0 while the preview is still loading, which renders as no claim at
+  // all rather than a wrong one.
+  const plusDiscountPercent = Number(preview?.plusDiscountPercent) || 0;
+  // No `totalDiscount` local: the summary renders each discount on its own line
+  // (bundle, coupon, Plus) and `totalBeforeFee` now comes from the server, so
+  // there is nothing left for a combined figure to feed. `youSave` above is a
+  // different number — the per-item saving against list price.
+  const totalBeforeFee = isAuthenticated
+    ? preview?.totalAmount ?? subtotal
+    : guestTotalBeforeFee;
+
+  // Public endpoint — guests see the same fees as members. Signed-in buyers get
+  // their fees from the preview instead, so the fees and the discounts they are
+  // computed from always come from one answer.
+  const { data: handlingFeeEstimate } = useQuery({
+    queryKey: ['handling-fee-estimate', guestTotalBeforeFee],
+    queryFn: () => checkoutAPI.getHandlingFeeEstimate(guestTotalBeforeFee).then(res => res.data.data),
+    enabled: !isAuthenticated && guestTotalBeforeFee > 0,
+    retry: false,
+  });
+  const protectionFee = isAuthenticated
+    ? preview?.protectionFee ?? 0
+    : handlingFeeEstimate?.protectionFee ?? 0;
+  const processingFee = isAuthenticated
+    ? preview?.processingFee ?? 0
+    : handlingFeeEstimate?.processingFee ?? 0;
   const protectionLabel = handlingFeeEstimate?.protectionLabel ?? null;
-  const grandTotal = handlingFeeEstimate?.grandTotal ?? totalBeforeFee;
+  const grandTotal = isAuthenticated
+    ? preview?.grandTotal ?? totalBeforeFee
+    : handlingFeeEstimate?.grandTotal ?? totalBeforeFee;
   const serviceFee = round2(protectionFee + processingFee);
 
   const validateCouponMutation = useMutation({
@@ -386,7 +469,7 @@ const Checkout = () => {
       return;
     }
     // Coupon must be validated before the subscription discount is applied.
-    validateCouponMutation.mutate({ code: trimmedCode, orderAmount: couponBase });
+    validateCouponMutation.mutate({ code: trimmedCode, orderAmount: guestCouponBase });
   };
 
   const handleRemoveCoupon = () => {
@@ -780,9 +863,20 @@ const Checkout = () => {
                 </span>
                 <div className="relative min-w-0 flex-1">
                   <span className={CO_PLUS_KICKER}><span className="h-[5px] w-[5px] rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7] animate-co-plus-dot motion-reduce:animate-none"></span>Members save more</span>
-                  <h3 className={CO_PLUS_H}>Join <em>DGMARQ Plus</em> — save 2% on this order</h3>
+                  {/* The rate comes from the preview, never a literal. This said
+                      "2%" while the configured rate was 5%, so the page undersold
+                      the subscription by more than half — and stayed wrong when an
+                      admin changed it. Points are NOT a Plus benefit: every
+                      registered buyer earns them, so claiming them here was
+                      selling something the shopper already had. */}
+                  <h3 className={CO_PLUS_H}>
+                    Join <em>DGMARQ Plus</em>
+                    {plusDiscountPercent > 0 ? ` — save ${plusDiscountPercent}% on this order` : ''}
+                  </h3>
                   <p className="mt-[3px] text-[11.5px] leading-[1.45] text-white/60">
-                    2% off all products applied automatically at checkout, plus access to DGMARQ Points.
+                    {plusDiscountPercent > 0
+                      ? `${plusDiscountPercent}% off all products, applied automatically at checkout.`
+                      : 'Member savings applied automatically at checkout.'}
                     {' '}{SUBSCRIPTION_PRICE_LABEL}, cancel anytime.
                   </p>
                 </div>
@@ -915,15 +1009,53 @@ const Checkout = () => {
               </div>
             )}
 
-            {userSubscription?.hasSubscription && Math.floor(totalBeforeFee * 3) > 0 && (
+            {/* The server computes this on the same basis awardPointsForOrder
+                uses. It used to be `totalBeforeFee * 3` derived from the page's
+                own wrong total, so it over-promised. */}
+            {preview?.pointsToEarn > 0 && (
               <div className="mb-4 flex items-center justify-between rounded-lg border border-accent/30 bg-accent/10 px-3 py-2">
                 <span className="flex items-center gap-1.5 text-sm text-accent-on-dark">
                   <Sparkles className="h-4 w-4" />
                   DGMARQ Plus reward
                 </span>
                 <span className="text-sm font-semibold text-white">
-                  You&apos;ll earn {Math.floor(totalBeforeFee * 3)} points
+                  You&apos;ll earn {preview.pointsToEarn} points
                 </span>
+              </div>
+            )}
+
+            {/* Spend points without leaving checkout. Redeeming converts them to
+                wallet credit, which the wallet payment on this page spends —
+                the same mechanism as the Plus page, one step closer to hand. */}
+            {maxRedeemable > 0 && (
+              <div className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-emerald-200">
+                    You have <strong className="font-semibold text-white">{pointsData.balance}</strong> points
+                    <span className="text-emerald-200/70"> · worth ${(maxRedeemable / redeemableChunk).toFixed(2)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => redeemPointsMutation.mutate(maxRedeemable)}
+                    disabled={redeemPointsMutation.isPending}
+                    className="shrink-0 cursor-pointer rounded-md border border-emerald-400/50 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/25 disabled:opacity-50"
+                  >
+                    {redeemPointsMutation.isPending
+                      ? 'Redeeming…'
+                      : `Redeem ${maxRedeemable} → $${(maxRedeemable / redeemableChunk).toFixed(2)}`}
+                  </button>
+                </div>
+                {/* Points redeem in whole units, so a remainder is normal —
+                    saying so stops it looking like the balance was lost. */}
+                {pointsData.balance > maxRedeemable && (
+                  <p className="mt-1.5 text-xs text-emerald-200/60">
+                    {pointsData.balance - maxRedeemable} points stay on your balance —
+                    they redeem in blocks of {redeemableChunk}.
+                  </p>
+                )}
+                <p className="mt-1.5 text-xs text-emerald-200/60">
+                  Credit lands in your wallet — choose Wallet at payment to use it.
+                </p>
               </div>
             )}
 

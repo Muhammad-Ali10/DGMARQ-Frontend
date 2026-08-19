@@ -12,6 +12,21 @@ import { Button } from '@components/ui/button';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Eye } from 'lucide-react';
 import { Pagination } from '@components/common/Pagination';
+import { countryName, countryFlag } from '@lib/regionCompat';
+
+/**
+ * M14: PayPal's own fee for the order. Null on wallet-paid orders, on captures
+ * PayPal has not settled yet, and on everything sold before we started
+ * recording it — all of which read as "—" rather than a fabricated $0.00.
+ * Currency is shown when it is not USD so a converted figure can never be
+ * silently mislabelled with a dollar sign.
+ */
+const formatPayPalFee = (amount, currency) => {
+  if (typeof amount !== 'number') return null;
+  return currency && currency !== 'USD'
+    ? `${amount.toFixed(2)} ${currency}`
+    : `$${amount.toFixed(2)}`;
+};
 
 const OrdersManagement = () => {
   const [page, setPage] = useState(1);
@@ -81,6 +96,8 @@ const OrdersManagement = () => {
                       <TableHead className="text-gray-300">Order ID</TableHead>
                       <TableHead className="text-gray-300">User</TableHead>
                       <TableHead className="text-gray-300">Total</TableHead>
+                      <TableHead className="text-gray-300">Country</TableHead>
+                      <TableHead className="text-gray-300">PayPal fee</TableHead>
                       <TableHead className="text-gray-300">Refunded</TableHead>
                       <TableHead className="text-gray-300">Status</TableHead>
                       <TableHead className="text-gray-300">Payment</TableHead>
@@ -100,6 +117,7 @@ const OrdersManagement = () => {
                           (sum, item) => sum + (Number(item.refundedAmount) || 0),
                           0
                         );
+                        const paypalFee = formatPayPalFee(order.paypalFee, order.paypalFeeCurrency);
                         return (
                           <TableRow key={orderId} className="border-gray-700 hover:bg-gray-800">
                           <TableCell className="text-white font-mono text-sm">
@@ -108,6 +126,14 @@ const OrdersManagement = () => {
                             <TableCell className="text-gray-300">{userName}</TableCell>
                             <TableCell className="text-white font-semibold">
                               ${order.totalAmount?.toFixed(2) || '0.00'}
+                            </TableCell>
+                            <TableCell className={order.buyerCountry ? "text-gray-300" : "text-gray-500"}>
+                              {order.buyerCountry
+                                ? `${countryFlag(order.buyerCountry)} ${countryName(order.buyerCountry)}`
+                                : "—"}
+                            </TableCell>
+                            <TableCell className={paypalFee ? "text-gray-300" : "text-gray-500"}>
+                              {paypalFee ?? "—"}
                             </TableCell>
                             <TableCell className={refundedAmount > 0 ? "text-amber-400/90" : "text-gray-500"}>
                               {refundedAmount > 0 ? `-$${refundedAmount.toFixed(2)}` : "—"}
@@ -133,7 +159,7 @@ const OrdersManagement = () => {
                         );
                       })
                     ) : (
-                      <TableEmptyRow colSpan={8}>No orders found</TableEmptyRow>
+                      <TableEmptyRow colSpan={10}>No orders found</TableEmptyRow>
                     )}
                   </TableBody>
                 </Table>

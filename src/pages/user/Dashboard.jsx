@@ -13,6 +13,7 @@ import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { StatCardGridSkeleton, OrderListSkeleton } from '@components/common/Skeletons';
 import SafeImage from '@components/ui/safe-image';
 import { ShoppingCart, Bell, Heart, Sparkles, Store, Wallet, ArrowRight } from 'lucide-react';
+import { useWishlist } from '@features/catalog';
 import { getOrderItemProductName } from '@utils/orderItem';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
 import useCurrency from '@hooks/useCurrency';
@@ -58,15 +59,9 @@ const UserDashboard = () => {
     queryFn: () => notificationAPI.getUnreadCount().then((res) => res.data?.data?.unreadCount ?? 0),
   });
 
-  const wishlistQuery = useQuery({
-    queryKey: ['wishlist'],
-    queryFn: async () => {
-      const response = await userAPI.getWishlist();
-      const data = response.data.data;
-      // The endpoint returns a bare array when the wishlist is empty.
-      return Array.isArray(data) ? { products: [] } : data;
-    },
-  });
+  // The tile needs a NUMBER, so it reads the shared id-only membership entry
+  // rather than fetching a page of populated products to measure its length.
+  const { count: wishlistCount } = useWishlist();
 
   const walletQuery = useQuery({
     queryKey: ['wallet-balance'],
@@ -136,7 +131,7 @@ const UserDashboard = () => {
       </header>
 
       {/* ── KPI row ──────────────────────────────────────────────────────── */}
-      {ordersQuery.isPending || wishlistQuery.isPending || notificationsQuery.isPending ? (
+      {ordersQuery.isPending || notificationsQuery.isPending ? (
         <StatCardGridSkeleton count={4} />
       ) : (
         <StatCardGrid>
@@ -149,10 +144,10 @@ const UserDashboard = () => {
           />
           <StatCard
             title="Wishlist"
-            value={wishlistQuery.data?.products?.length ?? 0}
+            value={wishlistCount}
             icon={Heart}
             tone="danger"
-            href="/user/wishlist"
+            href="/wishlist"
           />
           <StatCard
             title="Unread notifications"
@@ -162,11 +157,13 @@ const UserDashboard = () => {
             href="/user/notifications"
           />
           <StatCard
-            title="Plus points"
+            title="DGMARQ Points"
             value={pointsQuery.data?.balance ?? 0}
             icon={Sparkles}
             tone="info"
-            description={pointsQuery.data ? 'Redeemable on DGMARQ Plus' : 'Join Plus to start earning'}
+            // Every registered buyer earns points — "Join Plus to start earning"
+            // told non-members to pay for something they already had.
+            description="Earned on every order · redeem for wallet credit"
             href="/dgmarq-plus"
           />
         </StatCardGrid>

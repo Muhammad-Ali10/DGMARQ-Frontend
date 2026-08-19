@@ -1,0 +1,115 @@
+/* M15: homepage subcategory icon rail — continuous rightward loop.
+   Scoped under .sc-rail so nothing leaks. */
+
+.sc-rail {
+  overflow: hidden;
+  /* Fade the ends so tiles enter and leave instead of being cut off. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.sc-rail-track {
+  display: flex;
+  gap: 14px;
+  width: max-content;
+  will-change: transform;
+}
+
+/* Too few tiles to loop: fill the row instead of sitting max-content wide, so
+   they centre properly and wrap on narrow screens. */
+.sc-rail-track:not(.is-looping) {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Only the duplicated (overflowing) variant animates. The track holds the list
+   twice, so translating a full half lands exactly on the copy — seamless loop
+   with no JS running per frame. */
+.sc-rail-track.is-looping {
+  animation: scRailRight 40s linear infinite;
+}
+
+@keyframes scRailRight {
+  from { transform: translate3d(-50%, 0, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+
+/* Pause while the user is reading or tabbing through. */
+.sc-rail:hover .sc-rail-track.is-looping,
+.sc-rail:focus-within .sc-rail-track.is-looping {
+  animation-play-state: paused;
+}
+
+.sc-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 104px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.03);
+  text-decoration: none;
+  transition: transform 0.18s, border-color 0.18s, background 0.18s;
+}
+
+.sc-tile:hover,
+.sc-tile:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(58, 116, 240, 0.55);
+  background: rgba(58, 116, 240, 0.1);
+  outline: none;
+}
+
+.sc-tile-ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(14, 81, 226, 0.28), rgba(123, 47, 247, 0.28));
+  border: 1px solid rgba(120, 160, 255, 0.28);
+  flex-shrink: 0;
+}
+
+.sc-tile-ic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sc-tile-nm {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+  /* Two lines max, so one long name cannot make the whole rail taller. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sc-tile:hover .sc-tile-nm,
+.sc-tile:focus-visible .sc-tile-nm {
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-rail-track.is-looping {
+    animation: none;
+    transform: none;
+  }
+  /* Motion is off, so give the user a way to reach the rest of the rail. */
+  .sc-rail {
+    overflow-x: auto;
+  }
+  .sc-tile {
+    transition: none;
+  }
+}

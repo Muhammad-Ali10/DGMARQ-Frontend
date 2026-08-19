@@ -10,6 +10,7 @@ import { SearchInput } from '@components/common/SearchInput';
 import { StatusBadge } from '@components/common/StatusBadge';
 import { PlatformBadge, isKnownPlatform } from '@components/common/PlatformBadge';
 import { DeliveryTypeBadge } from '@components/common/DeliveryTypeBadge';
+import { PreorderBadge } from '@components/common/PreorderBadge';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
@@ -191,7 +192,13 @@ const SellerCatalog = () => {
                             )}
                           </TableCell>
                           <TableCell>
-                            <DeliveryTypeBadge productType={p.productType} />
+                            <div className="flex flex-wrap items-center gap-2">
+                              <DeliveryTypeBadge productType={p.productType} />
+                              {/* M21 (req 8): a seller must know it is a pre-order
+                                  BEFORE opening the form — listing one commits
+                                  them to having stock on release day. */}
+                              <PreorderBadge product={p} />
+                            </div>
                           </TableCell>
                           <TableCell numeric>
                             <ListAction product={p} />
@@ -232,6 +239,7 @@ const SellerCatalog = () => {
                                 <PlatformBadge platform={p.platform.name} />
                               )}
                               <DeliveryTypeBadge productType={p.productType} />
+                              <PreorderBadge product={p} />
                             </div>
                           </div>
                         </div>

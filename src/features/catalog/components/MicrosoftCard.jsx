@@ -1,7 +1,19 @@
 import { Link } from "react-router-dom";
+import { Heart } from "lucide-react";
 import { getPlatformName, getTypeName } from "../utils/productUtils";
+import useWishlist from "../hooks/useWishlist";
 
 const MicrosoftCard = ({ product, width }) => {
+  const { isWishlisted, toggle } = useWishlist();
+  const wishlisted = isWishlisted(product._id);
+
+  const handleToggleWishlist = (e) => {
+    // The whole tile is a <Link>; without this the toggle also navigates.
+    e.preventDefault();
+    e.stopPropagation();
+    toggle(product._id);
+  };
+
   // Get platform name, region name, and product type
   const platformName = getPlatformName(product);
   const regionName = product.region?.name || "Global";
@@ -40,6 +52,23 @@ const MicrosoftCard = ({ product, width }) => {
       >
         {/* Gradient overlay for better text readability */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#1e3a5f]120 via-[#2563eb]/10 to-[#60a5fa]/10"></div>
+
+        {/* CLIENT REQ 1 — heart on EVERY product card. This is a product card
+            (it links to /product/:slug and shows the product's platform, type
+            and region); it just renders as a wide banner tile, which is why it
+            was missed. z-20 puts it above BOTH the gradient overlay above and
+            the hover overlay below, which are absolute siblings. */}
+        <button
+          type="button"
+          onClick={handleToggleWishlist}
+          aria-pressed={wishlisted}
+          aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
+        >
+          <Heart
+            className={`h-5 w-5 ${wishlisted ? "fill-red-500 text-danger" : "text-fg"}`}
+          />
+        </button>
 
         {/* Content */}
         <div className="relative z-10 flex flex-col h-full p-6 sm:p-8 justify-end">

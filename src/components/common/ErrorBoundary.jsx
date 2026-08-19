@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { captureError } from '@lib/errorReporter';
 
 const CHUNK_RELOAD_KEY = 'eb_chunk_reloaded';
 
@@ -39,6 +40,18 @@ class ErrorBoundary extends Component {
   componentDidCatch(error, errorInfo) {
     // Stale-chunk recovery: reload once instead of showing the fallback.
     if (maybeReloadOnChunkError(error)) return;
+
+    // AUDIT FIX (REL-3): report UNCONDITIONALLY.
+    //
+    // This used to be console.error gated behind import.meta.env.DEV, which
+    // Vite statically replaces with `false` at build time — so the whole block
+    // was dead-code-eliminated from the production bundle and a render crash in
+    // Checkout or PaymentModal reported absolutely nothing. The user saw
+    // "Something went wrong" and the operator learned nothing.
+    captureError(error, {
+      componentStack: errorInfo?.componentStack,
+      url: typeof window !== 'undefined' ? window.location.pathname : null,
+    });
 
     // FIX (FQ2): `process` doesn't exist in a Vite browser bundle — use
     // import.meta.env.DEV, which Vite statically replaces at build time.

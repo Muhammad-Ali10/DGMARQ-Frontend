@@ -15,6 +15,10 @@ export const checkoutAPI = {
   getCheckoutStatus: (checkoutId, guestEmail) =>
     api.get(`/checkout/${checkoutId}`, { params: guestEmail ? { guestEmail } : {} }),
   getHandlingFeeEstimate: (amount) => api.get('/checkout/handling-fee-estimate', { params: { amount } }),
+  // The signed-in buyer's cart priced by the server — discounts, fees and
+  // points in one answer, from the same function that prices the real session.
+  // Read-only, so it is safe to call on every cart or coupon change.
+  getCheckoutPreview: (params) => api.get('/checkout/preview', { params: params || {} }),
   cancelCheckout: (checkoutId, guestEmail) =>
     api.post(`/checkout/${checkoutId}/cancel`, guestEmail ? { guestEmail } : {}),
   payWithWallet: (checkoutId) => api.post(`/checkout/${checkoutId}/pay-with-wallet`),
@@ -31,16 +35,13 @@ export const cartAPI = {
   removeItem: (data) => api.patch('/cart/remove-item', data),
   updateCart: (data) => api.patch('/cart/update-cart', data),
   clearCart: () => api.patch('/cart/clear-cart'),
-  addBundle: (data) => api.post('/cart/add-bundle', data),
   guestView: (items) => api.post('/cart/guest-view', { items }),
 };
 
 export const couponAPI = {
-  getActiveCoupons: () => api.get('/coupon/active'),
   validateCoupon: (data) => api.post('/coupon/validate', data),
   createCoupon: (data) => api.post('/coupon', data),
   getAllCoupons: () => api.get('/coupon'),
-  getCouponById: (couponId) => api.get(`/coupon/${couponId}`),
   updateCoupon: (couponId, data) => api.patch(`/coupon/${couponId}`, data),
   deleteCoupon: (couponId) => api.delete(`/coupon/${couponId}`),
 };
@@ -50,7 +51,6 @@ export const returnRefundAPI = {
   uploadEvidence: (formData) => api.post('/return-refund/upload-evidence', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   getMyRefunds: (params) => api.get('/return-refund/my-refunds', { params }),
   getRefundById: (refundId) => api.get(`/return-refund/${refundId}`),
-  cancelRefund: (refundId) => api.delete(`/return-refund/${refundId}`),
   getCompletedOrders: () => api.get('/return-refund/completed-orders'),
   getOrderItemLicenseKeys: (orderId, productId) =>
     api.get('/return-refund/order-item-keys', { params: { orderId, productId } }),

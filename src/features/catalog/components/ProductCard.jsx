@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import SafeImage from "@components/ui/safe-image";
@@ -16,7 +16,8 @@ import { cn } from "@lib/utils";
 import useCurrency from "@hooks/useCurrency";
 import useOfferVerdict from "@hooks/useOfferVerdict";
 import RegionBadges from "./RegionBadges";
-import { userAPI, cartAPI } from "@services/api";
+import useWishlist from "../hooks/useWishlist";
+import { cartAPI } from "@services/api";
 import { addToGuestCart } from "@features/cart-checkout";
 import {
   calculateProductPrice,
@@ -28,7 +29,17 @@ import {
 } from "../utils/productUtils";
 import { Badge } from "@/components/ui/badge";
 
-const ProductCard = memo(({ product }) => {
+/**
+ * @param {object}  props.product
+ * @param {boolean} [props.showStock=false]  render the out-of-stock treatment.
+ *   OFF by default, and deliberately so: browse, search and the home sections
+ *   filter out-of-stock products out server-side (the `hasStock` gate in
+ *   product.service), so a card there is buyable by definition and the extra
+ *   chip would be dead weight on the hottest lists on the site. The WISHLIST is
+ *   the one surface that keeps sold-out items on purpose — watching a sold-out
+ *   game until it comes back is the reason to save it — so it opts in.
+ */
+const ProductCard = memo(({ product, showStock = false }) => {
   const queryClient = useQueryClient();
   const { discountPrice, discountPercentage, originalPrice } =
     calculateProductPrice(product);
@@ -57,31 +68,25 @@ const ProductCard = memo(({ product }) => {
 
   const isAuthenticated = useSelector((s) => s.auth?.isAuthenticated);
   const { format: formatPrice } = useCurrency();
-  const navigate = useNavigate();
-  const [wishlisted, setWishlisted] = useState(!!product.isWishlisted);
-  const [wlBusy, setWlBusy] = useState(false);
   const [cartBusy, setCartBusy] = useState(false);
 
-  const toggleWishlist = async (e) => {
+  // Derived from the shared ['wishlist'] cache, NOT local state. The previous
+  // `useState(!!product.isWishlisted)` seeded from a field no endpoint sets, so
+  // the heart was always empty and always took the "add" branch — clicking it
+  // on a saved product 400'd and un-saving from a card was impossible.
+  const { isWishlisted, toggle: toggleWishlist } = useWishlist();
+  const wishlisted = isWishlisted(product._id);
+
+  // `hasStock` is the master rollup (inStockOffersCount > 0) — the same field
+  // browse gates on. Only treat the product as sold out when the server
+  // actually said so; an endpoint that does not project the field must not make
+  // every card read "Out of stock".
+  const soldOut = showStock && product.hasStock === false;
+
+  const handleToggleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
-    if (wlBusy) return;
-    const next = !wishlisted;
-    setWishlisted(next);
-    setWlBusy(true);
-    try {
-      if (next) await userAPI.addToWishlist({ productId: product._id });
-      else await userAPI.removeFromWishlist({ productId: product._id });
-    } catch {
-      setWishlisted(!next); // revert on failure
-      toast.error("Failed to update wishlist");
-    } finally {
-      setWlBusy(false);
-    }
+    toggleWishlist(product._id);
   };
 
   const handleAddToCart = async (e) => {
@@ -140,7 +145,12 @@ const ProductCard = memo(({ product }) => {
               loading="lazy"
               width={300}
               height={300}
-              className="w-full aspect-square object-cover rounded-2xl"
+              className={cn(
+                "w-full aspect-square object-cover rounded-2xl",
+                // Dim the art so a sold-out card reads as unavailable at a
+                // glance, before the chip is read.
+                soldOut && "opacity-40"
+              )}
               fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
             />
           ) : (
@@ -148,7 +158,9 @@ const ProductCard = memo(({ product }) => {
               <ShoppingCart className="h-8 w-8 md:h-12 md:w-12 text-fg-muted" />
             </div>
           )}
-          {product.isFeatured && (
+          {/* Featuring is now a seller-purchased promotion on an offer; the
+              master carries a denormalized rollup of it. */}
+          {product.hasFeaturedOffer && (
             <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-yellow-500 text-[10px] md:text-xs font-semibold text-black shadow-sm">
               Featured
             </span>
@@ -157,7 +169,8 @@ const ProductCard = memo(({ product }) => {
           {/* Wishlist toggle — top-right */}
           <button
             type="button"
-            onClick={toggleWishlist}
+            onClick={handleToggleWishlist}
+            aria-pressed={wishlisted}
             aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
             className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
           >
@@ -169,16 +182,26 @@ const ProductCard = memo(({ product }) => {
             />
           </button>
 
-          {/* Add to cart — bottom-right, revealed on card hover */}
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={cartBusy}
-            aria-label="Add to cart"
-            className="absolute bottom-2 right-2 z-10 p-2 rounded-full bg-accent text-fg shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
-          >
-            <ShoppingCart className="h-4 w-4" />
-          </button>
+          {soldOut && (
+            <span className="absolute bottom-2 left-2 z-10 rounded-full bg-black/75 px-2 py-0.5 text-[10px] md:text-xs font-semibold text-rose-200 backdrop-blur-sm">
+              Out of stock
+            </span>
+          )}
+
+          {/* Add to cart — bottom-right, revealed on card hover. Hidden outright
+              when sold out: there is nothing to add, and a disabled-looking
+              button that appears on hover reads as a broken control. */}
+          {!soldOut && (
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={cartBusy}
+              aria-label="Add to cart"
+              className="absolute bottom-2 right-2 z-10 p-2 rounded-full bg-accent text-fg shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity disabled:opacity-50"
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         <CardHeader className="p-0 flex-1 min-h-0">
@@ -246,6 +269,10 @@ const ProductCard = memo(({ product }) => {
   prev.product.price === next.product.price &&
   prev.product.discount === next.product.discount &&
   prev.product.offersCount === next.product.offersCount &&
+  // Both inputs to the sold-out treatment, or a card that goes out of stock
+  // between refetches keeps rendering as buyable.
+  prev.showStock === next.showStock &&
+  prev.product.hasStock === next.product.hasStock &&
   prev.product.trendingOffer?.discountPercent === next.product.trendingOffer?.discountPercent &&
   prev.product.trendingOffer?.offerId === next.product.trendingOffer?.offerId
 );

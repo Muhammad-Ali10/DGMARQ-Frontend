@@ -62,6 +62,13 @@ import { formatUSD } from '@lib/money';
 //      auto-released payout lines.
 // ============================================================================
 
+// AUDIT FIX (REL-4): `needs_review` was missing from both maps. That made it
+// unfilterable (the status Select iterates these keys), rendered it as a raw
+// unstyled string, and — because the Retry button was gated on the two "failed"
+// statuses — left it with NO action at all. It is the state the payout design
+// deliberately parks AMBIGUOUS money in, with the seller's funds still
+// reserved, and the backend's retryWithdrawal explicitly accepts it. The
+// capability existed; nothing in the UI could reach it.
 const WITHDRAWAL_STATUS_LABEL = {
   requested: "Requested",
   approved: "Approved",
@@ -71,6 +78,7 @@ const WITHDRAWAL_STATUS_LABEL = {
   sent: "Sent",
   failed: "Failed",
   failed_with_retry: "Retrying",
+  needs_review: "Needs review",
 };
 const WITHDRAWAL_STATUS_VARIANT = {
   requested: "warning",
@@ -81,6 +89,7 @@ const WITHDRAWAL_STATUS_VARIANT = {
   sent: "success",
   failed: "destructive",
   failed_with_retry: "warning",
+  needs_review: "destructive",
 };
 
 const METHOD_LABEL = {
@@ -442,7 +451,15 @@ const PayoutsManagement = () => {
                                   </Button>
                                 </>
                               )}
-                              {(w.status === "failed" || w.status === "failed_with_retry") && (
+                              {/* AUDIT FIX (REL-4 + PAY-2): `failed` no longer
+                                  offers Retry — its funds were RELEASED back to
+                                  the seller's spendable balance, so re-driving
+                                  it pays the same money twice (the backend now
+                                  rejects it with a 409 explaining as much).
+                                  `needs_review` gains Retry, which is the only
+                                  way an admin can release a halted payout whose
+                                  funds are still reserved. */}
+                              {(w.status === "failed_with_retry" || w.status === "needs_review") && (
                                 <Button
                                   size="sm"
                                   variant="outline"

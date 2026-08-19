@@ -9,6 +9,7 @@ import { Textarea } from '@components/ui/textarea';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight, Search, DollarSign, Wallet } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '@utils/toast';
+import StorefrontSettings from './StorefrontSettings';
 
 const Settings = () => {
   // Each setting input keeps a local "draft" overlay. `null` means "no edit yet"; the rendered
@@ -930,6 +931,9 @@ const Settings = () => {
           </Button>
         </CardContent>
       </Card>
+
+      {/* M15: homepage trust tiles + header search hints */}
+      <StorefrontSettings />
     </div>
   );
 };

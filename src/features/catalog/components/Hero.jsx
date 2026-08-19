@@ -3,6 +3,7 @@ import { Carousel, CarouselContent, CarouselItem } from '@components/ui/carousel
 import { Link } from 'react-router-dom';
 import { homepageSliderAPI } from '@services/api';
 import SafeImage from '@components/ui/safe-image';
+import { resolveTarget } from '@lib/resolveTarget';
 
 const Hero = () => {
   const { data: sliders, isLoading } = useQuery({
@@ -48,8 +49,13 @@ const Hero = () => {
             const position = slider.slideIndex !== undefined ? slider.slideIndex : slider.order || index;
             const style = positionStyles[position] || positionStyles[0];
             const isCenter = position === 2;
-            const hasProduct = slider.productId && slider.productId._id;
             const product = slider.productId;
+            // M15: a slide can point at a product OR at any admin-chosen target
+            // (search query, category, subcategory, in-app path). A linked
+            // product still wins, so existing slides behave exactly as before.
+            const slideHref = product?._id
+              ? `/product/${product.slug || product._id}`
+              : resolveTarget(slider.target);
 
             const slideContent = (
               <div className={`${style.size} rounded-2xl overflow-hidden ${isCenter ? 'shadow-xl' : 'shadow-lg'} relative transition-transform duration-300 ease-out group-hover:scale-105 group-hover:shadow-2xl`}>
@@ -71,13 +77,7 @@ const Hero = () => {
 
             return (
               <CarouselItem key={slider._id} className={`${style.className} group cursor-pointer hover:z-40`}>
-                {hasProduct ? (
-                  <Link to={`/product/${product.slug || product._id}`}>
-                    {slideContent}
-                  </Link>
-                ) : (
-                  slideContent
-                )}
+                {slideHref ? <Link to={slideHref}>{slideContent}</Link> : slideContent}
               </CarouselItem>
             );
           })}

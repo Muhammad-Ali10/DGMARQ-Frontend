@@ -129,7 +129,66 @@
 .hdr-fx .fx-iconbtn:hover { background: rgba(14,81,226,0.12); border-color: #3a74f0; }
 .hdr-fx .fx-iconbtn-badge { position: absolute; top: -6px; right: -6px; background: #0e51e2; color: #fff; font-size: 11px; border-radius: 999px; min-width: 20px; height: 20px; padding: 0 5px; display: flex; align-items: center; justify-content: center; font-weight: 600; }
 
+/* ===== M15: mega dropdowns for admin-built menu items ===== */
+/* Ported from the v74 product-page reference so the admin menu matches the
+   rest of the header's design language (gradient hairline frame, neon beam,
+   staggered column reveal). */
+.hdr-fx .fx-cmd-item .fx-cmd-caret { width: 13px; height: 13px; flex-shrink: 0; margin-left: -2px; color: rgba(255,255,255,0.75); transition: transform .28s cubic-bezier(.33,1,.5,1), color .2s; }
+.hdr-fx .fx-cmd-item.fx-mega-active { color: #fff; }
+.hdr-fx .fx-cmd-item.fx-mega-active svg { color: #fff; filter: drop-shadow(0 0 6px rgba(58,116,240,0.7)); }
+.hdr-fx .fx-cmd-item.fx-mega-active .fx-cmd-caret { transform: rotate(180deg); color: #fff; }
+
+.hdr-fx .fx-cmdbar { position: relative; }
+.hdr-fx .fx-mega { position: absolute; top: calc(100% - 6px); left: 16px; right: 16px; z-index: 120; pointer-events: none; opacity: 0; transform: translateY(10px) scale(0.995); transform-origin: top center; transition: opacity .26s cubic-bezier(.33,1,.5,1), transform .3s cubic-bezier(.33,1,.5,1); visibility: hidden; }
+.hdr-fx .fx-mega.fx-open { pointer-events: auto; opacity: 1; transform: translateY(0) scale(1); visibility: visible; }
+.hdr-fx .fx-mega-inner { position: relative; border-radius: 18px; background: linear-gradient(180deg, rgba(15,26,52,0.98), rgba(8,13,28,0.99)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 30px 70px rgba(0,0,0,0.65), 0 8px 24px rgba(4,9,22,0.6); padding: 30px 36px 32px; overflow: hidden; backdrop-filter: blur(14px); }
+.hdr-fx .fx-mega-inner::before { content: ""; position: absolute; inset: 0; border-radius: 18px; padding: 1px; background: linear-gradient(120deg, rgba(58,116,240,0.55), rgba(139,77,255,0.42) 48%, rgba(58,116,240,0.14)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0.8; pointer-events: none; }
+.hdr-fx .fx-mega-inner::after { content: ""; position: absolute; top: 0; left: 12%; right: 12%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, #3a74f0, #8b4dff, transparent); box-shadow: 0 0 18px rgba(58,116,240,0.8); opacity: 0.85; pointer-events: none; }
+
+.hdr-fx .fx-mega-panel { display: none; }
+/* Row gap is generous so category columns with icon heads do not collide when
+   the grid wraps to a second row. */
+.hdr-fx .fx-mega-panel.fx-active { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 26px 40px; }
+@media (max-width: 1280px) { .hdr-fx .fx-mega-panel.fx-active { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 26px 32px; } }
+@media (max-width: 1024px) { .hdr-fx .fx-mega-panel.fx-active { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.hdr-fx .fx-mega-col { min-width: 0; }
+
+.hdr-fx .fx-mega.fx-open .fx-mega-col { animation: fxMegaCol .38s cubic-bezier(.33,1,.5,1) both; }
+.hdr-fx .fx-mega.fx-open .fx-mega-col:nth-child(2) { animation-delay: .05s; }
+.hdr-fx .fx-mega.fx-open .fx-mega-col:nth-child(3) { animation-delay: .1s; }
+.hdr-fx .fx-mega.fx-open .fx-mega-col:nth-child(4) { animation-delay: .15s; }
+@keyframes fxMegaCol { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.hdr-fx .fx-mega-heading { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 0 12px; font-size: 13px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: #fff; line-height: 1; }
+.hdr-fx .fx-mega-heading::after { content: ""; flex: 1; height: 1px; max-width: 46px; background: linear-gradient(90deg, rgba(58,116,240,0.7), transparent); }
+/* Clickable column head — a heading pointed at a category. Icon chip + name +
+   an underline that grows across on hover (ported from the reference's
+   Categories panel). */
+.hdr-fx .fx-catgroup-head { position: relative; display: flex; align-items: center; gap: 10px; margin-bottom: 11px; padding: 0 12px 9px; text-decoration: none; }
+.hdr-fx .fx-catgroup-head::after { content: ""; position: absolute; left: 12px; bottom: 0; height: 2px; width: 34px; border-radius: 2px; background: linear-gradient(90deg, #0e51e2, #7b2ff7); transition: width .28s cubic-bezier(.16,1,.3,1); }
+.hdr-fx .fx-catgroup-head:hover::after, .hdr-fx .fx-catgroup-head:focus-visible::after { width: calc(100% - 24px); }
+.hdr-fx .fx-catgroup-ic { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; background: linear-gradient(135deg, rgba(14,81,226,0.32), rgba(123,47,247,0.32)); border: 1px solid rgba(120,160,255,0.32); color: #c3d8ff; transition: transform .25s, color .25s, box-shadow .25s; }
+.hdr-fx .fx-catgroup-ic svg { width: 17px; height: 17px; }
+.hdr-fx .fx-catgroup-ic img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+.hdr-fx .fx-catgroup-head:hover .fx-catgroup-ic { transform: scale(1.1) rotate(-5deg); color: #fff; box-shadow: 0 0 15px rgba(58,155,245,0.6); }
+.hdr-fx .fx-catgroup-nm { font-size: 14px; font-weight: 800; color: #fff; letter-spacing: .2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-fx .fx-catgroup-head:focus-visible { outline: none; }
+
+.hdr-fx .fx-mega-list { list-style: none; margin: 0; padding: 0; }
+.hdr-fx .fx-mega-link { display: flex; align-items: center; padding: 9px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; line-height: 1.2; color: rgba(255,255,255,0.66); text-decoration: none; transition: background .16s, color .16s, transform .16s; }
+.hdr-fx .fx-mega-link:hover, .hdr-fx .fx-mega-link:focus-visible { background: rgba(255,255,255,0.07); color: #fff; outline: none; transform: translateX(3px); }
+
+.hdr-fx .fx-mega-viewall { display: inline-flex; align-items: center; gap: 7px; margin-top: 18px; padding: 9px 12px; border-radius: 8px; font-size: 14px; font-weight: 800; color: #fff; text-decoration: none; transition: background .16s, transform .16s; }
+.hdr-fx .fx-mega-viewall svg { width: 14px; height: 14px; color: #7ba0ff; transition: transform .16s; }
+.hdr-fx .fx-mega-viewall:hover { background: rgba(58,116,240,0.14); transform: translateX(3px); }
+.hdr-fx .fx-mega-viewall:hover svg { transform: translateX(3px); }
+
+/* The command bar itself is desktop-only; on mobile these items live in the
+   hamburger accordion, so the panel must never render there. */
+@media (max-width: 767px) { .hdr-fx .fx-mega { display: none; } }
+
 @media (prefers-reduced-motion: reduce) {
   .hdr-fx .fx-promo, .hdr-fx .fx-promo::before, .hdr-fx .fx-promo-beam, .hdr-fx .fx-promo-em, .hdr-fx .fx-promo-live .dot,
   .hdr-fx .fx-plus::after, .hdr-fx .fx-search-btn::after { animation: none; }
+  .hdr-fx .fx-mega, .hdr-fx .fx-mega.fx-open .fx-mega-col, .hdr-fx .fx-cmd-item .fx-cmd-caret { animation: none; transition: none; }
 }

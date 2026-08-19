@@ -1,14 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@lib/utils';
 
+// Jump targets, in the order the sections appear on the homepage. Each id MUST
+// match a section id in Home.jsx — two of these were previously typos
+// ('Featured-products' vs featured-products, 'game-accounts' vs
+// gaming-accounts) so those two links silently did nothing.
 const menuItems = [
+  { id: 'featured-products', label: 'Featured Products' },
   { id: 'bestsellers', label: 'Bestsellers' },
+  { id: 'top-viewed', label: 'Top Viewed' },
+  { id: 'gift-cards', label: 'Gift Cards' },
   { id: 'upcoming-games', label: 'Upcoming Games' },
   { id: 'upcoming-new-releases', label: 'Upcoming New Releases' },
-  { id: 'Featured-products', label: 'Featured Products' },
   { id: 'software', label: 'Software' },
   { id: 'random-keys', label: 'Random Keys' },
-  { id: 'game-accounts', label: 'Game Accounts' },
+  { id: 'gaming-accounts', label: 'Game Accounts' },
   { id: 'microsoft', label: 'Microsoft' },
 ];
 

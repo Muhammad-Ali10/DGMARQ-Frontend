@@ -190,21 +190,35 @@ const DGMarketPlus = () => {
           </div>
         </section>
 
-        {/* M20: Plus Points — balance + redemption (members) */}
+        {/* DGMARQ Points — balance + redemption. Gated on being SIGNED IN, not
+            on membership: loyalty is for every registered buyer. Plus is the
+            separate paid subscription whose benefit is the % off. */}
         {isAuthenticated && pointsData && (
           <section className="mb-20">
             <Card className="border-accent/30 overflow-hidden">
               <CardHeader className="border-b ">
                 <CardTitle className="text-white flex items-center gap-2">
                   <Star className="w-5 h-5 text-amber-400" />
-                  Your Plus Points
+                  Your DGMARQ Points
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                   <div>
-                    <p className="text-4xl font-bold text-white">{pointsData.balance}<span className="ml-2 text-base font-medium text-gray-400">pts</span></p>
-                    <p className="mt-1 text-sm text-gray-400">≈ ${pointsData.walletValue.toFixed(2)} wallet value</p>
+                    <p className={`text-4xl font-bold ${pointsData.inDebt ? 'text-amber-400' : 'text-white'}`}>
+                      {pointsData.balance}
+                      <span className="ml-2 text-base font-medium text-gray-400">pts</span>
+                    </p>
+                    {/* A negative balance is correct — it is what stops
+                        earn → redeem → cancel being free money — but "≈ $-2.00
+                        wallet value" reads as a broken page. Say what it means. */}
+                    {pointsData.inDebt ? (
+                      <p className="mt-1 text-sm text-amber-300/90">
+                        Adjusted after a refund. Earn {pointsData.pointsUntilRedeemable} more points to redeem again.
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-gray-400">≈ ${pointsData.walletValue.toFixed(2)} wallet value</p>
+                    )}
                   </div>
                   <div className="text-sm text-gray-300 space-y-1">
                     <p>• Earn <span className="font-semibold text-accent-on-dark">{pointsData.pointsPerDollar} points per $1</span> spent</p>
@@ -286,10 +300,42 @@ const DGMarketPlus = () => {
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">3. Save More</h3>
                 <p className="text-gray-400">
-                  Enjoy {plan.discountPercentage}% off on every purchase. The more you shop, the more you save!
+                  Enjoy {plan.discountPercentage}% off on every purchase, and earn{' '}
+                  {plan.pointsPerDollar} points for every $1 you spend.
                 </p>
               </CardContent>
             </Card>
+          </div>
+
+          {/* M20: the loyalty half of the offer, stated to EVERYONE.
+              The points panel further up renders only for signed-in members, so
+              the one person who most needs to know about points — a visitor
+              deciding whether to subscribe — could not see them anywhere. Both
+              figures come from the plan endpoint, which reads the services that
+              own them, so this copy cannot drift from what is actually paid. */}
+          <div className="mt-8 rounded-2xl border border-accent/25 bg-accent/[0.06] p-6 sm:p-8">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="flex items-center gap-2 text-xl font-semibold text-white">
+                  <Sparkles className="h-5 w-5 text-accent-on-dark" />
+                  Plus members earn points too
+                </h3>
+                <p className="mt-2 max-w-xl text-gray-300">
+                  Every order earns <span className="font-semibold text-accent-on-dark">{plan.pointsPerDollar} points per $1</span>.
+                  Turn <span className="font-semibold text-accent-on-dark">{plan.pointsPerWalletDollar} points into $1</span> of
+                  wallet credit and spend it at checkout — on top of your {plan.discountPercentage}% discount.
+                </p>
+              </div>
+              <div className="shrink-0 rounded-xl border border-white/10 bg-black/25 px-5 py-4 text-center">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Spend $100</p>
+                <p className="mt-1 text-2xl font-bold text-white">
+                  {plan.pointsPerDollar * 100} pts
+                </p>
+                <p className="mt-0.5 text-sm text-accent-on-dark">
+                  = ${((plan.pointsPerDollar * 100) / plan.pointsPerWalletDollar).toFixed(2)} back
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 

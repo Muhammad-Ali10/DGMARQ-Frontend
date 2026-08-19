@@ -14,36 +14,17 @@ import {
 } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
 import { toast } from 'sonner';
-import { RefundChat, RefundActionDialog, isRefundChatLocked } from '@features/wallet-payout';
+import { RefundChat, RefundActionDialog, isRefundChatLocked, refundBadgeProps } from '@features/wallet-payout';
+import { getDisplayOrderId } from '@lib/orderDisplay';
+import { formatDate, formatDateTime } from '@lib/datetime';
 
-// ── status metadata ──
-const STATUS_LABELS = {
-  PENDING: 'Pending', SELLER_REVIEW: 'Seller review', SELLER_APPROVED: 'Seller approved',
-  SELLER_REJECTED: 'Seller rejected', ADMIN_REVIEW: 'Admin review', ADMIN_APPROVED: 'Admin approved',
-  ADMIN_REJECTED: 'Rejected', COMPLETED: 'Completed',
-  WAITING_FOR_MANUAL_REFUND: 'Waiting manual refund',
-  ON_HOLD_INSUFFICIENT_FUNDS: 'On hold (insufficient funds)',
-};
-const STATUS_VARIANTS = {
-  PENDING: 'warning', SELLER_REVIEW: 'warning', SELLER_APPROVED: 'default', SELLER_REJECTED: 'destructive',
-  ADMIN_REVIEW: 'secondary', ADMIN_APPROVED: 'default', ADMIN_REJECTED: 'destructive',
-  COMPLETED: 'success', WAITING_FOR_MANUAL_REFUND: 'secondary', ON_HOLD_INSUFFICIENT_FUNDS: 'destructive',
-};
-
-const getDisplayOrderId = (orderLike) => {
-  if (!orderLike) return 'N/A';
-  const orderNumber = typeof orderLike.orderNumber === 'string' ? orderLike.orderNumber.trim() : '';
-  if (orderNumber) return orderNumber;
-  const rawId = orderLike._id?.toString?.() || '';
-  return rawId ? rawId.slice(-8).toUpperCase() : 'N/A';
-};
-
-const StatusBadge = ({ status, className = '' }) => (
-  <Badge variant={STATUS_VARIANTS[status] || 'default'} className={className}>
-    {STATUS_LABELS[status] || status}
-  </Badge>
-);
-
+// AUDIT FIX (DEAD-3): this file carried a PRIVATE copy of the refund status
+// vocabulary that disagreed with the admin LIST page one click away — the list
+// rendered ADMIN_REVIEW as 'In progress', this page as 'Admin review' — and
+// neither private copy carried the legacy lowercase aliases that the canonical
+// taxonomy has (rows this file itself branches on below). Both maps and the
+// local StatusBadge that shadowed the shared one are gone; it reads
+// refundBadgeProps like the seller and buyer pages already did.
 // Small copy-to-clipboard button — admins paste order/capture ids a lot.
 const CopyButton = ({ value, label = 'Copy' }) => {
   const [copied, setCopied] = useState(false);
@@ -123,7 +104,7 @@ const Timeline = ({ refund }) => {
               </p>
               {step.at && (
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  {new Date(step.at).toLocaleString()}
+                  {formatDateTime(step.at)}
                 </p>
               )}
             </div>
@@ -326,7 +307,7 @@ const AdminRefundDetail = () => {
         <div className="flex items-center gap-2 text-sm">
           <span className="text-gray-500">Refund</span>
           <span className="font-mono text-white">#{refund._id?.slice(-8)}</span>
-          <StatusBadge status={refund.status} />
+          <Badge {...refundBadgeProps(refund.status)} />
         </div>
       </div>
 
@@ -365,7 +346,7 @@ const AdminRefundDetail = () => {
               <Clock className="w-4 h-4 text-accent-on-dark mt-0.5 shrink-0" />
               <div className="min-w-0">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wider">Requested</p>
-                <p className="text-white">{new Date(refund.createdAt).toLocaleDateString()}</p>
+                <p className="text-white">{formatDate(refund.createdAt)}</p>
                 <p className="text-[11px] text-gray-500">{new Date(refund.createdAt).toLocaleTimeString()}</p>
               </div>
             </div>
@@ -483,8 +464,8 @@ const AdminRefundDetail = () => {
                           </div>
                         </div>
                         <div className="flex gap-3 mt-1.5 text-[11px] text-gray-500">
-                          {key.assignedAt && <span>Assigned: {new Date(key.assignedAt).toLocaleString()}</span>}
-                          {key.refundedAt && <span>Refunded: {new Date(key.refundedAt).toLocaleString()}</span>}
+                          {key.assignedAt && <span>Assigned: {formatDateTime(key.assignedAt)}</span>}
+                          {key.refundedAt && <span>Refunded: {formatDateTime(key.refundedAt)}</span>}
                         </div>
                       </div>
                     )) : <p className="text-gray-400 text-sm">No key details available</p>}
@@ -513,7 +494,7 @@ const AdminRefundDetail = () => {
                     <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Advisory feedback</p>
                     <p className="text-white text-sm">{refund.sellerFeedback}</p>
                     {refund.sellerFeedbackAt && (
-                      <p className="text-[11px] text-gray-500 mt-1">{new Date(refund.sellerFeedbackAt).toLocaleString()}</p>
+                      <p className="text-[11px] text-gray-500 mt-1">{formatDateTime(refund.sellerFeedbackAt)}</p>
                     )}
                   </div>
                 )}
@@ -535,7 +516,7 @@ const AdminRefundDetail = () => {
                     <ul className="space-y-1.5 text-xs text-gray-300">
                       {refund.refundHistory.map((h, i) => (
                         <li key={i} className="flex gap-2 items-baseline">
-                          <span className="text-gray-500 font-mono shrink-0">{h.timestamp ? new Date(h.timestamp).toLocaleString() : ''}</span>
+                          <span className="text-gray-500 font-mono shrink-0">{h.timestamp ? formatDateTime(h.timestamp) : ''}</span>
                           <span className="text-accent-on-dark capitalize">{h.actor}</span>
                           <span className="text-gray-400">{h.action}</span>
                           {h.newStatus && <span className="text-white">→ {h.newStatus}</span>}
@@ -559,7 +540,7 @@ const AdminRefundDetail = () => {
                 {refund.refundedAt && (
                   <div>
                     <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Refunded at</p>
-                    <p className="text-white text-sm">{new Date(refund.refundedAt).toLocaleString()}</p>
+                    <p className="text-white text-sm">{formatDateTime(refund.refundedAt)}</p>
                   </div>
                 )}
                 {refund.splitBreakdown?.paypalCaptureId && (

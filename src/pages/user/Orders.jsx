@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import SafeImage from '@components/ui/safe-image';
 import { StatusBadge } from '@components/common/StatusBadge';
 import { DeliveryTypeBadge } from '@components/common/DeliveryTypeBadge';
+import { formatReleaseDate } from '@components/common/PreorderBadge';
 import { EmptyState } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { OrderListSkeleton } from '@components/common/Skeletons';
@@ -209,6 +210,14 @@ const UserOrders = () => {
                   order.hasPreorder &&
                   order.orderStatus === 'processing' &&
                   order.paymentStatus === 'paid';
+                // The soonest release across the pre-order lines — in practice
+                // one, since a pre-order cannot share an order with anything.
+                const preorderReleaseLabel = formatReleaseDate(
+                  order.items
+                    ?.filter((i) => i.isPreorder && i.preorderReleaseDate)
+                    .map((i) => i.preorderReleaseDate)
+                    .sort()[0]
+                );
 
                 return (
                   <li
@@ -248,13 +257,25 @@ const UserOrders = () => {
                           </div>
                         </div>
 
+                        {/* CLIENT REQ (M21 #10): the escrow state reads
+                            "Processing / Pre-ordered". A pre-order sits in
+                            `processing` for weeks — a bare amber "Processing"
+                            gives the buyer no reason for the wait. */}
+                        {canCancelPreorder && (
+                          <p className="mt-1.5 text-xs text-warning">
+                            Pre-ordered — {preorderReleaseLabel
+                              ? `your key is delivered on ${preorderReleaseLabel}`
+                              : 'your key is delivered on release day'}
+                          </p>
+                        )}
+
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           {firstItem?.productId?.productType && (
                             <DeliveryTypeBadge productType={firstItem.productId.productType} />
                           )}
                           {order.plusPointsEarned > 0 && (
                             <span className="text-xs font-medium text-accent-on-dark">
-                              +{order.plusPointsEarned} Plus points
+                              +{order.plusPointsEarned} points
                             </span>
                           )}
                         </div>

@@ -51,6 +51,32 @@ const resolveWidth = (w, width) => {
   return Number.isFinite(num) && num > 0 ? num : null;
 };
 
+// AUDIT FIX (PERF-11): last-resort width from an inline style.
+//
+// Only 19 of ~95 <SafeImage> call sites pass w/width, so everything else
+// requested the seller's full-resolution original — commonly 1000px+ — to paint
+// a 44px avatar or an 80px cart thumbnail. Many of those sites DO declare their
+// size, just as `style={{ width: 44 }}`, which resolveWidth above could not see.
+// Reading it here fixes them all at once instead of one prop at a time.
+//
+// Deliberately strict: only a bare number or an exact `<n>px` string counts.
+// '100%', 'auto' and calc() say nothing about the delivered pixel size, so they
+// fall through and the original behaviour (no w_ transform) is kept.
+const resolveStyleWidth = (style) => {
+  const value = style?.width;
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (typeof value === "string") {
+    const match = /^(\d+(?:\.\d+)?)px$/.exec(value.trim());
+    if (match) {
+      const num = parseFloat(match[1]);
+      return num > 0 ? num : null;
+    }
+  }
+  return null;
+};
+
 const SafeImage = ({
   src,
   alt,
@@ -59,6 +85,7 @@ const SafeImage = ({
   className = "",
   w,
   width,
+  style,
   // PERF FIX (FP3): lazy by default — ~80 of 85 usages never passed
   // loading="lazy", so below-the-fold images (home sections, tiles,
   // galleries, review photos) all loaded eagerly. Above-the-fold images
@@ -71,7 +98,7 @@ const SafeImage = ({
   if (hideOnError && hasError) return null;
 
   const rawSrc = hasError ? fallbackSrc : src || fallbackSrc;
-  const numericWidth = resolveWidth(w, width);
+  const numericWidth = resolveWidth(w, width) ?? resolveStyleWidth(style);
 
   const resolvedSrc = isCloudinary(rawSrc)
     ? buildCloudinaryUrl(rawSrc, numericWidth)
@@ -92,6 +119,7 @@ const SafeImage = ({
       srcSet={srcSet}
       alt={alt}
       className={className}
+      style={style}
       width={width}
       loading={loading}
       onError={() => setHasError(true)}

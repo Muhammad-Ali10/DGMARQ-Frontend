@@ -1,19 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Heart, Package } from 'lucide-react';
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSelector } from 'react-redux';
-import { userAPI } from '@services/api';
 import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getRegionName, getTypeName, getDeviceName, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productUtils';
 import SafeImage from '@components/ui/safe-image';
 import useCurrency from '@hooks/useCurrency';
 import RegionBadges from './RegionBadges';
+import useWishlist from '../hooks/useWishlist';
 
 const CategoryProduct = ({ product }) => {
-  const queryClient = useQueryClient();
-  const { isAuthenticated } = useSelector((state) => state.auth);
-  const [isWishlistLoading, setIsWishlistLoading] = useState(false);
-
   // Get product data using utilities
   const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
   const image = getProductImage(product);
@@ -39,76 +32,38 @@ const CategoryProduct = ({ product }) => {
       }
     : null;
   
-  // Check if product is in wishlist (only if authenticated)
-  const { data: wishlist } = useQuery({
-    queryKey: ['wishlist'],
-    queryFn: async () => {
-      try {
-        const response = await userAPI.getWishlist();
-        return response.data.data;
-      } catch {
-        // User not logged in or wishlist not available
-        return null;
-      }
-    },
-    retry: false,
-    enabled: isAuthenticated, // Only fetch if user is authenticated
-  });
+  // Shared with ProductCard, ProductDetail and the wishlist page. This used to
+  // be its own query + two mutations + a loading flag, duplicating the same
+  // logic a third time; the hook keeps every heart for a product in agreement.
+  const { isWishlisted, toggle } = useWishlist();
+  const isInWishlist = isWishlisted(product._id);
 
-  const wishlistItems = wishlist?.products || wishlist?.items || [];
-  const isInWishlist = wishlistItems.some(
-    item => {
-      const productId = item.productId?._id || item.productId || item._id;
-      return productId === product._id || 
-             (item.productId?.slug || item.slug) === product.slug;
-    }
-  );
-
-  // Add to wishlist mutation
-  const addToWishlistMutation = useMutation({
-    mutationFn: (productId) => userAPI.addToWishlist({ productId }),
-    onSuccess: () => {
-      // PERF FIX (FP4): the badge count key is now ['wishlist','count'], so
-      // this prefix invalidation covers it — no separate '-count' key needed.
-      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-    },
-  });
-
-  // Remove from wishlist mutation
-  const removeFromWishlistMutation = useMutation({
-    mutationFn: (productId) => userAPI.removeFromWishlist({ productId }),
-    onSuccess: () => {
-      // PERF FIX (FP4): the badge count key is now ['wishlist','count'], so
-      // this prefix invalidation covers it — no separate '-count' key needed.
-      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
-    },
-  });
-
-  const handleWishlistClick = async (e) => {
+  const handleWishlistClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (isWishlistLoading) return;
-    
-    setIsWishlistLoading(true);
-    
-    try {
-      if (isInWishlist) {
-        await removeFromWishlistMutation.mutateAsync(product._id);
-      } else {
-        await addToWishlistMutation.mutateAsync(product._id);
-      }
-    } catch {
-      // Handle error silently (user might not be logged in)
-      // Error is already handled by React Query
-    } finally {
-      setIsWishlistLoading(false);
-    }
+    toggle(product._id);
   };
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row items-center justify-center gap-2.5 p-4 bg-surface-base rounded-2xl max-w-[875px] w-full">
+      <div className="relative flex flex-col md:flex-row items-center justify-center gap-2.5 p-4 bg-surface-base rounded-2xl max-w-[875px] w-full">
+        {/* CLIENT REQ 1 — top-RIGHT of the card. This used to sit in a row of
+            its own beneath the region badges, which put the same control in a
+            different place depending on whether the listing rendered as a grid
+            card or a list row. No dark pill here (unlike the other cards): this
+            one sits on a solid surface, not over cover art, so the icon already
+            has contrast. */}
+        <button
+          type="button"
+          onClick={handleWishlistClick}
+          aria-pressed={isInWishlist}
+          aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+          className="absolute top-3 right-3 z-10 cursor-pointer rounded-full p-1 transition-colors hover:bg-fg/10"
+        >
+          <Heart
+            className={`text-fg size-6 ${isInWishlist ? 'fill-red-500 text-danger' : ''}`}
+          />
+        </button>
         <div className="w-full md:w-[174px] md:h-[240px]">
           <SafeImage 
             src={image} 
@@ -118,7 +73,8 @@ const CategoryProduct = ({ product }) => {
           />
         </div>
         <div className="flex flex-col flex-1">
-          <h2 className="text-xl md:text-3xl font-semibold text-fg flex flex-wrap items-center justify-between w-full mb-4 gap-2">
+          {/* pr-10 keeps the price clear of the absolute heart above it. */}
+          <h2 className="text-xl md:text-3xl font-semibold text-fg flex flex-wrap items-center justify-between w-full mb-4 gap-2 pr-10">
             <Link 
               to={`/product/${product.slug || product._id}`}
               className="hover:underline flex-1 min-w-[200px]"
@@ -184,19 +140,6 @@ const CategoryProduct = ({ product }) => {
             )}
           </div>
 
-          <div className="flex justify-between w-full">
-            <div></div>
-            <button
-              onClick={handleWishlistClick}
-              disabled={isWishlistLoading}
-              className="cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-            >
-              <Heart 
-                className={`text-fg size-6 ${isInWishlist ? 'fill-red-500 text-danger' : ''}`}
-              />
-            </button>
-          </div>
         </div>
       </div>
     </div>

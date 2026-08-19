@@ -138,6 +138,19 @@ const AdminOrderDetail = () => {
     0
   );
 
+  // M14: what PayPal actually charged us on this capture — their own figures,
+  // never a computed percentage. Shown only for PayPal-settled orders; a
+  // wallet-paid order has no capture, so the block would be meaningless.
+  // Individual values read "—" when PayPal has not settled the capture yet.
+  const hasPayPalCapture = !!(order.paypalCaptureId || order.paypalOrderId);
+  const paypalCurrency = order.paypalFeeCurrency;
+  const formatSettlement = (amount) => {
+    if (typeof amount !== 'number') return '—';
+    return paypalCurrency && paypalCurrency !== 'USD'
+      ? `${amount.toFixed(2)} ${paypalCurrency}`
+      : `$${amount.toFixed(2)}`;
+  };
+
   return (
     <div className="space-y-6 px-4 sm:px-0">
       <div className="flex items-center justify-between">
@@ -445,6 +458,36 @@ const AdminOrderDetail = () => {
                   />
                 </SpecList>
               </div>
+
+              {hasPayPalCapture && (
+                <div>
+                  <p className="mb-1 text-xs font-extrabold tracking-[0.13em] text-info uppercase">
+                    PayPal settlement
+                  </p>
+                  <SpecList>
+                    <SpecRow label="Gross amount" value={formatSettlement(order.paypalGrossAmount)} />
+                    <SpecRow
+                      label="PayPal fee"
+                      value={
+                        typeof order.paypalFee === 'number'
+                          ? `-${formatSettlement(order.paypalFee)}`
+                          : '—'
+                      }
+                      tone={typeof order.paypalFee === 'number' ? 'warning' : undefined}
+                      hint={
+                        typeof order.paypalFee === 'number'
+                          ? undefined
+                          : 'PayPal has not settled this capture yet.'
+                      }
+                    />
+                    <SpecRow
+                      emphasis
+                      label="Net received"
+                      value={formatSettlement(order.paypalNetAmount)}
+                    />
+                  </SpecList>
+                </div>
+              )}
 
               {order.paymentMethod && (
                 <div className="pt-4 border-t border-gray-700">

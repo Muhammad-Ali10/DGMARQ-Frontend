@@ -14,9 +14,7 @@ import {
   Calendar,
   User,
   ShoppingCart,
-  TrendingUp,
-  ShoppingBag,
-  DollarSign
+  TrendingUp
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
@@ -199,32 +197,21 @@ const PublicSellerProfile = () => {
                     </Button>
                   </div>
 
-                  {/* Stats – single row */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mt-6 pt-6 border-t border-gray-700">
+                  {/* Stats – single row.
+                      AUDIT FIX (AZ-3): the "Orders Completed" and "Total Revenue"
+                      tiles are REMOVED. This page is fully unauthenticated and
+                      sellerIds are enumerable from any product-detail response,
+                      so those two exposed a named seller's private commercial
+                      figures to any visitor or competitor. The backend no longer
+                      returns them (seller.controller.js getPublicSellerProfile).
+                      Social proof is carried by Products Sold / rating / reviews. */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-gray-700">
                     <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <TrendingUp className="h-5 w-5 text-emerald-400" />
                         <span className="text-xl sm:text-2xl font-bold">{sellerProfile.stats.totalProductsSold ?? 0}</span>
                       </div>
                       <p className="text-xs sm:text-sm text-gray-400">Products Sold</p>
-                    </div>
-                    <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <ShoppingBag className="h-5 w-5 text-blue-400" />
-                        <span className="text-xl sm:text-2xl font-bold">{sellerProfile.stats.totalOrdersCompleted ?? 0}</span>
-                      </div>
-                      <p className="text-xs sm:text-sm text-gray-400">Orders Completed</p>
-                    </div>
-                    <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <DollarSign className="h-5 w-5 text-amber-400" />
-                        <span className="text-xl sm:text-2xl font-bold">
-                          {typeof sellerProfile.stats.totalRevenue === 'number'
-                            ? `$ ${sellerProfile.stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-                            : '$ 0'}
-                        </span>
-                      </div>
-                      <p className="text-xs sm:text-sm text-gray-400">Total Revenue</p>
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">

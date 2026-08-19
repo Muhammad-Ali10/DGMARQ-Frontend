@@ -19,7 +19,7 @@ const SubcategoriesManagement = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-  const [formData, setFormData] = useState({ name: '', slug: '', description: '', parentCategory: '' });
+  const [formData, setFormData] = useState({ name: '', slug: '', description: '', parentCategory: '', showOnHomepage: false, order: 0, imageFile: null });
   const [statusData, setStatusData] = useState({ status: true });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -73,9 +73,23 @@ const SubcategoriesManagement = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ subCategoryId, data }) => subcategoryAPI.updateSubcategory(subCategoryId, data),
+    // The icon rides a separate multipart endpoint, so a save that includes a
+    // new file is two calls: fields first, then the upload. Awaiting both here
+    // keeps it one mutation from the UI's point of view (one spinner, one
+    // toast, one invalidation).
+    mutationFn: async ({ subCategoryId, data, imageFile }) => {
+      const result = await subcategoryAPI.updateSubcategory(subCategoryId, data);
+      if (imageFile) {
+        const body = new FormData();
+        body.append('image', imageFile);
+        return subcategoryAPI.updateSubcategoryImage(subCategoryId, body);
+      }
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+      // The public rail reads its own cached endpoint.
+      queryClient.invalidateQueries({ queryKey: ['homepage-subcategories'] });
       setIsEditOpen(false);
       setSelectedSubcategory(null);
       toast.success('Subcategory updated successfully');
@@ -135,7 +149,15 @@ const SubcategoriesManagement = () => {
     }
     updateMutation.mutate({
       subCategoryId: selectedSubcategory._id,
-      data: { name: formData.name, slug: formData.slug, description: formData.description, parentCategory: formData.parentCategory },
+      data: {
+        name: formData.name,
+        slug: formData.slug,
+        description: formData.description,
+        parentCategory: formData.parentCategory,
+        showOnHomepage: formData.showOnHomepage,
+        order: formData.order,
+      },
+      imageFile: formData.imageFile,
     });
   };
 
@@ -406,6 +428,7 @@ const SubcategoriesManagement = () => {
                   <TableHead className="text-gray-300 font-semibold">Slug</TableHead>
                   <TableHead className="text-gray-300 font-semibold">Parent Category</TableHead>
                   <TableHead className="text-gray-300 font-semibold">Description</TableHead>
+                  <TableHead className="text-gray-300 font-semibold">Homepage rail</TableHead>
                   <TableHead className="text-gray-300 font-semibold">Status</TableHead>
                   <TableHead className="text-gray-300 font-semibold text-right">Actions</TableHead>
                 </TableRow>
@@ -436,7 +459,21 @@ const SubcategoriesManagement = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge 
+                        {subcategory.showOnHomepage ? (
+                          <div className="flex items-center gap-2">
+                            {subcategory.image ? (
+                              <img src={subcategory.image} alt="" className="h-8 w-8 rounded object-cover border border-gray-700" />
+                            ) : (
+                              <span className="text-xs text-yellow-500" title="No icon uploaded — the rail will show a default glyph">no icon</span>
+                            )}
+                            <span className="text-xs text-gray-400">#{subcategory.order ?? 0}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-600">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
                           variant={subcategory.isActive ? 'success' : 'destructive'}
                           className="font-medium"
                         >
@@ -451,11 +488,14 @@ const SubcategoriesManagement = () => {
                             variant="outline"
                             onClick={() => {
                               setSelectedSubcategory(subcategory);
-                              setFormData({ 
-                                name: subcategory.name, 
-                                slug: subcategory.slug || '', 
-                                description: subcategory.description || '', 
+                              setFormData({
+                                name: subcategory.name,
+                                slug: subcategory.slug || '',
+                                description: subcategory.description || '',
                                 parentCategory: subcategory.parentCategory?._id || subcategory.parentCategory || '',
+                                showOnHomepage: subcategory.showOnHomepage === true,
+                                order: subcategory.order ?? 0,
+                                imageFile: null,
                               });
                               setIsEditOpen(true);
                             }}
@@ -598,6 +638,59 @@ const SubcategoriesManagement = () => {
                 className="bg-secondary border-gray-700 text-white"
               />
             </div>
+
+            {/* M15: homepage subcategory rail controls */}
+            <div className="rounded-lg border border-gray-700 p-3 space-y-3">
+              <p className="text-sm font-semibold text-gray-300">Homepage icon rail</p>
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="edit-show-homepage"
+                  type="checkbox"
+                  aria-label="Show in the homepage rail"
+                  checked={formData.showOnHomepage}
+                  onChange={(e) => setFormData({ ...formData, showOnHomepage: e.target.checked })}
+                  className="h-4 w-4 accent-accent"
+                />
+                <Label htmlFor="edit-show-homepage" className="text-gray-300">
+                  Show in the homepage rail
+                </Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-order" className="text-gray-300">Position</Label>
+                <Input
+                  id="edit-order"
+                  type="number"
+                  value={formData.order}
+                  onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value, 10) || 0 })}
+                  className="bg-secondary border-gray-700 text-white"
+                />
+                <p className="text-xs text-gray-500">Lower numbers appear first.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-icon" className="text-gray-300">Icon</Label>
+                {selectedSubcategory?.image && !formData.imageFile && (
+                  <img
+                    src={selectedSubcategory.image}
+                    alt=""
+                    className="h-12 w-12 rounded-lg object-cover border border-gray-700"
+                  />
+                )}
+                <Input
+                  id="edit-icon"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setFormData({ ...formData, imageFile: e.target.files?.[0] || null })}
+                  className="bg-secondary border-gray-700 text-white"
+                />
+                <p className="text-xs text-gray-500">
+                  Square image works best. Without one the rail shows a default glyph.
+                </p>
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <Button 
                 type="button" 

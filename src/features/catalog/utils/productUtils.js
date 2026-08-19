@@ -10,7 +10,30 @@ import { PRODUCT_IMAGE_PLACEHOLDER } from '@lib/placeholders';
 export { PRODUCT_IMAGE_PLACEHOLDER };
 
 /**
- * Calculate product price with discounts
+ * Calculate product price with discounts.
+ *
+ * W10 — cards used to ignore seller discounts entirely.
+ *
+ * `product.price` is the master's `lowestPrice` rollup: the cheapest live
+ * offer's BASE price, before that seller's own discount. `product.discount` is
+ * a legacy master-level field that `recalcProductRollups` never writes, so on
+ * an offer-backed product it is almost always 0. Between them the card showed
+ * the undiscounted price for every seller discount on the site, while:
+ *
+ *   - the product DETAIL page priced the chosen offer with its discount applied
+ *     (calculateProductPrice(featuredOffer) — the offer carries price+discount);
+ *   - the wishlist price-drop EMAIL quoted `lowestEffectivePrice`, the cheapest
+ *     price across offers after each seller's discount.
+ *
+ * So a seller running 20% off a $10 listing produced a "$10.00" card, an
+ * "$8.00" product page, and an email saying it had dropped to $8.00. Reading
+ * `lowestEffectivePrice` here is what makes the three agree.
+ *
+ * Precedence is deliberate and mirrors the backend's own
+ * (utils/priceCalculator.js: flash deal > trending offer > standing discount):
+ * a campaign deal, which the API attaches as `discountedPrice`, still wins over
+ * the seller's standing discount.
+ *
  * @param {Object} product - Product object
  * @returns {Object} - { discountPrice, discountPercentage, originalPrice }
  */
@@ -43,6 +66,9 @@ export const calculateProductPrice = (product) => {
     product.discountedPrice ??
     product.salePrice ??
     product?.pricing?.discountedPrice ??
+    // M19 rollup: cheapest live offer AFTER that seller's discount. Last in the
+    // chain so an active campaign deal above still takes precedence.
+    product.lowestEffectivePrice ??
     null;
   const discountedPriceNum = Number(discountedPriceRaw);
   const hasApiDiscountedPrice =
@@ -59,14 +85,29 @@ export const calculateProductPrice = (product) => {
     discountPrice = round2(originalPrice * (1 - discountPercentage / 100));
   }
 
+  const finalPrice = Math.max(0, Math.min(originalPrice, discountPrice));
+
+  // When an absolute discounted price won, DERIVE the percentage from the two
+  // prices rather than trusting a percentage field.
+  //
+  // Otherwise the badge and the price can contradict each other: a product
+  // whose master `discount` still reads 10 from some earlier admin edit, but
+  // whose live offer is 20% off, would render "-10%" beside a price that is 20%
+  // lower. For a campaign deal the two are equal by construction — the API
+  // computes discountedPrice FROM discountPercent — so this changes nothing
+  // there. Rounded to a whole number because the effective price is itself
+  // rounded to 2dp, which turns an exact 20% off $9.99 into 20.02%.
+  const derivedPercentage =
+    originalPrice > 0 && finalPrice < originalPrice
+      ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+      : 0;
+
   return {
-    discountPrice: Math.max(0, Math.min(originalPrice, discountPrice)),
+    discountPrice: finalPrice,
     discountPercentage:
-      discountPercentage > 0 && discountPercentage <= 100
-        ? discountPercentage
-        : originalPrice > 0 && discountPrice < originalPrice
-          ? round2(((originalPrice - discountPrice) / originalPrice) * 100)
-          : 0,
+      hasApiDiscountedPrice || !(discountPercentage > 0 && discountPercentage <= 100)
+        ? derivedPercentage
+        : discountPercentage,
     originalPrice,
   };
 };
@@ -194,4 +235,86 @@ export const getTypeName = (product) => {
  */
 export const getDeviceName = (product) => {
   return product?.device?.name || 'Unknown Device';
+};
+/**
+ * What a seller's offer actually costs the buyer: base price minus that
+ * seller's own discount, rounded to 2dp.
+ *
+ * Mirrors the backend's `effectiveOfferPrice` (utils/priceCalculator.js) exactly,
+ * INCLUDING the rounding — the two must agree or the price the buy box shows
+ * and the price checkout charges can differ by a cent.
+ *
+ * @param {object} offer  { price, discount }
+ * @returns {number}
+ */
+export const effectiveOfferPrice = (offer) => {
+  const base = Number(offer?.price) || 0;
+  const discount = Number(offer?.discount) || 0;
+  return discount > 0 ? Math.round(base * (1 - discount / 100) * 100) / 100 : base;
+};
+
+/**
+ * CLIENT REQ (out-of-stock automation, requirement 3): pick the offer the buy
+ * box represents — "next cheapest seller auto-shown if the cheapest is out of
+ * stock".
+ *
+ * Out-of-stock sellers are excluded outright, so the cheapest REMAINING seller
+ * is promoted automatically. Among those, the cheapest one the buyer can
+ * actually activate wins, so nobody is defaulted into a key that will not work
+ * in their country; if no seller covers them, the cheapest in-stock offer is
+ * still shown (with the region warning the badge renders separately).
+ *
+ * "Cheapest" means cheapest EFFECTIVE price — after each seller's own discount.
+ *
+ * It used to mean cheapest BASE price, which picked the wrong seller whenever a
+ * pricier listing was discounted below a cheaper one: a $12 offer at 50% off
+ * ($6) lost to an undiscounted $10 offer. That put the more expensive option in
+ * the buy box, and it disagreed with the card, which reads the master's
+ * `lowestEffectivePrice` rollup — a minimum over effective prices. Same product,
+ * two different prices depending on which page you were on.
+ *
+ * When every seller is out of stock this still picks the cheapest effective
+ * offer, from ALL of them, mirroring the backend rollup's own fallback
+ * (`pricePool = inStock.length ? inStock : offers`). The server's `bestOffer` is
+ * used only when there are no offers to choose from at all.
+ *
+ * @param {Array<object>} offers      live offers, each with { price, discount, inStock }
+ * @param {object|null} bestOffer     server-picked fallback
+ * @param {(offer: object) => boolean|null} isCompatible
+ *   region verdict: false = cannot activate, true/null = can or unknown
+ * @returns {object|null}
+ */
+export const selectFeaturedOffer = (offers, bestOffer, isCompatible) => {
+  const all = offers || [];
+  const inStock = all.filter((o) => o?.inStock);
+
+  // Nothing buyable: price the cheapest offer there IS, so the out-of-stock
+  // state shows the same figure the card does. Only with no offers at all does
+  // the server's fallback apply.
+  const pool = inStock.length ? inStock : all;
+  if (!pool.length) return bestOffer || null;
+
+  const byPrice = [...pool].sort((a, b) => effectiveOfferPrice(a) - effectiveOfferPrice(b));
+  return byPrice.find((o) => isCompatible(o) !== false) || byPrice[0];
+};
+
+/**
+ * CLIENT REQ (out-of-stock automation, requirement 4): a master product is
+ * "Out of Stock" ONLY when EVERY live seller under it is out — one seller
+ * running dry just promotes the next cheapest (see selectFeaturedOffer).
+ *
+ * Trusts the server's `allOutOfStock` when present and derives it otherwise.
+ * A product with no offers at all is not "out of stock" — it is unlisted, and
+ * the detail route does not serve it.
+ *
+ * @param {object} product
+ * @param {boolean} isActivePreorder  an unreleased pre-order is bought WITHOUT
+ *   stock, so it is never out of stock
+ * @returns {boolean}
+ */
+export const isAllOutOfStock = (product, isActivePreorder) => {
+  if (isActivePreorder) return false;
+  if (typeof product?.allOutOfStock === 'boolean') return product.allOutOfStock;
+  const offers = product?.offers || [];
+  return offers.length > 0 && offers.every((o) => !o?.inStock);
 };

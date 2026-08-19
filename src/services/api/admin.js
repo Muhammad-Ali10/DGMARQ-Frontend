@@ -2,8 +2,6 @@ import api from '@lib/axios';
 
 export const adminAPI = {
   getDashboardStats: () => api.get('/admin/dashboard/stats'),
-  // Phase 2: platform-wide payout balance (same source as seller balance API).
-  getPlatformPayoutBalance: () => api.get('/payout/admin/platform-balance'),
   getOrderPayoutLines: (orderId) => api.get(`/payout/order/${orderId}/lines`),
   getPendingSellers: (params) => api.get('/admin/sellers/pending', { params }),
   getAllSellers: (params) => api.get('/admin/sellers', { params }),
@@ -14,11 +12,7 @@ export const adminAPI = {
   // CLIENT REQ (seller control): reversible account hold + lift.
   holdSeller: (sellerId, data) => api.post(`/admin/seller/${sellerId}/hold`, data),
   liftSellerHold: (sellerId) => api.post(`/admin/seller/${sellerId}/unhold`),
-  getPendingProducts: (params) => api.get('/admin/products/pending', { params }),
-  getAllProducts: (params) => api.get('/admin/products', { params }),
   getProductDetails: (productId) => api.get(`/admin/product/${productId}`),
-  approveProduct: (productId) => api.post(`/admin/product/${productId}/approve`),
-  rejectProduct: (productId, data) => api.post(`/admin/product/${productId}/reject`, data),
   deleteProduct: (productId) => api.delete(`/admin/products/${productId}`),
   getAllPayouts: (params) => api.get('/admin/payouts', { params }),
   getOrderPayoutDetails: (orderId) => api.get(`/payout/admin/order/${orderId}`),
@@ -58,21 +52,17 @@ export const adminAPI = {
   createCannedResponse: (data) => api.post('/support/admin/canned', data),
   updateCannedResponse: (id, data) => api.patch(`/support/admin/canned/${id}`, data),
   deleteCannedResponse: (id) => api.delete(`/support/admin/canned/${id}`),
-  moderateChat: (conversationId, data) => api.post(`/admin/chat/${conversationId}/moderate`, data),
   // Phase 4 (RETIRED): manual verify is gone. Verification is now automatic
   // via PayPal OAuth. The route still returns 410 on the backend.
   blockPayoutAccount: (accountId, data) => api.patch(`/payout-account/${accountId}/block`, data),
-  getSellerPayoutAccount: (sellerId) => api.get(`/payout-account/seller/${sellerId}`),
   getSellersPayoutStatus: (params) => api.get('/payout-account/sellers/status', { params }),
   createBundleDeal: (formData) => api.post('/bundle-deal', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   getAllBundleDeals: (params) => api.get('/bundle-deal', { params }),
-  getBundleDealById: (id) => api.get(`/bundle-deal/${id}`),
   updateBundleDeal: (id, formData) => api.patch(`/bundle-deal/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   deleteBundleDeal: (id) => api.delete(`/bundle-deal/${id}`),
   toggleBundleDealStatus: (id) => api.patch(`/bundle-deal/${id}/toggle-status`),
-  updateProductFeaturedSettings: (productId, data) => api.patch(`/admin/product/${productId}/featured`, data),
 };

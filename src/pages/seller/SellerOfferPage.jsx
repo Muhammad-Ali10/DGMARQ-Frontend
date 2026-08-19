@@ -11,6 +11,7 @@ import { Badge } from '@components/ui/badge';
 import { FormSkeleton } from '@components/common/Skeletons';
 import { ErrorState } from '@components/common/ErrorState';
 import { SpecRow } from '@components/common/SpecList';
+import { PreorderBadge, isActivePreorder, formatReleaseDate } from '@components/common/PreorderBadge';
 import SafeImage from '@components/ui/safe-image';
 import OfferRegionSelector from '@features/seller/components/OfferRegionSelector';
 import useCurrency from '@hooks/useCurrency';
@@ -22,7 +23,7 @@ import {
   getRegionName,
   PRODUCT_IMAGE_PLACEHOLDER,
 } from '@features/catalog/utils/productUtils';
-import { ArrowLeft, Lock, Package, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Lock, Package, RefreshCw } from 'lucide-react';
 
 // A single read-only "spec" row for the locked product panel. Renders nothing
 // without a value, which is why it wraps SpecRow rather than being replaced by
@@ -56,12 +57,15 @@ const SellerOfferPage = () => {
     regionCodes: [],
     countries: [],
     excludedCountries: [],
-    isFeatured: false,
     accountEmail: '',
     accountWebsite: '',
   });
   const [seeded, setSeeded] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
+  // M21 (req 8): a pre-order listing is an obligation, so a new one is gated on
+  // the seller ticking that they understand it. Edits are not — they agreed when
+  // they created the listing, and re-asking on a price change is noise.
+  const [preorderAck, setPreorderAck] = useState(false);
 
   // Edit mode: load the seller's own offer to seed the form + resolve the product.
   const offerQuery = useQuery({
@@ -92,7 +96,6 @@ const SellerOfferPage = () => {
         regionCodes: offer.regionCodes || [],
         countries: offer.countries || [],
         excludedCountries: offer.excludedCountries || [],
-        isFeatured: !!offer.isFeatured,
         accountEmail: offer.accountEmail || '',
         accountWebsite: offer.accountWebsite || '',
       });
@@ -101,6 +104,8 @@ const SellerOfferPage = () => {
   }, [mode, offer, seeded]);
 
   const isAccount = product?.productType === 'ACCOUNT_BASED';
+  const isPreorder = isActivePreorder(product);
+  const releaseDateLabel = formatReleaseDate(product?.preorderReleaseDate);
   const images = useMemo(
     () => (Array.isArray(product?.images) && product.images.length ? product.images : [PRODUCT_IMAGE_PLACEHOLDER]),
     [product]
@@ -123,6 +128,10 @@ const SellerOfferPage = () => {
       toast.warning('Enter a valid price');
       return;
     }
+    if (mode === 'create' && isPreorder && !preorderAck) {
+      toast.warning('Please confirm you understand the pre-order obligations first');
+      return;
+    }
     const payload = {
       price: Number(form.price),
       priceCurrency: form.priceCurrency,
@@ -130,7 +139,6 @@ const SellerOfferPage = () => {
       regionCodes: form.regionCodes,
       countries: form.countries,
       excludedCountries: form.excludedCountries,
-      isFeatured: form.isFeatured,
       ...(isAccount
         ? { accountEmail: form.accountEmail || undefined, accountWebsite: form.accountWebsite || undefined }
         : {}),
@@ -176,6 +184,62 @@ const SellerOfferPage = () => {
         </div>
       </div>
 
+      {/* ── M21 (req 8): what listing a pre-order commits the seller to ────
+          Full width and above the form on purpose. A badge next to the type
+          chip told a seller the product was a pre-order; it told them nothing
+          about the obligation, which is where their money is at stake. */}
+      {isPreorder && (
+        <div className="rounded-xl border border-warning/40 bg-warning-soft p-5">
+          <div className="flex items-start gap-3">
+            <CalendarClock aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-warning" />
+            <div className="min-w-0 space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold text-warning">
+                  This is a pre-order{releaseDateLabel ? ` — it releases on ${releaseDateLabel}` : ''}
+                </h2>
+                <p className="mt-1 text-sm text-fg-muted">
+                  Listing it is a commitment to deliver on that date. Read this before you continue.
+                </p>
+              </div>
+              <ul className="space-y-1.5 text-sm text-fg-muted">
+                <li>
+                  <strong className="text-fg">Buyers pay now, you are paid later.</strong> The money is
+                  held — no key is claimed at purchase and no payout is scheduled until delivery.
+                </li>
+                <li>
+                  <strong className="text-fg">Your stock must be ready on release day.</strong> Keys are
+                  assigned automatically the moment the product releases.
+                </li>
+                <li>
+                  <strong className="text-fg">Miss it by 24 hours and every buyer is refunded</strong> to
+                  their wallet automatically. You are notified, you keep nothing, and the sale is gone.
+                </li>
+                <li>
+                  <strong className="text-fg">Buyers may cancel any time before release</strong> for a full
+                  refund, so the order is not final until it ships.
+                </li>
+              </ul>
+              {mode === 'create' && (
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-warning/30 bg-surface-sunken/40 p-3">
+                  <input
+                    type="checkbox"
+                    aria-label="I understand the pre-order obligations"
+                    checked={preorderAck}
+                    onChange={(e) => setPreorderAck(e.target.checked)}
+                    className="mt-0.5 size-4 shrink-0 accent-warning"
+                  />
+                  <span className="text-sm text-fg">
+                    I understand I must have stock ready by{' '}
+                    {releaseDateLabel || 'the release date'}, and that buyers are auto-refunded if I
+                    don&apos;t.
+                  </span>
+                </label>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* ── Locked product info ─────────────────────────────────────────── */}
         <Card variant="hud">
@@ -216,7 +280,7 @@ const SellerOfferPage = () => {
 
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="default" className="text-xs">{getTypeName(product)}</Badge>
-              {product.isPreorder && <Badge variant="warning" className="text-xs">Pre-order</Badge>}
+              <PreorderBadge product={product} className="text-xs" />
             </div>
 
             {/* Specs */}
@@ -320,17 +384,6 @@ const SellerOfferPage = () => {
                 </div>
               </div>
             )}
-
-            <label className="flex items-center gap-2 text-sm text-fg-muted">
-              <input
-                type="checkbox"
-                aria-label="Feature this offer"
-                checked={form.isFeatured}
-                onChange={(e) => setForm((f) => ({ ...f, isFeatured: e.target.checked }))}
-                className="accent-blue-600"
-              />
-              Feature this offer (higher commission applies)
-            </label>
 
             <p className="text-xs text-fg-subtle">
               {mode === 'create'

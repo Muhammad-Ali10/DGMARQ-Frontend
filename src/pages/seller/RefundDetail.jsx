@@ -15,14 +15,7 @@ import { ArrowLeft, Key, EyeOff, MessageSquare } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
 import { toast } from 'sonner';
 import { RefundChat, isRefundChatLocked , refundBadgeProps } from '@features/wallet-payout';
-
-const getDisplayOrderId = (orderLike) => {
-  if (!orderLike) return 'N/A';
-  const orderNumber = typeof orderLike.orderNumber === 'string' ? orderLike.orderNumber.trim() : '';
-  if (orderNumber) return orderNumber;
-  const rawId = orderLike._id?.toString?.() || '';
-  return rawId ? rawId.slice(-8).toUpperCase() : 'N/A';
-};
+import { getDisplayOrderId } from '@lib/orderDisplay';
 
 const SellerRefundDetail = () => {
   const { refundId } = useParams();

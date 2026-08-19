@@ -1,19 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { authAPI } from '@services/api';
 import { Button } from '@components/ui/button';
-import { Input } from '@components/ui/input';
-import { Label } from '@components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@components/ui/card';
+import AuthShell from '@components/common/AuthShell';
+import AuthField from '@components/common/AuthField';
+import PasswordStrengthMeter from '@components/common/PasswordStrengthMeter';
 import { showSuccess, showApiError } from '@utils/toast';
-import { Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { scorePassword } from '@lib/passwordPolicy';
+import { Lock, ArrowLeft, ShieldCheck } from 'lucide-react';
 
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -29,6 +28,9 @@ const ResetPassword = () => {
       navigate('/forgot-password', { replace: true });
     }
   }, [token, email, navigate]);
+
+  const strength = useMemo(() => scorePassword(password), [password]);
+  const confirmState = confirmPassword ? (confirmPassword === password ? 'ok' : 'error') : null;
 
   const resetPasswordMutation = useMutation({
     mutationFn: (data) => authAPI.resetPassword(data),
@@ -46,17 +48,13 @@ const ResetPassword = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!password.trim()) {
+    // The server's resetPassword runs isStrongPassword() — min 8, mixed case, a
+    // digit and a symbol. This gate is that same rule via scorePassword, so the
+    // form can no longer accept a password the API will reject: it used to check
+    // only `length < 8`, which let "abcdefgh" through to a 400.
+    if (!strength.isValid) {
       showApiError(
-        { response: { data: { message: 'Password is required' } } },
-        'Validation Error'
-      );
-      return;
-    }
-
-    if (password.length < 8) {
-      showApiError(
-        { response: { data: { message: 'Password must be at least 8 characters long' } } },
+        { response: { data: { message: `Password still needs: ${strength.firstUnmet.label.toLowerCase()}` } } },
         'Validation Error'
       );
       return;
@@ -80,7 +78,7 @@ const ResetPassword = () => {
 
     resetPasswordMutation.mutate({
       token,
-      newPassword: password.trim(),
+      newPassword: password,
     });
   };
 
@@ -89,105 +87,73 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4 py-12">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
-              <Lock className="w-8 h-8 text-accent-on-dark" />
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold text-center text-white">
-            Reset Password
-          </CardTitle>
-          <CardDescription className="text-center text-gray-400">
-            Enter your new password below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-300">
-                New Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter new password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-secondary border-gray-700 text-white placeholder-gray-500 pr-10"
-                  required
-                  disabled={resetPasswordMutation.isPending}
-                  minLength={8}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-gray-400">Must be at least 8 characters long</p>
-            </div>
+    <AuthShell title="Enter your new password below." hudTag="Reset Password">
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="mb-3.5">
+          <AuthField
+            id="password"
+            label="New Password"
+            type="password"
+            icon={Lock}
+            placeholder="Min 8 chars, mixed case, number, symbol"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+            disabled={resetPasswordMutation.isPending}
+            wrapperClassName="mb-0"
+          />
+          {password && (
+            <PasswordStrengthMeter score={strength.score} label={strength.label} />
+          )}
+          {password && !strength.isValid && (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-fg-subtle">
+              Still needs: {strength.firstUnmet.label.toLowerCase()}
+            </p>
+          )}
+        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-gray-300">
-                Confirm New Password
-              </Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Confirm new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-secondary border-gray-700 text-white placeholder-gray-500 pr-10"
-                  required
-                  disabled={resetPasswordMutation.isPending}
-                  minLength={8}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
+        <AuthField
+          id="confirmPassword"
+          label="Confirm New Password"
+          type="password"
+          icon={ShieldCheck}
+          placeholder="Confirm new password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          autoComplete="new-password"
+          disabled={resetPasswordMutation.isPending}
+          state={confirmState}
+          hint={
+            confirmState === 'ok'
+              ? 'Passwords match'
+              : confirmState === 'error'
+                ? 'Passwords do not match'
+                : undefined
+          }
+        />
 
-            <Button
-              type="submit"
-              className="w-full bg-accent hover:bg-blue-700 text-white"
-              disabled={resetPasswordMutation.isPending}
-            >
-              {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
-            </Button>
-          </form>
+        <Button
+          type="submit"
+          className="mt-1 w-full"
+          size="lg"
+          disabled={resetPasswordMutation.isPending}
+        >
+          {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+        </Button>
+      </form>
 
-          <div className="mt-6 text-center">
-            <Link
-              to="/login"
-              className="inline-flex items-center text-sm text-accent-on-dark hover:text-blue-400 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Login
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <p className="mt-6 border-t border-accent/10 pt-4.5 text-center text-[13px]">
+        <Link
+          to="/login"
+          className="inline-flex items-center font-medium text-accent-on-dark hover:underline"
+        >
+          <ArrowLeft className="mr-2 size-4" aria-hidden="true" />
+          Back to Login
+        </Link>
+      </p>
+    </AuthShell>
   );
 };
 

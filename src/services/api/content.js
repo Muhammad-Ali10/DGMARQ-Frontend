@@ -2,7 +2,6 @@ import api from '@lib/axios';
 
 export const flashDealAPI = {
   getFlashDeals: () => api.get('/flash-deal'),
-  getFlashDealById: (id) => api.get(`/flash-deal/${id}`),
   getAllFlashDeals: () => api.get('/flash-deal/admin/all'),
   createFlashDeal: (formData) => api.post('/flash-deal', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -15,7 +14,6 @@ export const flashDealAPI = {
 
 export const homepageSliderAPI = {
   getHomepageSliders: () => api.get('/homepage-slider'),
-  getHomepageSliderById: (id) => api.get(`/homepage-slider/${id}`),
   getAllHomepageSliders: () => api.get('/homepage-slider/admin/all'),
   createHomepageSlider: (formData) => api.post('/homepage-slider', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -35,15 +33,35 @@ export const homepageSectionAPI = {
   deleteHomepageSection: (id) => api.delete(`/homepage-section/${id}`),
 };
 
+// M15: admin-editable storefront chrome — homepage trust tiles + the header's
+// rotating search hints. One public read, admin-only writes.
+export const storefrontAPI = {
+  getConfig: () => api.get('/storefront/config'),
+  updateTrustTiles: (tiles) => api.patch('/storefront/trust-tiles', { tiles }),
+  updateSearchWords: (words) => api.patch('/storefront/search-words', { words }),
+  uploadTrustTileImage: (formData) => api.post('/storefront/trust-tile-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+};
+
+// M15: admin-built header mega menu (item → heading → link tree).
+export const menuAPI = {
+  getMenu: () => api.get('/menu'),
+  getMenuAdmin: () => api.get('/menu/admin/all'),
+  createMenuItem: (data) => api.post('/menu', data),
+  updateMenuItem: (id, data) => api.patch(`/menu/${id}`, data),
+  deleteMenuItem: (id) => api.delete(`/menu/${id}`),
+  reorderMenu: (items) => api.patch('/menu/reorder', { items }),
+  // Creates one link per subcategory of the category a heading points at.
+  fillSubcategories: (headingId) => api.post(`/menu/${headingId}/fill-subcategories`),
+};
+
 export const trendingOfferAPI = {
   getTrendingOffers: () => api.get('/trending-offer'),
-  getTrendingOfferById: (id) => api.get(`/trending-offer/${id}`),
-  getOfferByProduct: (productId) => api.get(`/trending-offer/product/${productId}`),
   getAllTrendingOffers: (params) => api.get('/trending-offer/admin/all', { params }),
   createTrendingOffer: (data) => api.post('/trending-offer', data),
   updateTrendingOffer: (id, data) => api.patch(`/trending-offer/${id}`, data),
   deleteTrendingOffer: (id) => api.delete(`/trending-offer/${id}`),
-  updateAllStatuses: () => api.post('/trending-offer/admin/update-statuses'),
 };
 
 export const upcomingReleaseAPI = {

@@ -6,7 +6,6 @@ export const supportAPI = {
   getSupportMessages: (chatId, params) => api.get(`/support/${chatId}/messages`, { params }),
   sendSupportMessage: (chatId, data) => api.post(`/support/${chatId}/message`, data),
   sendSupportImageMessage: (chatId, formData) => api.post(`/support/${chatId}/message/image`, formData),
-  markMessagesRead: (chatId, data = {}) => api.patch(`/support/${chatId}/messages/read`, data),
   rateSupportChat: (chatId, data) => api.post(`/support/${chatId}/rate`, data),
   closeSupportChat: (chatId, data = {}) => api.patch(`/support/${chatId}/close`, data),
 };
@@ -25,7 +24,6 @@ export const chatAPI = {
     skipErrorToast: true,
     timeout: 5000,
   }),
-  deleteConversation: (conversationId) => api.delete(`/chat/conversation/${conversationId}`, { skipErrorToast: true }),
   getUnreadCount: () => api.get('/chat/unread-count', { skipErrorToast: true }),
   toggleBlock: (conversationId) => api.post(`/chat/conversation/${conversationId}/block`),
 };
@@ -49,6 +47,4 @@ export const reviewAPI = {
   addReviewPhoto: (reviewId, formData) => api.post(`/review/${reviewId}/photos`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
-  getReviewPhotos: (reviewId) => api.get(`/review/${reviewId}/photos`),
-  moderateReview: (reviewId, data) => api.post(`/review/${reviewId}/moderate`, data),
 };

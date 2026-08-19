@@ -72,7 +72,7 @@ const UserWallet = () => {
     <EmptyState
       icon={Receipt}
       title="No wallet activity yet"
-      description="Credit lands here when a refund is approved or when you redeem DGMARQ Plus points. You can spend it at checkout like any other balance."
+      description="Credit lands here when a refund is approved or when you redeem DGMARQ Points. You can spend it at checkout like any other balance."
       action={
         <Button asChild>
           <Link to="/search">

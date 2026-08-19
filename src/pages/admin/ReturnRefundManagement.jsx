@@ -12,14 +12,8 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Eye } from 'lucide-react';
 import { Pagination } from '@components/common/Pagination';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
-
-const getDisplayOrderId = (orderLike) => {
-  if (!orderLike) return 'N/A';
-  const orderNumber = typeof orderLike.orderNumber === 'string' ? orderLike.orderNumber.trim() : '';
-  if (orderNumber) return orderNumber;
-  const rawId = orderLike._id?.toString?.() || '';
-  return rawId ? rawId.slice(-8).toUpperCase() : 'N/A';
-};
+import { refundBadgeProps } from '@features/wallet-payout';
+import { getDisplayOrderId } from '@lib/orderDisplay';
 
 const ReturnRefundManagement = () => {
   const navigate = useNavigate();
@@ -46,22 +40,11 @@ const ReturnRefundManagement = () => {
     return () => socket.off('refund_executed', onRefundExecuted);
   }, [socket, isConnected, queryClient]);
 
-  const getStatusBadge = (status) => {
-    const variants = {
-      PENDING: 'warning', SELLER_REVIEW: 'warning', SELLER_APPROVED: 'default', SELLER_REJECTED: 'destructive',
-      ADMIN_REVIEW: 'secondary', ADMIN_APPROVED: 'default', ADMIN_REJECTED: 'destructive',
-      COMPLETED: 'success', WAITING_FOR_MANUAL_REFUND: 'secondary',
-      ON_HOLD_INSUFFICIENT_FUNDS: 'destructive',
-      pending: 'warning', approved: 'default', rejected: 'destructive', completed: 'success',
-    };
-    const labels = {
-      PENDING: 'Pending', SELLER_REVIEW: 'Seller review', SELLER_APPROVED: 'Seller approved', SELLER_REJECTED: 'Seller rejected',
-      ADMIN_REVIEW: 'In progress', ADMIN_APPROVED: 'Admin approved', ADMIN_REJECTED: 'Rejected',
-      COMPLETED: 'Completed', WAITING_FOR_MANUAL_REFUND: 'Waiting manual refund',
-      ON_HOLD_INSUFFICIENT_FUNDS: 'On hold (insufficient funds)',
-    };
-    return <Badge variant={variants[status] || 'default'}>{labels[status] || status}</Badge>;
-  };
+  // AUDIT FIX (DEAD-3): was a private status map that labelled ADMIN_REVIEW
+  // 'In progress' while the detail page one click away called the same status
+  // 'Admin review'. Both private copies are gone; this reads the canonical
+  // taxonomy, which also brings the legacy lowercase aliases with it.
+  const getStatusBadge = (status) => <Badge {...refundBadgeProps(status)} />;
 
   const getProductTypeBadge = (productType) => {
     if (productType === 'ACCOUNT_BASED') {

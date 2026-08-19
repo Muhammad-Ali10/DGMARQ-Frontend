@@ -27,6 +27,7 @@ import {
   KeyRound,
   LifeBuoy,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -385,6 +386,20 @@ const OrderDetail = () => {
                   label="Total"
                   value={format(order.grandTotal ?? order.totalAmount)}
                 />
+                {/* CLIENT REQ (M20): points earned, shown per order. The order
+                    LIST already had this; the detail page — the screen a buyer
+                    opens to understand one order — did not. */}
+                {order.plusPointsEarned > 0 && (
+                  <SpecRow
+                    label="Points earned"
+                    value={
+                      <span className="inline-flex items-center gap-1.5 text-accent-on-dark">
+                        <Sparkles aria-hidden="true" className="size-3.5" />
+                        +{order.plusPointsEarned}
+                      </span>
+                    }
+                  />
+                )}
               </SpecList>
             </CardContent>
           </Card>
