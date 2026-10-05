@@ -10,7 +10,7 @@ import { StatCardGridSkeleton } from '@components/common/Skeletons';
 import { StatusBadge } from '@components/common/StatusBadge';
 import { EmptyState } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 import {
   DollarSign,
   ShoppingCart,
@@ -57,6 +57,7 @@ const OFFER_SCAN_LIMIT = 100;
  * request per alert type) and the counts are derived from that single payload.
  */
 const SellerDashboard = () => {
+  const { formatSettlement } = useCurrency();
   const sellerQuery = useQuery({
     queryKey: ['seller-info'],
     queryFn: () => sellerAPI.getSellerInfo().then((res) => res.data.data),
@@ -109,6 +110,9 @@ const SellerDashboard = () => {
 
   const holdDays =
     typeof settingsQuery.data?.payoutHoldDays === 'number' ? settingsQuery.data.payoutHoldDays : 15;
+  // No fallback number for either rate: a wrong commission figure is worse than
+  // none, so the rows below simply do not render until the real value arrives.
+  const { commissionRatePercent, featuredCommissionPercent } = settingsQuery.data ?? {};
 
   const balance = balanceQuery.data;
   const metrics = metricsQuery.data;
@@ -264,7 +268,7 @@ const SellerDashboard = () => {
         <StatCardGrid>
           <StatCard
             title="Revenue"
-            value={formatUSD(metrics?.sales?.totalRevenue)}
+            value={formatSettlement(metrics?.sales?.totalRevenue)}
             icon={DollarSign}
             tone="success"
             description="All time, after refunds"
@@ -279,7 +283,7 @@ const SellerDashboard = () => {
           />
           <StatCard
             title="Available balance"
-            value={formatUSD(balance?.available)}
+            value={formatSettlement(balance?.available)}
             icon={Wallet}
             tone="info"
             description="Ready to withdraw"
@@ -386,29 +390,46 @@ const SellerDashboard = () => {
               <SpecRow
                 label="On hold"
                 hint={`Released ${holdDays} days after each order completes`}
-                value={formatUSD(balance?.pending?.amount)}
+                value={formatSettlement(balance?.pending?.amount)}
                 tone="warning"
               />
               {balance?.frozen?.amount > 0 && (
                 <SpecRow
                   label="Frozen"
                   hint={`${balance.frozen.count} line(s) paused by refund requests`}
-                  value={formatUSD(balance.frozen.amount)}
+                  value={formatSettlement(balance.frozen.amount)}
                   tone="info"
+                />
+              )}
+              {/* The rate itself was visible nowhere in the seller UI — only the
+                  money it produced. It is an admin setting, so it rides along with
+                  the payout settings this page already loads. */}
+              {typeof commissionRatePercent === 'number' && (
+                <SpecRow
+                  label="Commission rate"
+                  hint="Set by DGMARQ · charged when a sale completes"
+                  value={`${commissionRatePercent}%`}
+                />
+              )}
+              {featuredCommissionPercent > 0 && (
+                <SpecRow
+                  label="Featured surcharge"
+                  hint="Added on top while a listing is featured"
+                  value={`+${featuredCommissionPercent}%`}
                 />
               )}
               <SpecRow
                 label="Platform commission"
                 hint="Deducted from gross revenue"
-                value={formatUSD(metrics?.sales?.totalCommission)}
+                value={formatSettlement(metrics?.sales?.totalCommission)}
               />
               <SpecRow
                 label="Net earnings"
                 hint="Your share, all time"
-                value={formatUSD(metrics?.sales?.netEarnings)}
+                value={formatSettlement(metrics?.sales?.netEarnings)}
                 tone="success"
               />
-              <SpecRow label="Paid out" hint="Lifetime, sent to your account" value={formatUSD(balance?.released?.amount)} />
+              <SpecRow label="Paid out" hint="Lifetime, sent to your account" value={formatSettlement(balance?.released?.amount)} />
             </SpecList>
           )}
 

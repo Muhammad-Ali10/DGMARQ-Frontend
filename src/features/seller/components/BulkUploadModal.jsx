@@ -1,107 +1,220 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { productAPI, offerAPI } from '@services/api';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Button } from '@components/ui/button';
-import { Input } from '@components/ui/input';
-import { Label } from '@components/ui/label';
-import { Textarea } from '@components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger } from '@components/ui/tabs';
 import { SearchableSelect } from '@components/ui/searchable-select';
-import { Upload, FileText, CheckCircle2, Key, User, X, AlertCircle, Info, Loader2, FileCheck, Check } from 'lucide-react';
+import {
+  Upload, Key, User, Gift, Link2, Check, Loader2, ListPlus, FileUp,
+  ArrowLeft, ArrowRight, ClipboardCheck,
+} from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { AccountEntryForm } from './inventory/AccountEntryForm';
+import { KeyEntryForm } from './inventory/KeyEntryForm';
+import { ImportPanel } from './inventory/ImportPanel';
+import { StagedInventoryList } from './inventory/StagedInventoryList';
+import { rowIdentity } from '../utils/inventoryRows';
+import { deliveryWords } from '@lib/deliveryType';
+import { useDebounce } from '@hooks/useDebounce';
 
-// When `offers` is provided, the modal works in OFFER mode: the dropdown lists
-// the seller's offers and uploads go to /offer/:id/keys. Otherwise it keeps its
-// legacy behaviour (fetch the seller's own products, upload to /product/:id).
-const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
-  const offerMode = Array.isArray(offers);
+/**
+ * Upload inventory for one listing, in three steps: pick the listing, add the
+ * items, review and submit.
+ *
+ * Rows are STAGED first — typed one at a time, or read from an uploaded file —
+ * and both land in the same list, where they can be edited or removed. Nothing
+ * reaches the server until Submit, which sends the whole list in one request
+ * (the API chunks it and reports progress from a background job).
+ *
+ * The picker lists the seller's OWN listings — never the whole catalog — and
+ * searches them on the server, because a page holds at most 50 and a seller may
+ * have more. Uploads go to /offer/:id/keys; the product-level upload route it
+ * used to fall back to is gone (it was the one place that refused gift codes
+ * and activation links outright).
+ */
+
+const STEPS = [
+  { id: 1, title: 'Listing' },
+  { id: 2, title: 'Add items' },
+  { id: 3, title: 'Review' },
+];
+
+const TYPE_ICONS = {
+  ACCOUNT_BASED: User,
+  GIFT: Gift,
+  ACTIVATION_LINK: Link2,
+  LICENSE_KEY: Key,
+};
+
+const StepBar = ({ step }) => (
+  <ol className="flex items-center gap-2 px-6 pt-1 pb-3">
+    {STEPS.map(({ id, title }, index) => {
+      const done = step > id;
+      const current = step === id;
+      return (
+        <li key={id} className="flex items-center gap-2 min-w-0">
+          <span
+            aria-current={current ? 'step' : undefined}
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+              done
+                ? 'bg-success/20 text-success'
+                : current
+                  ? 'bg-accent text-white'
+                  : 'bg-white/[0.06] text-fg-subtle'
+            }`}
+          >
+            {done ? <Check className="h-3.5 w-3.5" /> : id}
+          </span>
+          <span className={`text-xs truncate ${current ? 'text-fg font-medium' : 'text-fg-muted'}`}>{title}</span>
+          {index < STEPS.length - 1 && <span className="mx-1 h-px w-6 shrink-0 bg-white/[0.12]" />}
+        </li>
+      );
+    })}
+  </ol>
+);
+
+const BulkUploadModal = ({ open, onOpenChange }) => {
   const queryClient = useQueryClient();
-  const fileInputRef = useRef(null);
-  const [selectedProductId, setSelectedProductId] = useState('');
-  const [bulkData, setBulkData] = useState('');
-  const [uploadMethod, setUploadMethod] = useState('textarea');
-  const [isDragging, setIsDragging] = useState(false);
-  const [fileName, setFileName] = useState('');
-  const [validationErrors, setValidationErrors] = useState([]);
-  // FIX 4: background-upload progress state.
+  const pollCancelRef = useRef(false);
+  const rowIdRef = useRef(0);
+
+  const [step, setStep] = useState(1);
+  const [listingSearch, setListingSearch] = useState('');
+  const [selected, setSelected] = useState(null); // the chosen listing itself
+  const [tab, setTab] = useState('add');
+  const [rows, setRows] = useState([]);
+  const [editingId, setEditingId] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(null); // { processed, total, inserted }
-  const pollCancelRef = useRef(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
-  const { data: productsData, isLoading: productsLoading } = useQuery({
-    queryKey: ['seller-products-for-upload'],
-    queryFn: () => productAPI.getProducts({ page: 1, limit: 1000, mine: true }).then(res => res.data.data),
-    enabled: open && !offerMode,
+  const search = useDebounce(listingSearch.trim(), 300);
+  const listingsQuery = useQuery({
+    queryKey: ['upload-listings', search],
+    queryFn: () =>
+      offerAPI.getMyOffers({ limit: 50, search: search || undefined }).then((res) => res.data.data),
+    enabled: open,
+    placeholderData: keepPreviousData,
   });
 
   const products = useMemo(() => {
-    if (offerMode) {
-      return (offers || []).map((o) => ({
-        _id: o._id, // offer id — the upload target in offer mode
-        name: o.productId?.name || 'Product',
-        slug: o.productId?.slug,
-        images: o.productId?.images || [],
-        productType: o.productId?.productType,
-        availableKeysCount: o.availableKeysCount || 0,
-        totalKeysCount: o.totalKeysCount || 0,
-      }));
-    }
-    return productsData?.docs || productsData?.products || [];
-  }, [offerMode, offers, productsData]);
+    const list = (listingsQuery.data?.offers ?? []).map((o) => ({
+      _id: o._id, // the offer id — what an upload is addressed to
+      name: o.productId?.name || 'Product',
+      slug: o.productId?.slug,
+      images: o.productId?.images || [],
+      productType: o.productId?.productType,
+      availableKeysCount: o.availableKeysCount || 0,
+      totalKeysCount: o.totalKeysCount || 0,
+    }));
+    // Keep the chosen listing in the list even after a search that excludes it,
+    // or the picker would forget what is already selected.
+    return selected && !list.some((p) => p._id === selected._id) ? [selected, ...list] : list;
+  }, [listingsQuery.data, selected]);
 
-  const selectedProduct = useMemo(() => {
-    return products.find(p => p._id === selectedProductId);
-  }, [products, selectedProductId]);
-  
-  const detectedUploadType = selectedProduct?.productType || null;
+  const selectedProductId = selected?._id || '';
+  const selectedProduct = selected;
+  const productType = selectedProduct?.productType || null;
+  const isAccount = productType === 'ACCOUNT_BASED';
+  const words = deliveryWords(productType);
+  const TypeIcon = TYPE_ICONS[productType] || Key;
+  const countLabel = `${rows.length} ${rows.length === 1 ? words.one : words.many}`;
+
+  const resetAll = () => {
+    setStep(1);
+    setListingSearch('');
+    setSelected(null);
+    setTab('add');
+    setRows([]);
+    setEditingId(null);
+    setProcessing(false);
+    setProgress(null);
+    setConfirmDiscard(false);
+    pollCancelRef.current = true;
+  };
 
   useEffect(() => {
-    if (!open) {
-      setSelectedProductId('');
-      setBulkData('');
-      setUploadMethod('textarea');
-      setFileName('');
-      setValidationErrors([]);
-      setIsDragging(false);
-      // Stop any in-flight status polling; the background job keeps running.
-      pollCancelRef.current = true;
-      setProcessing(false);
-      setProgress(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
+    if (!open) resetAll();
+    // resetAll only touches state setters and a ref, so it needs no dependency.
   }, [open]);
 
   // Cancel polling if the component unmounts.
   useEffect(() => () => { pollCancelRef.current = true; }, []);
 
-  useEffect(() => {
-    if (bulkData && detectedUploadType) {
-      validateData();
-    } else {
-      setValidationErrors([]);
+  // ── staged rows ────────────────────────────────────────────────────────────
+  const addRow = (data) => {
+    const identity = rowIdentity(data, productType);
+    if (rows.some((row) => rowIdentity(row.data, productType) === identity)) {
+      toast.warning(`That ${words.one} is already in the list`);
+      return;
     }
-    // validateData is recreated every render; this effect must re-run only
-    // when the pasted data / detected type change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bulkData, detectedUploadType]);
+    rowIdRef.current += 1;
+    setRows((prev) => [...prev, { id: `row-${rowIdRef.current}`, data }]);
+  };
 
-  const finishSuccess = (uploaded, uploadTypeLabel) => {
-    toast.success(`${uploaded} ${uploadTypeLabel} uploaded successfully`);
+  const appendRows = (incoming) => {
+    const seen = new Set(rows.map((row) => rowIdentity(row.data, productType)));
+    const fresh = [];
+    let skipped = 0;
+    for (const data of incoming) {
+      const identity = rowIdentity(data, productType);
+      if (seen.has(identity)) { skipped += 1; continue; }
+      seen.add(identity);
+      rowIdRef.current += 1;
+      fresh.push({ id: `row-${rowIdRef.current}`, data });
+    }
+    if (fresh.length) setRows((prev) => [...prev, ...fresh]);
+    toast.success(
+      `${fresh.length} ${fresh.length === 1 ? words.one : words.many} added${skipped ? ` · ${skipped} duplicate${skipped === 1 ? '' : 's'} skipped` : ''}`
+    );
+  };
+
+  const updateRow = (data) => {
+    setRows((prev) => prev.map((row) => (row.id === editingId ? { ...row, data } : row)));
+    setEditingId(null);
+  };
+
+  const editingRow = rows.find((row) => row.id === editingId) || null;
+
+  const startEdit = (row) => {
+    setStep(2);
+    setTab('add');
+    setEditingId(row.id);
+  };
+
+  const removeRow = (id) => {
+    setRows((prev) => prev.filter((row) => row.id !== id));
+    if (editingId === id) setEditingId(null);
+  };
+
+  const changeProduct = (nextId) => {
+    // A staged list belongs to the listing it was typed for, and the two kinds
+    // of row do not even have the same shape.
+    if (rows.length && nextId !== selectedProductId) {
+      setRows([]);
+      setEditingId(null);
+      toast.message('Cleared the staged list — it belonged to the previous listing');
+    }
+    setSelected(products.find((p) => p._id === nextId) || null);
+  };
+
+  // ── upload ─────────────────────────────────────────────────────────────────
+  const finishSuccess = (uploaded) => {
+    toast.success(`${uploaded} ${uploaded === 1 ? words.one : words.many} uploaded successfully`);
     queryClient.invalidateQueries({ queryKey: ['seller-products'] });
     queryClient.invalidateQueries({ queryKey: ['seller-products-for-upload'] });
     queryClient.invalidateQueries({ queryKey: ['product-keys'] });
-    // Offer mode: refresh the offers list + the offer-keys view.
     queryClient.invalidateQueries({ queryKey: ['my-offers'] });
     queryClient.invalidateQueries({ queryKey: ['license-offers'] });
     queryClient.invalidateQueries({ queryKey: ['offer-keys'] });
     onOpenChange(false);
   };
 
-  // Poll the background upload job until it completes/fails (FIX 4).
-  async function pollUploadStatus(productId, jobId, uploadTypeLabel) {
+  // Poll the background upload job until it completes/fails.
+  async function pollUploadStatus(productId, jobId) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const MAX_ATTEMPTS = 600; // ~15 min at 1.5s intervals
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -122,13 +235,13 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
       if (job?.state === 'completed') {
         setProcessing(false);
         setProgress(null);
-        finishSuccess(job.result?.uploaded ?? 0, uploadTypeLabel);
+        finishSuccess(job.result?.uploaded ?? 0);
         return;
       }
       if (job?.state === 'failed') {
         setProcessing(false);
         setProgress(null);
-        toast.error(job.failedReason || `Failed to upload ${uploadTypeLabel}`);
+        toast.error(job.failedReason || `Failed to upload ${words.many}`);
         return;
       }
     }
@@ -138,695 +251,344 @@ const BulkUploadModal = ({ open, onOpenChange, offers = null }) => {
   }
 
   const uploadMutation = useMutation({
-    // In offer mode `productId` is actually the offer id; upload goes to the offer.
-    mutationFn: ({ productId, keys }) => offerMode
-      ? offerAPI.uploadOfferKeys(productId, keys)
-      : productAPI.uploadKeys(productId, keys),
+    // `productId` is the OFFER id — that is what the picker holds.
+    mutationFn: ({ productId, keys }) => offerAPI.uploadOfferKeys(productId, keys),
     onSuccess: (data, variables) => {
       const result = data.data.data;
-      const uploadTypeLabel = detectedUploadType === 'LICENSE_KEY' ? 'keys' : 'accounts';
-
       // Background job (202) → poll for progress/completion.
       if (result?.jobId) {
         pollCancelRef.current = false;
         setProgress({ processed: 0, total: result.total || 0, inserted: 0 });
         setProcessing(true);
-        pollUploadStatus(variables.productId, result.jobId, uploadTypeLabel);
+        pollUploadStatus(variables.productId, result.jobId);
         return;
       }
-
-      // Inline result (Redis unavailable) → behave as before.
-      finishSuccess(result.uploaded, uploadTypeLabel);
+      finishSuccess(result.uploaded); // inline result (Redis unavailable)
     },
-    onError: (error) => {
-      const uploadTypeLabel = detectedUploadType === 'LICENSE_KEY' ? 'keys' : 'accounts';
-      toast.error(error.response?.data?.message || `Failed to upload ${uploadTypeLabel}`);
-    },
+    onError: (err) => toast.error(err.response?.data?.message || `Failed to upload ${words.many}`),
   });
 
-  const validateData = () => {
-    const errors = [];
-    if (!bulkData.trim()) {
+  const submit = () => {
+    if (!selectedProductId || !rows.length) return;
+    uploadMutation.mutate({ productId: selectedProductId, keys: rows.map((row) => row.data) });
+  };
+
+  const busy = uploadMutation.isPending || processing;
+
+  const requestClose = () => {
+    if (rows.length && !busy) {
+      setConfirmDiscard(true);
       return;
     }
-
-    const lines = bulkData.split('\n').map(line => line.trim()).filter(line => line);
-    
-    if (lines.length === 0) {
-      errors.push('No valid data found. Please check your input.');
-      setValidationErrors(errors);
-      return;
-    }
-
-    if (detectedUploadType === 'LICENSE_KEY') {
-      lines.forEach((line, index) => {
-        if (line.length < 5) {
-          errors.push(`Line ${index + 1}: Key is too short (minimum 5 characters)`);
-        }
-        if (line.length > 500) {
-          errors.push(`Line ${index + 1}: Key is too long (maximum 500 characters)`);
-        }
-      });
-    } else if (detectedUploadType === 'ACCOUNT_BASED') {
-      lines.forEach((line, index) => {
-        if (line.startsWith('{')) {
-          try {
-            const account = JSON.parse(line);
-            const hasEmail = !!account.email;
-            const hasAnyPassword =
-              !!account.password ||
-              !!account.emailPassword ||
-              !!account.usernamePassword;
-            if (!hasEmail || !hasAnyPassword) {
-              errors.push(`Line ${index + 1}: JSON must include email and at least one password (emailPassword or usernamePassword or password)`);
-            }
-          } catch {
-            errors.push(`Line ${index + 1}: Invalid JSON format`);
-          }
-        } else {
-          const parts = line.split(',').map(p => p.trim());
-          if (parts.length < 2 || !parts[0] || !parts[1]) {
-            errors.push(`Line ${index + 1}: CSV requires at least email,password. Optional columns: emailPassword,usernameId,usernamePassword`);
-          }
-        }
-      });
-    }
-
-    setValidationErrors(errors);
+    onOpenChange(false);
   };
 
-  const handleFileUpload = (file) => {
-    if (!file) return;
-
-    if (!file.name.match(/\.(txt|csv|json)$/i)) {
-      toast.error('Please upload a .txt, .csv, or .json file');
-      return;
-    }
-
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setBulkData(event.target.result);
-      toast.success(`File "${file.name}" loaded successfully`);
-    };
-    reader.onerror = () => {
-      toast.error('Failed to read file');
-      setFileName('');
-    };
-    reader.readAsText(file);
-  };
-
-  const handleFileInput = (e) => {
-    const file = e.target.files[0];
-    handleFileUpload(file);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    handleFileUpload(file);
-  };
-
-
-  const parseBulkData = () => {
-    if (!bulkData.trim()) {
-      toast.warning('Please enter data to upload');
-      return null;
-    }
-
-    if (!detectedUploadType) {
-      toast.warning('Please select a product first');
-      return null;
-    }
-
-    const lines = bulkData.split('\n').map(line => line.trim()).filter(line => line);
-
-    if (detectedUploadType === 'LICENSE_KEY') {
-      // For keys: each line is a key (string)
-      return lines;
-    } else if (detectedUploadType === 'ACCOUNT_BASED') {
-      // For accounts: parse CSV or JSON format
-      // CSV supported:
-      // - email,password
-      // - email,emailPassword,usernameId,usernamePassword
-      // JSON supported:
-      // - {"email":"...","password":"..."}
-      // - {"email":"...","emailPassword":"...","usernameId":"...","usernamePassword":"..."}
-      const accounts = [];
-      for (const line of lines) {
-        if (line.startsWith('{')) {
-          try {
-            const account = JSON.parse(line);
-            const email = account.email?.trim();
-            const emailPassword = account.emailPassword?.trim();
-            const usernameId = (account.usernameId || account.username)?.trim();
-            const usernamePassword = account.usernamePassword?.trim();
-            const legacyPassword = account.password?.trim();
-
-            if (!email) {
-              continue;
-            }
-
-            const finalEmailPassword =
-              emailPassword || (!usernameId && legacyPassword) || '';
-            const finalUsernamePassword =
-              usernamePassword || (usernameId && legacyPassword) || '';
-
-            accounts.push({
-              email,
-              emailPassword: finalEmailPassword,
-              usernameId: usernameId || '',
-              usernamePassword: finalUsernamePassword,
-              notes: account.notes?.trim() || '',
-            });
-          } catch {
-            // Skip invalid JSON
-            continue;
-          }
-        } else {
-          const parts = line.split(',').map(p => p.trim());
-          if (parts.length >= 2 && parts[0] && parts[1]) {
-            const email = parts[0];
-            const p1 = parts[1] || '';
-            const p2 = parts[2] || '';
-            const p3 = parts[3] || '';
-
-            // Map to email/emailPassword/usernameId/usernamePassword with backward compatibility
-            let emailPassword = '';
-            let usernameId = '';
-            let usernamePassword = '';
-
-            if (parts.length >= 4) {
-              // email, emailPassword, usernameId, usernamePassword
-              emailPassword = p1;
-              usernameId = p2;
-              usernamePassword = p3;
-            } else if (parts.length === 3) {
-              // email, emailPassword, usernameId  (assume same password for username)
-              emailPassword = p1;
-              usernameId = p2;
-              usernamePassword = p1;
-            } else {
-              // Legacy: email,password
-              emailPassword = p1;
-              usernameId = '';
-              usernamePassword = '';
-            }
-
-            accounts.push({
-              email,
-              emailPassword,
-              usernameId,
-              usernamePassword,
-              notes: '',
-            });
-          }
-        }
-      }
-      return accounts;
-    }
-    return null;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!selectedProductId) {
-      toast.warning('Please select a product');
-      return;
-    }
-
-    if (!detectedUploadType) {
-      toast.warning('Please select a product first');
-      return;
-    }
-
-    const parsedData = parseBulkData();
-    if (!parsedData || parsedData.length === 0) {
-      const uploadTypeLabel = detectedUploadType === 'LICENSE_KEY' ? 'keys' : 'accounts';
-      toast.warning(`No valid ${uploadTypeLabel} found in the data`);
-      return;
-    }
-
-    uploadMutation.mutate({
-      productId: selectedProductId,
-      keys: parsedData
-    });
-  };
-
-  const parsedData = bulkData && detectedUploadType ? parseBulkData() : null;
-  const itemCount = parsedData ? parsedData.length : 0;
+  const canLeaveStep1 = Boolean(selectedProductId && productType);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15">
-              <Upload className="w-5 h-5 text-accent-on-dark" />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-semibold">Upload Inventory</DialogTitle>
-              <DialogDescription>
-                Select a product and upload license keys or account credentials.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-180px)] px-6 py-4 space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                <Key className="w-5 h-5 text-accent-on-dark" />
+    <>
+      <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : requestClose())}>
+        <DialogContent size="lg" className="flex max-h-[90vh] flex-col gap-0 p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15">
+                <Upload className="w-5 h-5 text-accent-on-dark" />
               </div>
               <div>
-                <Label htmlFor="product" className="text-fg text-base font-semibold">
-                  Select Product
-                </Label>
-                <p className="text-xs text-fg-muted mt-0.5">
-                  Choose the product you want to upload inventory for
-                </p>
+                <DialogTitle className="text-lg font-semibold">Upload Inventory</DialogTitle>
+                <DialogDescription>
+                  {step === 1
+                    ? 'Choose the listing you want to add stock to.'
+                    : step === 2
+                      ? `Add ${words.many} one at a time, or upload a file.`
+                      : 'Check everything, then submit.'}
+                </DialogDescription>
               </div>
             </div>
-            <div className="w-full">
-              <SearchableSelect
-                options={products}
-                value={selectedProductId}
-                onValueChange={setSelectedProductId}
-                placeholder="Search and select a product..."
-                searchPlaceholder="Type to search products..."
-                emptyMessage={productsLoading ? "Loading products..." : "No products found"}
-                loading={productsLoading}
-                label="Product"
-                description="Search and select the product you want to upload inventory for"
-                maxHeight="620px"
-                className="w-full"
-                getOptionLabel={(product) => `${product.name} (${product.productType === 'LICENSE_KEY' ? 'License Key' : 'Account'})`}
-                getOptionValue={(product) => product._id}
-                filterFunction={(product, searchQuery) => {
-                  const query = searchQuery.toLowerCase();
-                  return (
-                    product.name?.toLowerCase().includes(query) ||
-                    product.slug?.toLowerCase().includes(query) ||
-                    product.productType?.toLowerCase().includes(query)
-                  );
-                }}
-                renderOption={(product, isSelected) => (
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {product.images?.[0] && (
-                        <SafeImage
-                          src={product.images[0]}
-                          alt={product.name}
-                          className="w-8 h-8 object-cover rounded flex-shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-fg truncate">
-                          {product.name}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-fg-muted">
-                          <span>{product.productType === 'LICENSE_KEY' ? 'License Key' : 'Account'}</span>
-                          <span>•</span>
-                          <span>Stock: {product.availableKeysCount || 0}</span>
+          </DialogHeader>
+
+          <StepBar step={step} />
+
+          {/* The chosen listing stays visible from step 2 on, as one line. */}
+          {step > 1 && selectedProduct && (
+            <div className="mx-6 mb-3 flex items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/[0.04] px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <TypeIcon className="h-4 w-4 shrink-0 text-accent-on-dark" />
+                <span className="truncate text-sm font-medium text-fg">{selectedProduct.name}</span>
+                <span className="shrink-0 text-xs text-fg-muted">
+                  · {words.title} · stock {selectedProduct.availableKeysCount || 0}
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 text-fg-muted hover:text-white"
+                disabled={busy}
+                onClick={() => setStep(1)}
+              >
+                Change
+              </Button>
+            </div>
+          )}
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4 space-y-5">
+            {/* ── 1. which listing ── */}
+            {step === 1 && (
+              <>
+                <SearchableSelect
+                  options={products}
+                  value={selectedProductId}
+                  onValueChange={changeProduct}
+                  // The server does the matching, across ALL of this seller's
+                  // listings — not just the page already fetched.
+                  serverSide
+                  onSearchChange={setListingSearch}
+                  loading={listingsQuery.isFetching}
+                  placeholder="Search and select a listing..."
+                  searchPlaceholder="Type to search listings..."
+                  emptyMessage={listingsQuery.isFetching ? 'Searching…' : 'No listings found'}
+                  label="Listing"
+                  description="Search and select the listing you want to upload inventory for"
+                  maxHeight="620px"
+                  className="w-full"
+                  getOptionLabel={(product) => `${product.name} (${deliveryWords(product.productType).title})`}
+                  getOptionValue={(product) => product._id}
+                  filterFunction={(product, searchQuery) => {
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      product.name?.toLowerCase().includes(query) ||
+                      product.slug?.toLowerCase().includes(query) ||
+                      product.productType?.toLowerCase().includes(query)
+                    );
+                  }}
+                  renderOption={(product, isSelected) => (
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {product.images?.[0] && (
+                          <SafeImage src={product.images[0]} alt={product.name} className="w-8 h-8 object-cover rounded flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-fg truncate">{product.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-fg-muted">
+                            <span>{deliveryWords(product.productType).title}</span>
+                            <span>•</span>
+                            <span>Stock: {product.availableKeysCount || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {isSelected && <Check className="h-4 w-4 text-accent-on-dark ml-2 shrink-0" />}
+                    </div>
+                  )}
+                />
+
+                {selectedProduct && (
+                  <div className="rounded-xl border border-accent/20 bg-accent/[0.04] p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`rounded-lg p-2.5 ${isAccount ? 'bg-green-500/20' : 'bg-blue-500/20'}`}>
+                        <TypeIcon className={`h-5 w-5 ${isAccount ? 'text-success' : 'text-info'}`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="mb-2 text-base font-bold text-fg">{selectedProduct.name}</p>
+                        <div className="flex flex-wrap gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-fg-muted">Delivered as:</span>
+                            <span className="font-medium text-fg">{words.title}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-fg-muted">Current stock:</span>
+                            <span className="text-lg font-bold text-fg">{selectedProduct.availableKeysCount || 0}</span>
+                          </div>
+                          {selectedProduct.totalKeysCount !== undefined && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-fg-muted">Total:</span>
+                              <span className="font-medium text-fg">{selectedProduct.totalKeysCount}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                    {isSelected && (
-                      <Check className="h-4 w-4 text-accent-on-dark ml-2 shrink-0" />
-                    )}
                   </div>
                 )}
-              />
-            </div>
-            {selectedProduct && (
-              <div className="p-4 rounded-xl border border-accent/20 bg-accent/[0.04]">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2.5 rounded-lg ${detectedUploadType === 'LICENSE_KEY' ? 'bg-blue-500/20' : 'bg-green-500/20'}`}>
-                    {detectedUploadType === 'LICENSE_KEY' ? (
-                      <Key className="w-5 h-5 text-info" />
-                    ) : (
-                      <User className="w-5 h-5 text-success" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-base font-bold text-fg mb-2">
-                      {selectedProduct.name}
+
+                {selectedProductId && !productType && (
+                  <div className="rounded border border-yellow-700 bg-yellow-900/20 p-3">
+                    <p className="text-xs text-warning">
+                      Unable to detect the delivery type. Please ensure the product has a valid type set.
                     </p>
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-fg-muted">Type:</span>
-                        <span className="text-fg font-medium">
-                          {detectedUploadType === 'LICENSE_KEY' ? 'License Key' : 'Account-Based'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-fg-muted">Current Stock:</span>
-                        <span className="text-fg font-bold text-lg">{selectedProduct.availableKeysCount || 0}</span>
-                      </div>
-                      {selectedProduct.totalKeysCount !== undefined && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-fg-muted">Total:</span>
-                          <span className="text-fg font-medium">{selectedProduct.totalKeysCount}</span>
-                        </div>
-                      )}
-                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ── 2. add the items ── */}
+            {step === 2 && productType && (
+              <>
+                <Tabs value={tab} onValueChange={setTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 border border-white/[0.08] bg-secondary">
+                    <TabsTrigger value="add" className="text-gray-300 data-[state=active]:bg-accent data-[state=active]:text-white">
+                      <ListPlus className="mr-2 h-4 w-4" /> Add {words.many}
+                    </TabsTrigger>
+                    <TabsTrigger value="import" className="text-gray-300 data-[state=active]:bg-accent data-[state=active]:text-white">
+                      <FileUp className="mr-2 h-4 w-4" /> Upload file
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                {tab === 'add' ? (
+                  isAccount ? (
+                    <AccountEntryForm
+                      // Remounts when switching between adding and editing a row,
+                      // so the fields load without syncing props into state.
+                      key={editingId || 'new-account'}
+                      initialValue={editingRow?.data}
+                      editing={!!editingRow}
+                      onAdd={editingRow ? updateRow : addRow}
+                      onCancelEdit={() => setEditingId(null)}
+                    />
+                  ) : (
+                    <KeyEntryForm
+                      key={editingId || 'new-key'}
+                      productType={productType}
+                      initialValue={editingRow?.data || ''}
+                      editing={!!editingRow}
+                      onAdd={editingRow ? updateRow : addRow}
+                      onCancelEdit={() => setEditingId(null)}
+                    />
+                  )
+                ) : (
+                  <ImportPanel productType={productType} onAppend={appendRows} />
+                )}
+
+                <StagedInventoryList
+                  rows={rows}
+                  productType={productType}
+                  editingId={editingId}
+                  onEdit={startEdit}
+                  onRemove={removeRow}
+                  onClear={() => { setRows([]); setEditingId(null); }}
+                />
+              </>
+            )}
+
+            {/* ── 3. review and submit ── */}
+            {step === 3 && productType && (
+              <>
+                <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+                  <ClipboardCheck className="h-5 w-5 shrink-0 text-success" />
+                  <div>
+                    <p className="text-sm font-semibold text-fg">{countLabel} ready to upload</p>
+                    <p className="mt-0.5 text-xs text-fg-muted">
+                      Stock goes from {selectedProduct?.availableKeysCount || 0} to{' '}
+                      {(selectedProduct?.availableKeysCount || 0) + rows.length}. Anything already uploaded is skipped.
+                    </p>
                   </div>
                 </div>
-              </div>
+
+                <StagedInventoryList
+                  rows={rows}
+                  productType={productType}
+                  editingId={editingId}
+                  onEdit={startEdit}
+                  onRemove={removeRow}
+                  onClear={() => { setRows([]); setEditingId(null); }}
+                />
+
+                {processing && (
+                  <div className="rounded-xl border border-accent/20 bg-accent/[0.04] p-4">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-5 w-5 shrink-0 animate-spin text-accent-on-dark" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-fg">Processing upload in the background…</p>
+                        {progress?.total ? (
+                          <>
+                            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/[0.08]">
+                              <div
+                                className="h-full bg-accent transition-all"
+                                style={{ width: `${Math.min(100, Math.round((progress.processed / progress.total) * 100))}%` }}
+                              />
+                            </div>
+                            <p className="mt-1 text-xs text-fg-muted">
+                              {progress.processed} / {progress.total} processed · {progress.inserted} added
+                            </p>
+                          </>
+                        ) : (
+                          <p className="mt-1 text-xs text-fg-muted">Starting…</p>
+                        )}
+                        <p className="mt-1 text-xs text-fg-subtle">You can close this dialog — the upload will continue.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
-          {/* Show upload UI only when product is selected */}
-          {detectedUploadType && (
-            <>
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                    <Upload className="w-5 h-5 text-accent-on-dark" />
-                  </div>
-                  <div>
-                    <Label className="text-fg text-base font-semibold">
-                      Upload Method
-                    </Label>
-                    <p className="text-xs text-fg-muted mt-0.5">
-                      Choose how you want to provide the data
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    type="button"
-                    variant={uploadMethod === 'textarea' ? 'default' : 'outline'}
-                    onClick={() => setUploadMethod('textarea')}
-                    className={`h-11 ${uploadMethod === 'textarea' ? 'bg-accent hover:bg-accent/90 text-fg shadow-md shadow-accent/20' : 'border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white'}`}
-                  >
-                    <FileText className="w-5 h-5 mr-2" />
-                    Paste Data
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={uploadMethod === 'file' ? 'default' : 'outline'}
-                    onClick={() => setUploadMethod('file')}
-                    className={`h-11 ${uploadMethod === 'file' ? 'bg-accent hover:bg-accent/90 text-fg shadow-md shadow-accent/20' : 'border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white'}`}
-                  >
-                    <Upload className="w-5 h-5 mr-2" />
-                    Upload File
-                  </Button>
-                </div>
-              </div>
+          {/* Footer stays put: the way forward is always in the same place. */}
+          <div className="flex items-center justify-between gap-4 border-t border-white/[0.06] px-6 py-4">
+            <p className="text-xs text-fg-muted">{rows.length > 0 ? `${countLabel} ready` : ''}</p>
+            <div className="flex gap-3">
+              {step > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/[0.08] px-5 text-fg-muted hover:bg-white/[0.06] hover:text-white"
+                  disabled={busy}
+                  onClick={() => setStep(step - 1)}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/[0.08] px-5 text-fg-muted hover:bg-white/[0.06] hover:text-white"
+                  onClick={requestClose}
+                >
+                  Cancel
+                </Button>
+              )}
 
-              {/* Bulk Data Input - Dynamic based on product type */}
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-fg text-sm font-medium">
-                    {detectedUploadType === 'LICENSE_KEY' ? 'License Keys' : 'Account Credentials'}
-                  </Label>
-                  <p className="text-xs text-fg-muted mt-1">
-                    {detectedUploadType === 'LICENSE_KEY' 
-                      ? 'Enter your license keys below, one per line'
-                      : 'Enter account credentials in CSV or JSON format (email/email password/username ID/username password)'}
-                  </p>
-                </div>
-                {uploadMethod === 'textarea' ? (
-                  <Textarea
-                    value={bulkData}
-                    onChange={(e) => setBulkData(e.target.value)}
-                    placeholder={
-                      detectedUploadType === 'LICENSE_KEY'
-                        ? 'Enter license keys, one per line:\nKEY1-ABCD-EFGH-IJKL\nKEY2-MNOP-QRST-UVWX\nKEY3-YZAB-CDEF-GHIJ'
-                        : 'Enter accounts, one per line:\nemail@example.com,emailPassword,usernameId,usernamePassword\n\nLegacy:\nemail@example.com,password\n\nOr JSON format:\n{"email":"email@example.com","emailPassword":"emailPass","usernameId":"gameUser","usernamePassword":"gamePass"}'
-                    }
-                    rows={14}
-                    className="bg-white/[0.03] border-white/[0.08] text-fg font-mono text-sm placeholder:text-gray-500 resize-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 rounded-xl"
-                  />
-                ) : (
-                  // Drag-and-drop is an ENHANCEMENT: the same action is always
-                  // reachable via the labelled file input inside, which is
-                  // keyboard-operable. This wrapper only carries drop handlers,
-                  // so `presentation` is the honest role.
-                  <div
-                    role="presentation"
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-                      isDragging
-                        ? 'border-accent bg-accent/[0.06] scale-[1.01]'
-                        : 'border-white/[0.08] bg-white/[0.01]'
-                    }`}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      aria-label="Choose a key file to upload"
-                      accept=".txt,.csv,.json"
-                      onChange={handleFileInput}
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <div className="space-y-4">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className={`p-4 rounded-full ${isDragging ? 'bg-accent/20' : 'bg-surface-2/50'}`}>
-                          <Upload className={`w-8 h-8 ${isDragging ? 'text-accent-on-dark' : 'text-fg-muted'}`} />
-                        </div>
-                        <div>
-                          <p className="text-fg font-medium mb-1">
-                            {isDragging ? 'Drop your file here' : 'Drag and drop your file here'}
-                          </p>
-                          <p className="text-sm text-fg-muted">
-                            or{' '}
-                            <label
-                              htmlFor="file-upload"
-                              className="text-accent-on-dark hover:underline cursor-pointer"
-                            >
-                              browse files
-                            </label>
-                          </p>
-                          <p className="text-xs text-fg-subtle mt-2">
-                            Supports .txt, .csv, .json files
-                          </p>
-                        </div>
-                      </div>
-                      {fileName && (
-                        <div className="p-3 bg-green-900/20 rounded-lg border border-green-700/50">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <FileCheck className="w-5 h-5 text-success" />
-                              <div className="text-left">
-                                <p className="text-sm font-medium text-fg">{fileName}</p>
-                                <p className="text-xs text-fg-muted">
-                                  <span className="font-semibold text-fg">{itemCount}</span> items detected
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setFileName('');
-                                setBulkData('');
-                                if (fileInputRef.current) {
-                                  fileInputRef.current.value = '';
-                                }
-                              }}
-                              className="text-fg-muted hover:text-white"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {itemCount > 0 && (
-                  <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04]">
-                    <div className="p-2 bg-green-500/20 rounded-lg">
-                      <CheckCircle2 className="w-5 h-5 text-success" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-fg">
-                        <span className="text-lg font-bold text-success">{itemCount}</span>{' '}
-                        {detectedUploadType === 'LICENSE_KEY' ? 'keys' : 'accounts'} ready to upload
-                      </p>
-                      <p className="text-xs text-fg-muted mt-0.5">
-                        All items validated and ready for processing
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {validationErrors.length > 0 && (
-                  <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/[0.04]">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-danger mb-2">
-                          Validation Errors ({validationErrors.length})
-                        </p>
-                        <ul className="space-y-1 max-h-32 overflow-y-auto">
-                          {validationErrors.slice(0, 5).map((error, index) => (
-                            <li key={index} className="text-xs text-danger">
-                              • {error}
-                            </li>
-                          ))}
-                          {validationErrors.length > 5 && (
-                            <li className="text-xs text-danger italic">
-                              ... and {validationErrors.length - 5} more errors
-                            </li>
-                          )}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-4 rounded-xl border border-blue-500/15 bg-blue-500/[0.04]">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <Info className="w-5 h-5 text-info" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-fg mb-2">
-                      {detectedUploadType === 'LICENSE_KEY' ? 'License Key Format Guide' : 'Account Credentials Format Guide'}
-                    </p>
-                    <div className="space-y-2 text-xs text-fg-muted">
-                      {detectedUploadType === 'LICENSE_KEY' ? (
-                        <>
-                          <p>• Enter one license key per line</p>
-                          <p>• Empty lines and whitespace are automatically ignored</p>
-                          <p>• Each key must be between 5-500 characters</p>
-                          <p>• Duplicate keys in the same batch will be skipped</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="font-medium text-fg mb-1">Preferred CSV Format:</p>
-                          <code className="block p-2 bg-surface-2 rounded text-success mb-2">
-                            email@example.com,emailPassword123,usernameId,usernamePassword123
-                          </code>
-                          <p className="font-medium text-fg mb-1">Legacy CSV (email-only login):</p>
-                          <code className="block p-2 bg-surface-2 rounded text-success mb-2">
-                            email@example.com,password123
-                          </code>
-                          <p className="font-medium text-fg mb-1">JSON Format:</p>
-                          <code className="block p-2 bg-surface-2 rounded text-success">
-                            {'{"email":"email@example.com","emailPassword":"emailPass","usernameId":"gameUser","usernamePassword":"gamePass"}'}
-                          </code>
-                          <p className="mt-2">• One account per line</p>
-                          <p>• Duplicate accounts will be skipped</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {!detectedUploadType && selectedProductId && (
-            <div className="p-3 bg-yellow-900/20 border border-yellow-700 rounded">
-              <p className="text-xs text-warning">
-                Unable to detect product type. Please ensure the product has a valid type set.
-              </p>
-            </div>
-          )}
-
-          {processing && (
-            <div className="p-4 rounded-xl border border-accent/20 bg-accent/[0.04]">
-              <div className="flex items-center gap-3">
-                <Loader2 className="w-5 h-5 text-accent-on-dark animate-spin shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-fg">
-                    Processing upload in the background…
-                  </p>
-                  {progress?.total ? (
-                    <>
-                      <div className="mt-2 h-2 w-full rounded-full bg-white/[0.08] overflow-hidden">
-                        <div
-                          className="h-full bg-accent transition-all"
-                          style={{ width: `${Math.min(100, Math.round((progress.processed / progress.total) * 100))}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-fg-muted mt-1">
-                        {progress.processed} / {progress.total} processed · {progress.inserted} added
-                      </p>
-                    </>
+              {step < 3 ? (
+                <Button
+                  type="button"
+                  className="min-w-[140px] bg-accent px-6 font-semibold shadow-lg shadow-accent/25 hover:bg-accent/90 disabled:opacity-40"
+                  disabled={step === 1 ? !canLeaveStep1 : rows.length === 0}
+                  onClick={() => setStep(step + 1)}
+                >
+                  {step === 1 ? 'Next' : `Review ${countLabel}`} <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={submit}
+                  disabled={busy || rows.length === 0}
+                  className="min-w-[160px] bg-accent px-6 font-semibold shadow-lg shadow-accent/25 transition-all hover:bg-accent/90 disabled:opacity-40"
+                >
+                  {busy ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading…</>
                   ) : (
-                    <p className="text-xs text-fg-muted mt-1">Starting…</p>
+                    <><Upload className="mr-2 h-4 w-4" /> Submit {countLabel}</>
                   )}
-                  <p className="text-xs text-fg-subtle mt-1">
-                    You can close this dialog — the upload will continue.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
-            <div className="flex items-center gap-2 text-sm text-fg-muted">
-              {itemCount > 0 && (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                  <span className="text-xs">
-                    <span className="font-semibold text-fg">{itemCount}</span> items ready
-                  </span>
-                </>
+                </Button>
               )}
             </div>
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                className="border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white px-5"
-                disabled={uploadMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={uploadMutation.isPending || processing || !selectedProductId || !detectedUploadType || itemCount === 0 || validationErrors.length > 0}
-                className="bg-accent hover:bg-accent/90 min-w-[160px] px-6 font-semibold shadow-lg shadow-accent/25 disabled:opacity-40 transition-all"
-              >
-                {uploadMutation.isPending || processing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {processing ? 'Processing...' : 'Uploading...'}
-                  </>
-                ) : detectedUploadType && itemCount > 0 ? (
-                  <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload {itemCount} {detectedUploadType === 'LICENSE_KEY' ? 'Key' : 'Account'}{itemCount > 1 ? 's' : ''}
-                  </>
-                ) : !selectedProductId ? (
-                  'Select Product First'
-                ) : itemCount === 0 ? (
-                  'Enter Data First'
-                ) : (
-                  'Upload'
-                )}
-              </Button>
-            </div>
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmationModal
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title="Discard what you added?"
+        description={`${countLabel} have not been uploaded yet. Closing now loses them.`}
+        confirmText="Discard"
+        cancelText="Keep editing"
+        variant="destructive"
+        onConfirm={() => onOpenChange(false)}
+      />
+    </>
   );
 };
 
 export default BulkUploadModal;
-

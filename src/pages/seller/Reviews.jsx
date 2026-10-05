@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { reviewAPI, sellerAPI, productAPI } from '@services/api';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
@@ -12,12 +12,24 @@ import { ErrorState } from '@components/common/ErrorState';
 import { Star, MessageSquare } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
 import { Pagination } from '@components/common/Pagination';
+import { useSocket } from '@hooks/useSocket';
 
 const SellerReviews = () => {
   const [page, setPage] = useState(1);
   const [selectedReview, setSelectedReview] = useState(null);
   const [replyText, setReplyText] = useState('');
   const queryClient = useQueryClient();
+  const { socket, isConnected } = useSocket();
+
+  // Live: a review written, edited or deleted on one of this seller's products
+  // is pushed to their own socket room (review.service), so the list refreshes
+  // without a reload.
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+    const invalidate = () => queryClient.invalidateQueries({ queryKey: ['seller-reviews'] });
+    socket.on('review_changed', invalidate);
+    return () => socket.off('review_changed', invalidate);
+  }, [socket, isConnected, queryClient]);
 
   // Get seller info to get seller ID
   const { data: sellerInfo, isLoading: sellerInfoLoading } = useQuery({

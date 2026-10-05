@@ -81,3 +81,24 @@ export const ambianceGridStyle = (masked = false) => ({
       }
     : {}),
 });
+
+/** The cyan micro-label from the product page's panel headers (`.fx-pd4-head`):
+ *  11px / 800 / .13em / uppercase. Colour is --info-fg, NOT the product page's
+ *  literal #7BC5FF: that hex is untokenised and unmeasured, while --info-fg is
+ *  documented at >=4.5:1 on all five surfaces, which 11px text needs. */
+export const HUD_LABEL = 'text-[0.6875rem] font-extrabold uppercase tracking-[0.13em] text-info';
+
+/** The gradient numeral (`.fx-price`). The product page's ramp ends on #0e51e2,
+ *  which measures 2.83:1 as text — a live AA failure it gets away with only
+ *  because a price is decoration next to a Buy button. A KPI *is* the content,
+ *  so the ramp is rebuilt from the three tokens that are already proven as text
+ *  on dark: fg (11.63+) -> info (4.5+) -> accent-on-dark (5.41+). Same
+ *  white-to-cyan-to-blue read, no stop below AA.
+ *
+ *  `forced-colors:` restores a solid colour: in forced-colors mode the browser
+ *  drops background-image, and clipped text with `color: transparent` would
+ *  otherwise render invisible. */
+export const HUD_VALUE = [
+  'bg-linear-180 from-fg via-info to-accent-on-dark bg-clip-text text-transparent',
+  'forced-colors:bg-none forced-colors:text-fg',
+].join(' ');

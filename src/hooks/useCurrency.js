@@ -7,6 +7,7 @@ import {
   convertFromUSD,
   formatDisplayPrice,
 } from "@lib/currencyDisplay";
+import { formatDisplayWithUsd, formatUSDWithApprox } from "@lib/money";
 import { getPrefStore } from "@lib/prefStore";
 import useBuyerCountry from "./useBuyerCountry";
 
@@ -60,6 +61,26 @@ export const useCurrency = () => {
     [currency, rates]
   );
 
+  /**
+   * Settlement money — seller earnings, payouts, withdrawals, commission. USD
+   * stays the real figure with the viewer's currency beside it as "≈", because
+   * sellers are PAID in USD: rendering "€92.00" on its own would state an amount
+   * they never receive.
+   */
+  const formatSettlement = useCallback(
+    (usdAmount) => formatUSDWithApprox(usdAmount, { currency, rates }),
+    [currency, rates]
+  );
+
+  /**
+   * Admin money-movement screens: converted figure first, USD original beside
+   * it. See formatDisplayWithUsd for why the USD number cannot be dropped.
+   */
+  const formatWithUsd = useCallback(
+    (usdAmount) => formatDisplayWithUsd(usdAmount, { currency, rates }),
+    [currency, rates]
+  );
+
   return {
     currency, // active display code, e.g. "EUR"
     isExplicit: Boolean(stored), // user picked it themselves
@@ -68,6 +89,8 @@ export const useCurrency = () => {
     setCurrency,
     convert,
     format,
+    formatSettlement,
+    formatWithUsd,
   };
 };
 

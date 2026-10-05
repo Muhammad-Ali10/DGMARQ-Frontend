@@ -38,6 +38,7 @@ export const notificationAPI = {
 
 export const reviewAPI = {
   getReviews: (params) => api.get('/review/get-reviews', { params }),
+  getMyReviews: (params) => api.get('/review/my-reviews', { params }),
   createReview: (data) => api.post('/review/create-review', data),
   updateReview: (id, data) => api.patch(`/review/update-review/${id}`, data),
   deleteReview: (id) => api.delete(`/review/delete-review/${id}`),

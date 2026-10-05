@@ -25,8 +25,10 @@ import {
   Calendar,
 } from "lucide-react";
 import { showApiError } from "@utils/toast";
+import useCurrency from "@hooks/useCurrency";
 
 const SellerOrderDetail = () => {
+  const { formatSettlement } = useCurrency();
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [licenseKeysModalOpen, setLicenseKeysModalOpen] = useState(false);
@@ -226,25 +228,24 @@ const SellerOrderDetail = () => {
                           )}
                           <div className="flex flex-wrap items-center gap-4 text-sm text-fg-muted">
                             <span>Quantity: {item.qty}</span>
-                            <span>Unit price: ${item.unitPrice?.toFixed(2)}</span>
+                            <span>Unit price: {formatSettlement(item.unitPrice)}</span>
                             <span>
-                              Product price: ${lineTotal.toFixed(2)}
+                              Product price: {formatSettlement(lineTotal)}
                             </span>
                             {itemRefunded > 0 && (
                               <span className="text-warning/90">
-                                Refunded: -${itemRefunded.toFixed(2)}
+                                Refunded: -{formatSettlement(itemRefunded)}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-fg text-lg">
-                            ${lineTotal.toFixed(2)}
+                            {formatSettlement(lineTotal)}
                           </p>
                           {itemRefunded > 0 && (
                             <p className="text-sm text-warning/90 mt-0.5">
-                              After refund: $
-                              {(lineTotal - itemRefunded).toFixed(2)}
+                              After refund: {formatSettlement(lineTotal - itemRefunded)}
                             </p>
                           )}
                         </div>
@@ -255,13 +256,13 @@ const SellerOrderDetail = () => {
                       <SpecList className="mt-3 grid grid-cols-1 gap-x-6 border-t border-brand-cyan/10 pt-1 sm:grid-cols-2">
                         <SpecRow
                           label="Your net earnings"
-                          value={`$${itemSellerEarning.toFixed(2)}`}
+                          value={formatSettlement(itemSellerEarning)}
                           tone="success"
                         />
                         {itemRefunded > 0 && (
                           <SpecRow
                             label="Refunded amount"
-                            value={`-$${itemRefunded.toFixed(2)}`}
+                            value={`-${formatSettlement(itemRefunded)}`}
                             tone="warning"
                           />
                         )}
@@ -357,41 +358,35 @@ const SellerOrderDetail = () => {
                 )}
                 <SpecRow
                   label="Subtotal"
-                  value={`$${order.subtotal?.toFixed(2) || order.totalAmount?.toFixed(2)}`}
+                  value={formatSettlement(order.subtotal ?? order.totalAmount)}
                 />
                 {order.shippingCost > 0 && (
-                  <SpecRow label="Shipping" value={`$${order.shippingCost.toFixed(2)}`} />
+                  <SpecRow label="Shipping" value={formatSettlement(order.shippingCost)} />
                 )}
-                {order.tax > 0 && <SpecRow label="Tax" value={`$${order.tax.toFixed(2)}`} />}
+                {order.tax > 0 && <SpecRow label="Tax" value={formatSettlement(order.tax)} />}
                 {order.discount > 0 && (
                   <SpecRow
                     label="Discount"
-                    value={`-$${order.discount.toFixed(2)}`}
+                    value={`-${formatSettlement(order.discount)}`}
                     tone="success"
-                  />
-                )}
-                {order.buyerHandlingFee > 0 && (
-                  <SpecRow
-                    label="Buyer protection fee"
-                    value={`$${order.buyerHandlingFee.toFixed(2)}`}
                   />
                 )}
                 {totalRefunded > 0 && (
                   <SpecRow
                     label="Refunded"
-                    value={`-$${totalRefunded.toFixed(2)}`}
+                    value={`-${formatSettlement(totalRefunded)}`}
                     tone="warning"
                   />
                 )}
                 <SpecRow
                   emphasis
                   label={order.grandTotal != null ? 'Grand total' : 'Total'}
-                  value={`$${(order.grandTotal ?? order.totalAmount)?.toFixed(2)}`}
+                  value={formatSettlement(order.grandTotal ?? order.totalAmount)}
                 />
                 {totalRefunded > 0 && (
                   <SpecRow
                     label="Amount after refunds"
-                    value={`$${((order.grandTotal ?? order.totalAmount ?? 0) - totalRefunded).toFixed(2)}`}
+                    value={formatSettlement((order.grandTotal ?? order.totalAmount ?? 0) - totalRefunded)}
                   />
                 )}
               </SpecList>
@@ -403,7 +398,7 @@ const SellerOrderDetail = () => {
                 <div className="flex justify-between text-fg font-medium text-sm">
                   <span>Your net earnings:</span>
                   <span className="text-success">
-                    ${totalSellerEarning.toFixed(2)}
+                    {formatSettlement(totalSellerEarning)}
                   </span>
                 </div>
               </div>

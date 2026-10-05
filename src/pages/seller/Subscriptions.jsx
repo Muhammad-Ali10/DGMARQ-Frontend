@@ -6,8 +6,10 @@ import { Badge } from '@components/ui/badge';
 import { Skeleton } from '@components/ui/skeleton';
 import { ErrorState } from '@components/common/ErrorState';
 import { CreditCard, X, RefreshCw } from 'lucide-react';
+import useCurrency from '@hooks/useCurrency';
 
 const SellerSubscriptions = () => {
+  const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
 
   const { data: subscriptionData, isLoading, isError } = useQuery({
@@ -108,7 +110,7 @@ const SellerSubscriptions = () => {
               <div>
                 <p className="text-fg-muted">Amount</p>
                 <p className="text-fg font-semibold text-lg mt-1">
-                  ${subscription.amount?.toFixed(2) || '0.00'}
+                  {formatSettlement(subscription.amount)}
                 </p>
               </div>
 

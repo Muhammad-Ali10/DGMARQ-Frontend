@@ -16,8 +16,10 @@ import SafeImage from '@components/ui/safe-image';
 import { toast } from 'sonner';
 import { RefundChat, isRefundChatLocked , refundBadgeProps } from '@features/wallet-payout';
 import { getDisplayOrderId } from '@lib/orderDisplay';
+import useCurrency from '@hooks/useCurrency';
 
 const SellerRefundDetail = () => {
+  const { formatSettlement } = useCurrency();
   const { refundId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -149,7 +151,7 @@ const SellerRefundDetail = () => {
           <div>
             <p className="text-xs tracking-wide text-fg-subtle uppercase">Amount</p>
             <p className="text-fg mt-1 font-semibold text-lg">
-              ${refund.refundAmount?.toFixed(2) || refund.productId?.price?.toFixed(2) || '0.00'}
+              {formatSettlement(refund.refundAmount ?? refund.productId?.price ?? 0)}
             </p>
           </div>
           {refund.refundMethod && (

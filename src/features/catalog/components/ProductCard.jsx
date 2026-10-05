@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import SafeImage from "@components/ui/safe-image";
@@ -16,6 +16,7 @@ import { cn } from "@lib/utils";
 import useCurrency from "@hooks/useCurrency";
 import useOfferVerdict from "@hooks/useOfferVerdict";
 import RegionBadges from "./RegionBadges";
+import { PreorderBadge, isActivePreorder as isUnreleasedPreorder } from "@components/common/PreorderBadge";
 import useWishlist from "../hooks/useWishlist";
 import { cartAPI } from "@services/api";
 import { addToGuestCart } from "@features/cart-checkout";
@@ -41,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
  */
 const ProductCard = memo(({ product, showStock = false }) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { discountPrice, discountPercentage, originalPrice } =
     calculateProductPrice(product);
   const image = getProductImage(product);
@@ -94,6 +96,14 @@ const ProductCard = memo(({ product, showStock = false }) => {
     e.stopPropagation();
     if (cartBusy) return;
     const sellerId = product.bestOffer?.sellerId || product.sellerId;
+    // M21 login gate — the card is a second door into the guest cart, and the
+    // server refuses a guest pre-order at checkout. Stopping it here is what
+    // lets the buyer read WHY instead of a bare auth error three screens later.
+    if (!isAuthenticated && isUnreleasedPreorder(product)) {
+      toast.error("Pre-orders need an account — please log in to pre-order this.");
+      navigate("/login");
+      return;
+    }
     if (!isAuthenticated) {
       addToGuestCart({
         productId: product._id,
@@ -182,11 +192,21 @@ const ProductCard = memo(({ product, showStock = false }) => {
             />
           </button>
 
-          {soldOut && (
+          {/* M21: a buyer scanning the grid has to be able to tell which titles
+              are not out yet. It takes the sold-out slot because the two can
+              never both be right — an unreleased pre-order has no keys BY
+              DESIGN, which is not the same as having run out. */}
+          {isUnreleasedPreorder(product) ? (
+            <PreorderBadge
+              product={product}
+              withDate={false}
+              className="absolute bottom-2 left-2 z-10"
+            />
+          ) : soldOut ? (
             <span className="absolute bottom-2 left-2 z-10 rounded-full bg-black/75 px-2 py-0.5 text-[10px] md:text-xs font-semibold text-rose-200 backdrop-blur-sm">
               Out of stock
             </span>
-          )}
+          ) : null}
 
           {/* Add to cart — bottom-right, revealed on card hover. Hidden outright
               when sold out: there is nothing to add, and a disabled-looking
@@ -272,9 +292,7 @@ const ProductCard = memo(({ product, showStock = false }) => {
   // Both inputs to the sold-out treatment, or a card that goes out of stock
   // between refetches keeps rendering as buyable.
   prev.showStock === next.showStock &&
-  prev.product.hasStock === next.product.hasStock &&
-  prev.product.trendingOffer?.discountPercent === next.product.trendingOffer?.discountPercent &&
-  prev.product.trendingOffer?.offerId === next.product.trendingOffer?.offerId
+  prev.product.hasStock === next.product.hasStock
 );
 
 export default ProductCard;

@@ -8,6 +8,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import SellerLayout from "./layouts/SellerLayout";
 import UserLayout from "./layouts/UserLayout";
 import PublicLayout from "./layouts/PublicLayout";
+import useCurrencySync from '@hooks/useCurrencySync';
 
 // Auth pages — lazy-loaded like the other routes
 const Login = lazy(() => import("./pages/public/Login"));
@@ -75,13 +76,9 @@ const RegionsManagement = lazy(() => import("./pages/admin/RegionsManagement"));
 const GenresManagement = lazy(() => import("./pages/admin/GenresManagement"));
 const ThemesManagement = lazy(() => import("./pages/admin/ThemesManagement"));
 const ModesManagement = lazy(() => import("./pages/admin/ModesManagement"));
-const TypesManagement = lazy(() => import("./pages/admin/TypesManagement"));
-const FlashDealsManagement = lazy(() => import("./pages/admin/FlashDealsManagement"));
 const HomepageSlidersManagement = lazy(() => import("./pages/admin/HomepageSlidersManagement"));
 const HomepageSectionsManagement = lazy(() => import("./pages/admin/HomepageSectionsManagement"));
 const MenuBuilder = lazy(() => import("./pages/admin/MenuBuilder"));
-const TrendingOffersManagement = lazy(() => import("./pages/admin/TrendingOffersManagement"));
-const UpcomingReleasesManagement = lazy(() => import("./pages/admin/UpcomingReleasesManagement"));
 const UpcomingGamesManagement = lazy(() => import("./pages/admin/UpcomingGamesManagement"));
 const CouponsManagement = lazy(() => import("./pages/admin/CouponsManagement"));
 const ReturnRefundManagement = lazy(() => import("./pages/admin/ReturnRefundManagement"));
@@ -137,6 +134,10 @@ const PageLoader = () => (
 );
 
 function App() {
+  // M10: keeps the signed-in buyer's display currency on their account so
+  // server-rendered emails can speak it. Mounted once, here at the root.
+  useCurrencySync();
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
@@ -224,13 +225,9 @@ function App() {
           <Route path="genres" element={<GenresManagement />} />
           <Route path="themes" element={<ThemesManagement />} />
           <Route path="modes" element={<ModesManagement />} />
-          <Route path="types" element={<TypesManagement />} />
-          <Route path="flash-deals" element={<FlashDealsManagement />} />
           <Route path="homepage-sliders" element={<HomepageSlidersManagement />} />
           <Route path="homepage-sections" element={<HomepageSectionsManagement />} />
           <Route path="menu" element={<MenuBuilder />} />
-          <Route path="trending-offers" element={<TrendingOffersManagement />} />
-          <Route path="upcoming-releases" element={<UpcomingReleasesManagement />} />
           <Route path="upcoming-games" element={<UpcomingGamesManagement />} />
           <Route path="coupons" element={<CouponsManagement />} />
           <Route path="disputes" element={<Navigate to="/admin/return-refund" replace />} />

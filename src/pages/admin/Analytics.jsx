@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Users, ShoppingCart, DollarSign, Package, Eye, Heart } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
+import useCurrency from '@hooks/useCurrency';
 
 const Analytics = () => {
+  const { format: formatMoney } = useCurrency();
   const { data: dashboard, isLoading: isLoadingDashboard, isError: isErrorDashboard, error: dashboardError } = useQuery({
     queryKey: ['admin-analytics-dashboard'],
     queryFn: async () => {
@@ -64,7 +66,7 @@ const Analytics = () => {
     },
     { 
       title: 'Total Revenue', 
-      value: `$${(realtime?.revenue?.total || 0).toFixed(2)}`, 
+      value: formatMoney(realtime?.revenue?.total || 0), 
       icon: DollarSign, 
       color: 'text-yellow-500',
       description: 'Platform revenue'

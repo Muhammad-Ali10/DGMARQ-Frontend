@@ -9,6 +9,7 @@ import { Textarea } from '@components/ui/textarea';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Settings as SettingsIcon, Package, ToggleLeft, ToggleRight, Search, DollarSign, Wallet } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '@utils/toast';
+import { PolicyFigureNotice } from '@features/content/legal';
 import StorefrontSettings from './StorefrontSettings';
 
 const Settings = () => {
@@ -537,6 +538,13 @@ const Settings = () => {
               )}
             </>
           )}
+          {/* Disabled means the buyer is charged nothing, which the Terms' flat fee
+              contradicts just as much as a wrong amount — so it reports 0 rather
+              than opting out. Percentage mode has no contractual counterpart. */}
+          <PolicyFigureNotice
+            figure="buyerProcessingFeeFixed"
+            live={!handlingFeeEnabled ? 0 : handlingFeeType === 'fixed' ? handlingFeeFixed : null}
+          />
           {handlingFeeSettings?.lastUpdated && (
             <p className="text-xs text-gray-500">Last updated: {new Date(handlingFeeSettings.lastUpdated).toLocaleDateString()}</p>
           )}
@@ -586,6 +594,10 @@ const Settings = () => {
               </div>
             </div>
           )}
+          <PolicyFigureNotice
+            figure="buyerProtectionFeePercent"
+            live={protectionFeeEnabled ? protectionFeePercentage : 0}
+          />
           {protectionFeeSettings?.lastUpdated && (
             <p className="text-xs text-gray-500">Last updated: {new Date(protectionFeeSettings.lastUpdated).toLocaleDateString()}</p>
           )}
@@ -644,6 +656,11 @@ const Settings = () => {
             <p className="text-xs text-gray-400">
               Enter a value between 0 and 1 (e.g., 0.1 = 10%, 0.15 = 15%)
             </p>
+            {/* The field is a 0–1 rate; the Terms quote a percentage. */}
+            <PolicyFigureNotice
+              figure="commissionRatePercent"
+              live={commissionRate === '' ? null : Number(commissionRate) * 100}
+            />
           </div>
         </CardContent>
       </Card>
@@ -724,6 +741,10 @@ const Settings = () => {
                 {featuredCommissionMutation.isPending ? 'Updating...' : 'Update'}
               </Button>
             </div>
+            <PolicyFigureNotice
+              figure="featuredCommissionPercent"
+              live={featuredCommission === '' ? null : featuredCommission}
+            />
           </div>
         </CardContent>
       </Card>
@@ -862,6 +883,7 @@ const Settings = () => {
               <p className="text-xs text-gray-400">
                 Range: {payoutSettings?.bounds?.payoutHoldDays?.min ?? 0} - {payoutSettings?.bounds?.payoutHoldDays?.max ?? 180}. Default: 15.
               </p>
+              <PolicyFigureNotice figure="payoutHoldDays" live={payoutHoldDaysValue} />
             </div>
 
             <div className="space-y-2">
@@ -900,6 +922,9 @@ const Settings = () => {
               <p className="text-xs text-gray-400">
                 Deducted from every seller withdrawal (% of the requested amount), on top of the provider fee. Default: 1.5%. Set 0 to disable.
               </p>
+              {/* Not this field's counterpart: the Terms promise a flat 3% withdrawal
+                  fee, which the platform does not implement at all. */}
+              <PolicyFigureNotice figure="withdrawalFeePercent" absent />
             </div>
 
             <div className="space-y-2">
@@ -919,6 +944,7 @@ const Settings = () => {
               <p className="text-xs text-gray-400">
                 Range: {payoutSettings?.bounds?.refundWindowDays?.min ?? 1} - {payoutSettings?.bounds?.refundWindowDays?.max ?? 170}. Default: 10.
               </p>
+              <PolicyFigureNotice figure="refundWindowDays" live={refundWindowDaysValue} />
             </div>
           </div>
 

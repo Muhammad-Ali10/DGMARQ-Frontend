@@ -124,9 +124,11 @@ const OfferRegionSelector = ({ value, onChange }) => {
     return !q || iso.toLowerCase().includes(q) || countryName(iso).toLowerCase().includes(q);
   });
 
-  let coverage = "No restriction — available to all buyers";
-  if (availability.global) coverage = "Worldwide — all countries";
-  else if (!availability.unrestricted)
+  // Picking GLOBAL and picking nothing at all reach the same buyers, so the
+  // seller is told the same thing either way — one word, "Global", matching
+  // what the buyer, the admin and the offer table now all say.
+  let coverage = "Global — available in every country";
+  if (!availability.global && !availability.unrestricted)
     coverage = `Available in ${availability.allowed.size} countr${availability.allowed.size === 1 ? "y" : "ies"}`;
 
   const tabBtn = (id, label, count, Icon, disabled) => (
@@ -206,7 +208,7 @@ const OfferRegionSelector = ({ value, onChange }) => {
                     } ${selected ? "bg-accent/10" : ""}`}
                   >
                     <span
-                      className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                         selected ? "border-accent bg-accent text-fg" : "border-border-interactive"
                       }`}
                     >
@@ -221,7 +223,7 @@ const OfferRegionSelector = ({ value, onChange }) => {
                         {r.name}
                       </span>
                     </span>
-                    <span className="flex-shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-fg-muted">
+                    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-fg-muted">
                       {r.isGlobal ? "All" : selected ? `${inc}/${total}` : total} countries
                     </span>
                     {selected && !r.isGlobal && (
@@ -232,7 +234,7 @@ const OfferRegionSelector = ({ value, onChange }) => {
                           setExpanded(isExp ? null : r.code);
                           setDrawerSearch("");
                         }}
-                        className="flex flex-shrink-0 items-center gap-1 rounded-md border border-border-interactive px-2 py-1 text-[11px] text-fg-muted hover:border-accent hover:text-accent-on-dark"
+                        className="flex shrink-0 items-center gap-1 rounded-md border border-border-interactive px-2 py-1 text-[11px] text-fg-muted hover:border-accent hover:text-accent-on-dark"
                       >
                         {isExp ? <ChevronUp className="h-3 w-3" /> : <SlidersHorizontal className="h-3 w-3" />}
                         {isExp ? "Hide" : "Edit"}
@@ -350,7 +352,7 @@ const OfferRegionSelector = ({ value, onChange }) => {
                   <span className={`truncate text-xs ${sel ? "text-gray-100" : "text-fg-muted"}`}>
                     {countryFlag(iso)} {countryName(iso)}
                   </span>
-                  {covered && <Lock className="ml-auto h-3 w-3 flex-shrink-0 text-fg-subtle" />}
+                  {covered && <Lock className="ml-auto h-3 w-3 shrink-0 text-fg-subtle" />}
                 </label>
               );
             })}

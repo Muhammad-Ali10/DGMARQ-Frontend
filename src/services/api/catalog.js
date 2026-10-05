@@ -11,7 +11,6 @@ export const productAPI = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   deleteProduct: (id) => api.delete(`/product/delete-product/${id}`),
-  uploadKeys: (productId, keys) => api.post(`/product/${productId}/upload-keys`, { keys }),
   getUploadKeysStatus: (productId, jobId) => api.get(`/product/${productId}/upload-keys/status/${jobId}`),
 };
 
@@ -69,6 +68,9 @@ export const geoAPI = {
 // Display exchange rates (M10) — base USD, refreshed server-side ~daily.
 export const currencyAPI = {
   getRates: () => api.get('/currency/rates'),
+  // Signed-in buyers only: the server keeps a copy of the pick so emails can be
+  // written in it (a background email job cannot read localStorage).
+  setDisplayCurrency: (currency) => api.patch('/currency/preference', { currency }),
 };
 
 export const regionAPI = {
@@ -98,15 +100,6 @@ export const modeAPI = {
   updateMode: (modeId, data) => api.patch(`/mode/update-mode/${modeId}`, data),
   toggleModeStatus: (modeId) => api.post(`/mode/toggle-mode-status/${modeId}`),
   deleteMode: (modeId) => api.delete(`/mode/delete-mode/${modeId}`),
-};
-
-// Type APIs (Admin)
-export const typeAPI = {
-  getAllTypes: (params) => api.get('/type/get-all-product-types', { params }),
-  createType: (data) => api.post('/type/create-product-type', data),
-  updateType: (id, data) => api.patch(`/type/update-product-type/${id}`, data),
-  toggleTypeStatus: (id) => api.patch(`/type/toggle-product-type-status/${id}`),
-  deleteType: (id) => api.delete(`/type/delete-product-type/${id}`),
 };
 
 // Master Product Catalog (ADMIN). Admin creates/imports the master products
@@ -145,6 +138,9 @@ export const offerAPI = {
   adminGetOffers: (params) => api.get('/offer/admin', { params }),
   adminApproveOffer: (id) => api.post(`/offer/admin/${id}/approve`),
   adminRejectOffer: (id, data) => api.post(`/offer/admin/${id}/reject`, data),
+  // Takedown of a live listing (reason required, seller notified) and its undo.
+  adminRemoveOffer: (id, data) => api.post(`/offer/admin/${id}/remove`, data),
+  adminRestoreOffer: (id) => api.post(`/offer/admin/${id}/restore`),
   adminDecideFeatured: (id, data) => api.post(`/offer/admin/${id}/featured`, data),
 };
 

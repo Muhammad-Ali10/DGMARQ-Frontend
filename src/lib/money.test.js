@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { formatUSD } from './money';
+import { formatUSD, formatUSDWithApprox, formatDisplayWithUsd } from './money';
+
+// Rates are "1 USD = N of the currency", the shape GET /currency/rates returns.
+const RATES = { EUR: 0.92, JPY: 150 };
 
 describe('formatUSD', () => {
   it('always shows two decimals and the symbol', () => {
@@ -36,5 +39,50 @@ describe('formatUSD', () => {
   it('rounds at the cent', () => {
     expect(formatUSD(1.005)).toBe('$1.01');
     expect(formatUSD(0.994)).toBe('$0.99');
+  });
+});
+
+// M10: the seller dashboard follows the currency selector, but a seller is PAID
+// in USD — so the USD figure stays primary and the converted one is marked as an
+// approximation. The rule these guard: never show a converted number alone, and
+// never invent one when the rates are not there.
+describe('formatUSDWithApprox (seller settlement)', () => {
+  it('adds the viewer currency beside the USD amount', () => {
+    expect(formatUSDWithApprox(100, { currency: 'EUR', rates: RATES })).toBe('$100.00 ≈ €92.00');
+  });
+
+  it('is plain USD for a USD viewer', () => {
+    expect(formatUSDWithApprox(100, { currency: 'USD', rates: RATES })).toBe('$100.00');
+    expect(formatUSDWithApprox(100)).toBe('$100.00');
+  });
+
+  it('falls back to USD alone when the rate is missing — it never guesses', () => {
+    expect(formatUSDWithApprox(100, { currency: 'EUR', rates: null })).toBe('$100.00');
+    expect(formatUSDWithApprox(100, { currency: 'EUR', rates: { GBP: 0.8 } })).toBe('$100.00');
+  });
+
+  it('still refuses to print NaN', () => {
+    expect(formatUSDWithApprox('abc', { currency: 'EUR', rates: RATES })).toBe('$0.00 ≈ €0.00');
+  });
+});
+
+// Admin money-movement screens: converted first (admins asked for every figure
+// to follow the selector) with the USD original kept, because the transfer that
+// actually leaves the platform is in USD.
+describe('formatDisplayWithUsd (admin payouts)', () => {
+  it('leads with the viewer currency and keeps the USD original', () => {
+    expect(formatDisplayWithUsd(100, { currency: 'EUR', rates: RATES })).toBe('€92.00 (USD $100.00)');
+  });
+
+  it('does not repeat itself for a USD viewer', () => {
+    expect(formatDisplayWithUsd(100, { currency: 'USD', rates: RATES })).toBe('$100.00');
+  });
+
+  it('drops to USD when the rate is unavailable', () => {
+    expect(formatDisplayWithUsd(100, { currency: 'EUR', rates: {} })).toBe('$100.00');
+  });
+
+  it('respects currencies with no minor unit', () => {
+    expect(formatDisplayWithUsd(10, { currency: 'JPY', rates: RATES })).toBe('¥1,500 (USD $10.00)');
   });
 });

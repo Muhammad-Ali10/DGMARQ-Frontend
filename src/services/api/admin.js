@@ -12,6 +12,7 @@ export const adminAPI = {
   // CLIENT REQ (seller control): reversible account hold + lift.
   holdSeller: (sellerId, data) => api.post(`/admin/seller/${sellerId}/hold`, data),
   liftSellerHold: (sellerId) => api.post(`/admin/seller/${sellerId}/unhold`),
+  reviewSellerKyc: (sellerId, data) => api.patch(`/admin/seller/${sellerId}/kyc`, data),
   getProductDetails: (productId) => api.get(`/admin/product/${productId}`),
   deleteProduct: (productId) => api.delete(`/admin/products/${productId}`),
   getAllPayouts: (params) => api.get('/admin/payouts', { params }),

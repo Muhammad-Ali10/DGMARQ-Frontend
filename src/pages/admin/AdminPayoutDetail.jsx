@@ -32,7 +32,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { showApiError } from "@utils/toast";
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 
 
 const formatDateTime = (value) => {
@@ -82,7 +82,7 @@ const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 //
 // The seller's actual withdrawable total stays clearly visible in the
 // Available summary card above the table.
-const buildKeyRows = (line) => {
+const buildKeyRows = (line, money) => {
   const keys = Array.isArray(line?.licenseKeys) ? line.licenseKeys : [];
   const frozenIds = new Set((line?.frozenKeyIds || []).map(String));
   const totalKeys =
@@ -116,11 +116,11 @@ const buildKeyRows = (line) => {
     const amount = perKeyNet;
     if (isRefunded) {
       status = "refunded";
-      note = `Refund completed — $${perKeyNet.toFixed(2)} returned to buyer`;
+      note = `Refund completed — ${money(perKeyNet)} returned to buyer`;
     } else if (isFrozen) {
       status = "frozen";
       note = refund?.refundAmount
-        ? `Refund under admin review — $${Number(refund.refundAmount).toFixed(2)}`
+        ? `Refund under admin review — ${money(refund.refundAmount)}`
         : "Refund under admin review";
     }
 
@@ -152,6 +152,7 @@ const buildKeyRows = (line) => {
 };
 
 const AdminPayoutDetail = () => {
+  const { formatWithUsd: formatMoney } = useCurrency();
   const { orderId } = useParams();
   const navigate = useNavigate();
 
@@ -246,7 +247,7 @@ const AdminPayoutDetail = () => {
               <DollarSign className="w-3.5 h-3.5" /> Order Total
             </div>
             <p className="text-white text-lg font-semibold">
-              {formatUSD(order?.grandTotal ?? order?.totalAmount)}
+              {formatMoney(order?.grandTotal ?? order?.totalAmount)}
             </p>
           </CardContent>
         </Card>
@@ -256,7 +257,7 @@ const AdminPayoutDetail = () => {
               <DollarSign className="w-3.5 h-3.5" /> Platform Commission
             </div>
             <p className="text-green-400 text-lg font-semibold">
-              {formatUSD(totalPlatformCommission)}
+              {formatMoney(totalPlatformCommission)}
             </p>
           </CardContent>
         </Card>
@@ -288,7 +289,7 @@ const AdminPayoutDetail = () => {
               const statusBadge = payoutBadgeProps(line.status);
               const refund = line.refund;
               const refundBadge = refund?.status ? getRefundStatusDisplay(refund.status) : null;
-              const keyBreakdown = buildKeyRows(line);
+              const keyBreakdown = buildKeyRows(line, formatMoney);
               const hasDisputeOnSomeKeys =
                 keyBreakdown.frozenCount > 0 && keyBreakdown.frozenCount < keyBreakdown.totalKeys;
               const availableAmount =
@@ -384,15 +385,15 @@ const AdminPayoutDetail = () => {
                   <div className={`grid grid-cols-2 ${inlineGridCols} gap-3 text-sm`}>
                     <div>
                       <p className="text-gray-400">Gross</p>
-                      <p className="text-white">{formatUSD(originalGross)}</p>
+                      <p className="text-white">{formatMoney(originalGross)}</p>
                     </div>
                     <div>
                       <p className="text-gray-400">Commission</p>
-                      <p className="text-white">{formatUSD(originalCommission)}</p>
+                      <p className="text-white">{formatMoney(originalCommission)}</p>
                     </div>
                     <div>
                       <p className="text-gray-400">Net</p>
-                      <p className="text-green-400 font-semibold">{formatUSD(originalNet)}</p>
+                      <p className="text-green-400 font-semibold">{formatMoney(originalNet)}</p>
                     </div>
 
                     {/* Frozen — currently withheld pending refund review. */}
@@ -400,7 +401,7 @@ const AdminPayoutDetail = () => {
                       <div>
                         <p className="text-gray-400">Frozen</p>
                         <p className="text-cyan-400 font-semibold">
-                          {formatUSD(line.frozenAmount)}
+                          {formatMoney(line.frozenAmount)}
                         </p>
                       </div>
                     )}
@@ -412,7 +413,7 @@ const AdminPayoutDetail = () => {
                       <div>
                         <p className="text-gray-400">Refunded</p>
                         <p className="text-red-400 font-semibold line-through">
-                          {formatUSD(refundedAmount)}
+                          {formatMoney(refundedAmount)}
                         </p>
                       </div>
                     )}
@@ -425,7 +426,7 @@ const AdminPayoutDetail = () => {
                       <div>
                         <p className="text-gray-400">Available</p>
                         <p className="text-green-400 font-semibold">
-                          {formatUSD(availableAmount)}
+                          {formatMoney(availableAmount)}
                         </p>
                       </div>
                     )}
@@ -443,7 +444,7 @@ const AdminPayoutDetail = () => {
                         <p className="text-white font-medium mb-1">
                           {line.status === "frozen"
                             ? "Fully frozen by refund request"
-                            : `Partially frozen: ${formatUSD(line.frozenAmount)} of ${formatUSD(line.netAmount)}`}
+                            : `Partially frozen: ${formatMoney(line.frozenAmount)} of ${formatMoney(line.netAmount)}`}
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-300">
                           <div className="flex items-center gap-1.5">
@@ -460,7 +461,7 @@ const AdminPayoutDetail = () => {
                               <Badge variant={refundBadge.variant} className="text-xs">
                                 {refundBadge.label}
                               </Badge>
-                              <span className="text-gray-400">{formatUSD(refund.refundAmount)}</span>
+                              <span className="text-gray-400">{formatMoney(refund.refundAmount)}</span>
                             </div>
                           )}
                           {refund?.refundDestination && (
@@ -485,7 +486,7 @@ const AdminPayoutDetail = () => {
                         ) : (
                           <Badge variant="warning" className="text-xs">{refund.status}</Badge>
                         )}
-                        <span className="text-white">{formatUSD(refund.refundAmount)}</span>
+                        <span className="text-white">{formatMoney(refund.refundAmount)}</span>
                       </div>
                     </div>
                   )}
@@ -499,8 +500,8 @@ const AdminPayoutDetail = () => {
                           {keyBreakdown.frozenCount === 1 ? "has" : "have"} an active dispute.
                         </p>
                         <p className="text-amber-100/80 mt-0.5">
-                          {formatUSD(line.frozenAmount)} is frozen pending resolution.
-                          {refund?.refundAmount ? ` Refund requested: ${formatUSD(refund.refundAmount)}.` : ""}
+                          {formatMoney(line.frozenAmount)} is frozen pending resolution.
+                          {refund?.refundAmount ? ` Refund requested: ${formatMoney(refund.refundAmount)}.` : ""}
                         </p>
                       </div>
                     </div>
@@ -533,7 +534,7 @@ const AdminPayoutDetail = () => {
                             <CheckCircle2 className="w-4 h-4" /> Available
                           </div>
                           <p className="text-2xl font-semibold text-green-400 mt-1">
-                            {formatUSD(availableAmount)}
+                            {formatMoney(availableAmount)}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             {keyBreakdown.availableCount} of {keyBreakdown.totalKeys} key
@@ -547,7 +548,7 @@ const AdminPayoutDetail = () => {
                               <Snowflake className="w-4 h-4" /> Frozen
                             </div>
                             <p className="text-2xl font-semibold text-cyan-400 mt-1">
-                              {formatUSD(line.frozenAmount)}
+                              {formatMoney(line.frozenAmount)}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
                               {keyBreakdown.frozenCount} of {keyBreakdown.totalKeys} key
@@ -562,7 +563,7 @@ const AdminPayoutDetail = () => {
                               <AlertCircle className="w-4 h-4" /> Refunded
                             </div>
                             <p className="text-2xl font-semibold text-red-400 mt-1">
-                              {formatUSD(keyBreakdown.refundedAmount)}
+                              {formatMoney(keyBreakdown.refundedAmount)}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
                               {keyBreakdown.refundedCount} of {keyBreakdown.totalKeys} key
@@ -609,7 +610,7 @@ const AdminPayoutDetail = () => {
                                       : undefined
                                   }
                                 >
-                                  {formatUSD(row.amount)}
+                                  {formatMoney(row.amount)}
                                 </TableCell>
                                 <TableCell>
                                   {row.status === "available" && (

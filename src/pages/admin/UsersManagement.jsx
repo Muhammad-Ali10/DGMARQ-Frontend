@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -15,6 +15,8 @@ import { UserX, UserCheck, Users } from 'lucide-react';
 import { showSuccess, showError, showApiError } from '@utils/toast';
 import { Pagination } from '@components/common/Pagination';
 import { EmptyState } from '@components/common/EmptyState';
+import { SearchInput } from '@components/common/SearchInput';
+import { useDebounce } from '@hooks/useDebounce';
 
 // Pure helpers hoisted to module scope so they keep a stable identity and can be
 // shared with the memoized row component below (avoids re-creating per render).
@@ -116,6 +118,10 @@ const UserRow = memo(function UserRow({
 
 const UsersManagement = () => {
   const [page, setPage] = useState(1);
+  // What the admin types, and the settled value that actually queries — one
+  // request per pause in typing, not one per keystroke.
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput.trim(), 350);
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [banDialogOpen, setBanDialogOpen] = useState(false);
@@ -125,16 +131,23 @@ const UsersManagement = () => {
   const queryClient = useQueryClient();
 
   const { data: usersData, isLoading, isError, error } = useQuery({
-    queryKey: ['admin-users', page, roleFilter, statusFilter],
+    queryKey: ['admin-users', page, roleFilter, statusFilter, search],
     queryFn: async () => {
-      const response = await adminAPI.getAllUsers({ 
-        page, 
-        limit: 10, 
+      const response = await adminAPI.getAllUsers({
+        page,
+        limit: 10,
         role: roleFilter || undefined,
         isActive: statusFilter || undefined,
+        // Searched on the server across ALL users. Filtering the loaded page
+        // in the browser would only ever look at the 10 rows on screen.
+        search: search || undefined,
       });
       return response.data.data;
     },
+    // Keep the current rows while the next search loads. Without this every
+    // new term flips isLoading and the page swaps to a full-screen loader —
+    // unmounting the search box the admin is typing in.
+    placeholderData: keepPreviousData,
     retry: 1,
   });
 
@@ -226,12 +239,20 @@ const UsersManagement = () => {
       </div>
 
       <Card variant="hud">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             All Users
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <SearchInput
+              value={searchInput}
+              onChange={(value) => { setSearchInput(value); setPage(1); }}
+              onClear={() => { setSearchInput(''); setPage(1); }}
+              placeholder="Search by name or email…"
+              aria-label="Search users by name or email"
+              className="w-full sm:w-64"
+            />
             <Select value={roleFilter || "all"} onValueChange={(value) => { setRoleFilter(value === "all" ? "" : value); setPage(1); }}>
               <SelectTrigger className="w-40 bg-gray-800 border-gray-700 text-white">
                 <SelectValue placeholder="All Roles" />
@@ -257,7 +278,10 @@ const UsersManagement = () => {
         </CardHeader>
         <CardContent>
           {users.length === 0 ? (
-            <EmptyState title="No users found" />
+            <EmptyState
+              title={search ? `No users match "${search}"` : 'No users found'}
+              description={search ? 'Check the spelling, or search by part of the name or email.' : undefined}
+            />
           ) : (
             <>
               <div

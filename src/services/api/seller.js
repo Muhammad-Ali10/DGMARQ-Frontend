@@ -33,6 +33,7 @@ export const sellerAPI = {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   checkSellerApplicationStatus: () => api.get('/seller/check-application-status'),
+  getTaxIdTypes: () => api.get('/seller/tax-id-types'),
   getPublicSellerProfile: (sellerId) => api.get(`/seller/public/${sellerId}`),
   getSellerProducts: (sellerId, params) => api.get(`/seller/${sellerId}/products`, { params }),
   getSellerReviews: (sellerId) => api.get(`/seller/${sellerId}/reviews`),

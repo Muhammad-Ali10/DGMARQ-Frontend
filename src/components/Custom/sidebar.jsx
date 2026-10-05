@@ -33,10 +33,7 @@ import {
   Music,
   Palette,
   Gamepad2,
-  Tag,
-  Zap,
   Image,
-  Flame,
   RotateCcw,
   Repeat,
   Bell,
@@ -45,7 +42,6 @@ import {
   Star,
   Boxes,
   LogOut,
-  Calendar,
   Clock,
   Library,
   ClipboardList,
@@ -279,17 +275,8 @@ export const AdminSidebar = () => {
           <SidebarItem to="/admin/modes" icon={Gamepad2}>
             Modes
           </SidebarItem>
-          <SidebarItem to="/admin/types" icon={Tag}>
-            Types
-          </SidebarItem>
         </SidebarSection>
         <SidebarSection label="Marketing">
-          <SidebarItem to="/admin/flash-deals" icon={Zap}>
-            Flash Deals
-          </SidebarItem>
-          <SidebarItem to="/admin/trending-offers" icon={Flame}>
-            Trending Offers
-          </SidebarItem>
           <SidebarItem to="/admin/homepage-sliders" icon={Image}>
             Homepage Sliders
           </SidebarItem>
@@ -298,9 +285,6 @@ export const AdminSidebar = () => {
           </SidebarItem>
           <SidebarItem to="/admin/menu" icon={ListTree}>
             Header Menu
-          </SidebarItem>
-          <SidebarItem to="/admin/upcoming-releases" icon={Calendar}>
-            Upcoming Releases
           </SidebarItem>
           <SidebarItem to="/admin/upcoming-games" icon={Clock}>
             Upcoming Games

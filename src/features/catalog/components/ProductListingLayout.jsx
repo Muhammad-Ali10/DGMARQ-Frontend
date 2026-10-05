@@ -3,8 +3,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { useSEO } from '@hooks/useSEO';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { productAPI, platformAPI, categoryAPI, subcategoryAPI, deviceAPI, typeAPI, genreAPI, themeAPI, modeAPI } from '@services/api';
+import { productAPI, platformAPI, categoryAPI, subcategoryAPI, deviceAPI, genreAPI, themeAPI, modeAPI } from '@services/api';
 import { REGION_PRESETS } from '@lib/regionPresets';
+import { PRODUCT_TYPE_OPTIONS } from '../utils/productUtils';
 import ProductCard from './ProductCard';
 import CategoryProduct from './CategoryProduct';
 import { ErrorMessage } from '@components/ui/loading';
@@ -182,7 +183,7 @@ const ProductListingLayout = ({
         ? [lockedPlatformId]
         : (searchParams.get('platform')?.split(',').filter(Boolean) || []),
       device: searchParams.get('device')?.split(',').filter(Boolean) || [],
-      type: searchParams.get('type')?.split(',').filter(Boolean) || [],
+      productType: searchParams.get('productType')?.split(',').filter(Boolean) || [],
       genre: searchParams.get('genre')?.split(',').filter(Boolean) || [],
       theme: searchParams.get('theme')?.split(',').filter(Boolean) || [],
       mode: searchParams.get('mode')?.split(',').filter(Boolean) || [],
@@ -232,7 +233,6 @@ const ProductListingLayout = ({
     subcategories: '',
     platforms: '',
     devices: '',
-    types: '',
     genres: '',
     themes: '',
     modes: '',
@@ -300,15 +300,6 @@ const ProductListingLayout = ({
     queryKey: ['devices'],
     queryFn: async () => {
       const response = await deviceAPI.getDevices({ limit: 100, isActive: true });
-      return response.data.data;
-    },
-    ...STATIC_FILTER_QUERY_OPTIONS,
-  });
-
-  const { data: typesData } = useQuery({
-    queryKey: ['types'],
-    queryFn: async () => {
-      const response = await typeAPI.getAllTypes({ limit: 100 });
       return response.data.data;
     },
     ...STATIC_FILTER_QUERY_OPTIONS,
@@ -387,15 +378,6 @@ const ProductListingLayout = ({
     }));
   }, [devicesData]);
 
-  const types = useMemo(() => {
-    if (!typesData?.docs) return [];
-    return typesData.docs.map(type => ({
-      _id: type._id,
-      title: type.name,
-      count: null,
-    }));
-  }, [typesData]);
-
   const genres = useMemo(() => {
     if (!genresData?.docs) return [];
     return genresData.docs.map(genre => ({
@@ -468,8 +450,8 @@ const ProductListingLayout = ({
       params.device = checkboxFilters.device.join(',');
     }
 
-    if (checkboxFilters.type.length > 0) {
-      params.type = checkboxFilters.type.join(',');
+    if (checkboxFilters.productType.length > 0) {
+      params.productType = checkboxFilters.productType.join(',');
     }
 
     if (checkboxFilters.genre.length > 0) {
@@ -512,7 +494,7 @@ const ProductListingLayout = ({
     checkboxFilters.platform,
     checkboxFilters.region,
     checkboxFilters.device,
-    checkboxFilters.type,
+    checkboxFilters.productType,
     checkboxFilters.genre,
     checkboxFilters.theme,
     checkboxFilters.mode,
@@ -551,7 +533,7 @@ const ProductListingLayout = ({
     if (!lockedPlatformId && checkboxFilters.platform.length > 0) params.set('platform', checkboxFilters.platform.join(','));
     if (checkboxFilters.region.length > 0) params.set('regionCode', checkboxFilters.region.join(','));
     if (checkboxFilters.device.length > 0) params.set('device', checkboxFilters.device.join(','));
-    if (checkboxFilters.type.length > 0) params.set('type', checkboxFilters.type.join(','));
+    if (checkboxFilters.productType.length > 0) params.set('productType', checkboxFilters.productType.join(','));
     if (checkboxFilters.genre.length > 0) params.set('genre', checkboxFilters.genre.join(','));
     if (checkboxFilters.theme.length > 0) params.set('theme', checkboxFilters.theme.join(','));
     if (checkboxFilters.mode.length > 0) params.set('mode', checkboxFilters.mode.join(','));
@@ -577,7 +559,7 @@ const ProductListingLayout = ({
     checkboxFilters.platform,
     checkboxFilters.region,
     checkboxFilters.device,
-    checkboxFilters.type,
+    checkboxFilters.productType,
     checkboxFilters.genre,
     checkboxFilters.theme,
     checkboxFilters.mode,
@@ -633,7 +615,7 @@ const ProductListingLayout = ({
       subCategoryId: [],
       region: [],
       device: [],
-      type: [],
+      productType: [],
       genre: [],
       theme: [],
       mode: [],
@@ -677,7 +659,6 @@ const ProductListingLayout = ({
   const filteredRegions = useMemo(() => filterItems(regions, searchTerms.regions), [regions, searchTerms.regions, filterItems]);
   const filteredPlatforms = useMemo(() => filterItems(platforms, searchTerms.platforms), [platforms, searchTerms.platforms, filterItems]);
   const filteredDevices = useMemo(() => filterItems(devices, searchTerms.devices), [devices, searchTerms.devices, filterItems]);
-  const filteredTypes = useMemo(() => filterItems(types, searchTerms.types), [types, searchTerms.types, filterItems]);
   const filteredGenres = useMemo(() => filterItems(genres, searchTerms.genres), [genres, searchTerms.genres, filterItems]);
   const filteredThemes = useMemo(() => filterItems(themes, searchTerms.themes), [themes, searchTerms.themes, filterItems]);
   const filteredModes = useMemo(() => filterItems(modes, searchTerms.modes), [modes, searchTerms.modes, filterItems]);
@@ -702,10 +683,6 @@ const ProductListingLayout = ({
     expandedSections.devices ? filteredDevices : filteredDevices.slice(0, 5)
   ), [expandedSections.devices, filteredDevices]);
 
-  const displayedTypes = useMemo(() => (
-    expandedSections.types ? filteredTypes : filteredTypes.slice(0, 5)
-  ), [expandedSections.types, filteredTypes]);
-
   const displayedGenres = useMemo(() => (
     expandedSections.genres ? filteredGenres : filteredGenres.slice(0, 5)
   ), [expandedSections.genres, filteredGenres]);
@@ -729,7 +706,7 @@ const ProductListingLayout = ({
     (checkboxFilters.platform.length > 0 && !lockedPlatformId) ||
     checkboxFilters.region.length > 0 ||
     checkboxFilters.device.length > 0 ||
-    checkboxFilters.type.length > 0 ||
+    checkboxFilters.productType.length > 0 ||
     checkboxFilters.genre.length > 0 ||
     checkboxFilters.theme.length > 0 ||
     checkboxFilters.mode.length > 0 ||
@@ -961,26 +938,22 @@ const ProductListingLayout = ({
               ))}
             </FilterSection>
 
-            {/* Type */}
+            {/* Type = delivery model. Four fixed values, so nothing is fetched. */}
             <FilterSection
               title="Type"
               section="types"
-              hasSearch={types.length > 5}
-              itemCount={checkboxFilters.type?.length || 0}
-              totalItems={filteredTypes.length}
+              itemCount={checkboxFilters.productType?.length || 0}
+              totalItems={PRODUCT_TYPE_OPTIONS.length}
               isExpanded={expandedSections.types}
-              searchValue={searchTerms.types}
-              onSearchChange={handleSearch}
               onToggleSection={toggleSection}
             >
-              {displayedTypes.map(type => (
+              {PRODUCT_TYPE_OPTIONS.map(option => (
                 <CheckboxItem
-                  key={type._id}
-                  id={type._id}
-                  title={type.title}
-                  type="type"
-                  count={type.count}
-                  isChecked={isItemChecked('type', type._id)}
+                  key={option._id}
+                  id={option._id}
+                  title={option.title}
+                  type="productType"
+                  isChecked={isItemChecked('productType', option._id)}
                   onToggle={handleCheckboxChange}
                 />
               ))}

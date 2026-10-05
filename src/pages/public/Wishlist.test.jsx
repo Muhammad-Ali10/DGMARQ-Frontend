@@ -27,7 +27,7 @@ const savedProduct = {
   discount: 25,
   images: ['cover.jpg'],
   platform: { name: 'Steam' },
-  type: { name: 'Standard' },
+  productType: 'ACCOUNT_BASED',
   offersCount: 3,
   hasStock: true,
   hasFeaturedOffer: true,
@@ -83,7 +83,7 @@ describe('Wishlist page', () => {
 
     expect(await screen.findByText('Zero Hour')).toBeInTheDocument();
     expect(screen.getByText('Steam')).toBeInTheDocument();
-    expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.getByText('Account')).toBeInTheDocument();
     // "+N more offers" — only ProductCard renders this.
     expect(screen.getByText('+2 more offers')).toBeInTheDocument();
     expect(screen.getByText('Featured')).toBeInTheDocument();

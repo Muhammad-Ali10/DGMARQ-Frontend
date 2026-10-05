@@ -15,7 +15,8 @@ import { ErrorState } from '@components/common/ErrorState';
 import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { Pagination } from '@components/common/Pagination';
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
+import { isRemovedByAdmin, offerStatusKey } from '@lib/offerModeration';
 import { Store, Package, Edit, Trash2, Boxes, Star } from 'lucide-react';
 
 const PAGE_SIZE = 10;
@@ -77,6 +78,7 @@ const FeaturedCell = ({ offer, rate, onToggle, pending }) => {
  * only, so there is nothing to compute them from. Cut rather than stubbed.
  */
 const SellerOffers = () => {
+  const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [toDelete, setToDelete] = useState(null);
@@ -252,17 +254,22 @@ const SellerOffers = () => {
                                     Reason: {o.rejectionReason}
                                   </div>
                                 )}
+                                {isRemovedByAdmin(o) && o.delistNote && (
+                                  <div className="max-w-xs truncate text-xs text-danger" title={o.delistNote}>
+                                    Removed by admin: {o.delistNote}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell numeric>{formatUSD(o.price)}</TableCell>
+                          <TableCell numeric>{formatSettlement(o.price)}</TableCell>
                           <TableCell numeric>
                             <Badge variant={o.availableKeysCount > 0 ? 'success' : 'destructive'}>
                               {o.availableKeysCount || 0}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <StatusBadge domain="offer" status={o.status} />
+                            <StatusBadge domain="offer" status={offerStatusKey(o)} />
                           </TableCell>
                           <TableCell>
                             <FeaturedCell
@@ -328,16 +335,19 @@ const SellerOffers = () => {
                               {o.productId?.name || '—'}
                             </p>
                             <p className="mt-1 text-sm tabular-nums text-fg-muted">
-                              {formatUSD(o.price)} · {o.availableKeysCount || 0} in stock
+                              {formatSettlement(o.price)} · {o.availableKeysCount || 0} in stock
                             </p>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <StatusBadge domain="offer" status={o.status} />
+                              <StatusBadge domain="offer" status={offerStatusKey(o)} />
                               <PreorderBadge product={o.productId} />
                             </div>
                           </div>
                         </div>
                         {o.rejectionReason && o.status === 'rejected' && (
                           <p className="mt-2 text-xs text-danger">Reason: {o.rejectionReason}</p>
+                        )}
+                        {isRemovedByAdmin(o) && o.delistNote && (
+                          <p className="mt-2 text-xs text-danger">Removed by admin: {o.delistNote}</p>
                         )}
                         <div className="mt-3 flex gap-2">
                           <Button asChild size="sm" variant="outline" className="flex-1">

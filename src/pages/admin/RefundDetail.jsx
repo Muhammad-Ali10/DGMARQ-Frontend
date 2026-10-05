@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { RefundChat, RefundActionDialog, isRefundChatLocked, refundBadgeProps } from '@features/wallet-payout';
 import { getDisplayOrderId } from '@lib/orderDisplay';
 import { formatDate, formatDateTime } from '@lib/datetime';
+import useCurrency from '@hooks/useCurrency';
 
 // AUDIT FIX (DEAD-3): this file carried a PRIVATE copy of the refund status
 // vocabulary that disagreed with the admin LIST page one click away — the list
@@ -145,6 +146,7 @@ const ProductTypeBadge = ({ type }) => {
 };
 
 const AdminRefundDetail = () => {
+  const { format: formatMoney } = useCurrency();
   const { refundId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -227,7 +229,7 @@ const AdminRefundDetail = () => {
     <div className="space-y-4">
       <div>
         <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Refund total</p>
-        <p className="text-3xl font-bold text-white tabular-nums">${totalAmount.toFixed(2)}</p>
+        <p className="text-3xl font-bold text-white tabular-nums">{formatMoney(totalAmount)}</p>
       </div>
 
       {hasSplit && (
@@ -236,13 +238,13 @@ const AdminRefundDetail = () => {
           {walletPortion > 0 && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-emerald-300/80">Wallet</span>
-              <span className="text-emerald-100 font-semibold tabular-nums">${walletPortion.toFixed(2)}</span>
+              <span className="text-emerald-100 font-semibold tabular-nums">{formatMoney(walletPortion)}</span>
             </div>
           )}
           {providerPortion > 0 && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-sky-300/80">Provider</span>
-              <span className="text-sky-100 font-semibold tabular-nums">${providerPortion.toFixed(2)}</span>
+              <span className="text-sky-100 font-semibold tabular-nums">{formatMoney(providerPortion)}</span>
             </div>
           )}
         </div>
@@ -374,7 +376,7 @@ const AdminRefundDetail = () => {
                   <p className="text-white font-medium truncate">{refund.productId?.name || 'N/A'}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-1.5">
                     {refund.productId?.productType && <ProductTypeBadge type={refund.productId.productType} />}
-                    <span className="text-xs text-gray-500">Listed at ${refund.productId?.price?.toFixed(2) || '0.00'}</span>
+                    <span className="text-xs text-gray-500">Listed at {formatMoney(refund.productId?.price || 0)}</span>
                   </div>
                 </div>
               </div>

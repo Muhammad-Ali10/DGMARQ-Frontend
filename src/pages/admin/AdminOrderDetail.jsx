@@ -12,8 +12,10 @@ import SafeImage from '@components/ui/safe-image';
 import { ArrowLeft, Package, CreditCard, MapPin, Calendar, ExternalLink, DollarSign } from 'lucide-react';
 import { showApiError } from '@utils/toast';
 import { payoutBadgeProps } from '@features/wallet-payout';
+import useCurrency from '@hooks/useCurrency';
 
 const AdminOrderDetail = () => {
+  const { format: formatMoney } = useCurrency();
   const { orderId } = useParams();
   const navigate = useNavigate();
 
@@ -239,48 +241,44 @@ const AdminOrderDetail = () => {
                           )}
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                             <span>Quantity: {item.qty}</span>
-                            <span>Unit price: ${item.unitPrice?.toFixed(2)}</span>
-                            <span>Product price: ${breakdown.lineTotal.toFixed(2)}</span>
+                            <span>Unit price: {formatMoney(item.unitPrice)}</span>
+                            <span>Product price: {formatMoney(breakdown.lineTotal)}</span>
                           </div>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-white text-lg">
-                            ${(item.lineTotal ?? item.qty * item.unitPrice).toFixed(2)}
+                            {formatMoney(item.lineTotal ?? item.qty * item.unitPrice)}
                           </p>
                         </div>
                       </div>
                       <SpecList className="mt-3 grid grid-cols-1 gap-x-6 border-t border-brand-cyan/10 pt-1 sm:grid-cols-2">
                         <SpecRow
                           label="Normal platform commission"
-                          value={`$${breakdown.normalCommission.toFixed(2)}`}
+                          value={formatMoney(breakdown.normalCommission)}
                         />
                         <SpecRow
                           label="Featured extra commission"
-                          value={
-                            breakdown.featuredExtraCommission > 0
-                              ? `$${breakdown.featuredExtraCommission.toFixed(2)}`
-                              : '$0.00'
-                          }
+                          value={formatMoney(breakdown.featuredExtraCommission || 0)}
                         />
                         <SpecRow
                           label="Total platform commission"
-                          value={`$${breakdown.totalCommission.toFixed(2)}`}
+                          value={formatMoney(breakdown.totalCommission)}
                         />
                         <SpecRow
                           label="Seller net earnings"
-                          value={`$${breakdown.sellerEarning.toFixed(2)}`}
+                          value={formatMoney(breakdown.sellerEarning)}
                           tone="success"
                         />
                         {(item.refundedAmount > 0 || item.refunded) && (
                           <>
                             <SpecRow
                               label="Refunded amount"
-                              value={`-$${(item.refundedAmount || 0).toFixed(2)}`}
+                              value={`-${formatMoney(item.refundedAmount || 0)}`}
                               tone="warning"
                             />
                             <SpecRow
                               label="Refunded seller amount"
-                              value={`-$${(item.refundedSellerAmount || 0).toFixed(2)}`}
+                              value={`-${formatMoney(item.refundedSellerAmount || 0)}`}
                               tone="warning"
                             />
                           </>
@@ -397,36 +395,36 @@ const AdminOrderDetail = () => {
                 )}
                 <SpecRow
                   label="Subtotal"
-                  value={`$${order.subtotal?.toFixed(2) || order.totalAmount?.toFixed(2)}`}
+                  value={formatMoney(order.subtotal ?? order.totalAmount)}
                 />
                 {order.shippingCost > 0 && (
-                  <SpecRow label="Shipping" value={`$${order.shippingCost.toFixed(2)}`} />
+                  <SpecRow label="Shipping" value={formatMoney(order.shippingCost)} />
                 )}
-                {order.tax > 0 && <SpecRow label="Tax" value={`$${order.tax.toFixed(2)}`} />}
+                {order.tax > 0 && <SpecRow label="Tax" value={formatMoney(order.tax)} />}
                 {order.discount > 0 && (
                   <SpecRow
                     label="Discount"
-                    value={`-$${order.discount.toFixed(2)}`}
+                    value={`-${formatMoney(order.discount)}`}
                     tone="success"
                   />
                 )}
                 {order.buyerHandlingFee > 0 && (
                   <SpecRow
                     label="Buyer protection fee"
-                    value={`$${order.buyerHandlingFee.toFixed(2)}`}
+                    value={formatMoney(order.buyerHandlingFee)}
                   />
                 )}
                 {totalRefunded > 0 && (
                   <SpecRow
                     label="Refunded"
-                    value={`-$${totalRefunded.toFixed(2)}`}
+                    value={`-${formatMoney(totalRefunded)}`}
                     tone="warning"
                   />
                 )}
                 <SpecRow
                   emphasis
                   label={order.grandTotal != null ? 'Grand total' : 'Total'}
-                  value={`$${(order.grandTotal ?? order.totalAmount)?.toFixed(2)}`}
+                  value={formatMoney(order.grandTotal ?? order.totalAmount)}
                 />
               </SpecList>
 
@@ -437,23 +435,19 @@ const AdminOrderDetail = () => {
                 <SpecList>
                   <SpecRow
                     label="Normal platform commission"
-                    value={`$${commissionTotals.normalCommission.toFixed(2)}`}
+                    value={formatMoney(commissionTotals.normalCommission)}
                   />
                   <SpecRow
                     label="Featured extra commission"
-                    value={
-                      commissionTotals.featuredExtraCommission > 0
-                        ? `$${commissionTotals.featuredExtraCommission.toFixed(2)}`
-                        : '$0.00'
-                    }
+                    value={formatMoney(commissionTotals.featuredExtraCommission || 0)}
                   />
                   <SpecRow
                     label="Total platform commission"
-                    value={`$${commissionTotals.totalCommission.toFixed(2)}`}
+                    value={formatMoney(commissionTotals.totalCommission)}
                   />
                   <SpecRow
                     label="Seller net earnings"
-                    value={`$${commissionTotals.sellerEarning.toFixed(2)}`}
+                    value={formatMoney(commissionTotals.sellerEarning)}
                     tone="success"
                   />
                 </SpecList>

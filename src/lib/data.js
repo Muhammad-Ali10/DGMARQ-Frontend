@@ -1,233 +1,203 @@
 export const MarketplaceHero = {
-    headline: "Discover the Next-Gen Digital Gaming Marketplace",
-    subtext:
-        "Secure, scalable, and intelligent platform for buying and selling digital gaming and software globally.",
-    ctaPrimary: "Explore Products",
-    ctaSecondary: "Become a Seller",
-    ctaPrimaryUrl: "/search",
-    ctaSecondaryUrl: "/user/become-seller",
+  headline: "Discover the Next-Gen Digital Gaming Marketplace",
+  subtext:
+    "Secure, scalable, and intelligent platform for buying and selling digital gaming and software globally.",
+  ctaPrimary: "Explore Products",
+  ctaSecondary: "Become a Seller",
+  ctaPrimaryUrl: "/search",
+  ctaSecondaryUrl: "/user/become-seller",
 };
 
 
 export const MarketplaceCategories = [
-    {
-        id: "pc-games",
-        label: "PC Games",
-        description:
-            "AAA releases, competitive titles, and indie projects delivered as verified digital keys for major PC launchers.",
-        productCount: 14820,
-        icon: "HiCpuChip",
-    },
-    {
-        id: "console-keys",
-        label: "Console Keys",
-        description:
-            "Region-aware console activations with automated entitlement checks for next-gen and legacy ecosystems.",
-        productCount: 6320,
-        icon: "HiDevicePhoneMobile",
-    },
-    {
-        id: "software-tools",
-        label: "Software & Tools",
-        description:
-            "Productivity, security, and creative suites designed to support gaming, streaming, and professional workflows.",
-        productCount: 2890,
-        icon: "HiWrenchScrewdriver",
-    },
-    {
-        id: "subscriptions",
-        label: "Game Subscriptions",
-        description:
-            "Ongoing access passes, content vaults, and cloud gaming plans delivered as subscription-ready digital products.",
-        productCount: 1570,
-        icon: "HiArrowsRightLeft",
-    },
-    {
-        id: "gift-cards",
-        label: "Gift Cards & Credit",
-        description:
-            "Storefront, wallet, and platform gift cards with instant redemption and multi-currency support.",
-        productCount: 4210,
-        icon: "HiGiftTop",
-    },
-    {
-        id: "dev-tools",
-        label: "Developer & Ops",
-        description:
-            "Licenses, SDKs, and infrastructure utilities tailored for game studios and digital product vendors.",
-        productCount: 940,
-        icon: "HiCommandLine",
-    },
+  {
+    id: "pc-games",
+    label: "PC Games",
+    description:
+      "AAA releases, competitive titles, and indie projects delivered as verified digital keys for major PC launchers.",
+    productCount: 14820,
+    icon: "HiCpuChip",
+  },
+  {
+    id: "console-keys",
+    label: "Console Keys",
+    description:
+      "Region-aware console activations with automated entitlement checks for next-gen and legacy ecosystems.",
+    productCount: 6320,
+    icon: "HiDevicePhoneMobile",
+  },
+  {
+    id: "software-tools",
+    label: "Software & Tools",
+    description:
+      "Productivity, security, and creative suites designed to support gaming, streaming, and professional workflows.",
+    productCount: 2890,
+    icon: "HiWrenchScrewdriver",
+  },
+  {
+    id: "subscriptions",
+    label: "Game Subscriptions",
+    description:
+      "Ongoing access passes, content vaults, and cloud gaming plans delivered as subscription-ready digital products.",
+    productCount: 1570,
+    icon: "HiArrowsRightLeft",
+  },
+  {
+    id: "gift-cards",
+    label: "Gift Cards & Credit",
+    description:
+      "Storefront, wallet, and platform gift cards with instant redemption and multi-currency support.",
+    productCount: 4210,
+    icon: "HiGiftTop",
+  },
+  {
+    id: "dev-tools",
+    label: "Developer & Ops",
+    description:
+      "Licenses, SDKs, and infrastructure utilities tailored for game studios and digital product vendors.",
+    productCount: 940,
+    icon: "HiCommandLine",
+  },
 ];
 
 
 export const MarketplaceBenefits = {
-    buyers: {
-        title: "For Buyers",
-        items: [
-            "Fast access to verified digital products, with every key and license passing automated integrity checks before delivery.",
-            "Escrow-protected checkout ensures funds are only released when products are successfully delivered and validated.",
-            "Global reach with local payments, supporting multi-currency pricing and region-aware tax handling.",
-        ],
-    },
-    sellers: {
-        title: "For Sellers",
-        items: [
-            "Automated payouts and transparent schedules that adapt to regional banking rails and compliance requirements.",
-            "Fraud monitoring, dispute tooling, and chargeback defenses built directly into transaction workflows.",
-            "Analytics surfaces that expose real-time performance, pricing elasticity, and customer behavior trends.",
-        ],
-    },
-    platform: {
-        title: "For the Platform",
-        items: [
-            "Infrastructure-driven design that decouples discovery, payments, and fulfillment for resilient global operation.",
-            "Globally optimized routing through CDN-backed services, ensuring low-latency access for buyers and sellers.",
-            "Security-first posture with encrypted data flows, role-based access, and continuous system health monitoring.",
-        ],
-    },
+  buyers: {
+    title: "For Buyers",
+    items: [
+      "Fast access to verified digital products, with every key and license passing automated integrity checks before delivery.",
+      "Escrow-protected checkout ensures funds are only released when products are successfully delivered and validated.",
+      "Global reach with local payments, supporting multi-currency pricing and region-aware tax handling.",
+    ],
+  },
+  sellers: {
+    title: "For Sellers",
+    items: [
+      "Automated payouts and transparent schedules that adapt to regional banking rails and compliance requirements.",
+      "Fraud monitoring, dispute tooling, and chargeback defenses built directly into transaction workflows.",
+      "Analytics surfaces that expose real-time performance, pricing elasticity, and customer behavior trends.",
+    ],
+  },
+  platform: {
+    title: "For the Platform",
+    items: [
+      "Infrastructure-driven design that decouples discovery, payments, and fulfillment for resilient global operation.",
+      "Globally optimized routing through CDN-backed services, ensuring low-latency access for buyers and sellers.",
+      "Security-first posture with encrypted data flows, role-based access, and continuous system health monitoring.",
+    ],
+  },
 };
 
-export const MarketplacePromotions = [
-    {
-        id: "launch-bundle",
-        title: "Tactical Launch Bundle",
-        description:
-            "Curated pack of tactical and co-op titles with synchronized regional pricing and instant digital delivery.",
-        badge: "Limited Time",
-        discountLabel: "Save up to 45%",
-        endsAt: "2026-03-01T23:59:59Z",
-    },
-    {
-        id: "creator-stack",
-        title: "Creator Stack Upgrade",
-        description:
-            "End-to-end creator toolkit combining production software, overlays, and security licenses in one bundle.",
-        badge: "Bundle Offer",
-        discountLabel: "3 licenses, 1 optimized price",
-        endsAt: "2026-02-28T23:59:59Z",
-    },
-    {
-        id: "global-credit-wave",
-        title: "Global Credit Wave",
-        description:
-            "Dynamic pricing event for gift cards and multi-platform credits with FX-aware discounts and local payment options.",
-        badge: "Trending",
-        discountLabel: "Regional incentives active",
-        endsAt: "2026-02-20T23:59:59Z",
-    },
-];
-
 export const MarketplaceChallenges = [
-    {
-        title: "Instant Products vs. Trust",
-        description:
-            "Digital products are delivered in seconds, but trust cannot be rushed. Our escrow engine validates every transaction before funds move, aligning speed with security.",
-    },
-    {
-        title: "Global Buyers vs. Local Payments",
-        description:
-            "Buyers expect local payment methods even when purchasing from international sellers. Our payment layer abstracts multi-currency support, tax handling, and banking rails.",
-    },
-    {
-        title: "Fraud Risk at Scale",
-        description:
-            "Chargebacks, key reselling, and account takeovers can erode margins. We apply real-time behavioral monitoring and automated dispute workflows to contain risk.",
-    },
-    {
-        title: "Independent Seller Limitations",
-        description:
-            "Small vendors often lack infrastructure. We provide fulfillment pipelines, analytics, and structured payouts that compress the distance between a single seller and global demand.",
-    },
+  {
+    title: "Instant Products vs. Trust",
+    description:
+      "Digital products are delivered in seconds, but trust cannot be rushed. Our escrow engine validates every transaction before funds move, aligning speed with security.",
+  },
+  {
+    title: "Global Buyers vs. Local Payments",
+    description:
+      "Buyers expect local payment methods even when purchasing from international sellers. Our payment layer abstracts multi-currency support, tax handling, and banking rails.",
+  },
+  {
+    title: "Fraud Risk at Scale",
+    description:
+      "Chargebacks, key reselling, and account takeovers can erode margins. We apply real-time behavioral monitoring and automated dispute workflows to contain risk.",
+  },
+  {
+    title: "Independent Seller Limitations",
+    description:
+      "Small vendors often lack infrastructure. We provide fulfillment pipelines, analytics, and structured payouts that compress the distance between a single seller and global demand.",
+  },
 ];
 
 export const MarketplaceTechnology = [
-    {
-        id: "encrypted-checkout",
-        title: "Encrypted Checkout",
-        description:
-            "Every transaction is wrapped in end-to-end encryption, from buyer input to settlement, ensuring that sensitive data never leaves hardened, monitored boundaries.",
-    },
-    {
-        id: "escrow-logic",
-        title: "Escrow Logic",
-        description:
-            "Funds are held in a programmable escrow layer, released only when delivery and integrity checks succeed, creating a predictable trust model for both sides of the trade.",
-    },
-    {
-        id: "automated-key-fulfillment",
-        title: "Automated Key Fulfillment",
-        description:
-            "Digital keys and licenses are dispatched via resilient fulfillment queues, handling retries, region locks, and inventory validation without manual intervention.",
-    },
-    {
-        id: "structured-payout-engine",
-        title: "Structured Payout Engine",
-        description:
-            "A configurable payout engine orchestrates payment windows, currencies, and fees, giving sellers clarity while maintaining compliance controls.",
-    },
-    {
-        id: "dispute-resolution",
-        title: "Dispute Resolution",
-        description:
-            "Disputes are processed through a structured workflow with traceable actions, evidence capture, and SLA-aware notifications for all participants.",
-    },
-    {
-        id: "fraud-monitoring-layer",
-        title: "Fraud Monitoring Layer",
-        description:
-            "Our monitoring layer ingests behavioral and transactional signals in real time, flagging anomalies and enforcing mitigations before losses propagate.",
-    },
+  {
+    id: "encrypted-checkout",
+    title: "Encrypted Checkout",
+    description:
+      "Every transaction is wrapped in end-to-end encryption, from buyer input to settlement, ensuring that sensitive data never leaves hardened, monitored boundaries.",
+  },
+  {
+    id: "escrow-logic",
+    title: "Escrow Logic",
+    description:
+      "Funds are held in a programmable escrow layer, released only when delivery and integrity checks succeed, creating a predictable trust model for both sides of the trade.",
+  },
+  {
+    id: "automated-key-fulfillment",
+    title: "Automated Key Fulfillment",
+    description:
+      "Digital keys and licenses are dispatched via resilient fulfillment queues, handling retries, region locks, and inventory validation without manual intervention.",
+  },
+  {
+    id: "structured-payout-engine",
+    title: "Structured Payout Engine",
+    description:
+      "A configurable payout engine orchestrates payment windows, currencies, and fees, giving sellers clarity while maintaining compliance controls.",
+  },
+  {
+    id: "dispute-resolution",
+    title: "Dispute Resolution",
+    description:
+      "Disputes are processed through a structured workflow with traceable actions, evidence capture, and SLA-aware notifications for all participants.",
+  },
+  {
+    id: "fraud-monitoring-layer",
+    title: "Fraud Monitoring Layer",
+    description:
+      "Our monitoring layer ingests behavioral and transactional signals in real time, flagging anomalies and enforcing mitigations before losses propagate.",
+  },
 ];
 
 export const MarketplaceMetrics = [
-    { id: "users", value: 35, suffix: "M+", label: "Users" },
-    { id: "sellers", value: 2000, suffix: "+", label: "Active Sellers" },
-    { id: "countries", value: 120, suffix: "+", label: "Countries" },
-    { id: "uptime", value: 99.9, suffix: "%", label: "Platform Uptime" },
+  { id: "users", value: 35, suffix: "M+", label: "Users" },
+  { id: "sellers", value: 2000, suffix: "+", label: "Active Sellers" },
+  { id: "countries", value: 120, suffix: "+", label: "Countries" },
+  { id: "uptime", value: 99.9, suffix: "%", label: "Platform Uptime" },
 ];
 
 export const MarketplaceRoadmap = [
-    {
-        id: "platform-launch",
-        title: "Platform Launch",
-        description:
-            "Established a secure foundation for digital commerce, focusing on encrypted checkout, verified sellers, and resilient fulfillment pipelines.",
-    },
-    {
-        id: "multi-vendor-expansion",
-        title: "Multi-Vendor Expansion",
-        description:
-            "Scaled from single-seller flows to a multi-vendor ecosystem with shared infrastructure, shared trust layers, and unified discovery.",
-    },
-    {
-        id: "cross-border-integration",
-        title: "Cross-Border Integration",
-        description:
-            "Integrated global payment gateways and tax logic to remove friction between regions, currencies, and regulatory environments.",
-    },
-    {
-        id: "fraud-detection-enhancement",
-        title: "Fraud Detection Enhancement",
-        description:
-            "Deployed advanced monitoring and scoring models that continuously learn from marketplace behavior and emerging fraud vectors.",
-    },
-    {
-        id: "global-scaling-phase",
-        title: "Global Scaling Phase",
-        description:
-            "Optimized the platform to sustain millions of concurrent sessions with predictable latency and capacity across regions.",
-    },
+  {
+    id: "platform-launch",
+    title: "Platform Launch",
+    description:
+      "Established a secure foundation for digital commerce, focusing on encrypted checkout, verified sellers, and resilient fulfillment pipelines.",
+  },
+  {
+    id: "multi-vendor-expansion",
+    title: "Multi-Vendor Expansion",
+    description:
+      "Scaled from single-seller flows to a multi-vendor ecosystem with shared infrastructure, shared trust layers, and unified discovery.",
+  },
+  {
+    id: "cross-border-integration",
+    title: "Cross-Border Integration",
+    description:
+      "Integrated global payment gateways and tax logic to remove friction between regions, currencies, and regulatory environments.",
+  },
+  {
+    id: "fraud-detection-enhancement",
+    title: "Fraud Detection Enhancement",
+    description:
+      "Deployed advanced monitoring and scoring models that continuously learn from marketplace behavior and emerging fraud vectors.",
+  },
+  {
+    id: "global-scaling-phase",
+    title: "Global Scaling Phase",
+    description:
+      "Optimized the platform to sustain millions of concurrent sessions with predictable latency and capacity across regions.",
+  },
 ];
 
 export const MarketplaceFinalCta = {
-    headline: "Join the Next Generation of Digital Commerce",
-    subtext:
-        "Whether you’re a buyer or seller, the marketplace is engineered to deliver security, speed, and scale for digital products.",
-    ctaPrimary: "Become a Seller",
-    ctaSecondary: "Explore Marketplace",
-    ctaPrimaryUrl: "/user/become-seller",
-    ctaSecondaryUrl: "/search",
+  headline: "Join the Next Generation of Digital Commerce",
+  subtext:
+    "Whether you’re a buyer or seller, the marketplace is engineered to deliver security, speed, and scale for digital products.",
+  ctaPrimary: "Become a Seller",
+  ctaSecondary: "Explore Marketplace",
+  ctaPrimaryUrl: "/user/become-seller",
+  ctaSecondaryUrl: "/search",
 };
 
 
@@ -275,7 +245,7 @@ export const SecurityPageData = {
       "Business validation (where applicable)",
       "Payment account verification",
       "Performance review monitoring",
-    ], 
+    ],
     subtext: "Verified sellers receive trust badges for transparency.",
   },
   paymentInfrastructure: {
@@ -741,563 +711,115 @@ export const HowToSellPageData = {
   },
 };
 
-export const TermsConditionsPageData = {
-  hero: {
-    headline: "DGMarq Terms & Conditions",
-    subtext: "These Terms govern your access to and use of the DGMarq marketplace platform.",
-    effectiveDate: "Effective Date: [2026-04-06]",
-  },
-  sections: [
-    {
-      num: 1,
-      title: "Acceptance of Terms",
-      content: [
-        "By accessing or using DGMarq, you agree to comply with these Terms and all applicable laws and regulations.",
-        "If you do not agree, you must discontinue use immediately.",
-      ],
-    },
-    {
-      num: 2,
-      title: "Platform Role & Escrow Service",
-      content: [
-        "DGMarq operates as:",
-        ["A digital marketplace facilitator", "A secure escrow intermediary", "A dispute mediation authority"],
-        "DGMarq is not the direct seller or buyer of listed products unless explicitly stated.",
-      ],
-    },
-    {
-      num: 3,
-      title: "User Eligibility",
-      content: [
-        "To use DGMarq:",
-        ["You must be at least 18 years old", "Provide accurate registration information", "Complete required verification processes"],
-        "DGMarq reserves the right to suspend accounts that provide false information.",
-      ],
-    },
-    {
-      num: 4,
-      title: "Account Responsibilities",
-      content: [
-        "Users agree to:",
-        ["Maintain account confidentiality", "Not share login credentials", "Notify DGMarq of unauthorized access", "Use platform lawfully"],
-      ],
-    },
-    {
-      num: 5,
-      title: "Payments & Escrow",
-      content: [
-        "Buyer payments are held in escrow",
-        "Funds are released after delivery approval",
-        "Platform fees apply per transaction",
-        "Refunds are governed by dispute policy",
-        "DGMarq may delay payout for security review.",
-      ],
-    },
-    {
-      num: 6,
-      title: "Dispute Resolution Policy",
-      content: [
-        "If a dispute arises:",
-        ["Parties must attempt resolution via platform", "Evidence submission is required", "DGMarq reviews impartially", "Final decision is binding within platform"],
-      ],
-    },
-    {
-      num: 7,
-      title: "Prohibited Activities",
-      content: [
-        "Users may NOT:",
-        ["Engage in fraud", "Circumvent escrow system", "Conduct off-platform transactions", "List illegal content", "Misrepresent services"],
-        "Violations may result in account termination.",
-      ],
-    },
-    {
-      num: 8,
-      title: "Limitation of Liability",
-      content: [
-        "DGMarq is not liable for:",
-        ["Indirect or consequential damages", "User-generated content accuracy", "Delays caused by third-party payment providers"],
-        "Maximum liability is limited to the transaction amount in dispute.",
-      ],
-    },
-    {
-      num: 9,
-      title: "Account Suspension & Termination",
-      content: [
-        "DGMarq may suspend accounts for:",
-        ["Policy violations", "Fraud suspicion", "Payment disputes", "Legal compliance requirements"],
-      ],
-    },
-    {
-      num: 10,
-      title: "Amendments to Terms",
-      content: [
-        "DGMarq reserves the right to modify Terms at any time. Continued use constitutes acceptance.",
-      ],
-    },
-  ],
-  finalCta: {
-    headline: "Questions About These Terms?",
-    ctaPrimary: "Contact Legal Support",
-    ctaPrimaryUrl: "mailto:legal@dgmarq.com",
-  },
-};
-
-export const PrivacyPolicyPageData = {
-  hero: {
-    headline: "Privacy & Cookie Policy",
-    subtext: "Your data security and privacy are central to DGMarq's operations.",
-    effectiveDate: "Effective Date: [2026-04-06]",
-  },
-  sections: [
-    {
-      num: 1,
-      title: "Information We Collect",
-      content: [
-        "We may collect:",
-        ["Account registration data", "Identity verification information", "Payment transaction metadata", "Device & usage data", "Communication records"],
-      ],
-    },
-    {
-      num: 2,
-      title: "How We Use Information",
-      content: [
-        "Data is used to:",
-        ["Facilitate secure transactions", "Verify user identity", "Prevent fraud", "Improve marketplace experience", "Comply with legal obligations"],
-      ],
-    },
-    {
-      num: 3,
-      title: "Escrow & Payment Security",
-      content: [
-        "Payment data is:",
-        ["Processed through secure PCI-compliant gateways", "Encrypted using SSL technology", "Tokenized for protection"],
-        "DGMarq does not store full payment card details.",
-      ],
-    },
-    {
-      num: 4,
-      title: "Data Sharing Policy",
-      content: [
-        "We may share data with:",
-        ["Payment processors", "Verification partners", "Legal authorities (if required)", "Fraud prevention services"],
-        "We do not sell user data.",
-      ],
-    },
-    {
-      num: 5,
-      title: "Cookies & Tracking Technologies",
-      content: [
-        "DGMarq uses cookies to:",
-        ["Maintain session security", "Analyze platform performance", "Personalize user experience", "Prevent fraudulent access"],
-        "Users may control cookie settings via browser.",
-      ],
-    },
-    {
-      num: 6,
-      title: "Data Retention",
-      content: [
-        "Data is retained only as long as necessary for:",
-        ["Transaction history", "Legal compliance", "Fraud prevention"],
-      ],
-    },
-    {
-      num: 7,
-      title: "User Rights",
-      content: [
-        "Users may:",
-        ["Request data access", "Request data correction", "Request deletion (subject to legal limits)", "Withdraw consent"],
-        "Requests may be submitted via privacy@dgmarq.com",
-      ],
-    },
-    {
-      num: 8,
-      title: "Security Measures",
-      content: [
-        "DGMarq employs:",
-        ["Encrypted servers", "Access control restrictions", "Routine security audits", "Multi-layer authentication"],
-      ],
-    },
-    {
-      num: 9,
-      title: "International Data Transfers",
-      content: [
-        "If applicable, data may be processed across jurisdictions with appropriate safeguards.",
-      ],
-    },
-    {
-      num: 10,
-      title: "Policy Updates",
-      content: [
-        "We may update this Policy periodically. Continued use constitutes acceptance.",
-      ],
-    },
-  ],
-  finalCta: {
-    headline: "Have Privacy Questions?",
-    ctaPrimary: "Contact Our Data Protection Team",
-    ctaPrimaryUrl: "mailto:privacy@dgmarq.com",
-  },
-};
-
-
 export const AboutHero = {
-    headline: "Powering the Global Digital Gaming Economy",
-    subtext: "Our platform delivers secure, scalable multi-vendor infrastructure for digital goods, connecting millions of buyers and independent sellers worldwide with trust and efficiency.",
-    ctaPrimary: "Explore Marketplace",
-    ctaSecondary: "Become a Seller",
-    ctaPrimaryUrl: "/marketplace",
-    ctaSecondaryUrl: "/user/become-seller",
+  headline: "Powering the Global Digital Gaming Economy",
+  subtext: "Our platform delivers secure, scalable multi-vendor infrastructure for digital goods, connecting millions of buyers and independent sellers worldwide with trust and efficiency.",
+  ctaPrimary: "Explore Marketplace",
+  ctaSecondary: "Become a Seller",
+  ctaPrimaryUrl: "/marketplace",
+  ctaSecondaryUrl: "/user/become-seller",
 }
 
 export const AboutEcosystem = {
-    centerLabel: "Platform Engine",
-    buyers: [
-        "Instant access to digital products.",
-        "Reliable global transactions.",
-        "Transparent purchase history.",
-        "Secure wallet management.",
-    ],
-    sellers: [
-        "Automated product delivery.",
-        "Real-time analytics and insights.",
-        "Structured payout system.",
-        "Fraud protection and dispute resolution.",
-    ],
+  centerLabel: "Platform Engine",
+  buyers: [
+    "Instant access to digital products.",
+    "Reliable global transactions.",
+    "Transparent purchase history.",
+    "Secure wallet management.",
+  ],
+  sellers: [
+    "Automated product delivery.",
+    "Real-time analytics and insights.",
+    "Structured payout system.",
+    "Fraud protection and dispute resolution.",
+  ],
 }
 
 export const AboutChallenges = {
-    items: [
-        { left: "Instant products.", right: "Delayed trust." },
-        { left: "Global buyers.", right: "Local payment barriers." },
-        { left: "Digital keys.", right: "High fraud exposure." },
-        { left: "Independent sellers.", right: "Limited scale." },
-    ],
-    subtext: "We built infrastructure — not just a marketplace. Our system ensures trust, speed, and global scalability.",
+  items: [
+    { left: "Instant products.", right: "Delayed trust." },
+    { left: "Global buyers.", right: "Local payment barriers." },
+    { left: "Digital keys.", right: "High fraud exposure." },
+    { left: "Independent sellers.", right: "Limited scale." },
+  ],
+  subtext: "We built infrastructure — not just a marketplace. Our system ensures trust, speed, and global scalability.",
 }
 
 export const AboutTechCards = [
-    {
-        title: "Encrypted Checkout",
-        description: "End-to-end encryption secures all transactions, protecting both buyers and sellers at scale.",
-        icon: "HiLockClosed",
-    },
-    {
-        title: "Escrow Logic System",
-        description: "Funds are held securely until delivery is verified, ensuring complete trust.",
-        icon: "HiShieldCheck",
-    },
-    {
-        title: "Automated Key Fulfillment",
-        description: "Instant and reliable delivery of digital licenses, game keys, and software.",
-        icon: "HiKey",
-    },
-    {
-        title: "Structured Payout Engine",
-        description: "Streamlined, scheduled payouts keep sellers empowered and informed.",
-        icon: "HiCurrencyDollar",
-    },
-    {
-        title: "Dispute & Refund Workflow",
-        description: "Transparent, automated dispute resolution and refund management.",
-        icon: "HiScale",
-    },
-    {
-        title: "Fraud Monitoring Layer",
-        description: "AI-driven detection prevents unauthorized access and reduces financial risk.",
-        icon: "HiShieldExclamation",
-    },
+  {
+    title: "Encrypted Checkout",
+    description: "End-to-end encryption secures all transactions, protecting both buyers and sellers at scale.",
+    icon: "HiLockClosed",
+  },
+  {
+    title: "Escrow Logic System",
+    description: "Funds are held securely until delivery is verified, ensuring complete trust.",
+    icon: "HiShieldCheck",
+  },
+  {
+    title: "Automated Key Fulfillment",
+    description: "Instant and reliable delivery of digital licenses, game keys, and software.",
+    icon: "HiKey",
+  },
+  {
+    title: "Structured Payout Engine",
+    description: "Streamlined, scheduled payouts keep sellers empowered and informed.",
+    icon: "HiCurrencyDollar",
+  },
+  {
+    title: "Dispute & Refund Workflow",
+    description: "Transparent, automated dispute resolution and refund management.",
+    icon: "HiScale",
+  },
+  {
+    title: "Fraud Monitoring Layer",
+    description: "AI-driven detection prevents unauthorized access and reduces financial risk.",
+    icon: "HiShieldExclamation",
+  },
 ]
 
 export const AboutMetrics = [
-    { value: 35, suffix: "M+", label: "Users" },
-    { value: 2000, suffix: "+", label: "Sellers" },
-    { value: 120, suffix: "+", label: "Countries" },
-    { value: 99.9, suffix: "%", label: "Platform Uptime" },
+  { value: 35, suffix: "M+", label: "Users" },
+  { value: 2000, suffix: "+", label: "Sellers" },
+  { value: 120, suffix: "+", label: "Countries" },
+  { value: 99.9, suffix: "%", label: "Platform Uptime" },
 ]
 
 export const AboutRoadmapDetailed = [
-    {
-        milestone: "Platform Launch",
-        description: "Launched the foundation of a secure digital commerce platform, enabling independent sellers to onboard and provide digital products to global buyers efficiently. Focused on system reliability, encryption, and compliance with international standards.",
-    },
-    {
-        milestone: "Multi-Vendor Expansion",
-        description: "Introduced support for multiple vendors simultaneously, allowing sellers to scale operations globally. Added structured payouts, automated fulfillment, and real-time analytics dashboards to empower sellers with actionable insights.",
-    },
-    {
-        milestone: "Cross-Border Integration",
-        description: "Enabled seamless global transactions, bridging payment gateways across regions. Integrated local currency support, tax compliance tools, and streamlined checkout experience for international buyers.",
-    },
-    {
-        milestone: "Fraud Detection Enhancement",
-        description: "Implemented AI-driven fraud monitoring layers, transaction anomaly detection, and automated dispute resolution systems to ensure trust and security for both buyers and sellers on the platform.",
-    },
-    {
-        milestone: "Global Scaling Phase",
-        description: "Optimized platform architecture for high concurrency and low latency to support millions of simultaneous users worldwide. Enhanced database sharding, CDN delivery, and system monitoring for resilient performance at scale.",
-    },
+  {
+    milestone: "Platform Launch",
+    description: "Launched the foundation of a secure digital commerce platform, enabling independent sellers to onboard and provide digital products to global buyers efficiently. Focused on system reliability, encryption, and compliance with international standards.",
+  },
+  {
+    milestone: "Multi-Vendor Expansion",
+    description: "Introduced support for multiple vendors simultaneously, allowing sellers to scale operations globally. Added structured payouts, automated fulfillment, and real-time analytics dashboards to empower sellers with actionable insights.",
+  },
+  {
+    milestone: "Cross-Border Integration",
+    description: "Enabled seamless global transactions, bridging payment gateways across regions. Integrated local currency support, tax compliance tools, and streamlined checkout experience for international buyers.",
+  },
+  {
+    milestone: "Fraud Detection Enhancement",
+    description: "Implemented AI-driven fraud monitoring layers, transaction anomaly detection, and automated dispute resolution systems to ensure trust and security for both buyers and sellers on the platform.",
+  },
+  {
+    milestone: "Global Scaling Phase",
+    description: "Optimized platform architecture for high concurrency and low latency to support millions of simultaneous users worldwide. Enhanced database sharding, CDN delivery, and system monitoring for resilient performance at scale.",
+  },
 ]
 
 export const AboutPhilosophy = [
-    { title: "Security First", description: "All systems designed with top-tier security protocols." },
-    { title: "Seller Empowerment", description: "Tools and analytics to maximize revenue and reach." },
-    { title: "Transparent Operations", description: "Every transaction is traceable and auditable." },
-    { title: "Continuous Innovation", description: "Ongoing updates and enhancements to stay ahead." },
+  { title: "Security First", description: "All systems designed with top-tier security protocols." },
+  { title: "Seller Empowerment", description: "Tools and analytics to maximize revenue and reach." },
+  { title: "Transparent Operations", description: "Every transaction is traceable and auditable." },
+  { title: "Continuous Innovation", description: "Ongoing updates and enhancements to stay ahead." },
 ]
 
 export const AboutFinalCta = {
-    headline: "Join the Next Generation of Digital Commerce",
-    ctaPrimary: "Become a Seller",
-    ctaSecondary: "Explore Marketplace",
-    ctaPrimaryUrl: "/user/become-seller",
-    ctaSecondaryUrl: "/marketplace",
+  headline: "Join the Next Generation of Digital Commerce",
+  ctaPrimary: "Become a Seller",
+  ctaSecondary: "Explore Marketplace",
+  ctaPrimaryUrl: "/user/become-seller",
+  ctaSecondaryUrl: "/marketplace",
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// M16 — Legal pages (data-driven, same shape as TermsConditionsPageData).
-// NOTE FOR OWNER: this is professional PLACEHOLDER copy reflecting how the
-// platform actually behaves; replace/adjust wording (and bracketed values)
-// with the client's final legal text before launch.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const RefundPolicyPageData = {
-  hero: {
-    headline: "Refund Policy",
-    subtext: "How refunds, returns and disputes work on the DGMARQ marketplace.",
-    effectiveDate: "Effective Date: [2026-07-03]",
-  },
-  sections: [
-    {
-      num: 1,
-      title: "Scope",
-      content: [
-        "This policy applies to all digital products purchased on DGMARQ, including license keys, game accounts, gift codes and activation links.",
-        "Because products are digital and delivered instantly, refunds follow the rules below rather than general consumer return rules for physical goods.",
-      ],
-    },
-    {
-      num: 2,
-      title: "When You Can Request a Refund",
-      content: [
-        "You may open a refund request when:",
-        [
-          "The delivered key or code is invalid, already used, or does not activate",
-          "The delivered product materially differs from its listing",
-          "The product was not delivered after successful payment",
-          "The key cannot be activated in your region despite the listing marking your region as supported",
-        ],
-        "Refund requests must be opened within the refund window shown on your order. Requests outside the window may be declined.",
-      ],
-    },
-    {
-      num: 3,
-      title: "What Is Not Refundable",
-      content: [
-        "Refunds are generally not available when:",
-        [
-          "The key has been successfully activated or redeemed",
-          "You purchased for the wrong platform or region despite it being clearly stated on the listing",
-          "You changed your mind after the key was revealed or delivered",
-        ],
-        // B8: this section previously listed only the reasons a refund is
-        // REFUSED, never that fees are kept when one is granted. A buyer who
-        // paid $98 and received $95 back had nothing to read, so they opened a
-        // ticket instead.
-        "Buyer Protection and checkout fees are not refunded. When a refund is approved you receive the product price you paid; those fees cover the transaction itself and are kept.",
-      ],
-    },
-    {
-      num: 4,
-      title: "How the Process Works",
-      content: [
-        "Refunds are reviewed and decided by DGMARQ:",
-        [
-          "You open a request from your order with the reason and any evidence (screenshots, error messages)",
-          "DGMARQ reviews the request and makes the final decision — approve or reject",
-          "The seller can view your request and add comments for our team, but cannot approve or reject it",
-          "A refund chat keeps you, the seller and our team in one thread until the case closes",
-        ],
-        "Once a case is completed or rejected, the case and its chat are closed.",
-      ],
-    },
-    {
-      num: 5,
-      title: "How You Receive Your Money",
-      content: [
-        "Approved refunds are issued to your DGMARQ wallet or back to your original payment method, depending on the case and your selection.",
-        "Wallet refunds are typically instant; original-payment refunds depend on your payment provider's processing times.",
-      ],
-    },
-    {
-      num: 6,
-      title: "Fraud & Abuse",
-      content: [
-        "Fraudulent or abusive refund claims (e.g. claiming a working key is invalid) lead to account suspension and may be reported to payment providers.",
-      ],
-    },
-  ],
-  finalCta: {
-    headline: "Need Help With an Order?",
-    ctaPrimary: "Contact Support",
-    ctaPrimaryUrl: "/buyer-support",
-  },
-};
-
-export const FeeSchedulePageData = {
-  hero: {
-    headline: "Fee Schedule",
-    subtext: "A transparent overview of the fees that apply when buying and selling on DGMARQ.",
-    effectiveDate: "Effective Date: [2026-07-03]",
-  },
-  sections: [
-    {
-      num: 1,
-      title: "Buyer Fees",
-      content: [
-        "A small order processing fee applies at checkout (shown before you pay).",
-        [
-          "Payment processing fee: displayed at checkout ([currently $1.05 per order])",
-          "No hidden charges — the grand total you see is the amount charged",
-          "All charges are processed in USD; prices shown in other currencies are approximate conversions",
-        ],
-      ],
-    },
-    {
-      num: 2,
-      title: "Seller Commission",
-      content: [
-        "DGMARQ charges sellers a commission per completed sale:",
-        [
-          "Base marketplace commission: [see your seller dashboard for the current rate]",
-          "Featured listings carry an additional commission ([currently +10%]) in exchange for extra visibility",
-        ],
-        "Commissions are deducted automatically before payout — sellers never receive an invoice.",
-      ],
-    },
-    {
-      num: 3,
-      title: "DGMARQ Plus",
-      content: [
-        "DGMARQ Plus subscribers receive an automatic member discount on purchases ([currently 5%]).",
-        "The discount is funded by the platform — it is not deducted from seller earnings.",
-      ],
-    },
-    {
-      num: 4,
-      title: "Payout & Withdrawal",
-      content: [
-        "Seller earnings are held in escrow and released after the payout hold period ([currently 15 days] after order completion).",
-        "Payouts are processed via PayPal. Provider transfer fees, where applicable, are shown before you confirm a withdrawal.",
-      ],
-    },
-    {
-      num: 5,
-      title: "Changes to Fees",
-      content: [
-        "Fee rates may change over time. The values on this page and in your dashboard always reflect the currently effective rates; changes never apply retroactively to completed orders.",
-      ],
-    },
-  ],
-  finalCta: {
-    headline: "Questions About Fees?",
-    ctaPrimary: "Contact Support",
-    ctaPrimaryUrl: "/buyer-support",
-  },
-};
-
-export const VendorTermsPageData = {
-  hero: {
-    headline: "Vendor Terms of Service",
-    subtext: "Commission, payouts and platform fees — the terms that govern selling on DGMARQ.",
-    effectiveDate: "Effective Date: [2026-07-03]",
-  },
-  sections: [
-    {
-      num: 1,
-      title: "Becoming a Vendor",
-      content: [
-        "To sell on DGMARQ you must:",
-        [
-          "Complete the seller application including identity (KYC) verification",
-          "Provide accurate business and contact information",
-          "Be approved by the DGMARQ team before listing",
-        ],
-      ],
-    },
-    {
-      num: 2,
-      title: "Listings & Catalog",
-      content: [
-        "The product catalog is curated by DGMARQ. Vendors list offers (price, stock, regions) against catalog products.",
-        [
-          "You may only sell keys and accounts you are legally entitled to distribute",
-          "Region availability you declare must be accurate — misdeclared regions are a policy violation",
-          "Listings are subject to review and approval",
-        ],
-      ],
-    },
-    {
-      num: 3,
-      title: "Commission & Platform Fees",
-      content: [
-        "A commission is charged on every completed sale and deducted automatically:",
-        [
-          "Base marketplace commission: [see seller dashboard for the current rate]",
-          "Featured-listing surcharge: [currently +10%] while a listing is featured",
-        ],
-        "The full breakdown of every deduction is visible per order in your earnings dashboard.",
-      ],
-    },
-    {
-      num: 4,
-      title: "Escrow & Payouts",
-      content: [
-        "Buyer payments are held in escrow. Your earning for an order is scheduled for payout after the hold period ([currently 15 days]) provided no refund or dispute is open on it.",
-        [
-          "Open refunds freeze only the affected order line, not your whole balance",
-          "Payouts are made via PayPal to your verified payout account",
-          "DGMARQ may delay a payout for security or fraud review",
-        ],
-      ],
-    },
-    {
-      num: 5,
-      title: "Refunds & Disputes",
-      content: [
-        "Vendors participate in the refund process:",
-        [
-          "You can view buyer refund requests and submit optional feedback for our team",
-          "DGMARQ reviews every request and makes the final decision — approve or reject",
-          "Approved refunds are deducted from your escrowed earnings for that order",
-        ],
-        "A consistently high dispute rate may lead to account review, delisting or suspension.",
-      ],
-    },
-    {
-      num: 6,
-      title: "Prohibited Conduct",
-      content: [
-        "The following lead to immediate action against your account:",
-        [
-          "Selling stolen, fraudulent or region-misdeclared keys",
-          "Directing buyers off-platform to avoid fees",
-          "Manipulating reviews or ratings",
-        ],
-      ],
-    },
-    {
-      num: 7,
-      title: "Termination",
-      content: [
-        "You may stop selling at any time; pending orders and open refunds must still be honored.",
-        "DGMARQ may suspend or terminate vendor accounts for policy violations. Escrowed funds for legitimate completed orders are paid out per the normal schedule after review.",
-      ],
-    },
-  ],
-  finalCta: {
-    headline: "Questions About Selling?",
-    ctaPrimary: "Contact Seller Support",
-    ctaPrimaryUrl: "/seller-support",
-  },
-};
-

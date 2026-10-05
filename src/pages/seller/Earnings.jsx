@@ -14,7 +14,7 @@ import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { WithdrawalRequestModal, payoutBadgeProps } from '@features/wallet-payout';
 import { useSocket } from '@hooks/useSocket';
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 import { formatDateTime, formatRelativeDate, formatExactTitle } from '@lib/datetime';
 import {
   Wallet,
@@ -99,6 +99,7 @@ const splitPayoutRow = (payout) => {
 const ALLOWED_TABS = ['withdrawals', 'history', 'settings'];
 
 const SellerEarnings = () => {
+  const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
@@ -130,6 +131,8 @@ const SellerEarnings = () => {
 
   const holdDays =
     typeof settingsQuery.data?.payoutHoldDays === 'number' ? settingsQuery.data.payoutHoldDays : 15;
+  // Same query key as the dashboard, so this is a cache read, not a second call.
+  const { commissionRatePercent, featuredCommissionPercent } = settingsQuery.data ?? {};
   const minWithdrawal =
     typeof settingsQuery.data?.minimumWithdrawalUsd === 'number'
       ? settingsQuery.data.minimumWithdrawalUsd
@@ -218,7 +221,7 @@ const SellerEarnings = () => {
   const withdrawReason = () => {
     if (accounts.length === 0) return 'Connect a payout method first.';
     if (!accounts.some((a) => a.status === 'verified')) return 'Verify a payout method to enable.';
-    return `Minimum withdrawal is ${formatUSD(minWithdrawal)}.`;
+    return `Minimum withdrawal is ${formatSettlement(minWithdrawal)}.`;
   };
 
   return (
@@ -229,6 +232,16 @@ const SellerEarnings = () => {
           <p className="mt-1 text-sm text-fg-muted">
             What you've made, what's on hold, and how to get paid.
           </p>
+          {/* The CURRENT rates, deliberately here and not beside the period
+              totals below: those were charged at whatever rate applied when each
+              sale completed, so quoting today's rate next to them would misread. */}
+          {typeof commissionRatePercent === 'number' && (
+            <p className="mt-1 text-xs text-fg-subtle">
+              Commission {commissionRatePercent}%
+              {featuredCommissionPercent > 0 && ` · +${featuredCommissionPercent}% while featured`} · set by
+              DGMARQ, charged when a sale completes
+            </p>
+          )}
         </div>
         <div className="flex flex-col items-start gap-1 sm:items-end">
           <Button type="button" disabled={!canWithdraw} onClick={() => setWithdrawalModalOpen(true)}>
@@ -257,28 +270,28 @@ const SellerEarnings = () => {
         <StatCardGrid>
           <StatCard
             title="Available"
-            value={formatUSD(availableBalance)}
+            value={formatSettlement(availableBalance)}
             icon={Wallet}
             tone="success"
             description="Open withdrawals already deducted"
           />
           <StatCard
             title="On hold"
-            value={formatUSD(balance?.pending?.amount)}
+            value={formatSettlement(balance?.pending?.amount)}
             icon={Clock}
             tone="warning"
             description={`Released ${holdDays} days after each order`}
           />
           <StatCard
             title="In flight"
-            value={formatUSD(balance?.inFlight?.amount)}
+            value={formatSettlement(balance?.inFlight?.amount)}
             icon={Send}
             tone="info"
             description={`${balance?.inFlight?.count || 0} withdrawal(s) processing`}
           />
           <StatCard
             title="Paid out"
-            value={formatUSD(balance?.released?.amount)}
+            value={formatSettlement(balance?.released?.amount)}
             icon={CheckCircle2}
             tone="neutral"
             description="Lifetime, sent to your account"
@@ -293,7 +306,7 @@ const SellerEarnings = () => {
             <Snowflake aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-info" />
             <div>
               <h3 className="text-sm font-semibold text-fg">
-                {formatUSD(balance.frozen.amount)} frozen
+                {formatSettlement(balance.frozen.amount)} frozen
               </h3>
               <p className="mt-1 text-sm text-fg-muted">
                 {balance.frozen.count} earning line(s) are paused while refund requests are
@@ -311,7 +324,7 @@ const SellerEarnings = () => {
             <div>
               <h3 className="text-sm font-semibold text-fg">Earnings on hold</h3>
               <p className="mt-1 text-sm text-fg-muted">
-                {formatUSD(balance.pending.amount)} becomes available{' '}
+                {formatSettlement(balance.pending.amount)} becomes available{' '}
                 {balance.pending.daysUntilAvailable} day
                 {balance.pending.daysUntilAvailable > 1 ? 's' : ''} from now. Every sale is held for{' '}
                 {holdDays} days after the order completes, which is what lets us honour buyer
@@ -419,9 +432,9 @@ const SellerEarnings = () => {
                                 className={isHighlighted ? 'bg-accent-soft' : undefined}
                               >
                                 <TableCell>{METHOD_LABEL[w.methodType] || w.methodType}</TableCell>
-                                <TableCell numeric>{formatUSD(w.requestedAmount)}</TableCell>
+                                <TableCell numeric>{formatSettlement(w.requestedAmount)}</TableCell>
                                 <TableCell numeric>
-                                  {formatUSD(w.providerFee)}
+                                  {formatSettlement(w.providerFee)}
                                   {w.fallbackUsed && (
                                     <Badge variant="warning" className="ml-2">
                                       fallback
@@ -429,7 +442,7 @@ const SellerEarnings = () => {
                                   )}
                                 </TableCell>
                                 <TableCell numeric className="font-semibold text-success">
-                                  {formatUSD(w.netAmount)}
+                                  {formatSettlement(w.netAmount)}
                                 </TableCell>
                                 <TableCell>
                                   <Badge {...payoutBadgeProps(w.status)} />
@@ -471,16 +484,16 @@ const SellerEarnings = () => {
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-sm font-semibold tabular-nums text-fg">
-                                {formatUSD(w.requestedAmount)}
+                                {formatSettlement(w.requestedAmount)}
                               </span>
                               <Badge {...payoutBadgeProps(w.status)} />
                             </div>
                             <p className="mt-2 text-xs text-fg-muted">
                               Net{' '}
                               <span className="font-medium text-success">
-                                {formatUSD(w.netAmount)}
+                                {formatSettlement(w.netAmount)}
                               </span>{' '}
-                              after {formatUSD(w.providerFee)} fee ·{' '}
+                              after {formatSettlement(w.providerFee)} fee ·{' '}
                               {METHOD_LABEL[w.methodType] || w.methodType}
                             </p>
                             <p className="mt-1 text-xs text-fg-subtle">
@@ -551,7 +564,7 @@ const SellerEarnings = () => {
                               <TableRow key={payout._id}>
                                 <TableCell numeric>
                                   <div className="font-semibold text-fg">
-                                    {formatUSD(split.total)}
+                                    {formatSettlement(split.total)}
                                   </div>
                                   {split.totalKeys > 0 && (
                                     <div className="mt-0.5 text-xs text-fg-subtle">
@@ -567,7 +580,7 @@ const SellerEarnings = () => {
                                         : 'font-semibold text-fg-subtle'
                                     }
                                   >
-                                    {formatUSD(split.available)}
+                                    {formatSettlement(split.available)}
                                   </span>
                                   {split.totalKeys > 0 && split.availableKeys < split.totalKeys && (
                                     <div className="mt-0.5 text-xs text-fg-subtle">
@@ -581,13 +594,13 @@ const SellerEarnings = () => {
                                       {split.hasFrozen && (
                                         <span className="flex items-center gap-1.5 text-sm font-medium text-info">
                                           <Snowflake aria-hidden="true" className="size-3.5" />
-                                          {formatUSD(split.frozen)} frozen
+                                          {formatSettlement(split.frozen)} frozen
                                         </span>
                                       )}
                                       {split.hasRefunded && (
                                         <span className="flex items-center gap-1.5 text-sm font-medium text-danger">
                                           <AlertCircle aria-hidden="true" className="size-3.5" />
-                                          {formatUSD(split.refunded)} refunded
+                                          {formatSettlement(split.refunded)} refunded
                                         </span>
                                       )}
                                     </div>
@@ -641,17 +654,17 @@ const SellerEarnings = () => {
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-sm font-semibold tabular-nums text-fg">
-                                  {formatUSD(split.total)}
+                                  {formatSettlement(split.total)}
                                 </span>
                                 <Badge {...meta} />
                               </div>
                               <p className="mt-2 text-xs text-fg-muted">
                                 Available{' '}
                                 <span className="font-medium text-success">
-                                  {formatUSD(split.available)}
+                                  {formatSettlement(split.available)}
                                 </span>
-                                {split.hasFrozen && ` · ${formatUSD(split.frozen)} frozen`}
-                                {split.hasRefunded && ` · ${formatUSD(split.refunded)} refunded`}
+                                {split.hasFrozen && ` · ${formatSettlement(split.frozen)} frozen`}
+                                {split.hasRefunded && ` · ${formatSettlement(split.refunded)} refunded`}
                               </p>
                               <p className="mt-1 text-xs text-fg-subtle">
                                 {formatRelativeDate(payout.createdAt)}
@@ -711,7 +724,7 @@ const SellerEarnings = () => {
                         <div>
                           <dt className="mb-1 text-xs text-fg-subtle">Total payouts</dt>
                           <dd className="font-semibold tabular-nums text-fg">
-                            {formatUSD(reportsQuery.data.summary.totalAmount)}
+                            {formatSettlement(reportsQuery.data.summary.totalAmount)}
                           </dd>
                         </div>
                         <div>
@@ -723,7 +736,7 @@ const SellerEarnings = () => {
                         <div>
                           <dt className="mb-1 text-xs text-fg-subtle">Commission</dt>
                           <dd className="font-semibold tabular-nums text-fg">
-                            {formatUSD(reportsQuery.data.summary.totalCommission)}
+                            {formatSettlement(reportsQuery.data.summary.totalCommission)}
                           </dd>
                         </div>
                         <div>
@@ -769,14 +782,14 @@ const SellerEarnings = () => {
                               <p className="mt-0.5 text-xs text-fg-subtle">
                                 {formatRelativeDate(payout.createdAt)}
                                 {payout.commission
-                                  ? ` · ${formatUSD(payout.commission)} commission`
+                                  ? ` · ${formatSettlement(payout.commission)} commission`
                                   : ''}
                               </p>
                             )}
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-sm font-semibold tabular-nums text-fg">
-                              {formatUSD(payout.amount)}
+                              {formatSettlement(payout.amount)}
                             </p>
                             <Badge
                               {...payoutBadgeProps(payout.status)}

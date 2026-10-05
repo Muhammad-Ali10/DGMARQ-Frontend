@@ -13,7 +13,6 @@ import {
   modeAPI,
   deviceAPI,
   themeAPI,
-  typeAPI,
 } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -23,10 +22,11 @@ import { Textarea } from '@components/ui/textarea';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
 import {
-  ArrowLeft, RefreshCw, Save, X, ImagePlus, Package, FileText, Globe, Tags, Image as ImageIcon,
+  ArrowLeft, RefreshCw, Save, X, ImagePlus, Package, FileText, Globe, Tags, Lock, Image as ImageIcon,
 } from 'lucide-react';
 
-const PRODUCT_TYPES = ['LICENSE_KEY', 'ACCOUNT_BASED', 'GIFT', 'ACTIVATION_LINK'];
+import { ConfirmationModal } from '@components/common/ConfirmationModal';
+import { PRODUCT_TYPE_OPTIONS } from '@features/catalog/utils/productUtils';
 
 const inputCls = 'bg-secondary border-gray-700 text-white focus-visible:ring-accent/40';
 const selectCls = 'w-full bg-secondary border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/50 transition';
@@ -72,7 +72,7 @@ const TaxSelect = ({ label, value, onChange, options, placeholder, required }) =
 
 const EMPTY_FORM = {
   name: '', categoryId: '', subCategoryId: '', platform: '', genre: '',
-  mode: '', device: '', theme: '', type: '', productType: 'LICENSE_KEY',
+  mode: '', device: '', theme: '', productType: 'LICENSE_KEY',
   publishers: '', developers: '', releaseDate: '', activationDetails: '',
   systemRequirements: '', description: '', metaTitle: '', metaDescription: '',
   // M21: the only place a product becomes a pre-order. The API has accepted
@@ -88,6 +88,10 @@ const MasterProductEdit = () => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [newImages, setNewImages] = useState([]);
+  // Replacing locked images is opt-in per visit: the flag rides with the save so
+  // the server can tell a deliberate replace from an ordinary edit.
+  const [replacingImages, setReplacingImages] = useState(false);
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const [removedPublicIds, setRemovedPublicIds] = useState([]);
   const fileInputRef = useRef(null);
 
@@ -107,16 +111,15 @@ const MasterProductEdit = () => {
     queryKey: ['catalog-taxonomy'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const [categories, platforms, genres, modes, devices, themes, types] = await Promise.all([
+      const [categories, platforms, genres, modes, devices, themes] = await Promise.all([
         categoryAPI.getCategories({ limit: 1000 }).then(extractList),
         platformAPI.getAllPlatforms({ limit: 1000 }).then(extractList),
         genreAPI.getGenres({ limit: 1000 }).then(extractList),
         modeAPI.getModes({ limit: 1000 }).then(extractList),
         deviceAPI.getDevices({ limit: 1000 }).then(extractList),
         themeAPI.getThemes({ limit: 1000 }).then(extractList),
-        typeAPI.getAllTypes({ limit: 1000 }).then(extractList),
       ]);
-      return { categories, platforms, genres, modes, devices, themes, types };
+      return { categories, platforms, genres, modes, devices, themes };
     },
   });
   const categories = tax.categories || [];
@@ -125,7 +128,6 @@ const MasterProductEdit = () => {
   const modes = tax.modes || [];
   const devices = tax.devices || [];
   const themes = tax.themes || [];
-  const types = tax.types || [];
 
   const { data: subcategories = [] } = useQuery({
     queryKey: ['tax-subcategories', form.categoryId],
@@ -145,7 +147,6 @@ const MasterProductEdit = () => {
       mode: product.mode?._id || product.mode || '',
       device: product.device?._id || product.device || '',
       theme: product.theme?._id || product.theme || '',
-      type: product.type?._id || product.type || '',
       productType: product.productType || 'LICENSE_KEY',
       publishers: product.publishers || '',
       developers: product.developers || '',
@@ -169,6 +170,7 @@ const MasterProductEdit = () => {
         const fd = new FormData();
         newImages.forEach((file) => fd.append('images', file));
         removedPublicIds.forEach((pid) => fd.append('removeImages', pid));
+        if (replacingImages) fd.append('confirmReplace', 'true');
         await productAPI.updateProductImages(id, fd);
       }
     },
@@ -198,6 +200,9 @@ const MasterProductEdit = () => {
 
   if (isLoading) return <Loading message="Loading product..." />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Error loading product'} />;
+
+  const imagesLocked = !!product?.imagesLocked;
+  const imagesEditable = !imagesLocked || replacingImages;
 
   const visibleCount = (product?.images || []).filter((_, i) => {
     const pid = product?.publicId?.[i];
@@ -238,6 +243,15 @@ const MasterProductEdit = () => {
         {/* Left — main content */}
         <div className="lg:col-span-2 space-y-6">
           <Section icon={Package} title="Basic information" desc="Shared across every seller offer for this product.">
+            {/* Imported masters are refreshed by the next import for every field
+                the JSON carries, so an edit here is not necessarily permanent.
+                Fields the JSON never carries (and the images below) are safe. */}
+            {product?.externalId && (
+              <p className="rounded-lg border border-white/10 bg-surface-sunken/60 px-3 py-2 text-xs text-fg-muted">
+                Imported from the catalog file. Re-importing this product refreshes the fields it
+                carries — images and anything the file omits are left alone.
+              </p>
+            )}
             <Field label="Product name" required>
               <Input value={form.name} onChange={setField('name')} placeholder="e.g. Anno 2070 Ubisoft Connect CD Key" className={inputCls} />
             </Field>
@@ -326,6 +340,36 @@ const MasterProductEdit = () => {
         {/* Right — media + classification */}
         <div className="space-y-6 lg:sticky lg:top-2">
           <Section icon={ImageIcon} title="Media" desc={`${visibleCount} of 5 images`}>
+            {/* Catalog images are shared by every seller's offer on this product,
+                so they are final once uploaded. Replacing them is a separate,
+                audited action rather than something a stray click can do. */}
+            {imagesLocked && !replacingImages && (
+              <div className="flex items-start gap-2 rounded-lg border border-white/10 bg-surface-sunken/60 px-3 py-2.5 text-xs text-fg-muted">
+                <Lock aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
+                <div className="min-w-0">
+                  <p className="font-medium text-fg">Images are final for this product</p>
+                  <p className="mt-0.5">Every offer on this master shows them.</p>
+                  <button
+                    type="button"
+                    onClick={() => setReplaceConfirmOpen(true)}
+                    className="mt-1.5 font-medium text-accent-on-dark underline underline-offset-4 hover:text-accent-on-dark/80"
+                  >
+                    Replace images
+                  </button>
+                </div>
+              </div>
+            )}
+            {!imagesLocked && (product?.images || []).length === 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning-soft px-3 py-2.5 text-xs text-fg">
+                <ImagePlus aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-warning" />
+                <div className="min-w-0">
+                  <p className="font-medium">This product was imported without images</p>
+                  <p className="mt-0.5 text-fg-muted">
+                    Upload up to 5. They become final for this product once you save.
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               {(product?.images || []).map((img, i) => {
                 const pid = product?.publicId?.[i];
@@ -333,7 +377,7 @@ const MasterProductEdit = () => {
                 return (
                   <div key={i} className="relative group aspect-square">
                     <SafeImage src={img} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-gray-700" />
-                    {pid && (
+                    {pid && imagesEditable && (
                       <button type="button" onClick={() => setRemovedPublicIds((prev) => [...prev, pid])} className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-5 h-5 flex items-center justify-center shadow" title="Remove image">
                         <X className="w-3 h-3" />
                       </button>
@@ -350,7 +394,7 @@ const MasterProductEdit = () => {
                   </button>
                 </div>
               ))}
-              {visibleCount < 5 && (
+              {imagesEditable && visibleCount < 5 && (
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-lg border-2 border-dashed border-gray-600 flex flex-col items-center justify-center text-gray-400 hover:border-accent hover:text-accent-on-dark hover:bg-accent/5 cursor-pointer transition">
                   <ImagePlus className="w-5 h-5" />
                   <span className="text-[10px] mt-1 font-medium">Add</span>
@@ -359,7 +403,12 @@ const MasterProductEdit = () => {
             </div>
             {/* Single ref-driven input — always mounted so the ref is valid. */}
             <input ref={fileInputRef} type="file" aria-label="Add product images" accept="image/*" multiple className="hidden" onChange={onPickImages} />
-            <p className="text-xs text-gray-500">Up to 5 images. Changes apply when you save.</p>
+            {imagesEditable && (
+              <p className="text-xs text-gray-500">
+                Up to 5 images. Changes apply when you save
+                {replacingImages ? ' and are recorded in the audit log.' : ', and are final once saved.'}
+              </p>
+            )}
           </Section>
 
           <Section icon={Tags} title="Classification">
@@ -371,11 +420,10 @@ const MasterProductEdit = () => {
               <TaxSelect label="Mode" value={form.mode} onChange={setField('mode')} options={modes} />
               <TaxSelect label="Device" value={form.device} onChange={setField('device')} options={devices} />
               <TaxSelect label="Theme" value={form.theme} onChange={setField('theme')} options={themes} />
-              <TaxSelect label="Type" value={form.type} onChange={setField('type')} options={types} />
             </div>
             <Field label="Product type">
               <select value={form.productType} onChange={setField('productType')} className={selectCls}>
-                {PRODUCT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {PRODUCT_TYPE_OPTIONS.map((t) => <option key={t._id} value={t._id}>{t.title}</option>)}
               </select>
             </Field>
           </Section>
@@ -391,6 +439,16 @@ const MasterProductEdit = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmationModal
+        open={replaceConfirmOpen}
+        onOpenChange={setReplaceConfirmOpen}
+        title="Replace catalog images?"
+        description="These images appear on every seller's offer for this product. Replacing them is recorded in the audit log."
+        confirmText="Replace images"
+        variant="destructive"
+        onConfirm={() => setReplacingImages(true)}
+      />
     </div>
   );
 };

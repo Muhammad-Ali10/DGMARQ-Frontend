@@ -1,15 +1,5 @@
-import LegalPage from "@features/content/marketing/LegalPage";
-import { FeeSchedulePageData } from "@/lib/data";
+import { LegalDocument, feeSchedule } from "@features/content/legal";
 
-const FeeSchedule = () => (
-  <LegalPage
-    data={FeeSchedulePageData}
-    seo={{
-      title: "Fee Schedule | DGMARQ",
-      description: "A transparent overview of buyer and seller fees on DGMARQ.",
-      canonical: "/fee-schedule",
-    }}
-  />
-);
+const FeeSchedule = () => <LegalDocument doc={feeSchedule} />;
 
 export default FeeSchedule;

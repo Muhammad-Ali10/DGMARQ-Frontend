@@ -48,7 +48,7 @@ const RegionRestrictionModal = ({ offer, open, onClose }) => {
     : detail?.regionNames.length
       ? detail.regionNames.join(", ").toUpperCase()
       : availability?.unrestricted
-        ? "ALL REGIONS"
+        ? "GLOBAL"
         : `${allowedCodes.length} COUNTRIES`;
 
   const cName = country ? countryName(country) : null;

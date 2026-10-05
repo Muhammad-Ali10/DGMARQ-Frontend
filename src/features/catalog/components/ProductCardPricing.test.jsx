@@ -101,17 +101,15 @@ describe('W10 — card pricing across real rollup shapes', () => {
     expect(renderedPrice().now).toBe('$15.00');
   });
 
-  it('a campaign deal still outranks the seller discount', () => {
-    // Backend precedence (utils/priceCalculator.js) is flash deal > trending
-    // offer > standing discount. The API attaches the winning campaign price as
-    // discountedPrice, and that must not be overridden by the rollup.
+  it('an explicit discountedPrice outranks the rollup', () => {
+    // A feed that computes the price itself must not be overridden by the
+    // cheapest-offer rollup.
     renderWithProviders(
       <ProductCard
         product={card({
           price: 50,
           lowestEffectivePrice: 45, // seller is 10% off
-          discountedPrice: 30, // ...but a trending offer is 40% off
-          trendingOffer: { discountPercent: 40 },
+          discountedPrice: 30, // ...but this feed says 40% off
         })}
       />
     );

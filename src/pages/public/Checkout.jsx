@@ -12,7 +12,7 @@ import {
 } from '@features/cart-checkout';
 import {
   ShoppingCart, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles, CreditCard,
-  ChevronLeft, ChevronDown, Trash2, Check, ShieldCheck, Lock, Tag, Wallet,
+  ChevronLeft, ChevronDown, Trash2, Check, ShieldCheck, Lock, Tag, Wallet, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
@@ -360,6 +360,18 @@ const Checkout = () => {
     }
   };
 
+  // M21: a pre-order cannot share a cart with anything else, so one notice
+  // covers the order. The line chip alone said "PRE-ORDER" without saying what
+  // it costs the buyer — that they pay in full today and receive nothing until
+  // release. This is the last screen before the money moves, which makes it the
+  // one place that has to be explicit.
+  const preorderItem = items.find((i) => i.isPreorder);
+  const preorderReleaseLabel = preorderItem?.preorderReleaseDate
+    ? new Date(preorderItem.preorderReleaseDate).toLocaleDateString(undefined, {
+        day: 'numeric', month: 'short', year: 'numeric',
+      })
+    : null;
+
   // ── summary (mirrors the mockup's recalc(): protection is a % of the amount
   //    AFTER discounts, the processing fee is flat once per order) ──
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
@@ -506,11 +518,17 @@ const Checkout = () => {
           sellerId: i.sellerId || undefined,
         })),
         couponCode: appliedCoupon?.code || undefined,
+        // M10: what this buyer is reading prices in. The charge stays USD; the
+        // order freezes this so its emails show the same numbers.
+        displayCurrency,
       });
       return;
     }
 
-    createCheckoutMutation.mutate({ couponCode: appliedCoupon?.code || undefined });
+    createCheckoutMutation.mutate({
+      couponCode: appliedCoupon?.code || undefined,
+      displayCurrency,
+    });
   };
 
   const isStarting = createCheckoutMutation.isPending || createGuestCheckoutMutation.isPending || walletPaying;
@@ -722,6 +740,20 @@ const Checkout = () => {
         <div>
           <div className={PANEL}>
             <h2 className={PANEL_H}>My cart</h2>
+            {preorderItem && (
+              <div className="mb-4 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2.5">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-amber-300">
+                  <Clock className="h-4 w-4" /> This is a pre-order
+                </p>
+                <p className="mt-1 text-xs text-amber-200/80">
+                  You pay in full today and receive nothing yet. Your key is delivered
+                  {preorderReleaseLabel ? ` on ${preorderReleaseLabel}` : ' on release day'}.
+                  Until then your money is held, you can cancel for a full refund to your
+                  wallet, and if the seller misses release by 24 hours you are refunded
+                  automatically.
+                </p>
+              </div>
+            )}
             {items.map((it) => {
               const avail = it.region ? resolveOfferAvailability(it.region) : null;
               const regionBad = isBuyerCompatible(avail, country) === false;

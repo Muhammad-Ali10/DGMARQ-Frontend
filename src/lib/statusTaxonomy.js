@@ -30,7 +30,7 @@ import {
  *
  * Deliberately NOT modeled here:
  *   - refund / seller-payout lifecycles -> features/wallet-payout/utils/statusTaxonomy.js
- *   - date-derived windows (bundle / trending-offer "Upcoming/Active/Expired")
+ *   - date-derived windows (bundle deal "Upcoming/Active/Expired")
  */
 
 const ORDER = {
@@ -60,6 +60,10 @@ const OFFER = {
   active: { label: 'Live', variant: 'success', icon: CheckCircle2 },
   rejected: { label: 'Rejected', variant: 'destructive', icon: XCircle },
   delisted: { label: 'Delisted', variant: 'secondary', icon: EyeOff },
+  // Not a stored status: an admin takedown is 'delisted' + delistReason 'admin'.
+  // lib/offerModeration.offerStatusKey maps it here, because to a seller it
+  // means something different from an out-of-stock delist.
+  removed: { label: 'Removed by admin', variant: 'destructive', icon: CircleSlash },
 };
 
 /** A single unit of inventory (LicenseKey.status). */

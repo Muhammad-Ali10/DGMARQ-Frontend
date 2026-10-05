@@ -1,13 +1,31 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Badge } from '@components/ui/badge';
 import { Label } from '@components/ui/label';
+import { Textarea } from '@components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { ArrowLeft, Store, Mail, MapPin, Calendar, DollarSign, Package, ShoppingCart, FileText, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Store, Mail, MapPin, Calendar, DollarSign, Package, ShoppingCart, FileText, Image as ImageIcon, AlertTriangle, ShieldCheck, XCircle, Clock } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
+import { showSuccess, showApiError } from '@utils/toast';
+import { formatDate } from '@lib/datetime';
+import { useTaxIdCatalog, taxIdLabel, SELLER_TYPE_LABELS } from '@features/seller';
+import useCurrency from '@hooks/useCurrency';
+
+// Date-only values (DOB, statement date) are stored as UTC midnight; reading
+// them in the viewer's zone would show the previous day west of Greenwich.
+const formatDateOnly = (value) =>
+  value ? new Date(value).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'N/A';
+
+const KYC_DECISION_MESSAGE = {
+  verified: 'KYC verified',
+  rejected: 'KYC rejected',
+  under_review: 'KYC marked as under review',
+};
 
 // Renders a verification document tile. Image documents show a clickable
 // thumbnail; PDFs/other show an icon. Clicking opens the file full-size.
@@ -46,6 +64,7 @@ const DocumentTile = ({ url, label }) => {
 };
 
 const SellerProfileView = () => {
+  const { format: formatMoney } = useCurrency();
   const { sellerId } = useParams();
   const navigate = useNavigate();
 
@@ -58,11 +77,34 @@ const SellerProfileView = () => {
     retry: 1,
   });
 
+  const queryClient = useQueryClient();
+  const [kycRejectOpen, setKycRejectOpen] = useState(false);
+  const [kycRejectReason, setKycRejectReason] = useState('');
+  // Only used to label the stored tax-ID type code.
+  const { data: taxCatalog } = useTaxIdCatalog();
+
+  const kycMutation = useMutation({
+    mutationFn: ({ status, reason }) => adminAPI.reviewSellerKyc(sellerId, { status, reason }),
+    onSuccess: (_, { status }) => {
+      queryClient.invalidateQueries({ queryKey: ['seller-details', sellerId] });
+      setKycRejectOpen(false);
+      setKycRejectReason('');
+      showSuccess(KYC_DECISION_MESSAGE[status]);
+    },
+    onError: (err) => showApiError(err, 'Failed to update KYC status'),
+  });
+
   if (isLoading) return <Loading message="Loading seller details..." />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || "Error loading seller details"} />;
 
   const seller = sellerData?.seller;
   const stats = sellerData?.stats || {};
+  const isBusiness = seller?.sellerType === 'business';
+  const kycStatus = seller?.kycStatus || 'not_submitted';
+  // Nothing to review without documents, and a closed account's were erased.
+  const canReviewKyc = kycStatus !== 'not_submitted' && seller?.status !== 'closed';
+  // For a business, the identity fields belong to its director / beneficial owner.
+  const ownerPrefix = isBusiness ? 'Director / UBO — ' : '';
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -170,7 +212,7 @@ const SellerProfileView = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-400 text-sm">Total Revenue</p>
-                <p className="text-2xl sm:text-3xl font-bold text-white mt-2">${(stats.totalRevenue || 0).toFixed(2)}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-white mt-2">{formatMoney(stats.totalRevenue || 0)}</p>
               </div>
               <DollarSign className="h-10 w-10 text-yellow-500" />
             </div>
@@ -281,10 +323,53 @@ const SellerProfileView = () => {
       {/* Identity & KYC Verification */}
       <Card variant="hud">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Identity &amp; KYC Verification
-          </CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Identity &amp; KYC Verification
+              {seller?.sellerType && (
+                <Badge variant={isBusiness ? 'info' : 'secondary'}>{SELLER_TYPE_LABELS[seller.sellerType]}</Badge>
+              )}
+            </CardTitle>
+            {canReviewKyc && (
+              <div className="flex flex-wrap gap-2">
+                {kycStatus === 'submitted' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={kycMutation.isPending}
+                    onClick={() => kycMutation.mutate({ status: 'under_review' })}
+                    className="border-gray-700"
+                  >
+                    <Clock className="h-4 w-4 mr-1" />
+                    Mark Under Review
+                  </Button>
+                )}
+                {kycStatus !== 'verified' && (
+                  <Button
+                    size="sm"
+                    disabled={kycMutation.isPending}
+                    onClick={() => kycMutation.mutate({ status: 'verified' })}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <ShieldCheck className="h-4 w-4 mr-1" />
+                    Verify KYC
+                  </Button>
+                )}
+                {kycStatus !== 'rejected' && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={kycMutation.isPending}
+                    onClick={() => setKycRejectOpen(true)}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    Reject KYC
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -293,56 +378,71 @@ const SellerProfileView = () => {
               <div className="mt-1">
                 <Badge
                   variant={
-                    seller?.kycStatus === 'verified' ? 'success'
-                      : seller?.kycStatus === 'rejected' ? 'destructive'
+                    kycStatus === 'verified' ? 'success'
+                      : kycStatus === 'rejected' ? 'destructive'
                       : 'warning'
                   }
                 >
-                  {(seller?.kycStatus || 'not_submitted').replace(/_/g, ' ').toUpperCase()}
+                  {kycStatus.replace(/_/g, ' ').toUpperCase()}
                 </Badge>
               </div>
+              {seller?.kycReviewedAt && (
+                <p className="text-xs text-gray-400 mt-1">Reviewed {formatDate(seller.kycReviewedAt)}</p>
+              )}
             </div>
             <div>
-              <Label className="text-gray-400 text-sm">Full Legal Name</Label>
+              <Label className="text-gray-400 text-sm">{ownerPrefix}Full Legal Name</Label>
               <p className="text-white mt-1">{seller?.fullLegalName || 'N/A'}</p>
             </div>
             <div>
-              <Label className="text-gray-400 text-sm">Date of Birth</Label>
-              <p className="text-white mt-1">
-                {seller?.dateOfBirth ? new Date(seller.dateOfBirth).toLocaleDateString() : 'N/A'}
-              </p>
+              <Label className="text-gray-400 text-sm">{ownerPrefix}Date of Birth</Label>
+              <p className="text-white mt-1">{formatDateOnly(seller?.dateOfBirth)}</p>
             </div>
             <div>
-              <Label className="text-gray-400 text-sm">ID Type</Label>
+              <Label className="text-gray-400 text-sm">{ownerPrefix}ID Type</Label>
               <p className="text-white mt-1">
                 {seller?.idType
                   ? (seller.idType === 'drivers_license' ? "Driver's License" : 'Passport')
                   : 'N/A'}
               </p>
             </div>
+            {(isBusiness || seller?.businessName) && (
+              <div>
+                <Label className="text-gray-400 text-sm">Business Name</Label>
+                <p className="text-white mt-1">{seller?.businessName || 'N/A'}</p>
+              </div>
+            )}
             <div>
-              <Label className="text-gray-400 text-sm">Business Name</Label>
-              <p className="text-white mt-1">{seller?.businessName || 'N/A'}</p>
+              <Label className="text-gray-400 text-sm">Tax ID</Label>
+              <p className="text-white mt-1">
+                {seller?.taxId
+                  ? `${seller.taxId}${seller.taxIdType ? ` (${taxIdLabel(taxCatalog, seller.taxIdType)})` : ''}`
+                  : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <Label className="text-gray-400 text-sm">Bank Statement Date</Label>
+              <p className="text-white mt-1">{formatDateOnly(seller?.proofOfAddressDate)}</p>
             </div>
             <div>
               <Label className="text-gray-400 text-sm">Additional Notes</Label>
               <p className="text-white mt-1 whitespace-pre-wrap">{seller?.additionalNotes || 'N/A'}</p>
             </div>
-            <div>
-              <Label className="text-gray-400 text-sm">Tax ID</Label>
-              <p className="text-white mt-1">
-                {seller?.taxId ? `${seller.taxId}${seller.taxIdType ? ` (${seller.taxIdType})` : ''}` : 'N/A'}
-              </p>
-            </div>
           </div>
+
+          {kycStatus === 'rejected' && seller?.kycRejectionReason && (
+            <div className="rounded-lg border border-danger/35 bg-danger-soft p-3 text-sm text-danger">
+              <span className="font-medium">Rejection reason:</span> {seller.kycRejectionReason}
+            </div>
+          )}
 
           {/* Verification documents */}
           {(() => {
             const docs = [
-              { label: 'ID — Front', url: seller?.idFrontImage },
-              { label: 'ID — Back', url: seller?.idBackImage },
-              { label: 'Proof of Address', url: seller?.proofOfAddress },
-              { label: 'Certificate of Incorporation', url: seller?.certificateOfIncorporation },
+              { label: `${isBusiness ? 'Director ID' : 'ID'} — Front`, url: seller?.idFrontImage },
+              { label: `${isBusiness ? 'Director ID' : 'ID'} — Back`, url: seller?.idBackImage },
+              { label: 'Proof of Address (Bank Statement)', url: seller?.proofOfAddress },
+              { label: 'Certificate of Incorporation / Registration', url: seller?.certificateOfIncorporation },
             ].filter((d) => d.url);
             if (docs.length === 0) {
               return <p className="text-gray-400 text-sm">No verification documents uploaded.</p>;
@@ -398,6 +498,42 @@ const SellerProfileView = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* KYC rejection needs a reason — the backend refuses one without it. */}
+      <Dialog open={kycRejectOpen} onOpenChange={setKycRejectOpen}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Reject KYC</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Explain what is wrong with the submitted identity or documents.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="kycRejectReason" className="text-gray-300">Rejection Reason</Label>
+              <Textarea
+                id="kycRejectReason"
+                value={kycRejectReason}
+                onChange={(e) => setKycRejectReason(e.target.value)}
+                rows={3}
+                placeholder="e.g. Bank statement is older than 3 months"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setKycRejectOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!kycRejectReason.trim() || kycMutation.isPending}
+                onClick={() => kycMutation.mutate({ status: 'rejected', reason: kycRejectReason.trim() })}
+              >
+                {kycMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

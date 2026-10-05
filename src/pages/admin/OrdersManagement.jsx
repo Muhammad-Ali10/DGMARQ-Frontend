@@ -13,6 +13,7 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Eye } from 'lucide-react';
 import { Pagination } from '@components/common/Pagination';
 import { countryName, countryFlag } from '@lib/regionCompat';
+import useCurrency from '@hooks/useCurrency';
 
 /**
  * M14: PayPal's own fee for the order. Null on wallet-paid orders, on captures
@@ -29,6 +30,7 @@ const formatPayPalFee = (amount, currency) => {
 };
 
 const OrdersManagement = () => {
+  const { format: formatMoney } = useCurrency();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
 
@@ -125,7 +127,7 @@ const OrdersManagement = () => {
                             </TableCell>
                             <TableCell className="text-gray-300">{userName}</TableCell>
                             <TableCell className="text-white font-semibold">
-                              ${order.totalAmount?.toFixed(2) || '0.00'}
+                              {formatMoney(order.totalAmount || 0)}
                             </TableCell>
                             <TableCell className={order.buyerCountry ? "text-gray-300" : "text-gray-500"}>
                               {order.buyerCountry
@@ -136,7 +138,7 @@ const OrdersManagement = () => {
                               {paypalFee ?? "—"}
                             </TableCell>
                             <TableCell className={refundedAmount > 0 ? "text-amber-400/90" : "text-gray-500"}>
-                              {refundedAmount > 0 ? `-$${refundedAmount.toFixed(2)}` : "—"}
+                              {refundedAmount > 0 ? `-${formatMoney(refundedAmount)}` : "—"}
                             </TableCell>
                             <TableCell><StatusBadge domain="order" status={order.orderStatus} /></TableCell>
                             <TableCell>

@@ -13,7 +13,7 @@ import { StatCardGridSkeleton } from '@components/common/Skeletons';
 import { EmptyState } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { Skeleton } from '@components/ui/skeleton';
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Package, Trophy } from 'lucide-react';
 
 const MONTHS = [
@@ -41,6 +41,7 @@ const YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
  * and cannot honestly be rendered as "up 12%".
  */
 const SellerAnalytics = () => {
+  const { formatSettlement } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const mode = searchParams.get('mode') === 'range' ? 'range' : 'month';
@@ -219,7 +220,7 @@ const SellerAnalytics = () => {
         <StatCardGrid>
           <StatCard
             title="Revenue"
-            value={formatUSD(analytics?.totalRevenue ?? analytics?.sales?.revenue)}
+            value={formatSettlement(analytics?.totalRevenue ?? analytics?.sales?.revenue)}
             icon={DollarSign}
             tone="success"
             description={periodLabel}
@@ -233,14 +234,14 @@ const SellerAnalytics = () => {
           />
           <StatCard
             title="Net earnings"
-            value={formatUSD(analytics?.netEarnings ?? analytics?.earnings?.total)}
+            value={formatSettlement(analytics?.netEarnings ?? analytics?.earnings?.total)}
             icon={TrendingUp}
             tone="info"
             description="After commission"
           />
           <StatCard
             title="Average order"
-            value={formatUSD(analytics?.averageOrderValue)}
+            value={formatSettlement(analytics?.averageOrderValue)}
             icon={BarChart3}
             tone="neutral"
             description="Per order, this period"
@@ -302,7 +303,7 @@ const SellerAnalytics = () => {
                         <div
                           className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-sunken"
                           role="img"
-                          aria-label={`${product.productName || 'Product'}: ${formatUSD(revenue)} revenue`}
+                          aria-label={`${product.productName || 'Product'}: ${formatSettlement(revenue)} revenue`}
                         >
                           <div
                             className="h-full rounded-full bg-chart-1 transition-[width] duration-150 ease-out"
@@ -311,7 +312,7 @@ const SellerAnalytics = () => {
                         </div>
                         {/* Direct-labelled at the end of its own bar — no legend. */}
                         <span className="shrink-0 text-sm font-semibold tabular-nums text-fg">
-                          {formatUSD(revenue)}
+                          {formatSettlement(revenue)}
                         </span>
                       </div>
                     </li>
@@ -328,7 +329,7 @@ const SellerAnalytics = () => {
           <CardContent className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-fg">
-                {formatUSD(balanceQuery.data.pending?.amount)} pending payout
+                {formatSettlement(balanceQuery.data.pending?.amount)} pending payout
               </p>
               <p className="mt-0.5 text-xs text-fg-muted">
                 {balanceQuery.data.pending?.count || 0} earning line(s) still inside the hold

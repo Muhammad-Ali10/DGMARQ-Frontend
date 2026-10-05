@@ -9,7 +9,7 @@ import { Badge } from "@components/ui/badge";
 import { Loading } from "@components/ui/loading";
 import { showApiError, showSuccess, showWarning } from "@utils/toast";
 import { AlertCircle, RefreshCw, Wallet } from "lucide-react";
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 
 // ============================================================================
 // Phase 5 - Seller WithdrawalRequestModal
@@ -69,6 +69,7 @@ export function WithdrawalRequestModal({ open, onOpenChange, balance, accounts =
 }
 
 function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
+  const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
   const verifiedAccounts = useMemo(
     () => (accounts || []).filter((a) => a.status === "verified"),
@@ -151,10 +152,10 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
     if (!methodType) return "Select a payout method.";
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return "Enter an amount.";
     if (numericAmount > availableBalance + 0.001) {
-      return `Amount exceeds your available balance of ${formatUSD(availableBalance)}.`;
+      return `Amount exceeds your available balance of ${formatSettlement(availableBalance)}.`;
     }
     return null;
-  }, [methodType, numericAmount, availableBalance]);
+  }, [methodType, numericAmount, availableBalance, formatSettlement]);
 
   const canSubmit =
     !validationError &&
@@ -203,12 +204,12 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-md border border-border bg-secondary/50 p-3">
           <p className="text-xs text-fg-muted mb-1">Available balance</p>
-          <p className="text-xl font-semibold text-fg">{formatUSD(availableBalance)}</p>
+          <p className="text-xl font-semibold text-fg">{formatSettlement(availableBalance)}</p>
           <p className="text-[10px] text-fg-subtle mt-1">Open withdrawals already deducted.</p>
         </div>
         <div className="rounded-md border border-border bg-secondary/50 p-3">
           <p className="text-xs text-fg-muted mb-1">In-flight withdrawals</p>
-          <p className="text-xl font-semibold text-fg">{formatUSD(balance?.inFlight?.amount || 0)}</p>
+          <p className="text-xl font-semibold text-fg">{formatSettlement(balance?.inFlight?.amount || 0)}</p>
           <p className="text-[10px] text-fg-subtle mt-1">
             {balance?.inFlight?.count || 0} request(s) being processed.
           </p>
@@ -280,7 +281,7 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div>
               <p className="text-fg-muted">Provider fee</p>
-              <p className="text-fg font-medium">{formatUSD(quoteQuery.data.fee)}</p>
+              <p className="text-fg font-medium">{formatSettlement(quoteQuery.data.fee)}</p>
             </div>
             {quoteQuery.data.chargebackFee > 0 && (
               <div>
@@ -288,12 +289,12 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
                   Chargeback fee
                   {quoteQuery.data.chargebackFeePercent ? ` (${quoteQuery.data.chargebackFeePercent}%)` : ""}
                 </p>
-                <p className="text-fg font-medium">{formatUSD(quoteQuery.data.chargebackFee)}</p>
+                <p className="text-fg font-medium">{formatSettlement(quoteQuery.data.chargebackFee)}</p>
               </div>
             )}
             <div>
               <p className="text-fg-muted">You will receive</p>
-              <p className="text-success font-semibold">{formatUSD(quoteQuery.data.net)}</p>
+              <p className="text-success font-semibold">{formatSettlement(quoteQuery.data.net)}</p>
             </div>
             <div>
               <p className="text-fg-muted">Source</p>

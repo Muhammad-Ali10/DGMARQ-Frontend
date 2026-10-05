@@ -11,10 +11,6 @@ const menuItems = [
   { id: 'top-viewed', label: 'Top Viewed' },
   { id: 'gift-cards', label: 'Gift Cards' },
   { id: 'upcoming-games', label: 'Upcoming Games' },
-  { id: 'upcoming-new-releases', label: 'Upcoming New Releases' },
-  { id: 'software', label: 'Software' },
-  { id: 'random-keys', label: 'Random Keys' },
-  { id: 'gaming-accounts', label: 'Game Accounts' },
   { id: 'microsoft', label: 'Microsoft' },
 ];
 

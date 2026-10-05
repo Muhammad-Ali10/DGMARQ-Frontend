@@ -10,12 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { CheckCircle2, XCircle, Eye, Ban, UserCheck, Store, Users, PauseCircle, PlayCircle } from 'lucide-react';
 import { SearchInput } from '@components/common/SearchInput';
 import { showSuccess, showApiError } from '@utils/toast';
 import SafeImage from '@components/ui/safe-image';
 import { Pagination } from '@components/common/Pagination';
+import { SELLER_TYPE_LABELS } from '@features/seller';
 
 const SellersManagement = () => {
   const navigate = useNavigate();
@@ -32,13 +34,16 @@ const SellersManagement = () => {
   const [holdReason, setHoldReason] = useState('');
   const [holdingId, setHoldingId] = useState(null);
   const [holdDialogOpen, setHoldDialogOpen] = useState(false);
+  // 'all' | 'individual' | 'business' — filtered server-side on all three tabs.
+  const [sellerTypeFilter, setSellerTypeFilter] = useState('all');
   const queryClient = useQueryClient();
+  const typeParam = sellerTypeFilter === 'all' ? {} : { sellerType: sellerTypeFilter };
 
   // Fetch pending sellers - always fetch to show count in tab
   const { data: pendingSellers, isLoading: isLoadingPending, isError: isErrorPending, error: errorPending } = useQuery({
-    queryKey: ['pending-sellers', page],
+    queryKey: ['pending-sellers', page, sellerTypeFilter],
     queryFn: async () => {
-      const response = await adminAPI.getPendingSellers({ page, limit: 10 });
+      const response = await adminAPI.getPendingSellers({ page, limit: 10, ...typeParam });
       return response.data.data;
     },
     retry: 1,
@@ -47,9 +52,9 @@ const SellersManagement = () => {
 
   // Fetch active sellers - always fetch to show count in tab
   const { data: activeSellers, isLoading: isLoadingActive, isError: isErrorActive, error: errorActive } = useQuery({
-    queryKey: ['active-sellers', page],
+    queryKey: ['active-sellers', page, sellerTypeFilter],
     queryFn: async () => {
-      const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'active' });
+      const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'active', ...typeParam });
       return response.data.data;
     },
     retry: 1,
@@ -58,9 +63,9 @@ const SellersManagement = () => {
 
   // Fetch banned sellers - always fetch to show count in tab
   const { data: bannedSellers, isLoading: isLoadingBanned, isError: isErrorBanned, error: errorBanned } = useQuery({
-    queryKey: ['banned-sellers', page],
+    queryKey: ['banned-sellers', page, sellerTypeFilter],
     queryFn: async () => {
-      const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'banned' });
+      const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'banned', ...typeParam });
       return response.data.data;
     },
     retry: 1,
@@ -297,12 +302,27 @@ const SellersManagement = () => {
                   {activeTab === 'active' && 'Active Sellers'}
                   {activeTab === 'banned' && 'Banned Sellers'}
                 </CardTitle>
-                <SearchInput
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                  placeholder="Search sellers..."
-                  className="w-full md:w-64"
-                />
+                <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                  <Select
+                    value={sellerTypeFilter}
+                    onValueChange={(value) => { setSellerTypeFilter(value); setPage(1); }}
+                  >
+                    <SelectTrigger className="w-full sm:w-40" aria-label="Filter by seller type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All types</SelectItem>
+                      <SelectItem value="individual">{SELLER_TYPE_LABELS.individual}</SelectItem>
+                      <SelectItem value="business">{SELLER_TYPE_LABELS.business}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <SearchInput
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                    placeholder="Search sellers..."
+                    className="w-full md:w-64"
+                  />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -319,6 +339,7 @@ const SellersManagement = () => {
                       <TableHeader>
                         <TableRow className="border-gray-700 bg-secondary/50 hover:bg-secondary">
                           <TableHead className="text-gray-300 font-semibold">Shop Name</TableHead>
+                          <TableHead className="text-gray-300 font-semibold">Type</TableHead>
                           <TableHead className="text-gray-300 font-semibold">Email</TableHead>
                           <TableHead className="text-gray-300 font-semibold">Location</TableHead>
                           <TableHead className="text-gray-300 font-semibold">Status</TableHead>
@@ -344,6 +365,15 @@ const SellersManagement = () => {
                                 )}
                                 <span>{seller.shopName}</span>
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              {seller.sellerType ? (
+                                <Badge variant={seller.sellerType === 'business' ? 'info' : 'secondary'}>
+                                  {SELLER_TYPE_LABELS[seller.sellerType]}
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-500">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-gray-300">{seller.userId?.email || 'N/A'}</TableCell>
                             <TableCell className="text-gray-300">

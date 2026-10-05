@@ -46,7 +46,7 @@ import { Pagination } from "@components/common/Pagination";
 import { showApiError, showSuccess } from "@utils/toast";
 import { useSocket } from "@hooks/useSocket";
 import { Link } from "react-router-dom";
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 
 // ============================================================================
 // Phase 5 - Admin Payouts & Withdrawals Management
@@ -206,6 +206,7 @@ const ROW_STATUS_META = {
 };
 
 const PayoutsManagement = () => {
+  const { formatWithUsd: formatMoney } = useCurrency();
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
 
@@ -400,10 +401,10 @@ const PayoutsManagement = () => {
                             </div>
                           </TableCell>
                           <TableCell className="text-gray-200 text-sm">{METHOD_LABEL[w.methodType] || w.methodType}</TableCell>
-                          <TableCell className="text-white font-semibold">{formatUSD(w.requestedAmount)}</TableCell>
+                          <TableCell className="text-white font-semibold">{formatMoney(w.requestedAmount)}</TableCell>
                           <TableCell className="text-gray-300">
                             <div className="flex flex-col items-start gap-1">
-                              <span>{formatUSD(w.providerFee)}</span>
+                              <span>{formatMoney(w.providerFee)}</span>
                               {w.fallbackUsed && (
                                 <Badge variant="warning" className="text-[10px] flex items-center gap-1">
                                   <AlertTriangle className="w-3 h-3" />
@@ -413,7 +414,7 @@ const PayoutsManagement = () => {
                               <span className="text-[10px] text-gray-500">{w.feeSource}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-green-400 font-medium">{formatUSD(w.netAmount)}</TableCell>
+                          <TableCell className="text-green-400 font-medium">{formatMoney(w.netAmount)}</TableCell>
                           <TableCell>
                             <Badge variant={WITHDRAWAL_STATUS_VARIANT[w.status] || "default"}>
                               {WITHDRAWAL_STATUS_LABEL[w.status] || w.status}
@@ -551,7 +552,7 @@ const PayoutsManagement = () => {
                             <TableCell className="text-white font-mono text-sm">{payout._id.slice(-8)}</TableCell>
                             <TableCell className="text-gray-300">{payout.sellerId?.shopName || "N/A"}</TableCell>
                             <TableCell className="text-white font-semibold">
-                              {formatUSD(split.total)}
+                              {formatMoney(split.total)}
                               {split.totalKeys > 0 && (
                                 <div className="text-[11px] text-gray-500 font-normal mt-0.5">
                                   {split.totalKeys} key{split.totalKeys === 1 ? "" : "s"}
@@ -564,7 +565,7 @@ const PayoutsManagement = () => {
                                   split.available > 0 ? "text-green-400" : "text-gray-500"
                                 }`}
                               >
-                                {formatUSD(split.available)}
+                                {formatMoney(split.available)}
                               </span>
                               {split.totalKeys > 0 && split.availableKeys < split.totalKeys && (
                                 <div className="text-[11px] text-gray-500 mt-0.5">
@@ -580,7 +581,7 @@ const PayoutsManagement = () => {
                                     <div>
                                       <span className="inline-flex items-center gap-1 font-semibold text-orange-400">
                                         <Snowflake className="w-3.5 h-3.5" />
-                                        {formatUSD(split.frozen)}
+                                        {formatMoney(split.frozen)}
                                         <span className="text-[10px] uppercase tracking-wide text-orange-300/80 ml-1">
                                           Frozen
                                         </span>
@@ -597,7 +598,7 @@ const PayoutsManagement = () => {
                                     <div>
                                       <span className="inline-flex items-center gap-1 font-semibold text-red-400">
                                         <AlertCircle className="w-3.5 h-3.5" />
-                                        {formatUSD(split.refunded)}
+                                        {formatMoney(split.refunded)}
                                         <span className="text-[10px] uppercase tracking-wide text-red-300/80 ml-1">
                                           Refunded
                                         </span>
@@ -681,7 +682,7 @@ const PayoutsManagement = () => {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Amount</p>
-                  <p>{formatUSD(rejectTarget.requestedAmount)} ({METHOD_LABEL[rejectTarget.methodType]})</p>
+                  <p>{formatMoney(rejectTarget.requestedAmount)} ({METHOD_LABEL[rejectTarget.methodType]})</p>
                 </div>
               </div>
               <div className="space-y-2">

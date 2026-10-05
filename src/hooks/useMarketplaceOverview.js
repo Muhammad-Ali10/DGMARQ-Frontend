@@ -1,15 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { categoryAPI, trendingOfferAPI, analyticsAPI } from "@/services/api";
-import {
-  MarketplaceCategories,
-  MarketplacePromotions,
-  MarketplaceMetrics,
-} from "@/lib/data";
+import { categoryAPI, analyticsAPI } from "@/services/api";
+import { MarketplaceCategories, MarketplaceMetrics } from "@/lib/data";
 
 /**
  * Marketplace overview hook
- * Fetches real categories, promotions and metrics for the public /marketplace
+ * Fetches real categories and metrics for the public /marketplace
  * page. Falls back to static lib data if any API is unavailable.
  *
  * AUDIT FIX (PERF-9): this used to fire FIVE requests from a mount-only
@@ -31,7 +27,6 @@ import {
  */
 const FALLBACK = {
   categories: MarketplaceCategories,
-  promotions: MarketplacePromotions,
   metrics: MarketplaceMetrics,
 };
 
@@ -43,9 +38,8 @@ export function useMarketplaceOverview() {
     queryKey: ["marketplace-overview", isAdmin],
     staleTime: 300000,
     queryFn: async () => {
-      const [categoriesRes, offersRes, metricsRes] = await Promise.allSettled([
+      const [categoriesRes, metricsRes] = await Promise.allSettled([
         categoryAPI.getCategories({ limit: 6, status: "active" }),
-        trendingOfferAPI.getTrendingOffers(),
         isAdmin ? analyticsAPI.getDashboard() : Promise.resolve(null),
       ]);
 
@@ -67,33 +61,6 @@ export function useMarketplaceOverview() {
             productCount:
               Number(c.productCount || c.totalProducts || 0) || undefined,
             icon: "HiCpuChip",
-          }));
-        }
-      }
-
-      // Promotions via trending offers
-      if (offersRes.status === "fulfilled" && offersRes.value?.data) {
-        const raw =
-          offersRes.value.data.data ||
-          offersRes.value.data.offers ||
-          offersRes.value.data.items ||
-          [];
-        if (Array.isArray(raw) && raw.length) {
-          next.promotions = raw.slice(0, 3).map((offer) => ({
-            id: offer._id || offer.id,
-            title: offer.title || offer.name || "Marketplace Promotion",
-            description:
-              offer.description ||
-              "Configured promotion powered by real marketplace pricing and availability.",
-            badge:
-              offer.badge ||
-              (offer.type === "flash" ? "Limited Time" : "Active Offer"),
-            discountLabel:
-              offer.discountLabel ||
-              (offer.discountPercentage
-                ? `Save ${offer.discountPercentage}%`
-                : "Dynamic pricing"),
-            endsAt: offer.endsAt || offer.expiresAt || null,
           }));
         }
       }

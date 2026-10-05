@@ -52,12 +52,6 @@ describe('calculateProductPrice', () => {
     expect(r.discountPercentage).toBe(0);
   });
 
-  it('reads the trendingOffer discount first', () => {
-    const r = calculateProductPrice({ price: 200, trendingOffer: { discountPercent: 10 } });
-    expect(r.discountPrice).toBe(180);
-    expect(r.discountPercentage).toBe(10);
-  });
-
   it('never returns a negative or above-original discount price', () => {
     const over = calculateProductPrice({ price: 100, discountPercentage: 150 });
     // out-of-range percent (>100) is ignored, price stays original
@@ -114,8 +108,11 @@ describe('entity-name getters', () => {
 
   it('maps known product type codes to readable labels', () => {
     expect(getTypeName({ productType: 'LICENSE_KEY' })).toBe('Key');
-    expect(getTypeName({ type: 'ACCOUNT_BASED' })).toBe('Account');
-    expect(getTypeName({ type: 'GIFT_CARD' })).toBe('Gift Card');
+    expect(getTypeName({ productType: 'ACCOUNT_BASED' })).toBe('Account');
+    expect(getTypeName({ productType: 'GIFT' })).toBe('Gift');
+    expect(getTypeName({ productType: 'ACTIVATION_LINK' })).toBe('Activation Link');
+    // the Type taxonomy is gone: a leftover `type` ref is not a label
+    expect(getTypeName({ type: 'ACCOUNT_BASED' })).toBe('Unknown Type');
     expect(getTypeName({})).toBe('Unknown Type');
   });
 

@@ -15,6 +15,7 @@ import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { showSuccess, showApiError } from '@utils/toast';
 import SafeImage from '@components/ui/safe-image';
+import useCurrency from '@hooks/useCurrency';
 
 const SLIDE_POSITIONS = [
   { value: 0, label: 'Position 1 - Left Small' },
@@ -25,6 +26,7 @@ const SLIDE_POSITIONS = [
 ];
 
 const HomepageSlidersManagement = () => {
+  const { format: formatMoney } = useCurrency();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedSlider, setSelectedSlider] = useState(null);
@@ -253,7 +255,7 @@ const HomepageSlidersManagement = () => {
                               <div className="flex-1">
                                 <div className="text-white font-medium">{product.name}</div>
                                 <div className="text-sm text-gray-400">
-                                  {product.price ? `$${product.price.toFixed(2)} · ` : ''}{product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
+                                  {product.price ? `${formatMoney(product.price)} · ` : ''}{product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
                                 </div>
                               </div>
                             </div>
@@ -495,7 +497,7 @@ const HomepageSlidersManagement = () => {
                             <div className="flex-1">
                               <div className="text-white font-medium">{product.name}</div>
                               <div className="text-sm text-gray-400">
-                                {product.price ? `$${product.price.toFixed(2)} · ` : ''}{product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
+                                {product.price ? `${formatMoney(product.price)} · ` : ''}{product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
                               </div>
                             </div>
                           </div>

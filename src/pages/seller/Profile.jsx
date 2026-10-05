@@ -34,7 +34,6 @@ const SellerProfile = () => {
   const [profileData, setProfileData] = useState({
     shopName: '',
     description: '',
-    country: '',
     state: '',
     city: '',
   });
@@ -45,7 +44,6 @@ const SellerProfile = () => {
       setProfileData({
         shopName: sellerInfo.shopName || '',
         description: sellerInfo.description || '',
-        country: sellerInfo.country || '',
         state: sellerInfo.state || '',
         city: sellerInfo.city || '',
       });
@@ -206,15 +204,18 @@ const SellerProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="country" className="text-fg-muted">Country</Label>
+                    {/* Locked: the seller's tax ID and KYC documents were checked against it. */}
                     <Input
                       id="country"
                       type="text"
-                      value={profileData.country}
-                      onChange={(e) => setProfileData({ ...profileData, country: e.target.value })}
+                      value={sellerInfo?.country || ''}
                       className="bg-secondary border-border text-fg"
-                      placeholder="Country"
-                      required
+                      aria-describedby="country-locked-hint"
+                      disabled
                     />
+                    <p id="country-locked-hint" className="text-xs text-fg-subtle">
+                      Set during verification. Contact support to change it.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -393,7 +394,7 @@ const SellerProfile = () => {
                   <h4 className="text-fg font-medium">Verification Requirements:</h4>
                   <div className="space-y-2">
                     <div className={`flex items-center justify-between p-3 rounded-lg ${badge.hasKYC ? 'bg-success-soft border border-success/35' : 'bg-surface-2 border border-border'}`}>
-                      <span className="text-fg-muted">KYC Documents Submitted</span>
+                      <span className="text-fg-muted">KYC Verified</span>
                       {badge.hasKYC ? (
                         <CheckCircle className="w-5 h-5 text-success" />
                       ) : (

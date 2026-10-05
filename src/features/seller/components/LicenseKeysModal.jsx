@@ -16,6 +16,8 @@ import { PlatformBadge, isKnownPlatform } from '@components/common/PlatformBadge
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { userAPI, sellerAPI } from '@services/api';
 import { getRedemption } from '@lib/redemption';
+import { deliveryWords, isActivationLink, isHttpUrl } from '@lib/deliveryType';
+import { describeAccountCredentials } from '@lib/accountCredentials';
 import { Key, Copy, ShieldAlert, CheckCircle2, Eye, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -244,6 +246,7 @@ function KeyGroup({ item, idx, revealed, copiedId, onCopy }) {
               key={kIdx}
               value={keyVal}
               isAccount={isAccount}
+              productType={item.productType}
               revealed={revealed}
               id={`${idx}-${kIdx}`}
               productName={item.productName}
@@ -277,33 +280,18 @@ function KeyGroup({ item, idx, revealed, copiedId, onCopy }) {
 }
 
 /** A single key, or one account-credential block. */
-function KeyRow({ value, isAccount, revealed, id, productName, copiedId, onCopy }) {
-  let creds = null;
-  if (isAccount && typeof value === 'string' && value.trim().startsWith('{')) {
-    try {
-      creds = JSON.parse(value);
-    } catch {
-      creds = null;
-    }
-  }
+function KeyRow({ value, isAccount, productType, revealed, id, productName, copiedId, onCopy }) {
+  // The rows and their order come from @lib/accountCredentials, so the host
+  // email and the seller's notes show up here without this component knowing
+  // the field names.
+  const isCredentialBlob = isAccount && typeof value === 'string' && value.trim().startsWith('{');
+  const rows = isCredentialBlob ? describeAccountCredentials(value) : [];
 
-  if (creds && typeof creds === 'object') {
-    const email = creds.email || creds.emailAddress || null;
-    const usernameId = creds.usernameId || creds.username || null;
-    const rawPassword = creds.password || null;
-    const emailPassword = creds.emailPassword || (email && !usernameId ? rawPassword : null);
-    const usernamePassword = creds.usernamePassword || (usernameId ? rawPassword : null);
-    const rows = [
-      ['Email', email],
-      ['Email password', emailPassword],
-      ['Username', usernameId],
-      ['Username password', usernamePassword],
-    ].filter(([, v]) => Boolean(v));
-
+  if (isCredentialBlob) {
     if (rows.length === 0) {
       return (
         <SecretField
-          value={JSON.stringify(creds)}
+          value={value}
           revealed={revealed}
           label="Credentials"
           id={id}
@@ -315,13 +303,13 @@ function KeyRow({ value, isAccount, revealed, id, productName, copiedId, onCopy 
 
     return (
       <div className="space-y-2.5 rounded-lg border border-border bg-surface-1 p-3.5">
-        {rows.map(([label, v]) => (
+        {rows.map(({ key, label, value: fieldValue }) => (
           <SecretField
-            key={label}
+            key={key}
             label={label}
-            value={v}
+            value={fieldValue}
             revealed={revealed}
-            id={`${id}-${label}`}
+            id={`${id}-${key}`}
             copiedId={copiedId}
             onCopy={onCopy}
           />
@@ -334,7 +322,8 @@ function KeyRow({ value, isAccount, revealed, id, productName, copiedId, onCopy 
     <SecretField
       value={value}
       revealed={revealed}
-      label={productName}
+      label={productName || deliveryWords(productType).title}
+      href={isActivationLink(productType) && isHttpUrl(value) ? value : undefined}
       id={`key-${id}`}
       copiedId={copiedId}
       onCopy={onCopy}
@@ -343,7 +332,7 @@ function KeyRow({ value, isAccount, revealed, id, productName, copiedId, onCopy 
 }
 
 /** Masked-or-revealed value with a copy control. */
-function SecretField({ label, value, revealed, id, copiedId, onCopy }) {
+function SecretField({ label, value, revealed, href, id, copiedId, onCopy }) {
   const display = revealed ? value : '•'.repeat(Math.min(String(value ?? '').length || 16, 28));
   const copied = copiedId === id;
 
@@ -351,12 +340,23 @@ function SecretField({ label, value, revealed, id, copiedId, onCopy }) {
     <div>
       {label && <p className="mb-1 text-[11px] tracking-wider text-fg-subtle uppercase">{label}</p>}
       <div className="flex items-center gap-2">
-        <code
-          className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm break-all text-fg select-all"
-          aria-label={revealed ? undefined : 'Hidden until revealed'}
-        >
-          {display}
-        </code>
+        {revealed && href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm break-all text-accent-on-dark underline decoration-dotted"
+          >
+            {display}
+          </a>
+        ) : (
+          <code
+            className="min-w-0 flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 font-mono text-sm break-all text-fg select-all"
+            aria-label={revealed ? undefined : 'Hidden until revealed'}
+          >
+            {display}
+          </code>
+        )}
         <Button
           type="button"
           variant="outline"

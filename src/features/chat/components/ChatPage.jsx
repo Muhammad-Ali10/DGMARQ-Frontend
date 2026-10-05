@@ -1,7 +1,7 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatAPI } from '@services/api';
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
@@ -11,6 +11,7 @@ import { MessageSquare, Send, ImagePlus, Ban, ShieldOff } from 'lucide-react';
 import { useSocket } from '@hooks/useSocket';
 import { useChatNotifications } from '../hooks/useChatNotifications';
 import ErrorBoundary from '@components/common/ErrorBoundary';
+import { ConfirmationModal } from '@components/common/ConfirmationModal';
 import { EmptyState } from '@components/common/EmptyState';
 import MessageBubble from './MessageBubble';
 import ChatMessageSkeleton from './ChatMessageSkeleton';
@@ -49,6 +50,11 @@ function appendMessageToCache(queryClient, queryKey, newMsg) {
   });
 }
 
+// Links inside the red blocked banner. They inherit the banner's colour and carry
+// an underline, so the affordance is not signalled by colour alone.
+const BLOCKED_LINK =
+  'font-medium underline underline-offset-4 rounded-sm hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
 const CONVERSATIONS_DEBOUNCE_MS = 2000;
 // One module-level cache per role, mirroring the original per-page module
 // caches, so buyer and seller conversation lists never mix.
@@ -66,6 +72,11 @@ const ROLE_CONFIG = {
     headerSubtitle: 'Chat with sellers about your orders',
     getPeerName: (conv) => conv?.sellerId?.shopName || 'Seller',
     getUnreadCount: (conv) => conv?.unreadCountBuyer ?? 0,
+    // Where a participant who has BEEN blocked can still get help. Blocking only
+    // freezes this thread — the refund/dispute channel is a separate collection
+    // and is unaffected — but the blocked party could not tell from the UI.
+    supportPath: '/buyer-support',
+    getOrderPath: (conv) => (conv?.orderId?._id ? `/user/orders/${conv.orderId._id}` : null),
     chatCardClassName: 'lg:col-span-2 flex flex-col max-w-full h-full min-h-0 overflow-hidden',
     chatHeaderClassName: 'shrink-0 border-b border-brand-cyan/10 px-4 py-3',
     messagesWidthClassName: 'max-w-2xl mx-auto',
@@ -75,6 +86,9 @@ const ROLE_CONFIG = {
     headerSubtitle: 'Communicate with buyers',
     getPeerName: (conv) => conv?.buyerId?.name || 'Buyer',
     getUnreadCount: (conv) => conv?.unreadCountSeller ?? 0,
+    supportPath: '/seller-support',
+    // A seller does not raise refunds; support is their whole escape hatch.
+    getOrderPath: () => null,
     chatCardClassName: 'lg:col-span-2 flex flex-col max-w-full py-2 h-full min-h-0 overflow-hidden',
     chatHeaderClassName: 'shrink-0 border-b border-brand-cyan/10 px-4 py-0!',
     messagesWidthClassName: 'max-w-4xl mx-auto',
@@ -87,6 +101,7 @@ const ChatPage = ({ role }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const conversationFromUrl = searchParams.get('conversation');
   const [selectedConversation, setSelectedConversation] = useState(conversationFromUrl || null);
+  const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [peerTyping, setPeerTyping] = useState(false);
   const isTypingRef = useRef(false);
@@ -451,12 +466,21 @@ const ChatPage = ({ role }) => {
     retry: false,
   });
 
-  // M13: block / unblock. Invalidates the conversations query so the header
-  // re-renders with the fresh status; the socket 'conversation_block_changed'
-  // event covers the other participant's UI.
+  // M13: block / unblock. The socket 'conversation_block_changed' event covers the
+  // other participant's UI; this covers ours.
+  //
+  // The response is written straight into the cache rather than left to the
+  // refetch: `blockedBy` decides whether Unblock is offered at all, so the button
+  // must not depend on a round trip landing first.
   const blockMutation = useMutation({
     mutationFn: (conversationId) => chatAPI.toggleBlock(conversationId).then((r) => r.data.data),
     onSuccess: (data) => {
+      const patch = { status: data?.status, blockedBy: data?.blockedBy ?? null };
+      queryClient.setQueryData([conversationsKey], (old) =>
+        Array.isArray(old)
+          ? old.map((conv) => (conv._id?.toString() === data?.conversationId?.toString() ? { ...conv, ...patch } : conv))
+          : old
+      );
       queryClient.invalidateQueries({ queryKey: [conversationsKey] });
       // Same-role cache also feeds the list; nudge it so the badge/state flips.
       conversationsCacheByRole[role].ts = 0;
@@ -629,6 +653,7 @@ const ChatPage = ({ role }) => {
   }
 
   const conversation = (conversations ?? []).find((c) => c?._id === selectedConversation);
+  const orderPath = conversation ? config.getOrderPath(conversation) : null;
 
   return (
     <ErrorBoundary>
@@ -664,13 +689,26 @@ const ChatPage = ({ role }) => {
                         : 'bg-surface-2 hover:bg-gray-700'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="text-fg font-medium truncate">
                         {config.getPeerName(conv)}
                       </span>
-                      {config.getUnreadCount(conv) > 0 && (
-                        <Badge variant="destructive">{config.getUnreadCount(conv)}</Badge>
-                      )}
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {/* Blocked state was only visible after opening the thread;
+                            in a list of conversations it belongs on the row. */}
+                        {conv?.status === 'blocked' && (
+                          // Neutral, not destructive: the unread count beside it is
+                          // already the red chip, and two identical chips on one row
+                          // read as one thing. Blocked is a state, not an alert.
+                          <Badge variant="neutral">
+                            <Ban aria-hidden="true" />
+                            Blocked
+                          </Badge>
+                        )}
+                        {config.getUnreadCount(conv) > 0 && (
+                          <Badge variant="destructive">{config.getUnreadCount(conv)}</Badge>
+                        )}
+                      </span>
                     </div>
                     <p className="text-fg-muted text-sm truncate">
                       {conv?.lastMessage || (conv?.orderId
@@ -701,12 +739,7 @@ const ChatPage = ({ role }) => {
                     variant="outline"
                     size="sm"
                     disabled={blockMutation.isPending}
-                    onClick={() => {
-                      const confirmMsg = isBlocked
-                        ? 'Unblock this conversation? Messages will resume.'
-                        : 'Block this conversation? Neither party will be able to send messages until you unblock.';
-                      if (window.confirm(confirmMsg)) blockMutation.mutate(selectedConversation);
-                    }}
+                    onClick={() => setBlockConfirmOpen(true)}
                     className={isBlocked
                       ? 'border-emerald-600/60 text-success hover:bg-emerald-500/10'
                       : 'border-red-600/60 text-danger hover:bg-red-500/10'}
@@ -801,14 +834,32 @@ const ChatPage = ({ role }) => {
                 {/* Input Area - Fixed at bottom */}
                 <div className="shrink-0 p-4 border-t border-brand-cyan/10">
                   {conversation?.status === 'blocked' ? (
-                    <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-md border border-red-600/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                      <Ban className="h-4 w-4 shrink-0" />
-                      <span>
-                        This conversation is blocked.{' '}
-                        {conversation.blockedBy?.toString() === myId
-                          ? 'Click Unblock above to resume messaging.'
-                          : 'The other party has blocked this conversation.'}
-                      </span>
+                    <div className="max-w-2xl mx-auto flex items-start gap-2 rounded-md border border-red-600/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                      <Ban className="h-4 w-4 shrink-0 mt-0.5" />
+                      {conversation.blockedBy?.toString() === myId ? (
+                        <span>This conversation is blocked. Click Unblock above to resume messaging.</span>
+                      ) : (
+                        // Only the blocker can lift a block, so the other party is
+                        // stuck here with no way out shown. A refund request and
+                        // support are both unaffected by the block — say so, or
+                        // they wait for a reply that cannot come.
+                        <span>
+                          The other party has blocked this conversation. Blocking only stops messages
+                          here — you can still{' '}
+                          {orderPath && (
+                            <>
+                              <Link to={orderPath} className={BLOCKED_LINK}>
+                                open a refund request on the order
+                              </Link>{' '}
+                              or{' '}
+                            </>
+                          )}
+                          <Link to={config.supportPath} className={BLOCKED_LINK}>
+                            contact support
+                          </Link>
+                          .
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <form onSubmit={handleSendMessage} className="flex gap-2 max-w-2xl mx-auto">
@@ -860,6 +911,23 @@ const ChatPage = ({ role }) => {
         </Card>
       </div>
       </div>
+
+      {/* Blocking freezes the thread for both parties, so it takes the app's
+          confirm dialog rather than window.confirm — focus trapping, Escape to
+          cancel and the same look as every other consequential action. */}
+      <ConfirmationModal
+        open={blockConfirmOpen}
+        onOpenChange={setBlockConfirmOpen}
+        title={conversation?.status === 'blocked' ? 'Unblock this conversation?' : 'Block this conversation?'}
+        description={
+          conversation?.status === 'blocked'
+            ? 'Both of you will be able to send messages in this conversation again.'
+            : 'Neither party will be able to send messages in this conversation until you unblock it. You can unblock it at any time.'
+        }
+        confirmText={conversation?.status === 'blocked' ? 'Unblock' : 'Block'}
+        variant={conversation?.status === 'blocked' ? 'default' : 'destructive'}
+        onConfirm={() => blockMutation.mutate(selectedConversation)}
+      />
     </ErrorBoundary>
   );
 };

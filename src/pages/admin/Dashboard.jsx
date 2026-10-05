@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Users, Store, ShoppingCart, DollarSign, AlertCircle, Package, Headphones, TrendingDown, Receipt } from 'lucide-react';
+import useCurrency from '@hooks/useCurrency';
 
 const AdminDashboard = () => {
+  const { format: formatMoney } = useCurrency();
   const { data: stats, isLoading, isError, error } = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: async () => {
@@ -76,17 +78,17 @@ const AdminDashboard = () => {
     },
     {
       title: 'Total Revenue',
-      value: `$${(stats?.revenue?.total || 0).toFixed(2)}`,
+      value: formatMoney(stats?.revenue?.total || 0),
       icon: DollarSign,
       color: 'text-yellow-500',
       description: 'Total platform revenue',
     },
     {
       title: 'Handling Fees Collected',
-      value: `$${(handlingFeeStats?.totalHandlingFees ?? 0).toFixed(2)}`,
+      value: formatMoney(handlingFeeStats?.totalHandlingFees ?? 0),
       icon: Receipt,
       color: 'text-teal-500',
-      description: `Today: $${(handlingFeeStats?.daily ?? 0).toFixed(2)} · Week: $${(handlingFeeStats?.weekly ?? 0).toFixed(2)} · Month: $${(handlingFeeStats?.monthly ?? 0).toFixed(2)}`,
+      description: `Today: ${formatMoney(handlingFeeStats?.daily ?? 0)} · Week: ${formatMoney(handlingFeeStats?.weekly ?? 0)} · Month: ${formatMoney(handlingFeeStats?.monthly ?? 0)}`,
     },
     {
       title: 'Pending Products',
@@ -105,21 +107,21 @@ const AdminDashboard = () => {
     {
       // Phase 2: amounts from the unified balance source so admin and seller views match.
       title: 'Available Payouts',
-      value: `$${(stats?.payouts?.availableAmount ?? 0).toFixed(2)}`,
+      value: formatMoney(stats?.payouts?.availableAmount ?? 0),
       icon: DollarSign,
       color: 'text-green-500',
       description: `${stats?.payouts?.availableCount ?? 0} line(s) ready`,
     },
     {
       title: 'Pending Payouts ($)',
-      value: `$${(stats?.payouts?.pendingAmount ?? 0).toFixed(2)}`,
+      value: formatMoney(stats?.payouts?.pendingAmount ?? 0),
       icon: DollarSign,
       color: 'text-yellow-500',
       description: `${stats?.payouts?.pendingCount ?? 0} line(s) on hold`,
     },
     {
       title: 'Paid Out',
-      value: `$${(stats?.payouts?.releasedAmount ?? 0).toFixed(2)}`,
+      value: formatMoney(stats?.payouts?.releasedAmount ?? 0),
       icon: DollarSign,
       color: 'text-blue-500',
       description: `${stats?.payouts?.releasedCount ?? 0} line(s) released`,
@@ -188,7 +190,7 @@ const AdminDashboard = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300">Total Revenue</span>
                   <span className="text-green-400 font-semibold">
-                    ${(stats.revenue?.total || 0).toFixed(2)}
+                    {formatMoney(stats.revenue?.total || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">

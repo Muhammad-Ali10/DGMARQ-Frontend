@@ -33,7 +33,7 @@ const iconMap = {
 };
 
 const Marketplace = () => {
-  const { categories, promotions, metrics } = useMarketplaceOverview();
+  const { categories, metrics } = useMarketplaceOverview();
 
   useSEO({
     title: "About Our Marketplace | DGMARQ",
@@ -212,43 +212,6 @@ const Marketplace = () => {
               );
             })}
           </GridContainer>
-        </div>
-      </SectionWrapper>
-
-      {/* 4. Promotions & Deals */}
-      <SectionWrapper id="promotions">
-        <div className="flex flex-col gap-6">
-          <AnimatedHeading
-            eyebrow="Promotions"
-            title="Live-ready promotions and bundled incentives"
-            description="Promotion slots are optimized for time-bound campaigns, FX-sensitive offers, and publisher-grade launch events."
-          />
-          <div className="grid gap-4 md:grid-cols-3">
-            {promotions.map((promo) => (
-                <GlowCard key={promo.id}>
-                <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-                  <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-on-dark/90">
-                    {promo.badge}
-                  </span>
-                  <span className="text-[11px] text-emerald-300">
-                    {promo.discountLabel}
-                  </span>
-                </div>
-                <h3 className="text-sm font-semibold text-white sm:text-base">
-                  {promo.title}
-                </h3>
-                <p className="mt-2 text-xs leading-relaxed text-gray-400 sm:text-sm">
-                  {promo.description}
-                </p>
-                <div className="mt-4 flex items-center justify-between text-[11px] text-gray-400">
-                  <span>Limited-time campaign window</span>
-                  <span className="rounded-md border border-white/20 bg-white/5 px-2 py-0.5">
-                    Countdown-ready
-                  </span>
-                </div>
-              </GlowCard>
-            ))}
-          </div>
         </div>
       </SectionWrapper>
 

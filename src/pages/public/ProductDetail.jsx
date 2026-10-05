@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productAPI, cartAPI, reviewAPI, userAPI } from '@services/api';
 import { useSEO, generateProductSEO } from '@hooks/useSEO';
 import { Textarea } from '@components/ui/textarea';
@@ -10,6 +10,7 @@ import RegionRestrictionModal from '@features/catalog/components/RegionRestricti
 import ProductTypeNotice, { ProductTypeBadge } from '@features/catalog/components/ProductTypeNotice';
 import useCurrency from '@hooks/useCurrency';
 import useBuyerCountry from '@hooks/useBuyerCountry';
+import { isActivePreorder as isUnreleasedPreorder } from '@components/common/PreorderBadge';
 import { resolveOfferAvailability, isBuyerCompatible, describeOfferAvailability, countryName } from '@lib/regionCompat';
 import {
   ShoppingCart,
@@ -42,7 +43,7 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { addToGuestCart } from '@features/cart-checkout';
-import { ProductCard, useWishlist, calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, selectFeaturedOffer, isAllOutOfStock, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
+import { ProductCard, useWishlist, useLiveProductReviews, flattenReviewPages, calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, selectFeaturedOffer, isAllOutOfStock, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
 import SafeImage from '@components/ui/safe-image';
 import './ProductDetail.css';
 
@@ -57,7 +58,6 @@ const ProductDetail = () => {
   const [imgFading, setImgFading] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [offerSort, setOfferSort] = useState('price'); // 'price' | 'rating'
-  const [reviewsPage, setReviewsPage] = useState(1);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
@@ -73,6 +73,10 @@ const ProductDetail = () => {
       return response.data.data;
     },
     retry: 1,
+    // Guests get no live review push (no socket), so the rating, count and star
+    // bars refresh when they come back to the tab — only once the 30s staleTime
+    // has passed, which keeps this to at most one request per return.
+    refetchOnWindowFocus: true,
   });
 
   // Buyer country → picks the region-compatible featured offer + drives the
@@ -115,28 +119,41 @@ const ProductDetail = () => {
     enabled: isAuthenticated && !!product?._id,
   });
 
-  const { data: reviewsData, isLoading: reviewsLoading, isFetching: reviewsFetching } = useQuery({
-    queryKey: ['product-reviews', product?._id, reviewsPage],
-    queryFn: async () => {
-      if (!product?._id) return { docs: [], totalDocs: 0 };
+  // Newest first; "Load More" APPENDS the next page (it used to swap page 1 out).
+  const {
+    data: reviewsData,
+    isLoading: reviewsLoading,
+    isFetching: reviewsFetching,
+    isFetchingNextPage: reviewsLoadingMore,
+    hasNextPage: hasMoreReviews,
+    fetchNextPage: loadMoreReviews,
+  } = useInfiniteQuery({
+    queryKey: ['product-reviews', product?._id],
+    queryFn: async ({ pageParam }) => {
       try {
         const response = await reviewAPI.getReviews({
           productId: product._id,
-          page: reviewsPage,
+          page: pageParam,
           limit: 5,
           sortBy: 'createdAt',
         });
         return response.data.data;
       } catch {
-        return { docs: [], totalDocs: 0 };
+        return { docs: [], hasNextPage: false };
       }
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.nextPage : undefined),
     enabled: !!product?._id,
-    placeholderData: keepPreviousData,
+    // Same tab-focus refresh as the product query, for guests.
+    refetchOnWindowFocus: true,
   });
 
+  // Logged-in visitors: reviews other people write, edit or delete appear live.
+  useLiveProductReviews(product?._id, identifier);
+
   const { data: relatedProducts } = useQuery({
-    queryKey: ['related-products', product?.categoryId?._id, product?._id, product?.platform?._id, product?.type?._id],
+    queryKey: ['related-products', product?.categoryId?._id, product?._id, product?.platform?._id],
     queryFn: async () => {
       if (!product?.categoryId?._id) return { docs: [] };
       try {
@@ -187,8 +204,19 @@ const ProductDetail = () => {
       setReviewRating(0);
       setReviewComment('');
       setSelectedOrderId('');
-      queryClient.invalidateQueries({ queryKey: ['product-reviews'] });
+      // Collapse to the first page before refetching: the new review is the
+      // newest, so it heads page 1, and re-requesting every page the visitor
+      // had expanded would be wasted calls.
+      const reviewsKey = ['product-reviews', product._id];
+      queryClient.setQueryData(reviewsKey, (data) => data && {
+        pages: data.pages.slice(0, 1),
+        pageParams: data.pageParams.slice(0, 1),
+      });
+      queryClient.invalidateQueries({ queryKey: reviewsKey });
+      // The server drops its cached copy of this page on every review write,
+      // so this refetch returns the new rating, count and star bars.
       queryClient.invalidateQueries({ queryKey: ['product-detail', identifier] });
+      queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
     },
     onError: (error) => {
       const errors = error?.response?.data?.errors;
@@ -208,6 +236,16 @@ const ProductDetail = () => {
     // advisory, purchase is never hard-blocked).
     if (boVerdict === false) {
       toast.warning(`This key cannot be activated in ${boCountryName || 'your region'} — adding anyway.`);
+    }
+
+    // M21 login gate, enforced where the guest actually is. The server refuses
+    // a guest pre-order at checkout, but letting one into the guest cart first
+    // means the buyer only finds out after filling in a whole checkout — and
+    // the 401 that says so arrives as a bare auth error, not as this sentence.
+    if (!isAuthenticated && isUnreleasedPreorder(product)) {
+      toast.error('Pre-orders need an account — please log in to pre-order this.');
+      navigate('/login');
+      return false;
     }
 
     if (!isAuthenticated) {
@@ -264,6 +302,14 @@ const ProductDetail = () => {
       toast.error('This seller is out of stock');
       return;
     }
+    // Same gate as the main button — this is the "other sellers" row, which is
+    // a second way into the guest cart.
+    if (!isAuthenticated && isUnreleasedPreorder(product)) {
+      toast.error('Pre-orders need an account — please log in to pre-order this.');
+      navigate('/login');
+      return;
+    }
+
     if (!isAuthenticated) {
       addToGuestCart({
         productId: product._id,
@@ -380,7 +426,7 @@ const ProductDetail = () => {
     }, 130);
   };
 
-  const reviews = reviewsData?.docs || [];
+  const reviews = flattenReviewPages(reviewsData);
 
   const seller = product?.sellerId || product?.seller || null;
 
@@ -416,7 +462,9 @@ const ProductDetail = () => {
   const platformDisplay = getPlatformName(product);
   const typeDisplay = getTypeName(product);
   // M21: unreleased pre-order — buyable without stock, delivered at release.
-  const isActivePreorder = product.isPreorder && !product.preorderReleasedAt;
+  // The rule lives in PreorderBadge so the badge, the seller screens and this
+  // page cannot drift apart on what "still a pre-order" means.
+  const isActivePreorder = isUnreleasedPreorder(product);
 
   // CLIENT REQ (out-of-stock automation, requirement 4): "Out of Stock" only
   // when EVERY live seller is out — see isAllOutOfStock.
@@ -459,11 +507,13 @@ const ProductDetail = () => {
   const detailRight = detailItems.slice(midpoint);
 
   // Review distribution from the currently-loaded reviews (best-effort).
-  const ratingDist = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: reviews.filter((r) => Math.round(r.rating) === star).length,
-  }));
-  const distTotal = reviews.length || 1;
+  // Per-star counts over ALL public reviews, kept on the product by the server
+  // (these bars used to count only the 5 reviews on screen). A product whose last
+  // review predates the field has none yet, and simply draws no bars.
+  const ratingDist = product.ratingBreakdown
+    ? [5, 4, 3, 2, 1].map((star) => ({ star, count: product.ratingBreakdown[star - 1] || 0 }))
+    : null;
+  const distTotal = product.reviewCount || 1;
 
   const otherOffersCount = Math.max((product.offers?.length || 0) - 1, 0);
 
@@ -909,14 +959,19 @@ const ProductDetail = () => {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={handleAddToCart}
-                disabled={(!isActivePreorder && (!featuredStock || featuredStock === 0)) || addToCartMutation.isPending}
-                className="inline-flex items-center justify-center gap-2 font-medium bg-background text-white hover:opacity-90 rounded-md px-6 w-full h-12 text-lg disabled:opacity-50"
-              >
-                <ShoppingCart className="h-5 w-5" />
-                {addToCartMutation.isPending ? 'Adding...' : isActivePreorder ? 'Pre-order — Add to Cart' : 'Add to Cart'}
-              </button>
+              // A guest looking at a pre-order gets "Log in to pre-order" below
+              // instead. Two buttons that both end at the login page only make
+              // the buyer guess which one is the real route.
+              (isAuthenticated || !isActivePreorder) && (
+                <button
+                  onClick={handleAddToCart}
+                  disabled={(!isActivePreorder && (!featuredStock || featuredStock === 0)) || addToCartMutation.isPending}
+                  className="inline-flex items-center justify-center gap-2 font-medium bg-background text-white hover:opacity-90 rounded-md px-6 w-full h-12 text-lg disabled:opacity-50"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  {addToCartMutation.isPending ? 'Adding...' : isActivePreorder ? 'Pre-order — Add to Cart' : 'Add to Cart'}
+                </button>
+              )
             )}
             {isAuthenticated && (product.stock > 0 || isActivePreorder) && (
               <div className="grid grid-cols-2 gap-3">
@@ -1241,15 +1296,17 @@ const ProductDetail = () => {
                 </div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 5 }}>{product.reviewCount} {product.reviewCount === 1 ? 'review' : 'reviews'}</div>
               </div>
-              <div className="flex-1" style={{ minWidth: 200 }}>
-                {ratingDist.map((d) => (
-                  <div key={d.star} className="flex items-center gap-2" style={{ marginBottom: 5 }}>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', width: 30 }}>{d.star}★</span>
-                    <div className="fx-rev-bar"><span style={{ width: `${(d.count / distTotal) * 100}%` }} /></div>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', width: 18, textAlign: 'right' }}>{d.count}</span>
-                  </div>
-                ))}
-              </div>
+              {ratingDist && (
+                <div className="flex-1" style={{ minWidth: 200 }}>
+                  {ratingDist.map((d) => (
+                    <div key={d.star} className="flex items-center gap-2" style={{ marginBottom: 5 }}>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', width: 30 }}>{d.star}★</span>
+                      <div className="fx-rev-bar"><span style={{ width: `${(d.count / distTotal) * 100}%` }} /></div>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', width: 18, textAlign: 'right' }}>{d.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1305,7 +1362,7 @@ const ProductDetail = () => {
             <div className="text-center py-8"><Loading message="Loading reviews..." /></div>
           ) : reviews.length > 0 ? (
             <div className="space-y-6">
-              {reviewsFetching && <p className="text-sm text-gray-400">Updating reviews...</p>}
+              {reviewsFetching && !reviewsLoadingMore && <p className="text-sm text-gray-400">Updating reviews...</p>}
               {reviews.map((review) => (
                 <div key={review._id} className="flex gap-3">
                   <div style={{ flexShrink: 0, width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg,#172AA4,#0e51e2 55%,#650EB3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 15, overflow: 'hidden' }}>
@@ -1336,9 +1393,11 @@ const ProductDetail = () => {
                   </div>
                 </div>
               ))}
-              {reviewsData?.totalDocs > reviews.length && (
+              {hasMoreReviews && (
                 <div className="flex justify-center pt-4">
-                  <button onClick={() => setReviewsPage((prev) => prev + 1)} disabled={reviewsLoading} className="border border-gray-600 rounded-md px-4 py-2 text-white hover:bg-white/5">Load More Reviews</button>
+                  <button onClick={() => loadMoreReviews()} disabled={reviewsLoadingMore} className="border border-gray-600 rounded-md px-4 py-2 text-white hover:bg-white/5 disabled:opacity-50">
+                    {reviewsLoadingMore ? 'Loading...' : 'Load More Reviews'}
+                  </button>
                 </div>
               )}
             </div>

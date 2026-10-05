@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useId, cloneElement, isValidElement } from 'react';
+import { useEffect, useRef, useState, useId, cloneElement, isValidElement } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -7,7 +7,7 @@ import { setCredentials } from '@store/slices/authSlice';
 import { GetCountries, GetState, GetCity } from 'react-country-state-city';
 import 'react-country-state-city/dist/react-country-state-city.css';
 import {
-  User, MapPin, ShieldCheck, Building2, FileText, BookUser, Car,
+  User, UserCheck, MapPin, ShieldCheck, Building2, FileText, BookUser, Car,
   CheckCircle2, ChevronLeft, ChevronRight, Loader2, Pencil, AlertCircle,
   XCircle, CreditCard,
 } from 'lucide-react';
@@ -17,20 +17,34 @@ import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
 import { Checkbox } from '@components/ui/checkbox';
 import { Textarea } from '@components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { FormSkeleton } from '@components/common/Skeletons';
 import { cn } from '@/lib/utils';
 import { showApiError } from '@utils/toast';
 
-import { StepProgress, FileDropzone, LocationSelect } from '@features/seller';
-
-const TAX_ID_TYPES = ['ABN', 'VAT', 'EIN', 'GST', 'TIN', 'OTHER'];
+import {
+  StepProgress, FileDropzone, LocationSelect,
+  useTaxIdCatalog, normalizeTaxId, taxIdOptions, taxIdLabel, SELLER_TYPE_LABELS,
+} from '@features/seller';
 
 const STEPS = [
+  { label: 'Seller Type' },
   { label: 'Personal Info' },
   { label: 'Identity' },
-  { label: 'Business' },
+  { label: 'Store & Tax' },
   { label: 'Review' },
 ];
+// Every step before Review holds input that must validate.
+const LAST_FORM_STEP = STEPS.length - 2;
+
+const SELLER_TYPE_OPTIONS = [
+  { value: 'individual', description: 'You sell in your own name.', icon: User },
+  { value: 'business', description: 'A registered company or other legal entity.', icon: Building2 },
+];
+
+// Proof of address is a bank statement under 3 months old; the server enforces
+// the same window.
+const MAX_STATEMENT_AGE_DAYS = 90;
 
 // 18 years ago as yyyy-mm-dd, for the date input's max attribute.
 const maxDobString = () => {
@@ -38,6 +52,22 @@ const maxDobString = () => {
   d.setFullYear(d.getFullYear() - 18);
   return d.toISOString().split('T')[0];
 };
+
+// yyyy-mm-dd in the viewer's own calendar — the format <input type="date"> uses.
+const localDateString = (date) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+const daysAgoString = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return localDateString(d);
+};
+
+// Shows a yyyy-mm-dd input value as a local date. Parsed bare it would be read
+// as UTC midnight and print the previous day west of Greenwich.
+const formatDateInput = (value) => (value ? new Date(`${value}T00:00:00`).toLocaleDateString() : '');
 
 const ageFrom = (dobStr) => {
   const dob = new Date(dobStr);
@@ -154,9 +184,11 @@ const BecomeSeller = () => {
   const [submitted, setSubmitted] = useState(false);
 
   const [form, setForm] = useState({
+    sellerType: '',
     fullLegalName: '',
     dateOfBirth: '',
     idType: '',
+    proofOfAddressDate: '',
     shopName: '',
     description: '',
     businessName: '',
@@ -165,12 +197,13 @@ const BecomeSeller = () => {
     additionalNotes: '',
   });
 
-  // Location: keep ids (for fetching children) + names (for submit).
+  // Location: keep ids (for fetching children) + names (for submit). The ISO
+  // code drives which tax IDs the country offers.
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
   const [loc, setLoc] = useState({
-    countryId: null, countryName: '',
+    countryId: null, countryName: '', countryCode: '',
     stateId: null, stateName: '',
     cityId: null, cityName: '',
   });
@@ -221,6 +254,14 @@ const BecomeSeller = () => {
     retry: false,
   });
 
+  // Only someone about to fill the form needs the tax-ID catalogue.
+  const {
+    data: taxCatalog,
+    isLoading: isLoadingTaxCatalog,
+    isError: isTaxCatalogError,
+    refetch: refetchTaxCatalog,
+  } = useTaxIdCatalog({ enabled: sellerStatus?.hasApplication === false });
+
   /* ── Load countries once ── */
   useEffect(() => {
     GetCountries().then(setCountries).catch(() => setCountries([]));
@@ -254,6 +295,14 @@ const BecomeSeller = () => {
     setErrors((p) => ({ ...p, [name]: undefined }));
   };
 
+  const isBusiness = form.sellerType === 'business';
+
+  // The tax-ID type is derived, not synced: whatever the seller picked while it
+  // is still offered for this country + seller type, else the country default.
+  const taxOptions = taxIdOptions(taxCatalog, loc.countryCode, form.sellerType);
+  const taxIdType = taxOptions.includes(form.taxIdType) ? form.taxIdType : (taxOptions[0] || '');
+  const taxType = taxCatalog?.types[taxIdType];
+
   /* ── Mutation ── */
   const applyMutation = useMutation({
     mutationFn: (fd) => sellerAPI.applySeller(fd),
@@ -268,22 +317,34 @@ const BecomeSeller = () => {
   const validateStep = (s) => {
     const e = {};
     if (s === 0) {
+      if (!form.sellerType) e.sellerType = 'Please choose how you will sell';
+    }
+    if (s === 1) {
       if (!form.fullLegalName.trim()) e.fullLegalName = 'Full legal name is required';
       if (!form.dateOfBirth) e.dateOfBirth = 'Date of birth is required';
       else if (Number.isNaN(ageFrom(form.dateOfBirth))) e.dateOfBirth = 'Enter a valid date';
-      else if (ageFrom(form.dateOfBirth) < 18) e.dateOfBirth = 'You must be at least 18 years old';
+      else if (ageFrom(form.dateOfBirth) < 18) e.dateOfBirth = 'Must be at least 18 years old';
       if (!loc.countryId) e.country = 'Country is required';
       if (states.length > 0 && !loc.stateId) e.state = 'State / province is required';
       if (cities.length > 0 && !loc.cityId) e.city = 'City is required';
     }
-    if (s === 1) {
+    if (s === 2) {
       if (!form.idType) e.idType = 'Please select an ID type';
       if (!idFront) e.idFront = 'Front image is required';
       if (form.idType === 'drivers_license' && !idBack) e.idBack = 'Back image is required';
+      if (!proofOfAddress) e.proofOfAddress = 'Bank statement is required';
+      if (!form.proofOfAddressDate) e.proofOfAddressDate = 'Statement date is required';
+      else if (form.proofOfAddressDate > localDateString(new Date())) e.proofOfAddressDate = 'Statement date cannot be in the future';
+      else if (form.proofOfAddressDate < daysAgoString(MAX_STATEMENT_AGE_DAYS)) e.proofOfAddressDate = 'Statement must be less than 3 months old';
     }
-    if (s === 2) {
+    if (s === 3) {
       if (!form.shopName.trim()) e.shopName = 'Store name is required';
-      if (form.taxIdType && !form.taxId.trim()) e.taxId = 'Tax ID number is required';
+      if (isBusiness && !form.businessName.trim()) e.businessName = 'Legal business name is required';
+      if (isBusiness && !certificate) e.certificate = 'Certificate of incorporation / business registration is required';
+      const taxValue = normalizeTaxId(form.taxId);
+      if (isBusiness && !taxValue) e.taxId = 'Tax ID number is required for businesses';
+      else if (taxValue && !taxType) e.taxId = "Tax ID types couldn't be loaded — please retry";
+      else if (taxValue && !taxType.regex.test(taxValue)) e.taxId = `Please check the format (${taxType.hint})`;
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -306,33 +367,35 @@ const BecomeSeller = () => {
 
   const handleSubmit = () => {
     // Re-validate all steps defensively.
-    for (let i = 0; i <= 2; i++) {
+    for (let i = 0; i <= LAST_FORM_STEP; i++) {
       if (!validateStep(i)) { goToStep(i); return; }
     }
     const fd = new FormData();
+    fd.append('sellerType', form.sellerType);
     fd.append('shopName', form.shopName.trim());
     if (form.description.trim()) fd.append('description', form.description.trim());
     fd.append('country', loc.countryName);
+    fd.append('countryCode', loc.countryCode);
     fd.append('state', loc.stateName);
     fd.append('city', loc.cityName);
     fd.append('fullLegalName', form.fullLegalName.trim());
     fd.append('dateOfBirth', form.dateOfBirth);
     fd.append('idType', form.idType);
-    if (form.businessName.trim()) fd.append('businessName', form.businessName.trim());
+    fd.append('proofOfAddressDate', form.proofOfAddressDate);
+    // Business-only fields are sent only for a business: switching the type
+    // back to individual keeps what was typed, but it never reaches the server.
+    if (isBusiness) fd.append('businessName', form.businessName.trim());
     if (form.additionalNotes.trim()) fd.append('additionalNotes', form.additionalNotes.trim());
-    if (form.taxId.trim()) fd.append('taxId', form.taxId.trim());
-    if (form.taxIdType) fd.append('taxIdType', form.taxIdType);
+    if (form.taxId.trim()) {
+      fd.append('taxIdType', taxIdType);
+      fd.append('taxId', form.taxId.trim());
+    }
     fd.append('idFront', idFront);
     if (idBack) fd.append('idBack', idBack);
-    if (proofOfAddress) fd.append('proofOfAddress', proofOfAddress);
-    if (certificate) fd.append('certificate', certificate);
+    fd.append('proofOfAddress', proofOfAddress);
+    if (isBusiness) fd.append('certificate', certificate);
     applyMutation.mutate(fd);
   };
-
-  const dobLabel = useMemo(
-    () => (form.dateOfBirth ? new Date(form.dateOfBirth).toLocaleDateString() : ''),
-    [form.dateOfBirth],
-  );
 
   /* ── Loading / already-applied / success short-circuits ── */
   if (isLoadingStatus) return <FormSkeleton fields={4} />;
@@ -365,12 +428,68 @@ const BecomeSeller = () => {
         >
           {step === 0 && (
             <div className="space-y-5">
-              <SectionTitle icon={User} title="Personal Details" subtitle="Tell us who you are." />
+              <SectionTitle
+                icon={UserCheck}
+                title="How will you sell?"
+                subtitle="This decides which details and documents we need."
+              />
+              <fieldset>
+                <legend className="sr-only">Seller type</legend>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {SELLER_TYPE_OPTIONS.map((opt) => {
+                    const active = form.sellerType === opt.value;
+                    return (
+                      <label
+                        key={opt.value}
+                        className={cn(
+                          'flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-5 text-center transition-all duration-200',
+                          'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/40',
+                          active
+                            ? 'border-accent bg-accent/10 shadow-[0_0_0_3px_rgba(14,81,226,0.18)]'
+                            : 'border-border-interactive bg-surface-sunken hover:border-accent/60 hover:bg-accent/[0.04]',
+                          errors.sellerType && 'border-destructive',
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="sellerType"
+                          value={opt.value}
+                          checked={active}
+                          onChange={setField('sellerType')}
+                          aria-label={SELLER_TYPE_LABELS[opt.value]}
+                          aria-describedby={`seller-type-${opt.value}-desc`}
+                          className="sr-only"
+                        />
+                        <opt.icon className={cn('h-8 w-8', active ? 'text-accent-on-dark' : 'text-fg-muted')} />
+                        <span className={cn('text-sm font-semibold', active ? 'text-fg' : 'text-fg-muted')}>
+                          {SELLER_TYPE_LABELS[opt.value]}
+                        </span>
+                        <span id={`seller-type-${opt.value}-desc`} className="text-xs text-fg-subtle">
+                          {opt.description}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {errors.sellerType && <p className="mt-2 text-xs text-destructive">{errors.sellerType}</p>}
+              </fieldset>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div className="space-y-5">
+              <SectionTitle
+                icon={User}
+                title={isBusiness ? 'Director / Beneficial Owner' : 'Personal Details'}
+                subtitle={isBusiness
+                  ? 'Details of the director or beneficial owner applying for the business.'
+                  : 'Tell us who you are.'}
+              />
               <Field label="Full Legal Name" required error={errors.fullLegalName}>
                 <TextInput
                   value={form.fullLegalName}
                   onChange={setField('fullLegalName')}
-                  placeholder="As shown on your ID"
+                  placeholder={isBusiness ? "As shown on the director's ID" : 'As shown on your ID'}
                   error={errors.fullLegalName}
                 />
               </Field>
@@ -379,7 +498,7 @@ const BecomeSeller = () => {
                 label="Date of Birth"
                 required
                 error={errors.dateOfBirth}
-                hint="You must be at least 18 years old."
+                hint="Must be at least 18 years old."
               >
                 <TextInput
                   type="date"
@@ -394,17 +513,19 @@ const BecomeSeller = () => {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <LocationSelect
                   id="country"
-                  label="Country *"
+                  label={isBusiness ? 'Country of Registration *' : 'Country *'}
                   placeholder="Select country"
                   options={countries}
                   value={loc.countryId}
                   error={errors.country}
                   onChange={(o) => {
                     setLoc({
-                      countryId: o.id, countryName: o.name,
+                      countryId: o.id, countryName: o.name, countryCode: o.iso2,
                       stateId: null, stateName: '',
                       cityId: null, cityName: '',
                     });
+                    // A tax number belongs to one country's scheme.
+                    setForm((p) => ({ ...p, taxIdType: '', taxId: '' }));
                     setStates([]); setCities([]);
                     setLocLoading({ states: true, cities: false });
                     setErrors((p) => ({ ...p, country: undefined }));
@@ -441,12 +562,21 @@ const BecomeSeller = () => {
                   }}
                 />
               </div>
+              <p className="text-xs text-fg-subtle">
+                {isBusiness ? 'Where the business is registered.' : 'Where you live.'} This decides which tax IDs you can use.
+              </p>
             </div>
           )}
 
-          {step === 1 && (
+          {step === 2 && (
             <div className="space-y-5">
-              <SectionTitle icon={ShieldCheck} title="Identity Verification" subtitle="Choose an ID and upload clear photos." />
+              <SectionTitle
+                icon={ShieldCheck}
+                title="Identity & Address"
+                subtitle={isBusiness
+                  ? 'Photo ID of the director or beneficial owner, and a recent bank statement.'
+                  : 'Choose an ID, upload clear photos and a recent bank statement.'}
+              />
 
               <Field label="ID Type" required error={errors.idType}>
                 <div className="grid grid-cols-2 gap-4">
@@ -511,18 +641,54 @@ const BecomeSeller = () => {
                       file={idFront}
                       previewUrl={previews.idFront}
                       onChange={setFile('idFront', setIdFront)}
-                      note="Upload the photo page of your passport. Max file size 10MB."
+                      note="Upload the photo page of the passport. Max file size 10MB."
                       error={errors.idFront}
                     />
                   )}
                 </div>
               </Collapse>
+
+              <div className="grid grid-cols-1 gap-4 border-t border-brand-cyan/10 pt-5 sm:grid-cols-2">
+                <FileDropzone
+                  label="Proof of Address — Bank Statement *"
+                  file={proofOfAddress}
+                  previewUrl={previews.proofOfAddress}
+                  onChange={setFile('proofOfAddress', setProofOfAddress)}
+                  note={isBusiness
+                    ? "In the business's or director's name, issued within the last 3 months."
+                    : 'In your name, issued within the last 3 months.'}
+                  error={errors.proofOfAddress}
+                  compact
+                />
+                <Field
+                  label="Statement Date"
+                  required
+                  error={errors.proofOfAddressDate}
+                  hint="The issue date printed on the statement."
+                >
+                  <TextInput
+                    type="date"
+                    value={form.proofOfAddressDate}
+                    onChange={setField('proofOfAddressDate')}
+                    min={daysAgoString(MAX_STATEMENT_AGE_DAYS)}
+                    max={localDateString(new Date())}
+                    error={errors.proofOfAddressDate}
+                    style={{ colorScheme: 'dark' }}
+                  />
+                </Field>
+              </div>
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div className="space-y-5">
-              <SectionTitle icon={Building2} title="Business Information" subtitle="Your storefront and tax details." />
+              <SectionTitle
+                icon={Building2}
+                title={isBusiness ? 'Business & Tax Details' : 'Store & Tax Details'}
+                subtitle={isBusiness
+                  ? 'Your storefront, registered business and tax details.'
+                  : 'Your storefront and (optional) tax details.'}
+              />
 
               <Field label="Store Name" required error={errors.shopName} hint="The public name buyers will see.">
                 <TextInput
@@ -542,109 +708,133 @@ const BecomeSeller = () => {
                 />
               </Field>
 
-              <Field label="Legal Business Name" hint="Registered business name, if applicable (optional).">
-                <TextInput
-                  value={form.businessName}
-                  onChange={setField('businessName')}
-                  placeholder="Registered business name"
-                />
-              </Field>
+              {isBusiness && (
+                <>
+                  <Field label="Legal Business Name" required error={errors.businessName} hint="Exactly as registered.">
+                    <TextInput
+                      value={form.businessName}
+                      onChange={setField('businessName')}
+                      placeholder="Registered business name"
+                      error={errors.businessName}
+                    />
+                  </Field>
+
+                  <FileDropzone
+                    label="Certificate of Incorporation / Business Registration *"
+                    file={certificate}
+                    previewUrl={previews.certificate}
+                    onChange={setFile('certificate', setCertificate)}
+                    note="The official registration document for the business."
+                    error={errors.certificate}
+                  />
+                </>
+              )}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="taxIdType" className="block text-sm font-medium text-fg">
+                    Tax ID Type {isBusiness && <span className="text-destructive">*</span>}
+                  </label>
+                  <Select value={taxIdType} onValueChange={setField('taxIdType')} disabled={!taxCatalog}>
+                    <SelectTrigger
+                      id="taxIdType"
+                      className="w-full rounded-lg border-border-interactive data-[size=default]:h-11"
+                    >
+                      <SelectValue placeholder={isLoadingTaxCatalog ? 'Loading…' : 'Select type'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {taxOptions.map((code) => (
+                        <SelectItem key={code} value={code}>{taxIdLabel(taxCatalog, code)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {isTaxCatalogError ? (
+                    <p className="text-xs text-destructive">
+                      Couldn&apos;t load tax ID types.{' '}
+                      <button type="button" onClick={() => refetchTaxCatalog()} className="underline">
+                        Retry
+                      </button>
+                    </p>
+                  ) : (
+                    taxType && <p className="text-xs text-fg-subtle">{taxType.name}</p>
+                  )}
+                </div>
+
+                <Field
+                  label={isBusiness ? 'Tax ID Number' : 'Tax ID Number (optional)'}
+                  required={isBusiness}
+                  error={errors.taxId}
+                  hint={taxType ? `Format: ${taxType.hint}` : undefined}
+                >
+                  <TextInput
+                    value={form.taxId}
+                    onChange={setField('taxId')}
+                    placeholder={taxType ? `Your ${taxType.label}` : 'Tax number'}
+                    error={errors.taxId}
+                  />
+                </Field>
+              </div>
 
               <Field label="Additional Notes" hint="Anything else you'd like the review team to know (optional).">
                 <Textarea
                   value={form.additionalNotes}
                   onChange={setField('additionalNotes')}
                   rows={3}
-                  placeholder="e.g. supported email host for account-type products, sourcing details, or any other notes"
+                  placeholder="e.g. where your stock comes from, or anything else the review team should know"
                   className="w-full rounded-lg border border-border-interactive bg-surface-sunken px-3.5 py-2.5 text-sm text-fg placeholder:text-fg-subtle outline-none transition-colors hover:border-ring focus:border-accent focus:ring-2 focus:ring-accent/40"
                 />
               </Field>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Tax ID Type">
-                  <div className="relative">
-                    <select
-                      value={form.taxIdType}
-                      onChange={setField('taxIdType')}
-                      className="h-11 w-full appearance-none rounded-lg border border-border-interactive bg-surface-sunken px-3.5 pr-9 text-sm text-fg outline-none transition-colors hover:border-ring focus:border-accent focus:ring-2 focus:ring-accent/40"
-                    >
-                      <option value="" className="bg-[#0a1f47]">Select type</option>
-                      {TAX_ID_TYPES.map((t) => (
-                        <option key={t} value={t} className="bg-[#0a1f47]">{t}</option>
-                      ))}
-                    </select>
-                    <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-fg-muted" />
-                  </div>
-                </Field>
-
-                <div className={cn('transition-opacity', !form.taxIdType && 'pointer-events-none opacity-0')}>
-                  <Collapse open={!!form.taxIdType}>
-                    <Field label="Tax ID Number" required={!!form.taxIdType} error={errors.taxId}>
-                      <TextInput
-                        value={form.taxId}
-                        onChange={setField('taxId')}
-                        placeholder={`Enter your ${form.taxIdType || 'tax'} number`}
-                        error={errors.taxId}
-                      />
-                    </Field>
-                  </Collapse>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FileDropzone
-                  label="Proof of Address"
-                  file={proofOfAddress}
-                  previewUrl={previews.proofOfAddress}
-                  onChange={setFile('proofOfAddress', setProofOfAddress)}
-                  note="Bank statement less than 3 months old."
-                />
-                <FileDropzone
-                  label="Certificate of Incorporation"
-                  file={certificate}
-                  previewUrl={previews.certificate}
-                  onChange={setFile('certificate', setCertificate)}
-                  note="Business registration document."
-                />
-              </div>
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-5">
               <SectionTitle icon={CheckCircle2} title="Review & Submit" subtitle="Check everything is correct before submitting." />
 
-              {/* Section 1 */}
-              <ReviewCard title="Personal Information" icon={User} onEdit={() => goToStep(0)}>
+              <ReviewCard title="Seller Type" icon={UserCheck} onEdit={() => goToStep(0)}>
+                <SummaryRow label="Selling as" value={SELLER_TYPE_LABELS[form.sellerType]} />
+              </ReviewCard>
+
+              <ReviewCard
+                title={isBusiness ? 'Director / Beneficial Owner' : 'Personal Information'}
+                icon={User}
+                onEdit={() => goToStep(1)}
+              >
                 <SummaryRow label="Full Legal Name" value={form.fullLegalName} />
-                <SummaryRow label="Date of Birth" value={dobLabel} />
-                <SummaryRow label="Country" value={loc.countryName} />
+                <SummaryRow label="Date of Birth" value={formatDateInput(form.dateOfBirth)} />
+                <SummaryRow label={isBusiness ? 'Country of Registration' : 'Country'} value={loc.countryName} />
                 <SummaryRow label="State / Province" value={loc.stateName} />
                 <SummaryRow label="City" value={loc.cityName} />
               </ReviewCard>
 
-              {/* Section 2 */}
-              <ReviewCard title="Identity Verification" icon={ShieldCheck} onEdit={() => goToStep(1)}>
+              <ReviewCard title="Identity & Address" icon={ShieldCheck} onEdit={() => goToStep(2)}>
                 <SummaryRow
                   label="ID Type"
                   value={form.idType === 'drivers_license' ? "Driver's License" : form.idType === 'passport' ? 'Passport' : ''}
                 />
+                <SummaryRow label="Bank Statement Date" value={formatDateInput(form.proofOfAddressDate)} />
                 <div className="mt-3 flex flex-wrap gap-4">
                   <FileThumb file={idFront} previewUrl={previews.idFront} label={form.idType === 'passport' ? 'Passport' : 'Front'} />
                   <FileThumb file={idBack} previewUrl={previews.idBack} label="Back" />
+                  <FileThumb file={proofOfAddress} previewUrl={previews.proofOfAddress} label="Bank Statement" />
                 </div>
               </ReviewCard>
 
-              {/* Section 3 */}
-              <ReviewCard title="Business Information" icon={Building2} onEdit={() => goToStep(2)}>
+              <ReviewCard
+                title={isBusiness ? 'Business & Tax' : 'Store & Tax'}
+                icon={Building2}
+                onEdit={() => goToStep(3)}
+              >
                 <SummaryRow label="Store Name" value={form.shopName} />
                 {form.description && <SummaryRow label="Description" value={form.description} />}
-                {form.businessName && <SummaryRow label="Business Name" value={form.businessName} />}
+                {isBusiness && <SummaryRow label="Legal Business Name" value={form.businessName} />}
+                <SummaryRow
+                  label="Tax ID"
+                  value={form.taxId.trim() ? `${form.taxId.trim()} (${taxIdLabel(taxCatalog, taxIdType)})` : 'Not provided'}
+                />
                 {form.additionalNotes && <SummaryRow label="Additional Notes" value={form.additionalNotes} />}
-                {form.taxIdType && <SummaryRow label="Tax ID" value={`${form.taxId} (${form.taxIdType})`} />}
-                {(proofOfAddress || certificate) && (
+                {isBusiness && certificate && (
                   <div className="mt-3 flex flex-wrap gap-4">
-                    <FileThumb file={proofOfAddress} previewUrl={previews.proofOfAddress} label="Proof of Address" />
                     <FileThumb file={certificate} previewUrl={previews.certificate} label="Certificate" />
                   </div>
                 )}
@@ -831,6 +1021,7 @@ const AlreadyApplied = ({ seller }) => {
 
         <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
           {[
+            { label: 'Seller Type', value: SELLER_TYPE_LABELS[seller.sellerType], icon: UserCheck },
             { label: 'Full Legal Name', value: seller.fullLegalName, icon: User },
             { label: 'Business Name', value: seller.businessName, icon: Building2 },
             { label: 'Country', value: seller.country, icon: MapPin },

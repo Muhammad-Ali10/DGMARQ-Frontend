@@ -38,6 +38,10 @@ const fromServer = (it) => ({
   sellerRating: it.sellerRating ?? null,
   qty: it.qty || 1,
   isPreorder: !!it.isPreorder,
+  // The server sends this beside isPreorder. Carrying only the flag meant the
+  // cart and checkout could say "PRE-ORDER" but never say WHEN — the one fact
+  // the buyer is weighing before they pay.
+  preorderReleaseDate: it.preorderReleaseDate || null,
 });
 
 // Guest lines never carry device/region/stock/rating — those spec rows simply
@@ -62,7 +66,12 @@ const fromGuest = (it) => ({
   sellerId: it.sellerId || null,
   sellerRating: null,
   qty: it.qty || 1,
+  // A guest cannot hold a pre-order at all — ProductDetail and ProductCard turn
+  // them away at add-to-cart, and the server refuses one at checkout. Hardcoded
+  // false rather than read, so a stale localStorage cart from before that gate
+  // cannot present itself as one.
   isPreorder: false,
+  preorderReleaseDate: null,
 });
 
 /** One render model for both auth (server) and guest (localStorage) lines. */

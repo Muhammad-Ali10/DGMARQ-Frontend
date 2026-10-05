@@ -52,7 +52,7 @@ export const REGION_PRESETS = [
   { code: "EMEA", name: "Europe, Middle East & Africa", countries: EMEA },
   { code: "MENA", name: "Middle East & North Africa", countries: MENA },
   { code: "RU_CIS", name: "Russia & CIS", countries: RU_CIS },
-  { code: "GLOBAL", name: "Global / Rest of World", isGlobal: true, countries: [] },
+  { code: "GLOBAL", name: "Global", isGlobal: true, countries: [] },
 ];
 
 export const GLOBAL_REGION_CODE = "GLOBAL";

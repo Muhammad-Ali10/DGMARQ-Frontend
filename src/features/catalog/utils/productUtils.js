@@ -29,10 +29,8 @@ export { PRODUCT_IMAGE_PLACEHOLDER };
  * "$8.00" product page, and an email saying it had dropped to $8.00. Reading
  * `lowestEffectivePrice` here is what makes the three agree.
  *
- * Precedence is deliberate and mirrors the backend's own
- * (utils/priceCalculator.js: flash deal > trending offer > standing discount):
- * a campaign deal, which the API attaches as `discountedPrice`, still wins over
- * the seller's standing discount.
+ * An absolute `discountedPrice` from the API still wins over a standing
+ * discount percentage.
  *
  * @param {Object} product - Product object
  * @returns {Object} - { discountPrice, discountPercentage, originalPrice }
@@ -54,8 +52,6 @@ export const calculateProductPrice = (product) => {
   const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
   const originalPrice = round2(Number(product.price) || 0);
   const discountPercentRaw =
-    product.trendingOffer?.discountPercent ??
-    product.trendingOffer?.discountPercentage ??
     product.discountPercentage ??
     product.discountPercent ??
     product.discount ??
@@ -67,7 +63,7 @@ export const calculateProductPrice = (product) => {
     product.salePrice ??
     product?.pricing?.discountedPrice ??
     // M19 rollup: cheapest live offer AFTER that seller's discount. Last in the
-    // chain so an active campaign deal above still takes precedence.
+    // chain so an explicit price from the API above still takes precedence.
     product.lowestEffectivePrice ??
     null;
   const discountedPriceNum = Number(discountedPriceRaw);
@@ -93,9 +89,7 @@ export const calculateProductPrice = (product) => {
   // Otherwise the badge and the price can contradict each other: a product
   // whose master `discount` still reads 10 from some earlier admin edit, but
   // whose live offer is 20% off, would render "-10%" beside a price that is 20%
-  // lower. For a campaign deal the two are equal by construction — the API
-  // computes discountedPrice FROM discountPercent — so this changes nothing
-  // there. Rounded to a whole number because the effective price is itself
+  // lower. Rounded to a whole number because the effective price is itself
   // rounded to 2dp, which turns an exact 20% off $9.99 into 20.02%.
   const derivedPercentage =
     originalPrice > 0 && finalPrice < originalPrice
@@ -179,8 +173,9 @@ const mapProductTypeValue = (value) => {
 
   if (normalized === 'ACCOUNT_BASED' || normalized === 'ACCOUNT') return 'Account';
   if (normalized === 'LICENSE_KEY' || normalized === 'LICENSE' || normalized === 'KEY') return 'Key';
+  if (normalized === 'GIFT') return 'Gift';
 
-  // Keep readable labels from backend/type tables
+  // Anything else (ACTIVATION_LINK -> "Activation Link") becomes Title Case
   if (normalized.includes('_')) {
     return normalized
       .toLowerCase()
@@ -220,12 +215,20 @@ export const getRegionName = (product) => {
  * @param {Object} product - Product object
  * @returns {string} - Type name or fallback
  */
+/**
+ * The delivery models a buyer can filter by — the backend `productType` enum
+ * with the same short labels the cards show. There is no Type taxonomy any
+ * more, so this list is fixed and needs no request.
+ */
+export const PRODUCT_TYPE_OPTIONS = [
+  { _id: 'LICENSE_KEY', title: 'Key' },
+  { _id: 'ACCOUNT_BASED', title: 'Account' },
+  { _id: 'GIFT', title: 'Gift' },
+  { _id: 'ACTIVATION_LINK', title: 'Activation Link' },
+];
+
 export const getTypeName = (product) => {
-  const productType = mapProductTypeValue(
-    normalizeEntityName(product?.productType) ||
-    normalizeEntityName(product?.type)
-  );
-  return productType || 'Unknown Type';
+  return mapProductTypeValue(normalizeEntityName(product?.productType)) || 'Unknown Type';
 };
 
 /**

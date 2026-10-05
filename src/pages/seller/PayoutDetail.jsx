@@ -32,7 +32,7 @@ import {
   Hash,
 } from "lucide-react";
 import { showApiError } from "@utils/toast";
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 
 // =============================================================================
 // Seller payout detail page (full route at /seller/earnings/:payoutId).
@@ -86,7 +86,7 @@ const safeDisplayKey = (key) => {
 // status; status-specific rendering (strikethrough + greyed text on
 // refunded rows) communicates ownership. The seller's actual withdrawable
 // total stays visible in the Available summary card above the table.
-const buildKeyRows = (payout) => {
+const buildKeyRows = (payout, money) => {
   const keys = Array.isArray(payout?.licenseKeys) ? payout.licenseKeys : [];
   const frozenIds = new Set((payout?.frozenKeyIds || []).map(String));
   const totalKeys =
@@ -116,11 +116,11 @@ const buildKeyRows = (payout) => {
       status = "refunded";
       // Seller-facing wording: emphasise that this key's value went back
       // to the buyer, not that the seller "owes" anything.
-      note = `Refund completed — $${perKeyNet.toFixed(2)} returned to buyer`;
+      note = `Refund completed — ${money(perKeyNet)} returned to buyer`;
     } else if (isFrozen) {
       status = "frozen";
       note = refundAmount
-        ? `Frozen — refund of $${refundAmount.toFixed(2)} under review`
+        ? `Frozen — refund of ${money(refundAmount)} under review`
         : "Frozen — refund under review";
     }
 
@@ -153,6 +153,7 @@ const buildKeyRows = (payout) => {
 };
 
 const PayoutDetail = () => {
+  const { formatSettlement } = useCurrency();
   const { payoutId } = useParams();
   const navigate = useNavigate();
 
@@ -234,7 +235,7 @@ const PayoutDetail = () => {
   const refund = payout.refund;
   const refundBadge = refund?.status ? getRefundStatusDisplay(refund.status) : null;
   const isFrozen = payout.status === "frozen" || Number(payout.frozenAmount || 0) > 0;
-  const keyBreakdown = buildKeyRows(payout);
+  const keyBreakdown = buildKeyRows(payout, formatSettlement);
   const frozenAmount = round2(payout.frozenAmount);
   const availableAmount = round2(
     typeof payout.availableAmount === "number"
@@ -351,7 +352,7 @@ const PayoutDetail = () => {
               <DollarSign className="w-3.5 h-3.5" /> Net to You
             </div>
             <p className="text-success text-lg font-semibold">
-              {formatUSD(payout.netAmount)}
+              {formatSettlement(payout.netAmount)}
             </p>
           </CardContent>
         </Card>
@@ -443,15 +444,15 @@ const PayoutDetail = () => {
             <div className={`grid grid-cols-2 ${inlineGridCols} gap-3 text-sm`}>
               <div>
                 <p className="text-fg-muted">Gross</p>
-                <p className="text-fg">{formatUSD(originalGross)}</p>
+                <p className="text-fg">{formatSettlement(originalGross)}</p>
               </div>
               <div>
                 <p className="text-fg-muted">Commission</p>
-                <p className="text-fg">{formatUSD(originalCommission)}</p>
+                <p className="text-fg">{formatSettlement(originalCommission)}</p>
               </div>
               <div>
                 <p className="text-fg-muted">Net</p>
-                <p className="text-success font-semibold">{formatUSD(originalNet)}</p>
+                <p className="text-success font-semibold">{formatSettlement(originalNet)}</p>
               </div>
 
               {/* Frozen — currently withheld pending refund review. */}
@@ -459,7 +460,7 @@ const PayoutDetail = () => {
                 <div>
                   <p className="text-fg-muted">Frozen</p>
                   <p className="text-info font-semibold">
-                    {formatUSD(frozenAmount)}
+                    {formatSettlement(frozenAmount)}
                   </p>
                 </div>
               )}
@@ -471,7 +472,7 @@ const PayoutDetail = () => {
                 <div>
                   <p className="text-fg-muted">Refunded</p>
                   <p className="text-danger font-semibold line-through">
-                    {formatUSD(refundedAmount)}
+                    {formatSettlement(refundedAmount)}
                   </p>
                 </div>
               )}
@@ -483,7 +484,7 @@ const PayoutDetail = () => {
                 <div>
                   <p className="text-fg-muted">Available</p>
                   <p className="text-success font-semibold">
-                    {formatUSD(availableAmount)}
+                    {formatSettlement(availableAmount)}
                   </p>
                 </div>
               )}
@@ -503,7 +504,7 @@ const PayoutDetail = () => {
                   <p className="text-fg font-medium mb-1">
                     {payout.status === "frozen"
                       ? "Fully frozen by refund request"
-                      : `Partially frozen: ${formatUSD(frozenAmount)} of ${formatUSD(payout.netAmount)}`}
+                      : `Partially frozen: ${formatSettlement(frozenAmount)} of ${formatSettlement(payout.netAmount)}`}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-fg-muted">
                     <div className="flex items-center gap-1.5">
@@ -520,7 +521,7 @@ const PayoutDetail = () => {
                         <Badge variant={refundBadge.variant} className="text-xs">
                           {refundBadge.label}
                         </Badge>
-                        <span className="text-fg-muted">{formatUSD(refund?.refundAmount)}</span>
+                        <span className="text-fg-muted">{formatSettlement(refund?.refundAmount)}</span>
                       </div>
                     )}
                     {/* SECURITY: refund destination / method intentionally
@@ -542,7 +543,7 @@ const PayoutDetail = () => {
                   ) : (
                     <Badge variant="warning" className="text-xs">{refund.status}</Badge>
                   )}
-                  <span className="text-fg">{formatUSD(refund.refundAmount)}</span>
+                  <span className="text-fg">{formatSettlement(refund.refundAmount)}</span>
                 </div>
               </div>
             )}
@@ -557,8 +558,8 @@ const PayoutDetail = () => {
                     {keyBreakdown.frozenCount === 1 ? "has" : "have"} an active dispute.
                   </p>
                   <p className="text-warning mt-0.5">
-                    {formatUSD(frozenAmount)} is frozen pending resolution.
-                    {refund?.refundAmount ? ` Refund requested: ${formatUSD(refund.refundAmount)}.` : ""}
+                    {formatSettlement(frozenAmount)} is frozen pending resolution.
+                    {refund?.refundAmount ? ` Refund requested: ${formatSettlement(refund.refundAmount)}.` : ""}
                   </p>
                 </div>
               </div>
@@ -591,7 +592,7 @@ const PayoutDetail = () => {
                       <CheckCircle2 className="w-4 h-4" /> Available
                     </div>
                     <p className="text-2xl font-semibold text-success mt-1">
-                      {formatUSD(availableAmount)}
+                      {formatSettlement(availableAmount)}
                     </p>
                     <p className="text-xs text-fg-muted mt-1">
                       {keyBreakdown.availableCount} of {keyBreakdown.totalKeys} key
@@ -605,7 +606,7 @@ const PayoutDetail = () => {
                         <Snowflake className="w-4 h-4" /> Frozen
                       </div>
                       <p className="text-2xl font-semibold text-info mt-1">
-                        {formatUSD(frozenAmount)}
+                        {formatSettlement(frozenAmount)}
                       </p>
                       <p className="text-xs text-fg-muted mt-1">
                         {keyBreakdown.frozenCount} of {keyBreakdown.totalKeys} key
@@ -620,7 +621,7 @@ const PayoutDetail = () => {
                         <AlertCircle className="w-4 h-4" /> Refunded
                       </div>
                       <p className="text-2xl font-semibold text-danger mt-1">
-                        {formatUSD(keyBreakdown.refundedAmount)}
+                        {formatSettlement(keyBreakdown.refundedAmount)}
                       </p>
                       <p className="text-xs text-fg-muted mt-1">
                         {keyBreakdown.refundedCount} of {keyBreakdown.totalKeys} key
@@ -668,7 +669,7 @@ const PayoutDetail = () => {
                                 : undefined
                             }
                           >
-                            {formatUSD(row.amount)}
+                            {formatSettlement(row.amount)}
                           </TableCell>
                           <TableCell>
                             {row.status === "available" && (

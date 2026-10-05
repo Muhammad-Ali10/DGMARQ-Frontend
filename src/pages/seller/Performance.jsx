@@ -6,7 +6,7 @@ import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { StatCardGridSkeleton } from '@components/common/Skeletons';
 import { EmptyState } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 import { Star, ScaleIcon, DollarSign, ShoppingCart, MessageSquare } from 'lucide-react';
 
 /**
@@ -48,6 +48,7 @@ const disputeVerdict = (rate) => {
 const TONE_TEXT = { success: 'text-success', warning: 'text-warning', danger: 'text-danger' };
 
 const SellerPerformance = () => {
+  const { formatSettlement } = useCurrency();
   const sellerQuery = useQuery({
     queryKey: ['seller-info'],
     queryFn: () => sellerAPI.getSellerInfo().then((res) => res.data.data),
@@ -120,7 +121,7 @@ const SellerPerformance = () => {
           />
           <StatCard
             title="Net earnings"
-            value={formatUSD(metrics?.sales?.netEarnings)}
+            value={formatSettlement(metrics?.sales?.netEarnings)}
             icon={DollarSign}
             tone="success"
             description="After commission"

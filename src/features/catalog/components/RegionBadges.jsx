@@ -32,10 +32,14 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
     () => describeOfferAvailability(offer),
     [offer]
   );
-  // Chip labels: Worldwide (global) OR region names + individual countries.
+  // Chip labels: Global OR region names + individual countries.
   const chips = useMemo(() => {
-    if (availability.unrestricted) return [{ key: "all", label: "All regions", tone: "global" }];
-    if (availability.global) return [{ key: "ww", label: "Global", tone: "global", global: true }];
+    // An offer the seller left unrestricted reaches exactly the buyers a GLOBAL
+    // one does, so it says the same word. It used to read "All regions", which
+    // sounded like a third, narrower thing.
+    if (availability.unrestricted || availability.global) {
+      return [{ key: "global", label: "Global", tone: "global", global: true }];
+    }
     const out = detail.regionNames.map((n) => ({ key: `r-${n}`, label: n, tone: "neutral" }));
     for (const c of detail.includedCountries) out.push({ key: `c-${c}`, label: `${countryFlag(c)} ${c}`, tone: "neutral" });
     return out;
@@ -130,7 +134,9 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
           </div>
 
           {availability.unrestricted ? (
-            <p className="text-xs text-fg-muted">Available to all buyers — no region restriction.</p>
+            <p className="flex items-center gap-1 text-xs text-info">
+              <Globe className="h-3.5 w-3.5" /> Global — available in every country.
+            </p>
           ) : (
             <div className="space-y-2 text-xs">
               {detail.global && (

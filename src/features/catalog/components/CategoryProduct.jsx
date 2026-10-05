@@ -4,6 +4,7 @@ import { calculateProductPrice, getProductImage, getProductName, getPlatformName
 import SafeImage from '@components/ui/safe-image';
 import useCurrency from '@hooks/useCurrency';
 import RegionBadges from './RegionBadges';
+import { PreorderBadge, isActivePreorder as isUnreleasedPreorder } from '@components/common/PreorderBadge';
 import useWishlist from '../hooks/useWishlist';
 
 const CategoryProduct = ({ product }) => {
@@ -18,6 +19,10 @@ const CategoryProduct = ({ product }) => {
   const regionText = regionName === 'Global' ? 'Global' : `For ${regionName} Currency only`;
   const stock = product.stock ?? product.availableKeysCount ?? 0;
   const inStock = stock > 0;
+  // M21: an unreleased pre-order has no keys yet BY DESIGN. Reading the raw
+  // count made this row say "Out of stock" in red on a title that is perfectly
+  // buyable — the one line a buyer checks before deciding.
+  const preorder = isUnreleasedPreorder(product);
   const { format: formatPrice } = useCurrency();
   const offersCount = product.offersCount ?? 0;
   // M9: real region compatibility from the best-offer snapshot (when the
@@ -98,6 +103,10 @@ const CategoryProduct = ({ product }) => {
             </div>
           </h2>
 
+          {/* M21: with the release date, because a list row has the width for
+              it and the date is what decides whether the buyer waits. */}
+          <PreorderBadge product={product} className="mb-4 w-fit" />
+
           <div className="flex flex-col gap-4">
             <div className="flex">
               <p className="w-24 text-fg">Platform:</p>
@@ -121,9 +130,9 @@ const CategoryProduct = ({ product }) => {
             <div className="flex items-center">
               <p className="w-24 text-fg">Stock</p>
               <div className="flex items-center gap-1.5">
-                <Package className={`size-4 ${inStock ? 'text-[#04CF12]' : 'text-danger'}`} />
-                <p className={`text-sm font-medium ${inStock ? 'text-[#04CF12]' : 'text-danger'}`}>
-                  {inStock ? `${stock} in stock` : 'Out of stock'}
+                <Package className={`size-4 ${preorder ? 'text-warning' : inStock ? 'text-[#04CF12]' : 'text-danger'}`} />
+                <p className={`text-sm font-medium ${preorder ? 'text-warning' : inStock ? 'text-[#04CF12]' : 'text-danger'}`}>
+                  {preorder ? 'Delivered on release' : inStock ? `${stock} in stock` : 'Out of stock'}
                 </p>
                 <span className="ml-2 text-xs text-fg/60">
                   {offersCount} {offersCount === 1 ? 'offer' : 'offers'}

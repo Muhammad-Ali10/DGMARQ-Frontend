@@ -9,7 +9,6 @@ vi.mock('@services/api', () => ({
 
 const { userAPI } = await import('@services/api');
 const ProductCard = (await import('./ProductCard')).default;
-const ProductVerticalCard = (await import('./ProductVerticalCard')).default;
 const MicrosoftCard = (await import('./MicrosoftCard')).default;
 const CategoryProduct = (await import('./CategoryProduct')).default;
 
@@ -44,16 +43,14 @@ beforeEach(() => {
 //
 // The parenthetical is what made this easy to get wrong. Reading it as
 // "wherever the ProductCard COMPONENT renders" misses the fact that the
-// homepage also renders products through THREE other components. Two of them
-// (ProductVerticalCard, MicrosoftCard) had no heart at all, so the
-// trending-offer row and the Microsoft row were the only places on the site
-// where a buyer could not save a product.
+// homepage also renders products through other components. MicrosoftCard had
+// no heart at all, so the Microsoft row was the only place on the site where a
+// buyer could not save a product.
 //
 // This suite is written per-COMPONENT rather than per-page precisely so that a
 // new card component cannot quietly ship without a heart.
 const CARDS = [
   ['ProductCard', ProductCard],
-  ['ProductVerticalCard', ProductVerticalCard],
   ['MicrosoftCard', MicrosoftCard],
   ['CategoryProduct', CategoryProduct],
 ];

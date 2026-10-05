@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userAPI, reviewAPI } from '@services/api';
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
 import { Card, CardContent } from '@components/ui/card';
 import { EmptyState } from '@components/common/EmptyState';
 import { Button } from '@components/ui/button';
@@ -17,65 +16,32 @@ import { Pagination } from '@components/common/Pagination';
 import SafeImage from '@components/ui/safe-image';
 
 const UserReviews = () => {
-  const { user } = useSelector((state) => state.auth);
   const [page, setPage] = useState(1);
   const [editingReview, setEditingReview] = useState(null);
   const [editRating, setEditRating] = useState(5);
   const [editComment, setEditComment] = useState('');
   const queryClient = useQueryClient();
 
+  // Filtered to this user on the server. This page used to pull the latest 50
+  // reviews of the WHOLE marketplace and filter them here, so a user's reviews
+  // vanished once 50 newer ones existed — and it never had product names,
+  // photos or seller replies, which the dedicated endpoint returns.
   const { data: reviewsData, isLoading, isError } = useQuery({
-    queryKey: ['user-reviews', page, user?._id],
-    queryFn: async () => {
-      try {
-        const response = await reviewAPI.getReviews({ page, limit: 50 });
-        const allReviews = response.data.data;
-        // Handle different response structures
-        const reviews = allReviews?.reviews || allReviews?.docs || allReviews || [];
-        
-        // Filter reviews by current user
-        if (user?._id && Array.isArray(reviews)) {
-          const userReviews = reviews.filter(review => {
-            const reviewUserId = review.userId?._id || review.userId || review.user?._id;
-            return reviewUserId?.toString() === user._id.toString();
-          });
-          
-          return {
-            reviews: userReviews,
-            pagination: allReviews?.pagination || {
-              page: 1,
-              totalPages: 1,
-              total: userReviews.length,
-            },
-          };
-        }
-        
-        return {
-          reviews: Array.isArray(reviews) ? reviews : [],
-          pagination: allReviews?.pagination || {
-            page: 1,
-            totalPages: 1,
-            total: 0,
-          },
-        };
-      } catch {
-        return {
-          reviews: [],
-          pagination: {
-            page: 1,
-            totalPages: 1,
-            total: 0,
-          },
-        };
-      }
-    },
-    enabled: !!user,
+    queryKey: ['my-reviews', page],
+    queryFn: async () => (await reviewAPI.getMyReviews({ page, limit: 10 })).data.data,
   });
+
+  // An edit or delete changes the product page's rating and list too.
+  const refreshAfterReviewChange = () => {
+    queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
+    queryClient.invalidateQueries({ queryKey: ['product-reviews'] });
+    queryClient.invalidateQueries({ queryKey: ['product-detail'] });
+  };
 
   const updateMutation = useMutation({
     mutationFn: ({ reviewId, data }) => userAPI.updateReview(reviewId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-reviews'] });
+      refreshAfterReviewChange();
       setEditingReview(null);
       setEditRating(5);
       setEditComment('');
@@ -89,7 +55,7 @@ const UserReviews = () => {
   const deleteMutation = useMutation({
     mutationFn: (reviewId) => userAPI.deleteReview(reviewId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-reviews'] });
+      refreshAfterReviewChange();
       showSuccess('Review deleted successfully');
     },
     onError: (error) => {
@@ -100,7 +66,7 @@ const UserReviews = () => {
   const addPhotoMutation = useMutation({
     mutationFn: ({ reviewId, formData }) => reviewAPI.addReviewPhoto(reviewId, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
       showSuccess('Photo added successfully');
     },
     onError: (error) => {
@@ -147,13 +113,12 @@ const UserReviews = () => {
     return (
       <ErrorState
         title="Couldn't load your reviews"
-        onRetry={() => queryClient.invalidateQueries({ queryKey: ['user-reviews'] })}
+        onRetry={() => queryClient.invalidateQueries({ queryKey: ['my-reviews'] })}
       />
     );
   }
 
-  const reviews = reviewsData?.reviews || [];
-  const pagination = reviewsData?.pagination || {};
+  const reviews = reviewsData?.docs || [];
 
   return (
     <div className="space-y-6">
@@ -180,7 +145,7 @@ const UserReviews = () => {
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <h3 className="text-fg font-semibold text-lg mb-2">
-                      {review.productId?.name || review.product?.name || 'Product'}
+                      {review.product?.name || 'Product'}
                     </h3>
                     <div className="flex items-center space-x-2 mb-2">
                       {[...Array(5)].map((_, i) => (
@@ -312,7 +277,7 @@ const UserReviews = () => {
               </CardContent>
             </Card>
           ))}
-          <Pagination page={page} totalPages={pagination.totalPages} onPageChange={setPage} />
+          <Pagination page={page} totalPages={reviewsData?.totalPages || 1} onPageChange={setPage} />
         </div>
       )}
     </div>

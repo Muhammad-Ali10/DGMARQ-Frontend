@@ -11,7 +11,7 @@ import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
 import { Pagination } from '@components/common/Pagination';
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
 import { useSocket } from '@hooks/useSocket';
 import { ShoppingCart, Eye } from 'lucide-react';
@@ -55,6 +55,7 @@ const sellerTotals = (order) => {
  * unbounded — see the seller inventory screen.
  */
 const SellerOrders = () => {
+  const { formatSettlement } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
   const [liveMessage, setLiveMessage] = useState('');
   const queryClient = useQueryClient();
@@ -201,12 +202,12 @@ const SellerOrders = () => {
                             </TableCell>
                             <TableCell>{order.buyer?.name || order.userId?.name || '—'}</TableCell>
                             <TableCell numeric>{order.items?.length || 0}</TableCell>
-                            <TableCell numeric>{formatUSD(t.total)}</TableCell>
+                            <TableCell numeric>{formatSettlement(t.total)}</TableCell>
                             <TableCell numeric className={t.refunded > 0 ? 'text-warning' : 'text-fg-subtle'}>
-                              {t.refunded > 0 ? `−${formatUSD(t.refunded)}` : '—'}
+                              {t.refunded > 0 ? `−${formatSettlement(t.refunded)}` : '—'}
                             </TableCell>
                             <TableCell numeric className="font-semibold text-success">
-                              {formatUSD(t.earning)}
+                              {formatSettlement(t.earning)}
                             </TableCell>
                             <TableCell>
                               <StatusBadge domain="order" status={order.orderStatus} />
@@ -263,18 +264,18 @@ const SellerOrders = () => {
                           <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                             <div>
                               <dt className="text-fg-subtle">Total</dt>
-                              <dd className="tabular-nums text-fg">{formatUSD(t.total)}</dd>
+                              <dd className="tabular-nums text-fg">{formatSettlement(t.total)}</dd>
                             </div>
                             <div>
                               <dt className="text-fg-subtle">You earn</dt>
                               <dd className="font-semibold tabular-nums text-success">
-                                {formatUSD(t.earning)}
+                                {formatSettlement(t.earning)}
                               </dd>
                             </div>
                             {t.refunded > 0 && (
                               <div>
                                 <dt className="text-fg-subtle">Refunded</dt>
-                                <dd className="tabular-nums text-warning">−{formatUSD(t.refunded)}</dd>
+                                <dd className="tabular-nums text-warning">−{formatSettlement(t.refunded)}</dd>
                               </div>
                             )}
                             <div>

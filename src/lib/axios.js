@@ -85,6 +85,19 @@ const CREDENTIAL_ENDPOINTS = [
 ];
 const takesCredentials = (url = '') => CREDENTIAL_ENDPOINTS.some((path) => url.includes(path));
 
+// The same mistake in its other shape: a 401 aimed at someone who never had a
+// session. Refreshing is meaningless for a guest — there is no refresh cookie —
+// and the attempt COSTS the real message, because the interceptor rejects with
+// the refresh endpoint's error instead of the original one.
+//
+// It bit the pre-order login gate. The server answers a guest with
+//   "X is a pre-order — please log in or create an account to pre-order it."
+// and the buyer saw "unauthorize", which explains nothing and names no remedy.
+// Any guest-reachable endpoint that 401s to say "log in for this" was affected.
+//
+// So: only endpoints a session could plausibly fix go down the refresh path.
+const hasSession = () => Boolean(store.getState()?.auth?.isAuthenticated);
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -96,7 +109,8 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !takesCredentials(originalRequest?.url)
+      !takesCredentials(originalRequest?.url) &&
+      hasSession()
     ) {
       originalRequest._retry = true;
 

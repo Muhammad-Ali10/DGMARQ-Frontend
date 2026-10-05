@@ -14,8 +14,10 @@ import { Pagination } from '@components/common/Pagination';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { refundBadgeProps } from '@features/wallet-payout';
 import { getDisplayOrderId } from '@lib/orderDisplay';
+import useCurrency from '@hooks/useCurrency';
 
 const ReturnRefundManagement = () => {
+  const { format: formatMoney } = useCurrency();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
@@ -122,7 +124,7 @@ const ReturnRefundManagement = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400">Amount</span>
-                      <span className="text-white font-semibold">${refund.refundAmount?.toFixed(2) || refund.productId?.price?.toFixed(2) || '0.00'}</span>
+                      <span className="text-white font-semibold">{formatMoney(refund.refundAmount ?? refund.productId?.price ?? 0)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400">Date</span>
@@ -185,7 +187,7 @@ const ReturnRefundManagement = () => {
                       </TableCell>
                       <TableCell className="text-gray-300">{refund.sellerId?.shopName || 'N/A'}</TableCell>
                       <TableCell className="text-white font-semibold">
-                        ${refund.refundAmount?.toFixed(2) || refund.productId?.price?.toFixed(2) || '0.00'}
+                        {formatMoney(refund.refundAmount ?? refund.productId?.price ?? 0)}
                       </TableCell>
                       <TableCell>{getStatusBadge(refund.status)}</TableCell>
                       <TableCell className="text-gray-400 text-sm">

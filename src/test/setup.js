@@ -14,6 +14,18 @@ expect.extend(matchers);
 // waitFor timeout — which prints the DOM — rather than as a bare test abort.
 configure({ asyncUtilTimeout: 10_000 });
 
+// jsdom has no ResizeObserver, and Radix measures its floating parts (tooltip
+// arrow, popper, select) with one — so rendering any of them throws a
+// ReferenceError that looks nothing like the real cause. A no-op is enough:
+// layout is not what these tests assert.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // Unmount React trees between tests.
 afterEach(() => {
   cleanup();

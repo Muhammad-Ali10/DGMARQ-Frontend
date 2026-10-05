@@ -8,8 +8,10 @@ import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Users, DollarSign, Calendar } from 'lucide-react';
 import { Pagination } from '@components/common/Pagination';
+import useCurrency from '@hooks/useCurrency';
 
 const SubscriptionsManagement = () => {
+  const { format: formatMoney } = useCurrency();
   const [page, setPage] = useState(1);
 
   const { data: subsData, isLoading: isLoadingSubs, isError: isErrorSubs, error: errorSubs } = useQuery({
@@ -85,7 +87,7 @@ const SubscriptionsManagement = () => {
                 <div>
                   <p className="text-gray-400 text-sm">Total Revenue</p>
                   <p className="text-2xl font-bold text-white mt-1">
-                    ${(stats.totalRevenue || 0).toFixed(2)}
+                    {formatMoney(stats.totalRevenue || 0)}
                   </p>
                 </div>
                 <DollarSign className="w-8 h-8 text-yellow-500" />
@@ -128,7 +130,7 @@ const SubscriptionsManagement = () => {
                         {subscription.endDate ? new Date(subscription.endDate).toLocaleDateString() : '-'}
                       </TableCell>
                       <TableCell className="text-white font-semibold">
-                        {subscription.currency || '$'}{subscription.amount?.toFixed(2) || '0.00'}
+                        {formatMoney(subscription.amount || 0)}
                       </TableCell>
                     </TableRow>
                   ))

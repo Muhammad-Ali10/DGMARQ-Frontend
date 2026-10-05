@@ -12,7 +12,6 @@ import {
   modeAPI,
   deviceAPI,
   themeAPI,
-  typeAPI,
 } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -31,7 +30,8 @@ import {
 import { SearchInput } from '@components/common/SearchInput';
 import { Pagination } from '@components/common/Pagination';
 
-const PRODUCT_TYPES = ['LICENSE_KEY', 'ACCOUNT_BASED', 'GIFT', 'ACTIVATION_LINK'];
+import { PRODUCT_TYPE_OPTIONS } from '@features/catalog/utils/productUtils';
+import useCurrency from '@hooks/useCurrency';
 
 // Products are imported in small batches so each request finishes well under the
 // server's 15s request timeout — this lets a catalog of any size import without
@@ -45,7 +45,7 @@ const BATCH_SIZE = 50;
 
 const EMPTY_FORM = {
   name: '', categoryId: '', subCategoryId: '', platform: '', genre: '',
-  mode: '', device: '', theme: '', type: '', productType: 'LICENSE_KEY',
+  mode: '', device: '', theme: '', productType: 'LICENSE_KEY',
   publishers: '', developers: '', releaseDate: '', activationDetails: '',
   systemRequirements: '', description: '',
   // M21: a product can only become a pre-order here or on the edit screen.
@@ -71,6 +71,7 @@ const TaxSelect = ({ label, value, onChange, options, placeholder }) => (
 );
 
 const MasterCatalogManagement = () => {
+  const { format: formatMoney } = useCurrency();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
@@ -120,16 +121,15 @@ const MasterCatalogManagement = () => {
     enabled: formOpen,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const [categories, platforms, genres, modes, devices, themes, types] = await Promise.all([
+      const [categories, platforms, genres, modes, devices, themes] = await Promise.all([
         categoryAPI.getCategories({ limit: 1000 }).then(extractList),
         platformAPI.getAllPlatforms({ limit: 1000 }).then(extractList),
         genreAPI.getGenres({ limit: 1000 }).then(extractList),
         modeAPI.getModes({ limit: 1000 }).then(extractList),
         deviceAPI.getDevices({ limit: 1000 }).then(extractList),
         themeAPI.getThemes({ limit: 1000 }).then(extractList),
-        typeAPI.getAllTypes({ limit: 1000 }).then(extractList),
       ]);
-      return { categories, platforms, genres, modes, devices, themes, types };
+      return { categories, platforms, genres, modes, devices, themes };
     },
   });
   const categories = tax.categories || [];
@@ -138,7 +138,6 @@ const MasterCatalogManagement = () => {
   const modes = tax.modes || [];
   const devices = tax.devices || [];
   const themes = tax.themes || [];
-  const types = tax.types || [];
 
   const { data: subcategories = [] } = useQuery({
     queryKey: ['tax', 'subcategories', form.categoryId],
@@ -335,7 +334,7 @@ const MasterCatalogManagement = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-white font-medium">
-                          {p.lowestPrice != null ? `$${Number(p.lowestPrice).toFixed(2)}` : '—'}
+                          {p.lowestPrice != null ? formatMoney(p.lowestPrice) : '—'}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 justify-end">
@@ -445,11 +444,10 @@ const MasterCatalogManagement = () => {
               <TaxSelect label="Mode" value={form.mode} onChange={setField('mode')} options={modes} />
               <TaxSelect label="Device" value={form.device} onChange={setField('device')} options={devices} />
               <TaxSelect label="Theme" value={form.theme} onChange={setField('theme')} options={themes} />
-              <TaxSelect label="Type" value={form.type} onChange={setField('type')} options={types} />
               <div className="space-y-1.5">
                 <Label className="text-gray-300 text-sm">Product Type</Label>
                 <select value={form.productType} onChange={setField('productType')} className={selectCls}>
-                  {PRODUCT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  {PRODUCT_TYPE_OPTIONS.map((t) => <option key={t._id} value={t._id}>{t.title}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5">

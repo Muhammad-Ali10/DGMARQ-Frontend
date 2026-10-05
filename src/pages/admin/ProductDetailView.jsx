@@ -1,22 +1,50 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminAPI, masterCatalogAPI, offerAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Dialog, DialogContent, DialogTitle } from '@components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Badge } from '@components/ui/badge';
-import { Label } from '@components/ui/label';
-import { Input } from '@components/ui/input';
-import { Textarea } from '@components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { ArrowLeft, Package, Store, Tag, Image as ImageIcon, Calendar, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import {
+  ArrowLeft, Ban, Calendar, CheckCircle2, Clock, ExternalLink, Image as ImageIcon,
+  Layers, Package, Pencil, RotateCcw, Store, Tag, XCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
-import { REGION_PRESET_MAP } from '@lib/regionPresets';
+import OfferRegionSummary from '@components/common/OfferRegionSummary';
+import { getTypeName } from '@features/catalog/utils/productUtils';
+import { StatusBadge } from '@components/common/StatusBadge';
+import { ReasonDialog } from '@components/common/ReasonDialog';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { EmptyState } from '@components/common/EmptyState';
+import { StatCard, StatCardGrid } from '@components/common/StatCard';
+import { Fact, SpecList, SpecRow } from '@components/common/SpecList';
+import { TableRowsSkeleton } from '@components/common/Skeletons';
+import { useOfferModeration } from '@hooks/useOfferModeration';
+import { canRemoveOffer, isRemovedByAdmin, offerStatusKey } from '@lib/offerModeration';
+import useCurrency from '@hooks/useCurrency';
+import { HUD_LABEL } from '@lib/surface';
+import { cn } from '@lib/utils';
+
+// Catalog status of the MASTER itself. Buyer visibility is a SEPARATE thing
+// (an approved offer with stock) and gets its own badge beside this one —
+// a master can be "Active" in the catalog and still invisible to buyers.
+const CATALOG_STATUS = {
+  pending: { variant: 'warning', label: 'Pending approval' },
+  approved: { variant: 'success', label: 'Active in catalog' },
+  active: { variant: 'success', label: 'Active in catalog' },
+  rejected: { variant: 'destructive', label: 'Rejected' },
+  draft: { variant: 'default', label: 'Draft' },
+};
+
+const formatDate = (value) => (value ? new Date(value).toLocaleDateString() : null);
+const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : 'N/A');
 
 const ProductDetailView = () => {
+  const { format: formatMoney } = useCurrency();
   const { productId } = useParams();
   const navigate = useNavigate();
 
@@ -38,10 +66,12 @@ const ProductDetailView = () => {
     enabled: !!productId,
   });
 
-
-  // Per-offer moderation happens here (the Seller Offers list is just an overview).
+  // Per-offer moderation: approve/reject new offers, remove/restore live ones.
   const [rejecting, setRejecting] = useState(null);
-  const [reason, setReason] = useState('');
+  const [removing, setRemoving] = useState(null);
+  const [restoring, setRestoring] = useState(null);
+  const [zoomed, setZoomed] = useState(null);
+  const { remove, restore } = useOfferModeration({ onRemoved: () => setRemoving(null) });
 
   const refreshOffers = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-product-offers', productId] });
@@ -56,7 +86,7 @@ const ProductDetailView = () => {
 
   const rejectOfferMutation = useMutation({
     mutationFn: ({ offerId, reason }) => offerAPI.adminRejectOffer(offerId, { reason }),
-    onSuccess: () => { refreshOffers(); setRejecting(null); setReason(''); toast.success('Offer rejected'); },
+    onSuccess: () => { refreshOffers(); setRejecting(null); toast.success('Offer rejected'); },
     onError: (err) => toast.error(err?.response?.data?.message || 'Reject failed'),
   });
 
@@ -72,179 +102,192 @@ const ProductDetailView = () => {
     onError: (err) => toast.error(err?.response?.data?.message || 'Could not update featuring'),
   });
 
-  const offerStatusVariant = (s) => (s === 'approved' || s === 'active' ? 'success' : s === 'rejected' ? 'destructive' : s === 'pending' ? 'warning' : 'default');
-
   if (isLoading) return <Loading message="Loading product details..." />;
-  if (isError) return <ErrorMessage message={error?.response?.data?.message || "Error loading product details"} />;
+  if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Error loading product details'} />;
 
-  const getStatusBadge = (status) => {
-    const variants = {
-      pending: 'warning',
-      approved: 'success',
-      rejected: 'destructive',
-      active: 'success',
-      draft: 'default',
-    };
-    // Catalog status of the MASTER itself — buyer visibility is separate
-    // (hasStock: ≥1 approved offer with available stock) and shown next to it.
-    const statusLabels = {
-      pending: 'Pending Approval',
-      active: 'Active (Catalog)',
-      approved: 'Active (Catalog)',
-      rejected: 'Rejected',
-      draft: 'Draft',
-    };
-    const displayLabel = statusLabels[status] || status.toUpperCase();
-    return <Badge variant={variants[status] || 'default'} className="text-sm px-3 py-1">{displayLabel}</Badge>;
-  };
+  const status = CATALOG_STATUS[product?.status] || { variant: 'default', label: product?.status };
+  // A pre-order is live on offers alone — it has nothing to stock yet.
+  const livePreorder = product?.isPreorder && !product?.preorderReleasedAt && product?.offersCount > 0;
+  const isBuyerVisible = Boolean(product?.hasStock || livePreorder);
+
+  const pendingOffers = offers.filter((o) => o.status === 'pending').length;
+  const liveOffers = offers.filter((o) => o.status === 'approved' || o.status === 'active').length;
+  const cover = product?.images?.[0];
+  const releaseDate = formatDate(product?.releaseDate);
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => navigate(-1)}
-            className="border-gray-700"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">Product Details</h1>
-            <p className="text-sm sm:text-base text-gray-400 mt-1">Master catalog product — review info &amp; moderate seller offers</p>
-          </div>
-        </div>
-      </div>
+      {/* Identity first: which product is this, is it live, and what can I do
+          about it. All three used to be buried in label/value rows below. */}
+      <Card variant="hud">
+        <CardContent className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start">
+          {cover ? (
+            <SafeImage
+              src={cover}
+              alt={product?.name}
+              className="size-24 shrink-0 rounded-xl border border-brand-cyan/20 object-cover"
+              hideOnError
+            />
+          ) : (
+            <div className="flex size-24 shrink-0 items-center justify-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/6 text-info">
+              <Package className="size-8" aria-hidden="true" />
+            </div>
+          )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Product Info */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
+          <div className="min-w-0 flex-1">
+            <p className={HUD_LABEL}>Master catalog product</p>
+            <h1 className="mt-1 wrap-break-word text-2xl font-bold text-fg sm:text-3xl">{product?.name}</h1>
+            <p className="mt-1 truncate text-sm text-fg-subtle">
+              {getTypeName(product)}
+              {product?.slug ? ` · ${product.slug}` : ''}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={status.variant}>{status.label}</Badge>
+              {isBuyerVisible ? (
+                <Badge variant="success">
+                  {livePreorder && !product?.hasStock ? 'Live — pre-order' : 'Live — visible to buyers'}
+                </Badge>
+              ) : (
+                <Badge variant="warning">Hidden — needs an approved offer with stock</Badge>
+              )}
+              {product?.isPreorder && <Badge variant="info">Pre-order</Badge>}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button variant="outline" onClick={() => navigate(-1)}>
+              <ArrowLeft aria-hidden="true" />
+              Back
+            </Button>
+            <Button asChild>
+              <Link to={`/admin/catalog/${productId}/edit`}>
+                <Pencil aria-hidden="true" />
+                Edit
+              </Link>
+            </Button>
+            {/* Only when a buyer could actually open it — the storefront hides a
+                master with no in-stock offer, so the link would dead-end. */}
+            {isBuyerVisible && product?.slug && (
+              <Button variant="outline" asChild>
+                <a href={`/product/${product.slug}`} target="_blank" rel="noreferrer">
+                  <ExternalLink aria-hidden="true" />
+                  View on site
+                </a>
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {product?.rejectionReason && (
+        <div className="rounded-xl border border-danger/35 bg-danger-soft/60 p-4">
+          <p className={cn(HUD_LABEL, 'text-danger')}>Rejection reason</p>
+          <p className="mt-1 text-sm text-fg">{product.rejectionReason}</p>
+        </div>
+      )}
+
+      {/* The four numbers an admin acts on. Offer-derived tiles read "—" until
+          that query lands rather than flashing a zero that is not yet true. */}
+      <StatCardGrid>
+        <StatCard
+          title="Lowest offer"
+          value={product?.lowestPrice != null ? formatMoney(product.lowestPrice) : '—'}
+          icon={Tag}
+          tone="accent"
+          description={product?.lowestPrice != null ? 'Cheapest in-stock offer' : 'No live offers yet'}
+        />
+        <StatCard
+          title="Seller offers"
+          value={offersLoading ? '—' : offers.length}
+          icon={Store}
+          tone="info"
+          description={offersLoading ? 'Loading…' : `${liveOffers} live`}
+        />
+        <StatCard
+          title="Available stock"
+          value={product?.availableKeysCount || 0}
+          icon={Layers}
+          tone={product?.availableKeysCount > 0 ? 'success' : 'danger'}
+          description={`of ${product?.totalKeysCount || 0} uploaded`}
+        />
+        <StatCard
+          title="Awaiting review"
+          value={offersLoading ? '—' : pendingOffers}
+          icon={Clock}
+          tone={pendingOffers > 0 ? 'warning' : 'neutral'}
+          description={pendingOffers > 0 ? 'Offers need your decision' : 'Nothing pending'}
+        />
+      </StatCardGrid>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card variant="hud">
-            <CardHeader className="border-b ">
+            <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Product Information
+                <Package className="size-5" aria-hidden="true" />
+                Product information
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
+            <CardContent className="space-y-5 pt-6">
               <div>
-                <Label className="text-gray-400">Product Name</Label>
-                <p className="text-white text-lg font-semibold mt-1">{product?.name}</p>
-              </div>
-              
-              <div>
-                <Label className="text-gray-400">Description</Label>
-                <p className="text-white mt-1 whitespace-pre-wrap">{product?.description || 'No description'}</p>
-              </div>
-
-              {(product?.publishers || product?.developers || product?.releaseDate) && (
-                <div className="grid grid-cols-2 gap-4">
-                  {product?.publishers && (
-                    <div>
-                      <Label className="text-gray-400">Publishers</Label>
-                      <p className="text-white mt-1">{product.publishers}</p>
-                    </div>
-                  )}
-                  {product?.developers && (
-                    <div>
-                      <Label className="text-gray-400">Developers</Label>
-                      <p className="text-white mt-1">{product.developers}</p>
-                    </div>
-                  )}
-                  {product?.releaseDate && (
-                    <div>
-                      <Label className="text-gray-400">Release Date</Label>
-                      <p className="text-white mt-1">{new Date(product.releaseDate).toLocaleDateString()}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-              {product?.activationDetails && (
-                <div>
-                  <Label className="text-gray-400">Activation Details</Label>
-                  <p className="text-white mt-1 whitespace-pre-wrap text-sm">{product.activationDetails}</p>
-                </div>
-              )}
-              {product?.systemRequirements && (
-                <div>
-                  <Label className="text-gray-400">System Requirements</Label>
-                  <p className="text-white mt-1 whitespace-pre-wrap text-sm">{product.systemRequirements}</p>
-                </div>
-              )}
-
-              <div>
-                <Label className="text-gray-400">Lowest Offer Price</Label>
-                <p className="text-white font-medium mt-1">
-                  {product?.lowestPrice != null
-                    ? `$${Number(product.lowestPrice).toFixed(2)}`
-                    : 'No live offers yet'}
+                <p className={HUD_LABEL}>Description</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-fg-muted">
+                  {product?.description || 'No description'}
                 </p>
               </div>
 
+              {(product?.publishers || product?.developers || releaseDate) && (
+                <SpecList>
+                  {product?.publishers && <SpecRow label="Publisher" value={product.publishers} />}
+                  {product?.developers && <SpecRow label="Developer" value={product.developers} />}
+                  {releaseDate && <SpecRow label="Release date" value={releaseDate} />}
+                </SpecList>
+              )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-gray-400">Stock</Label>
-                  <Badge variant={product?.stock > 0 ? 'success' : 'destructive'} className="mt-1">
-                    {product?.stock || 0} available
-                  </Badge>
-                </div>
-                <div>
-                  <Label className="text-gray-400">Product Type</Label>
-                  <Badge variant="outline" className="mt-1">
-                    {product?.productType === 'ACCOUNT_BASED' ? 'Account' : 'License Key'}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-gray-400">Catalog Status</Label>
-                  <div className="mt-1">{getStatusBadge(product?.status)}</div>
-                </div>
-                <div>
-                  <Label className="text-gray-400">Buyer Visibility</Label>
-                  <div className="mt-1">
-                    {product?.hasStock ? (
-                      <Badge variant="success" className="text-sm px-3 py-1">Live — visible to buyers</Badge>
-                    ) : product?.isPreorder && !product?.preorderReleasedAt && product?.offersCount > 0 ? (
-                      <Badge variant="success" className="text-sm px-3 py-1">Live — pre-order (no stock needed)</Badge>
-                    ) : (
-                      <Badge variant="warning" className="text-sm px-3 py-1">Hidden — needs an approved offer with stock</Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {product?.rejectionReason && (
-                <div>
-                  <Label className="text-gray-400">Rejection Reason</Label>
-                  <p className="text-red-400 mt-1">{product.rejectionReason}</p>
-                </div>
+              {(product?.activationDetails || product?.systemRequirements) && (
+                <SpecList className="grid gap-3">
+                  {product?.activationDetails && (
+                    <Fact label="Activation details">
+                      <span className="whitespace-pre-wrap">{product.activationDetails}</span>
+                    </Fact>
+                  )}
+                  {product?.systemRequirements && (
+                    <Fact label="System requirements">
+                      <span className="whitespace-pre-wrap">{product.systemRequirements}</span>
+                    </Fact>
+                  )}
+                </SpecList>
               )}
             </CardContent>
           </Card>
 
-          {/* Images */}
-          {product?.images && product.images.length > 0 && (
+          {product?.images?.length > 0 && (
             <Card variant="hud">
-              <CardHeader className="border-b ">
+              <CardHeader className="border-b">
                 <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5" />
-                  Product Images
+                  <ImageIcon className="size-5" aria-hidden="true" />
+                  Product images
+                  <Badge variant="secondary" className="ml-1">{product.images.length}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   {product.images.map((image, index) => (
-                    <SafeImage
-                      key={index}
-                      src={image}
-                      alt={`${product.name} - Image ${index + 1}`}
-                      className="w-full h-48 object-cover rounded-lg border border-gray-700"
-                    />
+                    <button
+                      key={image}
+                      type="button"
+                      onClick={() => setZoomed(image)}
+                      className="group relative overflow-hidden rounded-xl border border-brand-cyan/15 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      <SafeImage
+                        src={image}
+                        alt={`${product.name} — image ${index + 1}`}
+                        className="h-40 w-full object-cover transition-transform duration-200 ease-out group-hover:scale-105"
+                      />
+                      {index === 0 && (
+                        <Badge variant="info" className="absolute left-2 top-2">Cover</Badge>
+                      )}
+                    </button>
                   ))}
                 </div>
               </CardContent>
@@ -252,84 +295,57 @@ const ProductDetailView = () => {
           )}
         </div>
 
-        {/* Sidebar Info — sellers appear per-offer below; masters are admin-owned,
-            so there is no product-level "Seller Information" card. */}
+        {/* Sellers appear per-offer below; masters are admin-owned, so there is
+            no product-level "Seller Information" card. */}
         <div className="space-y-6">
-          {/* Category & Attributes */}
           <Card variant="hud">
-            <CardHeader className="border-b ">
+            <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
-                <Tag className="h-5 w-5" />
-                Categories & Attributes
+                <Tag className="size-5" aria-hidden="true" />
+                Categories &amp; attributes
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div>
-                <Label className="text-gray-400">Category</Label>
-                <p className="text-white mt-1">{product?.categoryId?.name || 'N/A'}</p>
-              </div>
-              {product?.subCategoryId?.name && (
-                <div>
-                  <Label className="text-gray-400">Subcategory</Label>
-                  <p className="text-white mt-1">{product.subCategoryId.name}</p>
-                </div>
-              )}
-              {product?.platform?.name && (
-                <div>
-                  <Label className="text-gray-400">Platform</Label>
-                  <p className="text-white mt-1">{product.platform.name}</p>
-                </div>
-              )}
-              {product?.region?.name && (
-                <div>
-                  <Label className="text-gray-400">Region</Label>
-                  <p className="text-white mt-1">{product.region.name}</p>
-                </div>
-              )}
-              {product?.type?.name && (
-                <div>
-                  <Label className="text-gray-400">Type</Label>
-                  <p className="text-white mt-1">{product.type.name}</p>
-                </div>
-              )}
-              {product?.genre?.name && (
-                <div>
-                  <Label className="text-gray-400">Genre</Label>
-                  <p className="text-white mt-1">{product.genre.name}</p>
-                </div>
-              )}
+            <CardContent className="pt-4">
+              <SpecList>
+                <SpecRow label="Category" value={product?.categoryId?.name || 'N/A'} />
+                {product?.subCategoryId?.name && (
+                  <SpecRow label="Subcategory" value={product.subCategoryId.name} />
+                )}
+                <SpecRow label="Delivery type" value={getTypeName(product)} />
+                {product?.platform?.name && <SpecRow label="Platform" value={product.platform.name} />}
+                {product?.region?.name && <SpecRow label="Region" value={product.region.name} />}
+                {product?.genre?.name && <SpecRow label="Genre" value={product.genre.name} />}
+                {/* Populated by the endpoint but never shown before this page. */}
+                {product?.mode?.name && <SpecRow label="Mode" value={product.mode.name} />}
+                {product?.device?.name && <SpecRow label="Device" value={product.device.name} />}
+                {product?.theme?.name && <SpecRow label="Theme" value={product.theme.name} />}
+              </SpecList>
             </CardContent>
           </Card>
 
-          {/* Additional Info */}
           <Card variant="hud">
-            <CardHeader className="border-b ">
+            <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Additional Information
+                <Calendar className="size-5" aria-hidden="true" />
+                Record
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div>
-                <Label className="text-gray-400">Created At</Label>
-                <p className="text-white mt-1">
-                  {product?.createdAt ? new Date(product.createdAt).toLocaleString() : 'N/A'}
-                </p>
-              </div>
-              {product?.approvedAt && (
-                <div>
-                  <Label className="text-gray-400">Approved At</Label>
-                  <p className="text-white mt-1">{new Date(product.approvedAt).toLocaleString()}</p>
-                </div>
-              )}
-              <div>
-                <Label className="text-gray-400">Total Keys/Accounts</Label>
-                <p className="text-white mt-1">{product?.totalKeysCount || 0}</p>
-              </div>
-              <div>
-                <Label className="text-gray-400">Available Keys/Accounts</Label>
-                <p className="text-white mt-1">{product?.availableKeysCount || 0}</p>
-              </div>
+            <CardContent className="pt-4">
+              <SpecList>
+                <SpecRow label="Created" value={formatDateTime(product?.createdAt)} />
+                {product?.approvedAt && (
+                  <SpecRow label="Approved" value={formatDateTime(product.approvedAt)} />
+                )}
+                {product?.isPreorder && product?.preorderReleaseDate && (
+                  <SpecRow label="Pre-order release" value={formatDateTime(product.preorderReleaseDate)} />
+                )}
+                <SpecRow label="Total inventory" value={product?.totalKeysCount || 0} />
+                <SpecRow
+                  label="Available"
+                  value={product?.availableKeysCount || 0}
+                  tone={product?.availableKeysCount > 0 ? 'success' : 'danger'}
+                />
+              </SpecList>
             </CardContent>
           </Card>
         </div>
@@ -337,113 +353,152 @@ const ProductDetailView = () => {
 
       {/* Sellers & Offers listed against this master product */}
       <Card variant="hud">
-        <CardHeader className="border-b ">
+        <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2">
-            <Store className="h-5 w-5" />
-            Sellers &amp; Offers
-            {offers.length > 0 && (
-              <Badge variant="default" className="ml-1">{offers.length}</Badge>
-            )}
+            <Store className="size-5" aria-hidden="true" />
+            Sellers &amp; offers
+            {offers.length > 0 && <Badge variant="secondary" className="ml-1">{offers.length}</Badge>}
+            {pendingOffers > 0 && <Badge variant="warning">{pendingOffers} awaiting review</Badge>}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          {offersLoading ? (
-            <p className="text-gray-400 py-8 text-center">Loading offers…</p>
-          ) : offers.length === 0 ? (
-            <p className="text-gray-400 py-8 text-center">
-              No seller has listed an offer on this product yet. It stays in the catalog
-              (admin-only) and is shown to buyers only once an approved offer has available stock.
-            </p>
+        <CardContent>
+          {!offersLoading && offers.length === 0 ? (
+            <EmptyState
+              icon={Store}
+              title="No seller has listed this product yet"
+              description="It stays in the catalog as an admin-only master. Buyers see it once an approved offer has available stock."
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table variant="hud">
                 <TableHeader>
-                  <TableRow className="border-gray-700 bg-secondary/30 hover:bg-secondary/30">
-                    <TableHead className="text-gray-300">Seller</TableHead>
-                    <TableHead className="text-gray-300">Price</TableHead>
-                    <TableHead className="text-gray-300">Discount</TableHead>
-                    <TableHead className="text-gray-300">Region</TableHead>
-                    <TableHead className="text-gray-300">Stock</TableHead>
-                    <TableHead className="text-gray-300">Status</TableHead>
-                    <TableHead className="text-gray-300">Featured</TableHead>
-                    <TableHead className="text-gray-300 text-right">Actions</TableHead>
+                  <TableRow>
+                    <TableHead>Seller</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Discount</TableHead>
+                    <TableHead>Region</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Featured</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {offers.map((o) => (
-                    <TableRow key={o._id} className="border-gray-700 hover:bg-secondary/20">
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {o.sellerId?.shopLogo && (
-                            <SafeImage src={o.sellerId.shopLogo} alt={o.sellerId?.shopName || 'Seller'} className="w-8 h-8 rounded object-cover border border-gray-700" hideOnError />
+                  {offersLoading ? (
+                    <TableRowsSkeleton rows={3} cols={8} />
+                  ) : (
+                    offers.map((o) => (
+                      <TableRow key={o._id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {o.sellerId?.shopLogo && (
+                              <SafeImage
+                                src={o.sellerId.shopLogo}
+                                alt={o.sellerId?.shopName || 'Seller'}
+                                className="size-8 rounded border border-brand-cyan/15 object-cover"
+                                hideOnError
+                              />
+                            )}
+                            <span className="font-medium text-fg">{o.sellerId?.shopName || 'N/A'}</span>
+                            {o.sellerId?._id && (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => navigate(`/admin/sellers/${o.sellerId._id}`)}
+                                className="h-auto p-0 text-xs text-accent-on-dark"
+                              >
+                                View
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="tabular-nums text-fg">{formatMoney(o.price || 0)}</TableCell>
+                        <TableCell className="tabular-nums text-fg-muted">{o.discount || 0}%</TableCell>
+                        <TableCell className="text-fg-muted">
+                          <OfferRegionSummary offer={o} />
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={o.availableKeysCount > 0 ? 'success' : 'destructive'}>
+                            {o.availableKeysCount || 0}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge domain="offer" status={offerStatusKey(o)} />
+                          {isRemovedByAdmin(o) && o.delistNote && (
+                            <p className="mt-1 max-w-xs text-xs text-danger" title={o.delistNote}>
+                              Reason: {o.delistNote}
+                            </p>
                           )}
-                          <span className="text-white font-medium">{o.sellerId?.shopName || 'N/A'}</span>
-                          {o.sellerId?._id && (
+                          {o.status === 'delisted' && o.delistReason === 'out_of_stock' && (
+                            <p className="mt-1 text-xs text-fg-subtle">Out of stock — relists when restocked</p>
+                          )}
+                        </TableCell>
+                        {/* Featuring is a separate, seller-purchased promotion —
+                            its own request/decision cycle alongside listing approval. */}
+                        <TableCell>
+                          {o.featuredStatus === 'approved' ? (
+                            <Badge variant="success">Featured</Badge>
+                          ) : o.featuredStatus === 'pending' ? (
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="secondary">Requested</Badge>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2"
+                                disabled={featuredMutation.isPending}
+                                onClick={() => featuredMutation.mutate({ offerId: o._id, approve: true })}
+                              >
+                                Allow
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-danger"
+                                disabled={featuredMutation.isPending}
+                                onClick={() => featuredMutation.mutate({ offerId: o._id, approve: false })}
+                              >
+                                Deny
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-fg-subtle">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {o.status === 'pending' ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-success-solid text-white hover:bg-success-solid/85"
+                                disabled={approveOfferMutation.isPending}
+                                onClick={() => approveOfferMutation.mutate(o._id)}
+                              >
+                                <CheckCircle2 aria-hidden="true" /> Approve
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => setRejecting(o)}>
+                                <XCircle aria-hidden="true" /> Reject
+                              </Button>
+                            </div>
+                          ) : canRemoveOffer(o) ? (
+                            <Button size="sm" variant="destructive" onClick={() => setRemoving(o)}>
+                              <Ban aria-hidden="true" /> Remove
+                            </Button>
+                          ) : isRemovedByAdmin(o) ? (
                             <Button
-                              variant="link"
                               size="sm"
-                              onClick={() => navigate(`/admin/sellers/${o.sellerId._id}`)}
-                              className="text-accent-on-dark p-0 h-auto text-xs"
+                              variant="outline"
+                              disabled={restore.isPending}
+                              onClick={() => setRestoring(o)}
                             >
-                              View
+                              <RotateCcw aria-hidden="true" /> Restore
                             </Button>
+                          ) : (
+                            <span className="text-sm text-fg-subtle">—</span>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-white">${Number(o.price || 0).toFixed(2)}</TableCell>
-                      <TableCell className="text-gray-300">{o.discount || 0}%</TableCell>
-                      <TableCell className="text-gray-300">
-                        {o.regionCodes?.length
-                          ? o.regionCodes.map((c) => REGION_PRESET_MAP.get(c)?.name || c).join(', ')
-                          : 'All regions'}
-                        {o.countries?.length > 0 && (
-                          <span className="ml-1 text-xs text-sky-400">(+{o.countries.length} extra)</span>
-                        )}
-                        {o.excludedCountries?.length > 0 && (
-                          <span className="ml-1 text-xs text-red-400">(−{o.excludedCountries.length} excl.)</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={o.availableKeysCount > 0 ? 'success' : 'destructive'}>{o.availableKeysCount || 0}</Badge>
-                      </TableCell>
-                      <TableCell><Badge variant={offerStatusVariant(o.status)}>{o.status}</Badge></TableCell>
-                      {/* Featuring is a separate, seller-purchased promotion —
-                          its own request/decision cycle alongside listing approval. */}
-                      <TableCell>
-                        {o.featuredStatus === 'approved' ? (
-                          <Badge variant="success">Featured</Badge>
-                        ) : o.featuredStatus === 'pending' ? (
-                          <div className="flex items-center gap-1.5">
-                            <Badge variant="secondary">Requested</Badge>
-                            <Button size="sm" variant="outline" className="h-7 px-2" disabled={featuredMutation.isPending}
-                              onClick={() => featuredMutation.mutate({ offerId: o._id, approve: true })}>
-                              Allow
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400" disabled={featuredMutation.isPending}
-                              onClick={() => featuredMutation.mutate({ offerId: o._id, approve: false })}>
-                              Deny
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-gray-500 text-sm">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {o.status === 'pending' ? (
-                          <div className="flex items-center gap-2 justify-end">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={approveOfferMutation.isPending} onClick={() => approveOfferMutation.mutate(o._id)}>
-                              <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
-                            </Button>
-                            <Button size="sm" variant="destructive" className="hover:bg-red-700" onClick={() => { setRejecting(o); setReason(''); }}>
-                              <XCircle className="h-4 w-4 mr-1" /> Reject
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-gray-500 text-sm">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -451,32 +506,57 @@ const ProductDetailView = () => {
         </CardContent>
       </Card>
 
-      {/* Reject offer dialog */}
-      <Dialog open={!!rejecting} onOpenChange={(o) => { if (!o) { setRejecting(null); setReason(''); } }}>
-        <DialogContent className="">
-          <DialogHeader>
-            <DialogTitle className="text-white text-xl font-semibold">Reject Offer</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              {rejecting?.sellerId?.shopName ? `Seller: ${rejecting.sellerId.shopName}. ` : ''}Reason will be sent to the seller (in-app + email).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 mt-2">
-            <div className="space-y-2">
-              <Label className="text-gray-300">Rejection Reason *</Label>
-              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is this offer rejected?" className="bg-secondary border-gray-700 text-white min-h-[100px]" />
-            </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" className="border-gray-700" onClick={() => { setRejecting(null); setReason(''); }}>Cancel</Button>
-              <Button variant="destructive" className="hover:bg-red-700" disabled={!reason.trim() || rejectOfferMutation.isPending} onClick={() => rejectOfferMutation.mutate({ offerId: rejecting._id, reason: reason.trim() })}>
-                {rejectOfferMutation.isPending ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Rejecting…</> : <><XCircle className="w-4 h-4 mr-2" />Confirm Reject</>}
-              </Button>
-            </div>
-          </div>
+      <Dialog open={!!zoomed} onOpenChange={(open) => { if (!open) setZoomed(null); }}>
+        <DialogContent className="max-w-3xl" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">{product?.name}</DialogTitle>
+          {zoomed && (
+            <SafeImage
+              src={zoomed}
+              alt={product?.name}
+              className="max-h-[70vh] w-full rounded-lg object-contain"
+            />
+          )}
         </DialogContent>
       </Dialog>
+
+      <ReasonDialog
+        open={!!rejecting}
+        onOpenChange={(open) => { if (!open) setRejecting(null); }}
+        title="Reject Offer"
+        description={`${rejecting?.sellerId?.shopName ? `Seller: ${rejecting.sellerId.shopName}. ` : ''}Reason will be sent to the seller (in-app + email).`}
+        label="Rejection Reason"
+        placeholder="Why is this offer rejected?"
+        confirmText="Confirm Reject"
+        pendingText="Rejecting…"
+        icon={XCircle}
+        pending={rejectOfferMutation.isPending}
+        onConfirm={(reason) => rejectOfferMutation.mutate({ offerId: rejecting._id, reason })}
+      />
+
+      <ReasonDialog
+        open={!!removing}
+        onOpenChange={(open) => { if (!open) setRemoving(null); }}
+        title="Remove offer"
+        description={`${removing?.sellerId?.shopName || 'This seller'}'s listing is hidden from buyers immediately and can no longer be bought. Their inventory is kept, and you can restore it later. The reason is sent to the seller (in-app + email).`}
+        label="Reason for removal"
+        placeholder="Why is this offer being removed?"
+        confirmText="Remove offer"
+        pendingText="Removing…"
+        icon={Ban}
+        pending={remove.isPending}
+        onConfirm={(reason) => remove.mutate({ offerId: removing._id, reason })}
+      />
+
+      <ConfirmationModal
+        open={!!restoring}
+        onOpenChange={(open) => { if (!open) setRestoring(null); }}
+        title="Restore offer"
+        description={`${restoring?.sellerId?.shopName || 'The seller'}'s listing goes live again and the seller is notified.`}
+        confirmText="Restore"
+        onConfirm={() => restore.mutate(restoring._id)}
+      />
     </div>
   );
 };
 
 export default ProductDetailView;
-

@@ -1,17 +1,5 @@
 import api from '@lib/axios';
 
-export const flashDealAPI = {
-  getFlashDeals: () => api.get('/flash-deal'),
-  getAllFlashDeals: () => api.get('/flash-deal/admin/all'),
-  createFlashDeal: (formData) => api.post('/flash-deal', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
-  updateFlashDeal: (id, formData) => api.patch(`/flash-deal/${id}`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
-  deleteFlashDeal: (id) => api.delete(`/flash-deal/${id}`),
-};
-
 export const homepageSliderAPI = {
   getHomepageSliders: () => api.get('/homepage-slider'),
   getAllHomepageSliders: () => api.get('/homepage-slider/admin/all'),
@@ -56,23 +44,6 @@ export const menuAPI = {
   fillSubcategories: (headingId) => api.post(`/menu/${headingId}/fill-subcategories`),
 };
 
-export const trendingOfferAPI = {
-  getTrendingOffers: () => api.get('/trending-offer'),
-  getAllTrendingOffers: (params) => api.get('/trending-offer/admin/all', { params }),
-  createTrendingOffer: (data) => api.post('/trending-offer', data),
-  updateTrendingOffer: (id, data) => api.patch(`/trending-offer/${id}`, data),
-  deleteTrendingOffer: (id) => api.delete(`/trending-offer/${id}`),
-};
-
-export const upcomingReleaseAPI = {
-  getUpcomingReleases: () => api.get('/upcoming-release'),
-  getUpcomingReleasesConfig: () => api.get('/upcoming-release/admin'),
-  updateSlot: (slotNumber, data) => api.put(`/upcoming-release/slot/${slotNumber}`, data),
-  updateSlotImage: (slotNumber, formData) => api.put(`/upcoming-release/slot/${slotNumber}/image`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
-};
-
 export const upcomingGamesAPI = {
   getUpcomingGames: () => api.get('/upcoming-games'),
   getUpcomingGamesConfig: () => api.get('/upcoming-games/admin'),
@@ -85,4 +56,10 @@ export const upcomingGamesAPI = {
 // SEO APIs (Public)
 export const seoAPI = {
   getHomePageSEO: () => api.get('/seo/home'),
+};
+
+// Legal APIs (Public) — the admin-configured figures the policy pages quote in
+// their own text (refund window, escrow period, buyer fees, vendor commission).
+export const legalAPI = {
+  getFigures: () => api.get('/legal/figures'),
 };

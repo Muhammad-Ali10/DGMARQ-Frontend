@@ -11,7 +11,7 @@ import { SearchableSelect } from '@components/ui/searchable-select';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Loader2, AlertCircle, CheckCircle2, ShoppingBag, Package, FileText, Wallet, CreditCard } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 
 const REFUND_REASONS = [
   'Product not working',
@@ -25,6 +25,7 @@ const REFUND_REASONS = [
 
 
 const RefundRequestModal = ({ open, onOpenChange }) => {
+  const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -1054,7 +1055,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-fg-muted">Total refund</span>
-                    <span className="text-sm font-semibold text-fg">{formatUSD(totalRefundAmount)}</span>
+                    <span className="text-sm font-semibold text-fg">{formatSettlement(totalRefundAmount)}</span>
                   </div>
                   {/* B8: say it BEFORE they commit. Fees are correctly withheld,
                       but nothing told the buyer — so someone who paid $98 and
@@ -1073,7 +1074,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                           <p className="text-sm font-medium text-amber-100">Refund window has expired</p>
                           <p className="text-[11px] text-amber-200/80 mt-0.5">
                             We can no longer return funds to the original payment method. You can still
-                            request a wallet-credit refund of {formatUSD(totalRefundAmount)}; an admin
+                            request a wallet-credit refund of {formatSettlement(totalRefundAmount)}; an admin
                             must approve it manually before the credit is applied.
                           </p>
                         </div>
@@ -1094,7 +1095,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-emerald-100">{formatUSD(effectiveWalletPortion)}</span>
+                      <span className="text-sm font-semibold text-emerald-100">{formatSettlement(effectiveWalletPortion)}</span>
                     </div>
                   )}
 
@@ -1111,7 +1112,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                           </p>
                         </div>
                       </div>
-                      <span className="text-sm font-semibold text-sky-100">{formatUSD(effectiveProviderPortion)}</span>
+                      <span className="text-sm font-semibold text-sky-100">{formatSettlement(effectiveProviderPortion)}</span>
                     </div>
                   )}
                 </div>
@@ -1291,7 +1292,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             <p>
               The refund period for this order has ended. We can only credit{' '}
               <span className="font-semibold text-emerald-200">
-                {formatUSD(walletCreditFallback?.refundAmount ?? totalRefundAmount)}
+                {formatSettlement(walletCreditFallback?.refundAmount ?? totalRefundAmount)}
               </span>{' '}
               to your wallet, and an admin must approve it manually before the credit is applied.
             </p>

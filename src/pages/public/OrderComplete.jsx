@@ -11,6 +11,8 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
 import { SellerAvatar } from '@features/cart-checkout';
 import useCurrency from '@hooks/useCurrency';
+import { describeAccountCredentials } from '@lib/accountCredentials';
+import { deliveryWords, isActivationLink, isHttpUrl } from '@lib/deliveryType';
 
 // ── Order Complete / key-reveal — ported from the owner's mockup
 // `dgmarq-order-complete (20).html` (#oc-root). Tailwind v4 utilities; the
@@ -57,7 +59,7 @@ const INFO_BOX =
 const INFO_TEXT = 'whitespace-pre-wrap text-[12.5px] leading-[1.6] text-[#9fb4d8]';
 
 /** Mockup `keyBox`/`passBox`: label + value, with masking for secrets. */
-const KeyBox = ({ label, value, secret = false, onCopied }) => {
+const KeyBox = ({ label, value, secret = false, href, onCopied }) => {
   const [shown, setShown] = useState(!secret);
   const [copied, setCopied] = useState(false);
 
@@ -89,7 +91,13 @@ const KeyBox = ({ label, value, secret = false, onCopied }) => {
         : <KeyRound className="h-[18px] w-[18px] shrink-0 text-[#0e9fe2] opacity-90" />}
       <div className="min-w-0 flex-1">
         <div className={KEY_FLABEL}>{label}</div>
-        <div className={`${KEY_CODE} ${shown ? '' : 'tracking-[0.3em]'}`}>{shown ? value : MASK}</div>
+        <div className={`${KEY_CODE} ${shown ? '' : 'tracking-[0.3em]'}`}>
+          {!shown ? MASK : href ? (
+            <a href={href} target="_blank" rel="noopener noreferrer" className="underline decoration-dotted">
+              {value}
+            </a>
+          ) : value}
+        </div>
       </div>
       {secret && (
         <button
@@ -112,15 +120,6 @@ const KeyBox = ({ label, value, secret = false, onCopied }) => {
     </div>
   );
 };
-
-/** Account-credential field order + which ones are secrets (mirrors the mockup). */
-const ACCOUNT_FIELDS = [
-  { keys: ['usernameId', 'username'], label: 'Username / ID', secret: false },
-  { keys: ['usernamePassword', 'password'], label: 'Username password', secret: true },
-  { keys: ['email'], label: 'Email', secret: false },
-  { keys: ['emailPassword'], label: 'Email password', secret: true },
-  { keys: ['emailHost'], label: 'Email host', secret: false },
-];
 
 const ItemModal = ({ item, onClose, onToast }) => {
   useEffect(() => {
@@ -191,34 +190,37 @@ const ItemModal = ({ item, onClose, onToast }) => {
                 return (
                   <KeyBox
                     key={`k-${i}`}
-                    label={item.keys.length > 1 ? `CD Key ${i + 1}` : 'CD Key'}
+                    // Named for what it actually is: a key, a gift code or a link.
+                    label={`${deliveryWords(item.productType).title}${item.keys.length > 1 ? ` ${i + 1}` : ''}`}
                     value={raw}
+                    href={isActivationLink(item.productType) && isHttpUrl(raw) ? raw : undefined}
                     onCopied={onToast}
                   />
                 );
               }
-              const rendered = ACCOUNT_FIELDS.map((f) => {
-                const src = f.keys.find((k) => account[k]);
-                if (!src) return null;
-                return (
-                  <KeyBox
-                    key={`${i}-${f.label}`}
-                    label={f.label}
-                    value={String(account[src])}
-                    secret={f.secret}
-                    onCopied={onToast}
-                  />
-                );
-              }).filter(Boolean);
+              // Field order, labels and which values are secret all come from
+              // @lib/accountCredentials — the seller's notes are prose, so they
+              // get the information box rather than a copy-and-reveal row.
+              const rows = describeAccountCredentials(account);
+              const credentialRows = rows.filter((row) => row.key !== 'notes');
+              const notes = rows.find((row) => row.key === 'notes');
               return (
                 <div key={`a-${i}`}>
-                  {rendered.length > 0 ? rendered : (
+                  {credentialRows.length > 0 ? credentialRows.map((row) => (
+                    <KeyBox
+                      key={`${i}-${row.key}`}
+                      label={row.label}
+                      value={row.value}
+                      secret={row.secret}
+                      onCopied={onToast}
+                    />
+                  )) : (
                     <div className={INFO_BOX}><div className={INFO_TEXT}>{raw}</div></div>
                   )}
-                  {account.additionalInfo && (
+                  {notes && (
                     <div className={INFO_BOX}>
-                      <div className={KEY_FLABEL}>Additional information</div>
-                      <div className={INFO_TEXT}>{account.additionalInfo}</div>
+                      <div className={KEY_FLABEL}>Seller notes</div>
+                      <div className={INFO_TEXT}>{notes.value}</div>
                     </div>
                   )}
                 </div>

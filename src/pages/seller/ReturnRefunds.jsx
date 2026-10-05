@@ -10,7 +10,7 @@ import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
 import { refundBadgeProps } from '@features/wallet-payout';
-import { formatUSD } from '@lib/money';
+import useCurrency from '@hooks/useCurrency';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
 import { Eye, ShieldCheck } from 'lucide-react';
 import { getDisplayOrderId } from '@lib/orderDisplay';
@@ -28,6 +28,7 @@ import { useSocket } from '@hooks/useSocket';
  * rather than the buyer's display-currency hook.
  */
 const SellerReturnRefunds = () => {
+  const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
 
@@ -113,7 +114,7 @@ const SellerReturnRefunds = () => {
                           </TableCell>
                           <TableCell>{refund.userId?.name || '—'}</TableCell>
                           <TableCell numeric className="font-semibold">
-                            {formatUSD(refund.refundAmount ?? refund.productId?.price)}
+                            {formatSettlement(refund.refundAmount ?? refund.productId?.price)}
                           </TableCell>
                           <TableCell>
                             <Badge {...refundBadgeProps(refund.status)} />
@@ -158,7 +159,7 @@ const SellerReturnRefunds = () => {
                           <Badge {...refundBadgeProps(refund.status)} />
                         </div>
                         <p className="mt-2 text-sm font-semibold tabular-nums text-fg">
-                          {formatUSD(refund.refundAmount ?? refund.productId?.price)}
+                          {formatSettlement(refund.refundAmount ?? refund.productId?.price)}
                         </p>
                         <p className="mt-1 text-xs text-fg-subtle">
                           {getDisplayOrderId(refund.orderId, '—')} · {refund.userId?.name || 'Buyer'} ·{' '}
