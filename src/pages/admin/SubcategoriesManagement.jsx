@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { subcategoryAPI, categoryAPI } from '@services/api';
+import { fetchAllPages } from '@lib/apiList';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -11,8 +12,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
-import { Plus, Edit, Trash2, Power, ChevronLeft, ChevronRight, Search, Layers, Filter, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, Power, ChevronLeft, ChevronRight, Layers, Filter, RefreshCw } from 'lucide-react';
 import { SearchInput } from '@components/common/SearchInput';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { useDebounce } from '@hooks/useDebounce';
 
 const SubcategoriesManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -22,32 +25,30 @@ const SubcategoriesManagement = () => {
   const [formData, setFormData] = useState({ name: '', slug: '', description: '', parentCategory: '', showOnHomepage: false, order: 0, imageFile: null });
   const [statusData, setStatusData] = useState({ status: true });
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput.trim(), 350);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [isActiveFilter, setIsActiveFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const queryClient = useQueryClient();
 
-  // Fetch categories for dropdown
-  const { data: categoriesData } = useQuery({
+  const { data: categories = [] } = useQuery({
     queryKey: ['categories-for-dropdown'],
-    queryFn: () => categoryAPI.getCategories({ page: 1, limit: 1000 }).then(res => res.data.data),
+    queryFn: () => fetchAllPages(categoryAPI.getCategories),
   });
-  const categories = categoriesData?.docs || categoriesData?.categories || [];
 
-  // Fetch subcategories with pagination
   const { data: subcategoriesData, isLoading, isError, error } = useQuery({
     queryKey: ['subcategories', page, search, isActiveFilter, categoryFilter],
     queryFn: () => {
       const params = { page, limit: 10 };
-      if (search.trim()) params.search = search.trim();
+      if (search) params.search = search;
       if (isActiveFilter !== '') params.isActive = isActiveFilter;
       if (categoryFilter) params.categoryId = categoryFilter;
       return subcategoryAPI.getSubcategories(params).then(res => res.data.data);
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
-  // Extract subcategories array and pagination info
   const subcategories = subcategoriesData?.docs || subcategoriesData?.subcategories || [];
   const pagination = {
     page: subcategoriesData?.page || 1,
@@ -73,25 +74,27 @@ const SubcategoriesManagement = () => {
   });
 
   const updateMutation = useMutation({
-    // The icon rides a separate multipart endpoint, so a save that includes a
-    // new file is two calls: fields first, then the upload. Awaiting both here
-    // keeps it one mutation from the UI's point of view (one spinner, one
-    // toast, one invalidation).
     mutationFn: async ({ subCategoryId, data, imageFile }) => {
-      const result = await subcategoryAPI.updateSubcategory(subCategoryId, data);
-      if (imageFile) {
-        const body = new FormData();
-        body.append('image', imageFile);
-        return subcategoryAPI.updateSubcategoryImage(subCategoryId, body);
+      await subcategoryAPI.updateSubcategory(subCategoryId, data);
+      if (!imageFile) return {};
+      const body = new FormData();
+      body.append('image', imageFile);
+      try {
+        await subcategoryAPI.updateSubcategoryImage(subCategoryId, body);
+        return {};
+      } catch (imageError) {
+        return { imageError };
       }
-      return result;
     },
-    onSuccess: () => {
+    onSuccess: ({ imageError }) => {
       queryClient.invalidateQueries({ queryKey: ['subcategories'] });
-      // The public rail reads its own cached endpoint.
       queryClient.invalidateQueries({ queryKey: ['homepage-subcategories'] });
       setIsEditOpen(false);
       setSelectedSubcategory(null);
+      if (imageError) {
+        toast.warning(`Details saved, but the image upload failed: ${imageError?.response?.data?.message || 'please try the image again'}`);
+        return;
+      }
       toast.success('Subcategory updated successfully');
     },
     onError: (error) => {
@@ -169,15 +172,6 @@ const SubcategoriesManagement = () => {
     });
   };
 
-  const handleDelete = (subCategoryId) => {
-      deleteMutation.mutate(subCategoryId);
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPage(1);
-  };
-
   const handleFilterChange = (value) => {
     setIsActiveFilter(value);
     setPage(1);
@@ -224,7 +218,6 @@ const SubcategoriesManagement = () => {
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
-      {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-3">
@@ -359,21 +352,14 @@ const SubcategoriesManagement = () => {
             </div>
           </div>
           
-          {/* Search and Filter Section */}
           <div className="flex flex-col sm:flex-row gap-3 mt-6">
-            <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                onClear={() => { setSearch(''); setPage(1); }}
-                placeholder="Search by name or slug..."
-                className="flex-1"
-              />
-              <Button type="submit" variant="outline" size="sm" className="border-gray-700 hover:bg-secondary">
-                <Search className="w-4 h-4 mr-2" />
-                Search
-              </Button>
-            </form>
+            <SearchInput
+              value={searchInput}
+              onChange={(value) => { setSearchInput(value); setPage(1); }}
+              onClear={() => { setSearchInput(''); setPage(1); }}
+              placeholder="Search by name or slug..."
+              className="flex-1"
+            />
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
               <select
@@ -401,12 +387,12 @@ const SubcategoriesManagement = () => {
                 <option value="false">Inactive Only</option>
               </select>
             </div>
-            {(search || isActiveFilter || categoryFilter) && (
+            {(searchInput || isActiveFilter || categoryFilter) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSearch('');
+                  setSearchInput('');
                   setIsActiveFilter('');
                   setCategoryFilter('');
                   setPage(1);
@@ -524,7 +510,7 @@ const SubcategoriesManagement = () => {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleDelete(subcategory._id)}
+                            onClick={() => setPendingDelete(subcategory)}
                             className="hover:bg-red-700 transition-all"
                             title="Delete Subcategory"
                           >
@@ -548,7 +534,6 @@ const SubcategoriesManagement = () => {
             </Table>
           </div>
           
-          {/* Pagination Controls */}
           {pagination.totalDocs > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
               <div className="flex items-center gap-2">
@@ -581,7 +566,6 @@ const SubcategoriesManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>
@@ -639,7 +623,6 @@ const SubcategoriesManagement = () => {
               />
             </div>
 
-            {/* M15: homepage subcategory rail controls */}
             <div className="rounded-lg border border-gray-700 p-3 space-y-3">
               <p className="text-sm font-semibold text-gray-300">Homepage icon rail</p>
 
@@ -722,7 +705,6 @@ const SubcategoriesManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Status Update Dialog */}
       <Dialog open={isStatusOpen} onOpenChange={setIsStatusOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>
@@ -778,6 +760,16 @@ const SubcategoriesManagement = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title="Delete subcategory?"
+        description={`"${pendingDelete?.name || ''}" will be permanently deleted. This cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => deleteMutation.mutate(pendingDelete._id)}
+      />
     </div>
   );
 };

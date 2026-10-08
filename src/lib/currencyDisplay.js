@@ -1,12 +1,3 @@
-// ── Display-currency helpers (Module 10) ─────────────────────────────────────
-// The platform stores and CHARGES everything in USD; the selected currency only
-// changes how prices are DISPLAYED. Conversion happens client-side against the
-// daily rates from GET /currency/rates.
-
-// Must stay in sync with SUPPORTED_CURRENCIES on the backend. Ported from the
-// v74 mockup's DG_CURRENCIES list: [code, flag, name, symbol]. The symbol is only
-// used for the selector label — actual prices are formatted via Intl.NumberFormat
-// (which handles per-currency decimals/grouping correctly).
 export const SUPPORTED_CURRENCIES = [
   { code: "AUD", flag: "au", name: "Australian Dollar", symbol: "A$" },
   { code: "USD", flag: "us", name: "US Dollar", symbol: "$" },
@@ -26,8 +17,6 @@ export const SUPPORTED_CURRENCIES = [
   { code: "CZK", flag: "cz", name: "Czech Koruna", symbol: "Kč" },
   { code: "HUF", flag: "hu", name: "Hungarian Forint", symbol: "Ft" },
   { code: "RON", flag: "ro", name: "Romanian Leu", symbol: "lei" },
-  { code: "BGN", flag: "bg", name: "Bulgarian Lev", symbol: "лв" },
-  { code: "HRK", flag: "hr", name: "Croatian Kuna", symbol: "kn" },
   { code: "RUB", flag: "ru", name: "Russian Ruble", symbol: "₽" },
   { code: "TRY", flag: "tr", name: "Turkish Lira", symbol: "₺" },
   { code: "UAH", flag: "ua", name: "Ukrainian Hryvnia", symbol: "₴" },
@@ -78,48 +67,37 @@ export const SUPPORTED_CURRENCIES = [
 
 export const SUPPORTED_CODES = SUPPORTED_CURRENCIES.map((c) => c.code);
 
-// Buyer country (ISO alpha-2, from M9 geo) → default display currency.
-// Only maps to a SUPPORTED currency; every other country falls back to USD.
-// Croatia (HR) uses the euro since 2023, so it maps to EUR (HRK stays selectable
-// but no country auto-detects to it).
 const EURO_COUNTRIES = [
-  "AT", "BE", "HR", "CY", "EE", "FI", "FR", "DE", "GR", "IE", "IT", "LV",
+  "AT", "BE", "BG", "HR", "CY", "EE", "FI", "FR", "DE", "GR", "IE", "IT", "LV",
   "LT", "LU", "MT", "NL", "PT", "SK", "SI", "ES", "MC", "SM", "VA", "AD", "ME", "XK",
 ];
 const COUNTRY_TO_CURRENCY = {
-  // Anglosphere / majors
   GB: "GBP", IM: "GBP", JE: "GBP", GG: "GBP",
   AU: "AUD", NR: "AUD", KI: "AUD", TV: "AUD",
   CA: "CAD",
   NZ: "NZD", CK: "NZD", NU: "NZD",
   SG: "SGD", JP: "JPY", CH: "CHF", LI: "CHF", CN: "CNY", HK: "HKD",
-  // Nordics
   SE: "SEK", NO: "NOK", SJ: "NOK", DK: "DKK", FO: "DKK", GL: "DKK", IS: "ISK",
-  // Central / Eastern Europe
-  PL: "PLN", CZ: "CZK", HU: "HUF", RO: "RON", BG: "BGN", RU: "RUB", TR: "TRY",
+  PL: "PLN", CZ: "CZK", HU: "HUF", RO: "RON", RU: "RUB", TR: "TRY",
   UA: "UAH", RS: "RSD", MK: "MKD", AL: "ALL", BA: "BAM", MD: "MDL", BY: "BYN",
-  // Asia
   IN: "INR", ID: "IDR", MY: "MYR", PH: "PHP", TH: "THB", VN: "VND", KR: "KRW",
   TW: "TWD", PK: "PKR", BD: "BDT", LK: "LKR", NP: "NPR", KZ: "KZT", UZ: "UZS",
   GE: "GEL", AZ: "AZN",
-  // Middle East
   SA: "SAR", QA: "QAR", KW: "KWD", BH: "BHD", OM: "OMR", JO: "JOD", IL: "ILS",
   PS: "ILS",
-  // Africa
   EG: "EGP", MA: "MAD", EH: "MAD", NG: "NGN", KE: "KES", GH: "GHS", TN: "TND",
   DZ: "DZD",
-  // Latin America
   BR: "BRL", MX: "MXN", AR: "ARS", CL: "CLP", CO: "COP", PE: "PEN",
 };
 for (const c of EURO_COUNTRIES) COUNTRY_TO_CURRENCY[c] = "EUR";
 
-/** Default display currency for a buyer country ("US"→USD, "DE"→EUR, …). */
+export const CURRENCY_COUNTRY_CODES = Object.keys(COUNTRY_TO_CURRENCY);
+
 export const currencyForCountry = (countryCode) => {
   const code = String(countryCode || "").toUpperCase();
   return COUNTRY_TO_CURRENCY[code] || "USD";
 };
 
-/** Convert a USD amount using a rates map; returns null when unconvertible. */
 export const convertFromUSD = (usdAmount, currency, rates) => {
   const amount = Number(usdAmount);
   if (!Number.isFinite(amount)) return null;
@@ -129,7 +107,6 @@ export const convertFromUSD = (usdAmount, currency, rates) => {
   return amount * rate;
 };
 
-// Intl formatters are surprisingly expensive to construct — cache per currency.
 const formatterCache = new Map();
 const getFormatter = (currency) => {
   let fmt = formatterCache.get(currency);
@@ -144,10 +121,6 @@ const getFormatter = (currency) => {
   return fmt;
 };
 
-/**
- * Format a USD amount in the display currency ("€9.19", "¥1,628").
- * Falls back to plain USD when the rate is missing — never shows a wrong number.
- */
 export const formatDisplayPrice = (usdAmount, currency, rates) => {
   const amount = Number(usdAmount) || 0;
   const converted = convertFromUSD(amount, currency, rates);

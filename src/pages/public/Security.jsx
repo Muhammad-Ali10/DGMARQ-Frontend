@@ -13,12 +13,10 @@ const Security = () => {
     title: "Security | DGMARQ",
     description: "Learn how DGMARQ keeps your transactions and data safe and secure.",
     canonical: "/security",
-    useDefaults: false,
   });
 
   return (
     <main className="flex min-h-screen flex-col text-white">
-      {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />
         <div className="relative flex flex-col gap-8 max-w-4xl mx-auto text-center">
@@ -45,7 +43,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 1: Escrow */}
       <SectionWrapper id="escrow">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -80,7 +77,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 2: Fraud Detection */}
       <SectionWrapper id="fraud-detection">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -100,7 +96,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 3: Verified Seller */}
       <SectionWrapper id="verified-seller">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -119,7 +114,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 4: Payment Infrastructure */}
       <SectionWrapper id="payment-infrastructure">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -139,7 +133,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 5: Dispute Resolution */}
       <SectionWrapper id="dispute-resolution">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -162,7 +155,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 6: Data Protection */}
       <SectionWrapper id="data-protection">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -181,7 +173,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 7: Account Tools */}
       <SectionWrapper id="account-tools">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -199,7 +190,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* FAQ */}
       <SectionWrapper id="faq" className="bg-gradient-to-b from-transparent via-accent/5 to-transparent">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
@@ -211,7 +201,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Trust Section */}
       <SectionWrapper id="trust">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-white text-center">
@@ -228,7 +217,6 @@ const Security = () => {
         </div>
       </SectionWrapper>
 
-      {/* Final CTA */}
       <SectionWrapper id="final-cta">
         <div className="flex flex-col items-center gap-6 text-center max-w-2xl mx-auto">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">

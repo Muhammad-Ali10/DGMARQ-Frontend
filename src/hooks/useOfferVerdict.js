@@ -2,18 +2,27 @@ import { useMemo } from "react";
 import useBuyerCountry from "./useBuyerCountry";
 import { resolveOfferAvailability, isBuyerCompatible } from "@lib/regionCompat";
 
-// Resolves an offer's region data + the buyer's country into the shared
-// blue/red verdict (true = can activate, false = cannot, null = unknown).
-// Lets the product card colour its border while RegionBadges renders the
-// chips/status line — both read one consistent result from the same preset
-// resolver + buyer country, so they never disagree.
+const LIST_SEPARATOR = ",";
+const PART_SEPARATOR = "|";
+
+const regionKeyOf = (offer) =>
+  offer
+    ? [offer.regionCodes, offer.countries, offer.excludedCountries]
+        .map((list) => (Array.isArray(list) ? list.join(LIST_SEPARATOR) : ""))
+        .join(PART_SEPARATOR)
+    : null;
+
+const splitList = (part) => (part ? part.split(LIST_SEPARATOR) : []);
+
 export const useOfferVerdict = (offer) => {
   const { country } = useBuyerCountry();
+  const regionKey = regionKeyOf(offer);
 
-  const availability = useMemo(
-    () => (offer ? resolveOfferAvailability(offer) : null),
-    [offer]
-  );
+  const availability = useMemo(() => {
+    if (regionKey === null) return null;
+    const [regionCodes, countries, excludedCountries] = regionKey.split(PART_SEPARATOR).map(splitList);
+    return resolveOfferAvailability({ regionCodes, countries, excludedCountries });
+  }, [regionKey]);
   const verdict = useMemo(
     () => (availability ? isBuyerCompatible(availability, country) : null),
     [availability, country]

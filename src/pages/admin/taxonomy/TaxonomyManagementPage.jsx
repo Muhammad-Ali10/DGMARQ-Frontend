@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -35,15 +35,13 @@ import {
   Power,
   ChevronLeft,
   ChevronRight,
-  Search,
   Filter,
   RefreshCw,
 } from "lucide-react";
 import { SearchInput } from "@components/common/SearchInput";
+import ConfirmationModal from "@components/common/ConfirmationModal";
+import { useDebounce } from "@hooks/useDebounce";
 
-// Default pagination extractor for backends using aggregatePaginate
-// ({ docs, totalDocs, page, totalPages, ... }). Entities with a different
-// response shape (e.g. platforms) supply config.getPagination instead.
 const defaultGetPagination = (data) => ({
   page: data.page || 1,
   totalPages: data.totalPages || 1,
@@ -71,7 +69,9 @@ const TaxonomyManagementPage = ({ config }) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [formData, setFormData] = useState({ name: "" });
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebounce(searchInput.trim(), 350);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [isActiveFilter, setIsActiveFilter] = useState("");
   const queryClient = useQueryClient();
 
@@ -81,8 +81,6 @@ const TaxonomyManagementPage = ({ config }) => {
     isError,
     error,
   } = useQuery({
-    // Query key shape matches the original per-entity pages exactly:
-    // search / isActive segments only exist where the feature exists.
     queryKey: [
       entityKey,
       page,
@@ -91,12 +89,17 @@ const TaxonomyManagementPage = ({ config }) => {
     ],
     queryFn: () => {
       const params = { page, limit: 10 };
-      if (hasSearch && search.trim()) params.search = search.trim();
+      if (hasSearch && search) params.search = search;
       if (hasStatusFilter && isActiveFilter !== "") params.isActive = isActiveFilter;
       return api.list(params).then((res) => res.data.data);
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
+
+  const invalidateLists = () => {
+    queryClient.invalidateQueries({ queryKey: [entityKey] });
+    queryClient.invalidateQueries({ queryKey: ["catalog-taxonomy"] });
+  };
 
   const items = itemsData?.docs || itemsData?.[itemsKey] || [];
   const getPagination = config.getPagination || defaultGetPagination;
@@ -105,7 +108,7 @@ const TaxonomyManagementPage = ({ config }) => {
   const createMutation = useMutation({
     mutationFn: (data) => api.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [entityKey] });
+      invalidateLists();
       setIsCreateOpen(false);
       setFormData({ name: "" });
       setPage(1);
@@ -119,7 +122,7 @@ const TaxonomyManagementPage = ({ config }) => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => api.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [entityKey] });
+      invalidateLists();
       setIsEditOpen(false);
       setSelectedItem(null);
       toast.success(labels.toastUpdated);
@@ -132,7 +135,7 @@ const TaxonomyManagementPage = ({ config }) => {
   const toggleStatusMutation = useMutation({
     mutationFn: (id) => api.toggleStatus(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [entityKey] });
+      invalidateLists();
       toast.success(labels.toastStatusUpdated);
     },
     onError: (error) => {
@@ -143,7 +146,7 @@ const TaxonomyManagementPage = ({ config }) => {
   const deleteMutation = useMutation({
     mutationFn: (id) => api.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [entityKey] });
+      invalidateLists();
       if (items.length === 1 && page > 1) {
         setPage(page - 1);
       }
@@ -175,18 +178,13 @@ const TaxonomyManagementPage = ({ config }) => {
     });
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPage(1);
-  };
-
   const handleFilterChange = (value) => {
     setIsActiveFilter(value);
     setPage(1);
   };
 
   const handleResetFilters = () => {
-    setSearch("");
+    setSearchInput("");
     setIsActiveFilter("");
     setPage(1);
   };
@@ -228,10 +226,8 @@ const TaxonomyManagementPage = ({ config }) => {
     return pages;
   };
 
-  // Empty-state hint mirrors each original page's wording, which depended on
-  // which of search / status-filter the page offered.
   const hasActiveFilters = Boolean(
-    (hasSearch && search) || (hasStatusFilter && isActiveFilter)
+    (hasSearch && searchInput) || (hasStatusFilter && isActiveFilter)
   );
   let adjustHint = "Try adjusting your search criteria";
   if (hasSearch && hasStatusFilter) {
@@ -364,24 +360,13 @@ const TaxonomyManagementPage = ({ config }) => {
 
           <div className="flex flex-col sm:flex-row gap-3 mt-6">
             {hasSearch && (
-              <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-                <SearchInput
-                  value={search}
-                  onChange={setSearch}
-                  onClear={() => { setSearch(''); setPage(1); }}
-                  placeholder="Search by name..."
-                  className="flex-1"
-                />
-                <Button
-                  type="submit"
-                  variant="outline"
-                  size="sm"
-                  className="border-gray-700"
-                >
-                  <Search className="w-4 h-4 mr-2" />
-                  Search
-                </Button>
-              </form>
+              <SearchInput
+                value={searchInput}
+                onChange={(value) => { setSearchInput(value); setPage(1); }}
+                onClear={() => { setSearchInput(""); setPage(1); }}
+                placeholder="Search by name..."
+                className="flex-1"
+              />
             )}
             {hasStatusFilter && (
               <div className="relative">
@@ -491,9 +476,7 @@ const TaxonomyManagementPage = ({ config }) => {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => {
-                              deleteMutation.mutate(item._id);
-                            }}
+                            onClick={() => setPendingDelete(item)}
                             className="hover:bg-red-700"
                             title={labels.deleteActionTitle}
                           >
@@ -607,6 +590,16 @@ const TaxonomyManagementPage = ({ config }) => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title={`${labels.deleteActionTitle}?`}
+        description={`"${pendingDelete?.name || ""}" will be permanently deleted. This cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => deleteMutation.mutate(pendingDelete._id)}
+      />
     </div>
   );
 };

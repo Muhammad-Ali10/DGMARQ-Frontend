@@ -6,25 +6,15 @@ import {
   countryName,
 } from '@lib/regionCompat';
 
-// Design tokens for the region chips (mockup v74 lines 5709-5713). The 20px
-// radius is the signature of these pills — Tailwind's `rounded-md` (6px) reads
-// as a completely different component.
 const PILL_BASE =
   'inline-flex items-center gap-[3px] whitespace-nowrap rounded-[20px] px-[9px] py-[2.5px] text-[10.5px] font-bold';
 const PILL_TONE = {
-  // Buyer's own country — the ticked one.
   buyer: 'border border-[rgba(46,207,176,0.4)] bg-[rgba(46,207,176,0.15)] text-[#2ecfb0]',
   other: 'border border-white/[0.12] bg-white/[0.06] text-fg/[0.62]',
   more: 'border border-[rgba(14,159,226,0.3)] bg-[rgba(14,159,226,0.15)] text-[#0e9fe2]',
   global: 'border border-[rgba(46,207,176,0.4)] bg-[rgba(46,207,176,0.15)] text-[#2ecfb0]',
 };
 
-/**
- * The mockup's `cp-activate` line (v74 line 6153): a green check + "Can activate
- * in <Country>". The mockup only ever draws the positive case; the negative is
- * kept because silently hiding "you cannot activate this" would lose a real
- * safeguard — it is styled to match, in red.
- */
 export const ActivationLine = ({ offer, country }) => {
   if (!offer || !country) return null;
   const verdict = isBuyerCompatible(resolveOfferAvailability(offer), country);
@@ -51,15 +41,6 @@ export const ActivationLine = ({ offer, country }) => {
   );
 };
 
-/**
- * Region chips exactly as the cart/checkout mockup draws them (`cpPills`,
- * v74 line 6100): a single GLOBAL chip, or up to three codes with the BUYER'S
- * country first and check-marked, then a `+N` overflow chip.
- *
- * The mockup hardcodes 'AU' as the buyer; here the tick follows the real
- * detected country. No flag emoji — Windows has no flag font, so it rendered as
- * a second copy of the country code next to the real one.
- */
 const RegionPills = ({ offer, country, max = 3 }) => {
   if (!offer) return null;
 

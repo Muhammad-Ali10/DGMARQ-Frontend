@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -10,7 +10,6 @@ import { Skeleton } from '@components/ui/skeleton';
 import SafeImage from '@components/ui/safe-image';
 import { SearchInput } from '@components/common/SearchInput';
 import { StatusBadge } from '@components/common/StatusBadge';
-import { PlatformBadge } from '@components/common/PlatformBadge';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
@@ -26,11 +25,10 @@ import { Plus, Key, RefreshCw, Eye, EyeOff, Trash2, Package } from 'lucide-react
 import { toast } from 'sonner';
 
 const KEYS_PAGE_SIZE = 10;
+const LISTINGS_PAGE_SIZE = 50;
 const OFFER_ROW_HEIGHT = 72;
-/** Above this, the picker windows its rows instead of mounting all of them. */
 const VIRTUALIZE_ABOVE = 20;
 
-/** Backfills the derived fields the list endpoint does not send. */
 const withDerivedStatus = (key) => ({
   ...key,
   status: key.status || (key.isRefunded ? 'Refunded' : key.isUsed ? 'Used' : 'Active'),
@@ -40,8 +38,6 @@ const formatKeyForDisplay = (keyData) => {
   if (!keyData) return '';
   if (typeof keyData === 'string') return keyData;
   if (typeof keyData === 'object') {
-    // Shared field list, so host email and notes appear here the moment they
-    // exist — this view used to hardcode its own four labels.
     const rows = describeAccountCredentials(keyData);
     return rows.length
       ? rows.map(({ label, value }) => `${label}: ${value}`).join('\n')
@@ -50,20 +46,6 @@ const formatKeyForDisplay = (keyData) => {
   return String(keyData);
 };
 
-/**
- * Seller inventory — pick a listing, manage its keys.
- *
- * The listing picker is VIRTUALISED with @tanstack/react-virtual. This is the
- * screen where it earns its keep: the offers request pulls up to 100 rows in one
- * go, and the picker previously mounted every one of them as a card. (By
- * contrast the keys table below is server-paginated at ten rows, so it is not
- * virtualised — windowing ten items would add a scroll container and break table
- * semantics for nothing.) Below `VIRTUALIZE_ABOVE` rows the picker renders
- * plainly, because a virtualiser on a handful of items is pure overhead.
- *
- * Selected listing and key page both live in the URL, so a seller can bookmark
- * "the inventory screen for this game" and come back to it.
- */
 const SellerLicenseKeys = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,30 +75,27 @@ const SellerLicenseKeys = () => {
     [setSearchParams]
   );
 
-  // Searched on the SERVER: a page holds at most 50 listings, so filtering the
-  // fetched ones could never reach a seller's 51st.
   const listingSearch = useDebounce(searchTerm.trim(), 300);
   const offersQuery = useQuery({
     queryKey: ['license-offers', listingSearch],
     queryFn: () =>
-      offerAPI.getMyOffers({ limit: 50, search: listingSearch || undefined }).then((res) => res.data.data),
+      offerAPI
+        .getMyOffers({ limit: LISTINGS_PAGE_SIZE, search: listingSearch || undefined })
+        .then((res) => res.data.data),
     placeholderData: keepPreviousData,
     retry: 2,
   });
 
   const filteredOffers = useMemo(() => offersQuery.data?.offers ?? [], [offersQuery.data]);
+  const listingsTotal = offersQuery.data?.pagination?.total ?? filteredOffers.length;
+  const listedSelection = filteredOffers.find((o) => o._id === selectedOfferId);
 
-  // The selected listing must survive a search that no longer contains it —
-  // its inventory is still on screen beside the list.
-  const [selectedOfferSnapshot, setSelectedOfferSnapshot] = useState(null);
-  const selectedOffer = useMemo(
-    () => filteredOffers.find((o) => o._id === selectedOfferId) || selectedOfferSnapshot,
-    [filteredOffers, selectedOfferId, selectedOfferSnapshot]
-  );
-  useEffect(() => {
-    const match = filteredOffers.find((o) => o._id === selectedOfferId);
-    if (match && match !== selectedOfferSnapshot) setSelectedOfferSnapshot(match);
-  }, [filteredOffers, selectedOfferId, selectedOfferSnapshot]);
+  const selectedOfferQuery = useQuery({
+    queryKey: ['seller-offer', selectedOfferId],
+    queryFn: () => offerAPI.getOffer(selectedOfferId).then((res) => res.data.data),
+    enabled: Boolean(selectedOfferId) && offersQuery.isSuccess && !listedSelection,
+  });
+  const selectedOffer = listedSelection || selectedOfferQuery.data || null;
 
   const keysQuery = useQuery({
     queryKey: ['offer-keys', selectedOfferId, keysPage],
@@ -152,12 +131,17 @@ const SellerLicenseKeys = () => {
       toast.error(error.response?.data?.message || 'Could not reveal that key. Try again.'),
   });
 
+  const refreshListingStock = () => {
+    queryClient.invalidateQueries({ queryKey: ['license-offers'] });
+    queryClient.invalidateQueries({ queryKey: ['seller-offer'] });
+    queryClient.invalidateQueries({ queryKey: ['seller-offers-overview'] });
+  };
+
   const deleteMutation = useMutation({
     mutationFn: (keyId) => offerAPI.deleteOfferKey(selectedOfferId, keyId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer-keys', selectedOfferId] });
-      queryClient.invalidateQueries({ queryKey: ['license-offers'] });
-      queryClient.invalidateQueries({ queryKey: ['seller-offers-overview'] });
+      refreshListingStock();
       setKeyToDelete(null);
       toast.success('Key deleted');
     },
@@ -168,8 +152,7 @@ const SellerLicenseKeys = () => {
     mutationFn: (offerId) => offerAPI.syncOfferStock(offerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offer-keys', selectedOfferId] });
-      queryClient.invalidateQueries({ queryKey: ['license-offers'] });
-      queryClient.invalidateQueries({ queryKey: ['seller-offers-overview'] });
+      refreshListingStock();
       toast.success('Stock recount complete');
     },
     onError: (error) => toast.error(error.response?.data?.message || 'Could not sync stock.'),
@@ -204,15 +187,10 @@ const SellerLicenseKeys = () => {
 
   const keys = (keysQuery.data?.keys ?? []).map(withDerivedStatus);
   const keysPagination = keysQuery.data?.pagination ?? {};
-  const counts = {
-    active: keys.filter((k) => k.status === 'Active').length,
-    used: keys.filter((k) => k.status === 'Used').length,
-    refunded: keys.filter((k) => k.status === 'Refunded').length,
-  };
+  const counts = keysQuery.data?.counts ?? {};
 
   const selectOffer = (offer) => updateParams({ offer: offer._id, page: null });
 
-  /** One listing row in the picker. A real button, not a clickable div. */
   const OfferRow = ({ offer, style }) => {
     const product = offer.productId || {};
     const isSelected = offer._id === selectedOfferId;
@@ -265,7 +243,6 @@ const SellerLicenseKeys = () => {
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[22rem_1fr]">
-        {/* ── Listing picker ────────────────────────────────────────────── */}
         <Card variant="hud" className="lg:sticky lg:top-4 lg:self-start">
           <CardHeader>
             <CardTitle>Your listings</CardTitle>
@@ -336,12 +313,25 @@ const SellerLicenseKeys = () => {
                 ))}
               </div>
             )}
+
+            {listingsTotal > filteredOffers.length && (
+              <p className="text-xs text-fg-subtle">
+                Showing {filteredOffers.length} of {listingsTotal} listings. Search to find the rest.
+              </p>
+            )}
           </CardContent>
         </Card>
 
-        {/* ── Keys for the selected listing ─────────────────────────────── */}
         <Card variant="hud">
-          {!selectedOffer ? (
+          {selectedOfferId && !selectedOffer && selectedOfferQuery.isError ? (
+            <CardContent>
+              <ErrorState
+                error={selectedOfferQuery.error}
+                title="Couldn't load this listing"
+                onRetry={() => selectedOfferQuery.refetch()}
+              />
+            </CardContent>
+          ) : !selectedOffer ? (
             <CardContent>
               <EmptyState
                 icon={Key}
@@ -355,8 +345,8 @@ const SellerLicenseKeys = () => {
                 <div className="min-w-0">
                   <CardTitle className="truncate">{selectedOffer.productId?.name}</CardTitle>
                   <p className="mt-1 text-xs tabular-nums text-fg-subtle">
-                    {keysPagination.total ?? 0} total · {counts.active} active · {counts.used} sold ·{' '}
-                    {counts.refunded} refunded
+                    {keysPagination.total ?? 0} total · {counts.active ?? 0} active · {counts.sold ?? 0} sold ·{' '}
+                    {counts.refunded ?? 0} refunded
                   </p>
                 </div>
                 <Button
@@ -379,13 +369,11 @@ const SellerLicenseKeys = () => {
                   />
                 ) : (
                   <>
-                    {/* Desktop */}
                     <div className="hidden md:block">
                       <Table variant="hud">
                         <TableHeader>
                           <TableRow>
                             <TableHead>Key</TableHead>
-                            <TableHead>Platform</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Added</TableHead>
                             <TableHead>Sold</TableHead>
@@ -394,9 +382,9 @@ const SellerLicenseKeys = () => {
                         </TableHeader>
                         <TableBody>
                           {keysQuery.isPending ? (
-                            <TableRowsSkeleton rows={KEYS_PAGE_SIZE} cols={6} />
+                            <TableRowsSkeleton rows={KEYS_PAGE_SIZE} cols={5} />
                           ) : keys.length === 0 ? (
-                            <TableEmptyRow colSpan={6}>
+                            <TableEmptyRow colSpan={5}>
                               <EmptyState
                                 icon={Key}
                                 title="No keys on this listing"
@@ -419,9 +407,6 @@ const SellerLicenseKeys = () => {
                                     <code className="max-w-xs rounded bg-surface-sunken px-2 py-1 font-mono text-xs break-words whitespace-pre-wrap text-fg">
                                       {revealed ? formatKeyForDisplay(revealed) : key.maskedKey}
                                     </code>
-                                  </TableCell>
-                                  <TableCell>
-                                    <PlatformBadge platform={key.keyType} />
                                   </TableCell>
                                   <TableCell>
                                     <StatusBadge domain="licenseKey" status={key.status} />
@@ -475,7 +460,6 @@ const SellerLicenseKeys = () => {
                       </Table>
                     </div>
 
-                    {/* Mobile */}
                     <div className="md:hidden">
                       {keysQuery.isPending ? (
                         <CardListSkeleton rows={4} />
@@ -501,8 +485,7 @@ const SellerLicenseKeys = () => {
                                 key={key._id}
                                 className="rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4"
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <PlatformBadge platform={key.keyType} />
+                                <div className="flex items-center justify-end gap-2">
                                   <StatusBadge domain="licenseKey" status={key.status} />
                                 </div>
                                 <code className="mt-3 block rounded bg-surface-2 px-2 py-1.5 font-mono text-xs break-words whitespace-pre-wrap text-fg">
@@ -578,8 +561,7 @@ const SellerLicenseKeys = () => {
         onOpenChange={(open) => {
           setIsUploadOpen(open);
           if (!open) {
-            queryClient.invalidateQueries({ queryKey: ['license-offers'] });
-            queryClient.invalidateQueries({ queryKey: ['seller-offers-overview'] });
+            refreshListingStock();
             if (selectedOfferId) {
               queryClient.invalidateQueries({ queryKey: ['offer-keys', selectedOfferId] });
             }

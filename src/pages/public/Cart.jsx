@@ -29,18 +29,8 @@ import {
   DEVICE_FALLBACK,
 } from "@features/cart-checkout";
 
-// ── Cart page — ported from the v74 mockup (`cp-*`) ──────────────────────────
-// The mockup is a fixed overlay; this is a real route, so the overlay chrome
-// (fixed positioning, close button) is dropped and the inner layout kept.
-//
-// The mockup's media queries are max-width, Tailwind's are min-width, so the
-// base classes carry the SMALL-screen values and `min-[901px]:` / `min-[521px]:`
-// restore the desktop ones. Neither is a stock Tailwind breakpoint — the
-// arbitrary variants are what keep the flip points exact.
-
 const WRAP = "relative z-[1] mx-auto max-w-[1240px] px-[22px] pt-[26px] pb-[70px]";
 
-// Page header: title block on the left, "Clear cart" pushed to the right.
 const HEAD = "mb-[22px] flex flex-wrap items-end justify-between gap-[16px]";
 const HEAD_H1 =
   "m-0 flex items-center gap-[12px] text-[30px] font-extrabold tracking-[-0.4px] [&_svg]:text-[#3a9bf5]";
@@ -50,10 +40,6 @@ const HEAD_SUB = "mt-[6px] text-[14px] text-white/50";
 const BACK =
   "mb-[18px] inline-flex select-none items-center gap-[6px] border-none bg-transparent p-0 font-inherit text-[14px] font-bold text-[#3a9bf5] hover:text-[#6cb6ff]";
 
-// ── item card ──
-// The 3px gradient rail on the left edge is the card's signature (v74 5722).
-// When the offer region is incompatible with the buyer's country the border
-// and accent rail flip to red so the conflict is unmissable.
 const cardCls = (regionBad) =>
   "relative flex overflow-hidden rounded-[16px] border " +
   (regionBad
@@ -69,8 +55,6 @@ const cardCls = (regionBad) =>
   "before:opacity-[0.85] " +
   "animate-cp-item-in motion-reduce:animate-none";
 
-// Thumb is 180px wide on desktop, 104px under the mockup's 520px breakpoint.
-// The right-edge fade lets the title breathe over busy artwork.
 const THUMB =
   "relative block w-[104px] min-w-[104px] min-[521px]:w-[180px] min-[521px]:min-w-[180px] " +
   "self-stretch bg-[#0a1428] " +
@@ -78,13 +62,10 @@ const THUMB =
   "after:absolute after:inset-0 after:content-[''] " +
   "after:bg-[linear-gradient(90deg,rgba(9,16,34,0)_62%,rgba(9,16,34,0.55))]";
 
-// spec grid — Platform / Type / Region / Device / Stock
 const SPECS = "my-[2px] grid grid-cols-[84px_1fr] items-center gap-x-0 gap-y-[6px]";
 const SPEC_K = "text-[12.5px] text-white/45";
 const SPEC_V = "flex flex-wrap items-center gap-[5px] text-[12.5px] font-semibold text-white";
 
-// Seller / activation strip. The `b` rule is a descendant on purpose: it is what
-// makes ActivationLine's bold country read white here, as the mockup draws it.
 const FOOT =
   "flex flex-wrap items-center gap-[8px] pt-[3px] text-[11.5px] text-white/55 [&_b]:font-bold [&_b]:text-white";
 const SELLER_RATING =
@@ -96,15 +77,11 @@ const QTY_BTN =
   "h-[30px] w-[32px] cursor-pointer border-none bg-transparent text-[17px] font-bold leading-none text-[#3a9bf5] " +
   "[transition:background_0.15s] enabled:hover:bg-[rgba(58,155,245,0.15)] disabled:cursor-not-allowed disabled:opacity-40";
 
-// Discount chip — the layered ring + inset highlight is what gives it the
-// "embossed" look of the mockup (v74 5766); a flat badge reads as a different UI.
 const DISC_PILL =
   "inline-flex items-center rounded-[20px] border border-[rgba(120,180,255,0.9)] " +
   "bg-[linear-gradient(135deg,#172aa4,#0e9fe2)] px-[12px] py-[3px] text-[12px] font-extrabold tracking-[0.2px] text-white " +
   "shadow-[0_0_0_1px_rgba(96,165,250,0.35),0_2px_12px_rgba(37,99,235,0.55),inset_0_1px_0_rgba(191,219,254,0.6)]";
 
-// ── summary ──
-// The 2px top bar runs the shared 200% → -200% sweep (`--animate-rail-slide`).
 const SUM_CARD =
   "relative isolate overflow-hidden rounded-[18px] border border-[rgba(58,116,240,0.3)] " +
   "bg-[linear-gradient(180deg,#0c1430,#080d1e)] px-[20px] pt-[20px] pb-[22px] " +
@@ -114,7 +91,6 @@ const SUM_CARD =
 const SUM_LINE = "mb-[10px] flex items-center justify-between text-[13px] text-white/55";
 const SUM_LBL = "flex items-center gap-[6px]";
 const SUM_V = "font-semibold text-white/85";
-// Tooltip dot next to a fee label.
 const INFO_DOT =
   "inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-white/30 text-[9.5px] italic text-white/50";
 
@@ -129,11 +105,9 @@ const CONTINUE_BTN =
   "border border-[rgba(58,116,240,0.45)] bg-transparent font-inherit text-[13.5px] font-bold text-[#3a9bf5] " +
   "[transition:background_0.2s] hover:bg-[rgba(14,81,226,0.1)]";
 
-// ── trust ──
 const TRUST_ROW =
   "flex items-start gap-[11px] text-[12.5px] leading-[1.5] text-white/72 [&_svg]:mt-[1px] [&_svg]:shrink-0 [&_b]:font-bold [&_b]:text-white";
 
-// ── related row ── horizontal snap rail with a branded scrollbar.
 const REL_ROW =
   "flex gap-[18px] overflow-x-auto overflow-y-hidden px-[2px] pt-[6px] pb-[14px] " +
   "[scroll-snap-type:x_proximity] [-webkit-overflow-scrolling:touch] " +
@@ -144,8 +118,6 @@ const REL_ROW =
   "[&::-webkit-scrollbar-thumb]:rounded-[20px] [&::-webkit-scrollbar-thumb]:bg-[linear-gradient(90deg,#0e51e2,#3a9bf5)] " +
   "[&::-webkit-scrollbar-thumb:hover]:bg-[linear-gradient(90deg,#1a5cf0,#57b0ff)]";
 
-// Design gives the empty-state CTA its own lighter geometry (v74 5790) — it is
-// NOT the heavy glowing checkout button.
 const EMPTY_BTN =
   "inline-flex h-[46px] cursor-pointer items-center justify-center gap-[8px] rounded-[11px] border-none " +
   "bg-[linear-gradient(120deg,#0e51e2,#7b2ff7)] px-[28px] font-inherit text-[14px] font-bold text-white hover:brightness-[1.06]";
@@ -162,8 +134,6 @@ const Cart = () => {
   const guestView = useGuestCartView(guestCartItems, !isAuthenticated);
   const [showClearCartModal, setShowClearCartModal] = useState(false);
 
-  // ONE shared ["cart"] query — same key/shape the Header + mini-cart use, so
-  // react-query serves all of them from a single fetch.
   const { data: cart, isLoading, isError, refetch } = useQuery({
     queryKey: ["cart"],
     queryFn: () => cartAPI.getCart().then((res) => res.data.data),
@@ -198,7 +168,7 @@ const Cart = () => {
   const remove = (productId, sellerId) => {
     if (isAuthenticated) removeItemMutation.mutate({ productId, sellerId });
     else {
-      removeFromGuestCart(productId);
+      removeFromGuestCart(productId, sellerId);
       setGuestCartItems(getGuestCart().items);
       showSuccess("Item removed from cart");
     }
@@ -207,7 +177,7 @@ const Cart = () => {
     if (qty <= 0) return remove(productId, sellerId);
     if (isAuthenticated) updateCartMutation.mutate({ productId, sellerId, qty });
     else {
-      updateGuestCartQuantity(productId, qty);
+      updateGuestCartQuantity(productId, sellerId, qty);
       setGuestCartItems(getGuestCart().items);
     }
   };
@@ -221,31 +191,29 @@ const Cart = () => {
     setShowClearCartModal(false);
   };
 
-  // Server-hydrated guest items have the same shape as authed items.
   const items = isAuthenticated
     ? toCartItems(cart?.items, true)
     : guestView.items.length > 0
       ? toCartItems(guestView.items, true)
       : toCartItems(guestCartItems, false);
-  // ── summary (mirrors the mockup's recalc(): protection is a % of the amount
-  //    AFTER discounts, the processing fee is flat once per order) ──
   const totalQty = items.reduce((s, i) => s + i.qty, 0);
-  // M21: a pre-order is delivered on release day and a regular item now, and an
-  // order carries ONE delivery state — so the two cannot ship together. The
-  // backend refuses to open a checkout session for a mixed cart; saying so here
-  // means the buyer finds out on the cart page instead of at the payment step.
+  const buyableQty = items.filter((i) => !i.unavailable).reduce((s, i) => s + i.qty, 0);
   const preorderNames = items.filter((i) => i.isPreorder).map((i) => i.name);
   const isMixedCart = preorderNames.length > 0 && preorderNames.length < items.length;
+  const unavailableNames = items.filter((i) => i.unavailable).map((i) => i.name);
+  const shortNames = items.filter((i) => i.stockShort).map((i) => i.name);
   const subtotal = isAuthenticated
-    ? cart?.subtotal ?? items.reduce((s, i) => s + i.price * i.qty, 0)
-    : guestView.subtotal || items.reduce((s, i) => s + i.price * i.qty, 0);
+    ? cart?.subtotal ?? items.filter((i) => !i.unavailable).reduce((s, i) => s + i.price * i.qty, 0)
+    : guestView.subtotal || items.filter((i) => !i.unavailable).reduce((s, i) => s + i.price * i.qty, 0);
   const youSave = round2(
     items.reduce((s, i) => s + (i.original && i.original > i.price ? (i.original - i.price) * i.qty : 0), 0)
   );
   const bundleDiscount = isAuthenticated ? cart?.bundleDiscount || 0 : 0;
-  const totalBeforeFee = round2(Math.max(0, subtotal - bundleDiscount));
+  const plusDiscount = isAuthenticated ? cart?.subscriptionDiscount || 0 : 0;
+  const totalBeforeFee = isAuthenticated && cart?.total != null
+    ? round2(cart.total)
+    : round2(Math.max(0, subtotal - bundleDiscount));
 
-  // Public endpoint — guests see the same fees as members.
   const { data: feeEst } = useQuery({
     queryKey: ["handling-fee-estimate", totalBeforeFee],
     queryFn: () => checkoutAPI.getHandlingFeeEstimate(totalBeforeFee).then((r) => r.data.data),
@@ -254,23 +222,20 @@ const Cart = () => {
   });
   const protectionFee = feeEst?.protectionFee ?? 0;
   const processingFee = feeEst?.processingFee ?? 0;
-  // e.g. "8%" — the design hardcodes it in the tooltip; take the live value.
   const protectionLabel = feeEst?.protectionLabel || null;
+  const processingLabel = feeEst?.processingLabel || null;
   const grandTotal = feeEst?.grandTotal ?? totalBeforeFee;
 
-  // "You might also like" — reuses the indexed product listing (no new endpoint).
   const relatedCategoryId = items.find((i) => i.categoryId)?.categoryId || null;
   const { data: relatedData } = useQuery({
     queryKey: ["cart-related", relatedCategoryId],
     queryFn: () => productAPI.getProducts({ categoryId: relatedCategoryId, limit: 8, page: 1 }).then((r) => r.data.data),
     enabled: !!relatedCategoryId,
-    staleTime: 5 * 60 * 1000, // shared, slow-changing — safe to cache
+    staleTime: 5 * 60 * 1000,
   });
   const inCart = new Set(items.map((i) => String(i.productId)));
   const related = (relatedData?.docs || []).filter((p) => !inCart.has(String(p._id))).slice(0, 6);
 
-  // Skeleton mirrors the loaded two-column shell so there's no layout shift
-  // when the cart arrives (the standard: skeleton, not a bare spinner).
   if (isAuthenticated && isLoading) {
     return (
       <div className={WRAP}>
@@ -313,8 +278,6 @@ const Cart = () => {
     );
   }
 
-  // A cart-load failure must NOT masquerade as an empty cart — surface the
-  // error with a retry instead of dropping the buyer into the empty state.
   if (isAuthenticated && isError) {
     return (
       <div className={WRAP}>
@@ -346,8 +309,6 @@ const Cart = () => {
   }
 
   if (items.length === 0) {
-    // The design keeps the back-link, heading and stepper on screen and only
-    // swaps the two-column grid for the empty block (v74 line 6200).
     return (
       <div className={WRAP}>
         <button type="button" className={BACK} onClick={() => navigate("/")}>
@@ -404,17 +365,12 @@ const Cart = () => {
       <CheckoutSteps current="cart" />
 
       <div className="grid grid-cols-1 items-start gap-[24px] min-[901px]:grid-cols-[1fr_372px]">
-        {/* ── items ── */}
         <div className="flex flex-col gap-[14px]">
           {items.map((it) => {
             const avail = it.region ? resolveOfferAvailability(it.region) : null;
             const regionBad = isBuyerCompatible(avail, country) === false;
             return (
             <div key={it.key} className={cardCls(regionBad)}>
-              {/* AUDIT FIX (PERF-11): THUMB caps the thumbnail at 180px wide
-                  (w-[104px] / min-[521px]:w-[180px] above). Without a width prop
-                  this pulled the seller's full-resolution original for every
-                  line item. */}
               <Link to={`/product/${it.slug}`} className={THUMB}>
                 {it.image ? (
                   <SafeImage src={it.image} alt={it.name} w={180} />
@@ -448,11 +404,31 @@ const Cart = () => {
                   {it.productType && (<><span className={SPEC_K}>Type:</span><span className={SPEC_V}>{productTypeLabel(it.productType)}</span></>)}
                   {it.region && (<><span className={SPEC_K}>Region:</span><span className={SPEC_V}><RegionPills offer={it.region} country={country} /></span></>)}
                   <span className={SPEC_K}>Device:</span><span className={SPEC_V}>{it.device || DEVICE_FALLBACK}</span>
-                  {it.stock != null && (
+                  {it.unavailable ? (
                     <>
                       <span className={SPEC_K}>Stock:</span>
                       <span className={SPEC_V}>
-                        <span className={`flex items-center gap-[5px] font-semibold ${it.stock === 0 ? "text-[#ff8080]" : "text-[#34d399]"}`}>
+                        <span className="flex items-center gap-[5px] font-semibold text-[#ff8080]">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          No longer available from this seller
+                        </span>
+                      </span>
+                    </>
+                  ) : it.stockShort ? (
+                    <>
+                      <span className={SPEC_K}>Stock:</span>
+                      <span className={SPEC_V}>
+                        <span className="flex items-center gap-[5px] font-semibold text-[#ff8080]">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          {it.availabilityMessage || "Not enough stock for this quantity"}
+                        </span>
+                      </span>
+                    </>
+                  ) : it.stock != null && (
+                    <>
+                      <span className={SPEC_K}>Stock:</span>
+                      <span className={SPEC_V}>
+                        <span className="flex items-center gap-[5px] font-semibold text-[#34d399]">
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           {it.stock} in stock
                         </span>
@@ -494,7 +470,7 @@ const Cart = () => {
 
                 <div className="mt-auto flex items-end justify-between gap-[10px] pt-[4px]">
                   <div className="flex flex-wrap items-center gap-[8px]">
-                    <span className="text-[20px] font-extrabold text-white">{formatPrice(it.price)}</span>
+                    <span className={`text-[20px] font-extrabold ${it.unavailable ? "text-white/35 line-through" : "text-white"}`}>{formatPrice(it.price)}</span>
                     {it.hasDiscount && it.discountPct > 0 && (
                       <>
                         <span className={DISC_PILL}>-{Math.round(it.discountPct)}%</span>
@@ -523,7 +499,6 @@ const Cart = () => {
           })}
         </div>
 
-        {/* ── summary ── */}
         <div className="sticky top-[24px] flex flex-col gap-[16px]">
           <div className={SUM_CARD}>
             <h3 className="m-0 mb-[16px] flex items-center gap-[8px] text-[13px] font-extrabold tracking-[1.3px] text-white [&_svg]:text-[#3a9bf5]">
@@ -532,38 +507,39 @@ const Cart = () => {
             </h3>
 
             <div className={SUM_LINE}>
-              <span className={SUM_LBL}>Subtotal <span>({totalQty} {totalQty === 1 ? "item" : "items"})</span></span>
+              <span className={SUM_LBL}>Subtotal <span>({buyableQty} {buyableQty === 1 ? "item" : "items"})</span></span>
               <span className={SUM_V}>{formatPrice(subtotal)}</span>
             </div>
-            {youSave > 0 && (
-              <div className={SUM_LINE}>
-                <span className={`${SUM_LBL} text-[#34d399]`}>You save</span>
-                <span className="font-semibold text-[#34d399]">−{formatPrice(youSave)}</span>
-              </div>
-            )}
             {bundleDiscount > 0 && (
               <div className={SUM_LINE}>
                 <span className={`${SUM_LBL} text-[#34d399]`}>Bundle deal</span>
                 <span className="font-semibold text-[#34d399]">−{formatPrice(bundleDiscount)}</span>
               </div>
             )}
-            {/* Both fee rows render unconditionally, as the design does — a
-                summary that silently drops to Subtotal + TOTAL reads as if the
-                buyer is being charged something undisclosed. */}
-            <div className={SUM_LINE}>
-              <span className={SUM_LBL}>
-                Buyer Protection
-                <span className={INFO_DOT} title={`${protectionLabel ? `${protectionLabel} ` : ""}fee covering escrow, refunds and dispute protection on every eligible order.`}>i</span>
-              </span>
-              <span className={SUM_V}>{formatPrice(protectionFee)}</span>
-            </div>
-            <div className={SUM_LINE}>
-              <span className={SUM_LBL}>
-                Checkout Fee
-                <span className={INFO_DOT} title="Flat fee charged once per order by the payment provider.">i</span>
-              </span>
-              <span className={SUM_V}>{formatPrice(processingFee)}</span>
-            </div>
+            {plusDiscount > 0 && (
+              <div className={SUM_LINE}>
+                <span className={`${SUM_LBL} text-[#34d399]`}>DGMARQ Plus discount</span>
+                <span className="font-semibold text-[#34d399]">−{formatPrice(plusDiscount)}</span>
+              </div>
+            )}
+            {protectionFee > 0 && (
+              <div className={SUM_LINE}>
+                <span className={SUM_LBL}>
+                  Buyer Protection
+                  <span className={INFO_DOT} title={`${protectionLabel ? `${protectionLabel} ` : ""}fee covering escrow, refunds and dispute protection on every eligible order.`}>i</span>
+                </span>
+                <span className={SUM_V}>{formatPrice(protectionFee)}</span>
+              </div>
+            )}
+            {processingFee > 0 && (
+              <div className={SUM_LINE}>
+                <span className={SUM_LBL}>
+                  Checkout Fee
+                  <span className={INFO_DOT} title={`${processingLabel ? `${processingLabel} ` : ""}platform fee charged once per order.`}>i</span>
+                </span>
+                <span className={SUM_V}>{formatPrice(processingFee)}</span>
+              </div>
+            )}
 
             <div className="my-[14px] h-[1px] bg-[repeating-linear-gradient(90deg,rgba(255,255,255,0.12)_0_6px,transparent_6px_12px)]" />
 
@@ -573,6 +549,11 @@ const Cart = () => {
                 {formatPrice(grandTotal)} <span className="text-[12px] font-medium text-white/50">{currency}</span>
               </span>
             </div>
+            {youSave > 0 && (
+              <div className="mb-[6px] text-[12px] font-semibold text-[#34d399]">
+                Includes {formatPrice(youSave)} off list prices
+              </div>
+            )}
             <div className="mb-[16px] text-[11px] text-white/40">
               {currency === "USD"
                 ? "Billed in USD. Taxes included where applicable."
@@ -596,13 +577,32 @@ const Cart = () => {
               </div>
             )}
 
+            {unavailableNames.length > 0 && (
+              <div className="mb-[12px] rounded-[12px] border border-[#ff8080]/40 bg-[#ff8080]/[0.08] px-[14px] py-[12px]" role="alert">
+                <p className="text-[13px] font-bold text-[#ffb4b4]">
+                  {unavailableNames.length === 1 ? "An item is" : `${unavailableNames.length} items are`} no longer available
+                </p>
+                <p className="mt-[4px] text-[12px] leading-[1.5] text-[#ffd0d0]/80">
+                  Remove {unavailableNames.length === 1 ? `"${unavailableNames[0]}"` : "them"} from your cart to continue. The seller has taken this listing down.
+                </p>
+              </div>
+            )}
+
+            {shortNames.length > 0 && (
+              <div className="mb-[12px] rounded-[12px] border border-[#ff8080]/40 bg-[#ff8080]/[0.08] px-[14px] py-[12px]" role="alert">
+                <p className="text-[13px] font-bold text-[#ffb4b4]">Not enough stock</p>
+                <p className="mt-[4px] text-[12px] leading-[1.5] text-[#ffd0d0]/80">
+                  Lower the quantity of {shortNames.length === 1 ? `"${shortNames[0]}"` : "the marked items"} to continue.
+                </p>
+              </div>
+            )}
+
             <button
               type="button"
               className={CHECKOUT_BTN}
-              disabled={isMixedCart}
+              disabled={isMixedCart || unavailableNames.length > 0 || shortNames.length > 0}
               onClick={() => navigate("/checkout")}
             >
-              {/* Design uses a credit-card glyph here, not a shield (v74 5836). */}
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="1" y="4" width="22" height="16" rx="2" />
                 <path d="M1 10h22" />
@@ -635,7 +635,6 @@ const Cart = () => {
         </div>
       </div>
 
-      {/* ── You might also like ── */}
       {related.length > 0 && (
         <div className="mt-[38px] border-t border-[rgba(58,116,240,0.18)] pt-[30px]">
           <div className="mb-[20px] flex items-center gap-[10px]">

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { subscriptionAPI } from '@services/api';
-import { showApiError, showSuccess } from '@utils/toast';
+import { showApiError, showError, showSuccess } from '@utils/toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
@@ -28,14 +28,12 @@ const DGMarketPlus = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
-  // Fetch subscription plan details
   const { data: planData, isLoading: planLoading, isError: planError } = useQuery({
     queryKey: ['subscription-plans'],
     queryFn: () => subscriptionAPI.getSubscriptionPlans().then(res => res.data.data),
     retry: 2,
   });
 
-  // Fetch user's subscription status (if authenticated)
   const { data: userSubscription } = useQuery({
     queryKey: ['my-subscription'],
     queryFn: () => subscriptionAPI.getMySubscription().then(res => res.data.data),
@@ -43,7 +41,6 @@ const DGMarketPlus = () => {
     retry: false,
   });
 
-  // M20: Plus points balance + redemption.
   const queryClient = useQueryClient();
   const [redeemAmount, setRedeemAmount] = useState('');
   const { data: pointsData } = useQuery({
@@ -63,18 +60,22 @@ const DGMarketPlus = () => {
     onError: (error) => showApiError(error, 'Failed to redeem points'),
   });
 
-  // Subscribe mutation
   const subscribeMutation = useMutation({
     mutationFn: () => subscriptionAPI.subscribe(),
-    onSuccess: (data) => {
-      if (data.data.data.approvalUrl) {
-        window.location.href = data.data.data.approvalUrl;
+    onSuccess: (response) => {
+      const approvalUrl = response?.data?.data?.approvalUrl;
+      if (approvalUrl) {
+        window.location.href = approvalUrl;
+        return;
       }
+      showError('PayPal did not return a checkout link. Please try again.');
     },
     onError: (error) => {
       showApiError(error, 'Failed to initiate subscription. Please try again.');
     },
   });
+
+  const hasActiveSubscription = !!userSubscription?.hasSubscription || userSubscription?.status === 'past_due';
 
   const handleSubscribe = () => {
     if (!isAuthenticated) {
@@ -82,8 +83,7 @@ const DGMarketPlus = () => {
       return;
     }
 
-    if (userSubscription?.hasSubscription) {
-      // User already has subscription, redirect to manage page
+    if (hasActiveSubscription) {
       navigate('/user/subscriptions');
       return;
     }
@@ -92,16 +92,13 @@ const DGMarketPlus = () => {
   };
 
   const plan = planData?.plan;
-  const hasActiveSubscription = userSubscription?.hasSubscription || false;
 
   useSEO({
     title: 'DGMARQ Plus | Premium Marketplace Experience',
     description: 'Get more with DGMARQ Plus. Enjoy premium features for buyers and sellers.',
     canonical: '/dgmarq-plus',
-    useDefaults: false,
   });
 
-  // Loading state
   if (planLoading) {
     return (
       <div className="min-h-screen py-12">
@@ -112,7 +109,6 @@ const DGMarketPlus = () => {
     );
   }
 
-  // Error state
   if (planError || !plan) {
     return (
       <div className="min-h-screen py-12">
@@ -126,7 +122,6 @@ const DGMarketPlus = () => {
   return (
     <div className="min-h-screen py-12 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Section */}
         <section className="text-center mb-16 relative overflow-hidden rounded-2xl bg-gradient-to-b from-accent/10 via-transparent to-transparent py-16 px-6">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/30 mb-6">
             <Sparkles className="w-5 h-5 text-accent-on-dark" />
@@ -190,9 +185,6 @@ const DGMarketPlus = () => {
           </div>
         </section>
 
-        {/* DGMARQ Points — balance + redemption. Gated on being SIGNED IN, not
-            on membership: loyalty is for every registered buyer. Plus is the
-            separate paid subscription whose benefit is the % off. */}
         {isAuthenticated && pointsData && (
           <section className="mb-20">
             <Card className="border-accent/30 overflow-hidden">
@@ -209,9 +201,6 @@ const DGMarketPlus = () => {
                       {pointsData.balance}
                       <span className="ml-2 text-base font-medium text-gray-400">pts</span>
                     </p>
-                    {/* A negative balance is correct — it is what stops
-                        earn → redeem → cancel being free money — but "≈ $-2.00
-                        wallet value" reads as a broken page. Say what it means. */}
                     {pointsData.inDebt ? (
                       <p className="mt-1 text-sm text-amber-300/90">
                         Adjusted after a refund. Earn {pointsData.pointsUntilRedeemable} more points to redeem again.
@@ -265,7 +254,6 @@ const DGMarketPlus = () => {
           </section>
         )}
 
-        {/* How It Works Section */}
         <section className="mb-20">
           <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">How It Works</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -307,23 +295,17 @@ const DGMarketPlus = () => {
             </Card>
           </div>
 
-          {/* M20: the loyalty half of the offer, stated to EVERYONE.
-              The points panel further up renders only for signed-in members, so
-              the one person who most needs to know about points — a visitor
-              deciding whether to subscribe — could not see them anywhere. Both
-              figures come from the plan endpoint, which reads the services that
-              own them, so this copy cannot drift from what is actually paid. */}
           <div className="mt-8 rounded-2xl border border-accent/25 bg-accent/[0.06] p-6 sm:p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h3 className="flex items-center gap-2 text-xl font-semibold text-white">
                   <Sparkles className="h-5 w-5 text-accent-on-dark" />
-                  Plus members earn points too
+                  Points are for every account
                 </h3>
                 <p className="mt-2 max-w-xl text-gray-300">
-                  Every order earns <span className="font-semibold text-accent-on-dark">{plan.pointsPerDollar} points per $1</span>.
+                  Every signed-in order earns <span className="font-semibold text-accent-on-dark">{plan.pointsPerDollar} points per $1</span>, with or without Plus.
                   Turn <span className="font-semibold text-accent-on-dark">{plan.pointsPerWalletDollar} points into $1</span> of
-                  wallet credit and spend it at checkout — on top of your {plan.discountPercentage}% discount.
+                  wallet credit and spend it at checkout. Plus members get the {plan.discountPercentage}% discount on top.
                 </p>
               </div>
               <div className="shrink-0 rounded-xl border border-white/10 bg-black/25 px-5 py-4 text-center">
@@ -339,7 +321,6 @@ const DGMarketPlus = () => {
           </div>
         </section>
 
-        {/* Subscription Plan Section */}
         <section className="mb-20">
           <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">Subscription Plan</h2>
           <div className="max-w-2xl mx-auto">
@@ -414,7 +395,6 @@ const DGMarketPlus = () => {
           </div>
         </section>
 
-        {/* Discount Explanation Section */}
         <section className="mb-20">
           <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 sm:mb-12">How Discounts Work</h2>
           <Card className="">
@@ -442,9 +422,8 @@ const DGMarketPlus = () => {
                     <h3 className="text-xl font-semibold text-white mb-2">Discount Stacking</h3>
                     <p className="text-gray-400">
                       Your subscription discount is applied{' '}
-                      <span className="text-accent-on-dark font-semibold">after bundle deals</span> but{' '}
-                      <span className="text-accent-on-dark font-semibold">before coupon codes</span>. This means you can
-                      maximize your savings by combining multiple discounts!
+                      <span className="text-accent-on-dark font-semibold">after bundle deals and coupon codes</span>, on
+                      the amount that is left. This means you can still combine it with other discounts!
                     </p>
                   </div>
                 </div>
@@ -466,7 +445,6 @@ const DGMarketPlus = () => {
           </Card>
         </section>
 
-        {/* FAQ Section */}
         <section className="mb-20">
           <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-4">Frequently Asked Questions</h2>
           <p className="text-center text-gray-400 mb-8">Click on a question to expand the answer.</p>
@@ -479,11 +457,11 @@ const DGMarketPlus = () => {
                 },
                 {
                   q: 'Do discounts work with coupon codes?',
-                  a: 'Absolutely! Your subscription discount is applied first, and then any coupon codes you apply will give you additional savings on top of that.',
+                  a: 'Absolutely! Bundle deals and coupon codes are applied first, and your subscription discount is then taken off the remaining amount.',
                 },
                 {
                   q: 'How is the discount calculated?',
-                  a: `The ${plan.discountPercentage}% discount is calculated on your subtotal after bundle deals are applied. This ensures you get the maximum possible savings.`,
+                  a: `The ${plan.discountPercentage}% discount is calculated on your subtotal after bundle deals and coupon codes are applied.`,
                 },
                 {
                   q: 'What payment methods are accepted?',
@@ -494,7 +472,6 @@ const DGMarketPlus = () => {
           </div>
         </section>
 
-        {/* Final CTA Section */}
         <section className="text-center">
           <Card className="bg-gradient-to-r from-accent/10 to-accent/5 border-accent/30">
             <CardContent className="py-12">
@@ -536,7 +513,6 @@ const DGMarketPlus = () => {
           </Card>
         </section>
 
-        {/* Auth Prompt Modal */}
         {showAuthPrompt && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <Card className="max-w-md w-full">

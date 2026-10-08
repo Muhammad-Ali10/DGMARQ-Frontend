@@ -1,37 +1,36 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { userAPI, reviewAPI } from '@services/api';
+import { reviewAPI } from '@services/api';
 import { useState } from 'react';
 import { Card, CardContent } from '@components/ui/card';
 import { EmptyState } from '@components/common/EmptyState';
 import { Button } from '@components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { Skeleton } from '@components/ui/skeleton';
 import { Textarea } from '@components/ui/textarea';
 import { ErrorState } from '@components/common/ErrorState';
-import { Star, Edit, Trash2 } from 'lucide-react';
+import { ConfirmationModal } from '@components/common/ConfirmationModal';
+import { Star, Edit, Trash2, X } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
 import { Pagination } from '@components/common/Pagination';
 import SafeImage from '@components/ui/safe-image';
 
+const MAX_REVIEW_PHOTOS = 5;
+
 const UserReviews = () => {
   const [page, setPage] = useState(1);
   const [editingReview, setEditingReview] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [editRating, setEditRating] = useState(5);
   const [editComment, setEditComment] = useState('');
   const queryClient = useQueryClient();
 
-  // Filtered to this user on the server. This page used to pull the latest 50
-  // reviews of the WHOLE marketplace and filter them here, so a user's reviews
-  // vanished once 50 newer ones existed — and it never had product names,
-  // photos or seller replies, which the dedicated endpoint returns.
   const { data: reviewsData, isLoading, isError } = useQuery({
     queryKey: ['my-reviews', page],
     queryFn: async () => (await reviewAPI.getMyReviews({ page, limit: 10 })).data.data,
   });
 
-  // An edit or delete changes the product page's rating and list too.
   const refreshAfterReviewChange = () => {
     queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
     queryClient.invalidateQueries({ queryKey: ['product-reviews'] });
@@ -39,7 +38,7 @@ const UserReviews = () => {
   };
 
   const updateMutation = useMutation({
-    mutationFn: ({ reviewId, data }) => userAPI.updateReview(reviewId, data),
+    mutationFn: ({ reviewId, data }) => reviewAPI.updateReview(reviewId, data),
     onSuccess: () => {
       refreshAfterReviewChange();
       setEditingReview(null);
@@ -53,7 +52,7 @@ const UserReviews = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (reviewId) => userAPI.deleteReview(reviewId),
+    mutationFn: (reviewId) => reviewAPI.deleteReview(reviewId),
     onSuccess: () => {
       refreshAfterReviewChange();
       showSuccess('Review deleted successfully');
@@ -74,6 +73,17 @@ const UserReviews = () => {
     },
   });
 
+  const removePhotoMutation = useMutation({
+    mutationFn: ({ reviewId, photoId }) => reviewAPI.deleteReviewPhoto(reviewId, photoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
+      showSuccess('Photo removed');
+    },
+    onError: (error) => {
+      showApiError(error, 'Failed to remove photo');
+    },
+  });
+
   const handleUpdate = (review) => {
     setEditingReview(review);
     setEditRating(review.rating);
@@ -87,10 +97,6 @@ const UserReviews = () => {
         data: { rating: editRating, comment: editComment },
       });
     }
-  };
-
-  const handleDelete = (reviewId) => {
-      deleteMutation.mutate(reviewId);
   };
 
   const handleAddPhoto = (reviewId, file) => {
@@ -119,6 +125,9 @@ const UserReviews = () => {
   }
 
   const reviews = reviewsData?.docs || [];
+  const closeEditor = (open) => {
+    if (!open) setEditingReview(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -163,8 +172,8 @@ const UserReviews = () => {
                       <div className="flex gap-2 mb-3">
                         {review.photos.map((photo, idx) => (
                           <SafeImage
-                            key={idx}
-                            src={photo}
+                            key={photo._id}
+                            src={photo.imageUrl}
                             alt={`Review photo ${idx + 1}`}
                             className="w-20 h-20 object-cover rounded-lg"
                           />
@@ -182,17 +191,16 @@ const UserReviews = () => {
                     )}
                   </div>
                   <div className="flex gap-2 ml-4">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUpdate(review)}
-                          className="border-border text-fg-muted"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </DialogTrigger>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUpdate(review)}
+                      className="border-border text-fg-muted"
+                      aria-label="Edit review"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Dialog open={editingReview?._id === review._id} onOpenChange={closeEditor}>
                       <DialogContent size="sm" variant="hud">
                         <DialogHeader>
                           <DialogTitle className="text-fg">Edit Review</DialogTitle>
@@ -237,26 +245,55 @@ const UserReviews = () => {
                               value={editComment}
                               onChange={(e) => setEditComment(e.target.value)}
                               rows={4}
+                              minLength={10}
+                              maxLength={1000}
                               required
                             />
+                            <p className="text-xs text-fg-subtle">{editComment.trim().length}/1000 characters (min 10)</p>
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="reviewPhoto" className="text-fg-muted">Add Photo</Label>
-                            <Input
-                              id="reviewPhoto"
-                              type="file"
-                              accept="image/*"
-                              aria-label="Attach a photo to this review"
-                              onChange={(e) => {
-                                const file = e.target.files[0];
-                                if (file) handleAddPhoto(review._id, file);
-                              }}
-                              className="bg-secondary"
-                            />
-                          </div>
+                          {review.photos?.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {review.photos.map((photo, idx) => (
+                                <div key={photo._id} className="relative">
+                                  <SafeImage
+                                    src={photo.imageUrl}
+                                    alt={`Review photo ${idx + 1}`}
+                                    className="w-16 h-16 object-cover rounded-lg"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removePhotoMutation.mutate({ reviewId: review._id, photoId: photo._id })}
+                                    disabled={removePhotoMutation.isPending}
+                                    aria-label={`Remove photo ${idx + 1}`}
+                                    className="absolute -top-2 -right-2 rounded-full bg-danger p-1 text-white disabled:opacity-50"
+                                  >
+                                    <X className="size-3" aria-hidden="true" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {(review.photos?.length || 0) < MAX_REVIEW_PHOTOS && (
+                            <div className="space-y-2">
+                              <Label htmlFor="reviewPhoto" className="text-fg-muted">Add Photo</Label>
+                              <Input
+                                id="reviewPhoto"
+                                type="file"
+                                accept="image/*"
+                                aria-label="Attach a photo to this review"
+                                disabled={addPhotoMutation.isPending}
+                                onChange={(e) => {
+                                  const file = e.target.files[0];
+                                  if (file) handleAddPhoto(review._id, file);
+                                  e.target.value = '';
+                                }}
+                                className="bg-secondary"
+                              />
+                            </div>
+                          )}
                           <Button
                             onClick={handleSaveUpdate}
-                            disabled={updateMutation.isPending}
+                            disabled={updateMutation.isPending || editComment.trim().length < 10}
                             className="w-full "
                           >
                             {updateMutation.isPending ? 'Updating...' : 'Update Review'}
@@ -267,8 +304,9 @@ const UserReviews = () => {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleDelete(review._id)}
+                      onClick={() => setPendingDelete(review)}
                       disabled={deleteMutation.isPending}
+                      aria-label="Delete review"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -280,6 +318,15 @@ const UserReviews = () => {
           <Pagination page={page} totalPages={reviewsData?.totalPages || 1} onPageChange={setPage} />
         </div>
       )}
+      <ConfirmationModal
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title="Delete this review?"
+        description={`Your review of "${pendingDelete?.product?.name || 'this product'}" and its photos will be permanently deleted.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => deleteMutation.mutate(pendingDelete._id)}
+      />
     </div>
   );
 };

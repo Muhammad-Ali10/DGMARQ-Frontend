@@ -6,13 +6,6 @@ import { AlertCircle, Check, Plus, X } from 'lucide-react';
 import { deliveryWords } from '@lib/deliveryType';
 import { keyRowErrors } from '../../utils/inventoryRows';
 
-/**
- * One unit of key-shaped inventory — a license key, a gift code or an
- * activation link — typed and added to the staging list. The Import tab is the
- * fast path for a long list; this is for adding or fixing one.
- *
- * Remounted by the parent (via `key`) when it switches between add and edit.
- */
 export const KeyEntryForm = ({ productType, initialValue = '', editing = false, onAdd, onCancelEdit }) => {
   const [value, setValue] = useState(initialValue);
   const [errors, setErrors] = useState([]);

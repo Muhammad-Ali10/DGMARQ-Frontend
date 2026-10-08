@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '@services/api';
 import { useState } from 'react';
@@ -6,6 +6,7 @@ import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Badge } from '@components/ui/badge';
+import { StatusBadge } from '@components/common/StatusBadge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
@@ -18,66 +19,60 @@ import { showSuccess, showApiError } from '@utils/toast';
 import SafeImage from '@components/ui/safe-image';
 import { Pagination } from '@components/common/Pagination';
 import { SELLER_TYPE_LABELS } from '@features/seller';
+import { useDebounce } from '@hooks/useDebounce';
 
 const SellersManagement = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('pending');
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const search = useDebounce(searchTerm.trim(), 350);
   const [rejectReason, setRejectReason] = useState('');
   const [blockReason, setBlockReason] = useState('');
   const [rejectingId, setRejectingId] = useState(null);
   const [blockingId, setBlockingId] = useState(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
-  // CLIENT REQ (seller control): account hold.
   const [holdReason, setHoldReason] = useState('');
   const [holdingId, setHoldingId] = useState(null);
   const [holdDialogOpen, setHoldDialogOpen] = useState(false);
-  // 'all' | 'individual' | 'business' — filtered server-side on all three tabs.
   const [sellerTypeFilter, setSellerTypeFilter] = useState('all');
   const queryClient = useQueryClient();
-  const typeParam = sellerTypeFilter === 'all' ? {} : { sellerType: sellerTypeFilter };
-
-  // Fetch pending sellers - always fetch to show count in tab
-  const { data: pendingSellers, isLoading: isLoadingPending, isError: isErrorPending, error: errorPending } = useQuery({
-    queryKey: ['pending-sellers', page, sellerTypeFilter],
-    queryFn: async () => {
-      const response = await adminAPI.getPendingSellers({ page, limit: 10, ...typeParam });
-      return response.data.data;
-    },
-    retry: 1,
-    refetchOnWindowFocus: false,
+  const listParams = (tab) => ({
+    page: activeTab === tab ? page : 1,
+    limit: 10,
+    ...(sellerTypeFilter === 'all' ? {} : { sellerType: sellerTypeFilter }),
+    ...(search ? { search } : {}),
   });
+  const sellerListQuery = (tab, fetchPage) => {
+    const params = listParams(tab);
+    return {
+      queryKey: [`${tab}-sellers`, params.page, sellerTypeFilter, search],
+      queryFn: async () => (await fetchPage(params)).data.data,
+      placeholderData: keepPreviousData,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    };
+  };
 
-  // Fetch active sellers - always fetch to show count in tab
-  const { data: activeSellers, isLoading: isLoadingActive, isError: isErrorActive, error: errorActive } = useQuery({
-    queryKey: ['active-sellers', page, sellerTypeFilter],
-    queryFn: async () => {
-      const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'active', ...typeParam });
-      return response.data.data;
-    },
-    retry: 1,
-    refetchOnWindowFocus: false,
-  });
-
-  // Fetch banned sellers - always fetch to show count in tab
-  const { data: bannedSellers, isLoading: isLoadingBanned, isError: isErrorBanned, error: errorBanned } = useQuery({
-    queryKey: ['banned-sellers', page, sellerTypeFilter],
-    queryFn: async () => {
-      const response = await adminAPI.getAllSellers({ page, limit: 10, status: 'banned', ...typeParam });
-      return response.data.data;
-    },
-    retry: 1,
-    refetchOnWindowFocus: false,
-  });
+  const { data: pendingSellers, isLoading: isLoadingPending, isError: isErrorPending, error: errorPending } = useQuery(
+    sellerListQuery('pending', (params) => adminAPI.getPendingSellers(params))
+  );
+  const { data: activeSellers, isLoading: isLoadingActive, isError: isErrorActive, error: errorActive } = useQuery(
+    sellerListQuery('active', (params) => adminAPI.getAllSellers({ ...params, status: 'active' }))
+  );
+  const { data: rejectedSellers, isLoading: isLoadingRejected, isError: isErrorRejected, error: errorRejected } = useQuery(
+    sellerListQuery('rejected', (params) => adminAPI.getAllSellers({ ...params, status: 'rejected' }))
+  );
+  const { data: bannedSellers, isLoading: isLoadingBanned, isError: isErrorBanned, error: errorBanned } = useQuery(
+    sellerListQuery('banned', (params) => adminAPI.getAllSellers({ ...params, status: 'banned' }))
+  );
 
   const approveMutation = useMutation({
     mutationFn: (sellerId) => adminAPI.approveSeller(sellerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-sellers'] });
       queryClient.invalidateQueries({ queryKey: ['active-sellers'] });
-      queryClient.invalidateQueries({ queryKey: ['banned-sellers'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       showSuccess('Seller approved successfully');
     },
@@ -91,7 +86,7 @@ const SellersManagement = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-sellers'] });
       queryClient.invalidateQueries({ queryKey: ['active-sellers'] });
-      queryClient.invalidateQueries({ queryKey: ['banned-sellers'] });
+      queryClient.invalidateQueries({ queryKey: ['rejected-sellers'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard-stats'] });
       setRejectingId(null);
       setRejectReason('');
@@ -208,54 +203,15 @@ const SellersManagement = () => {
     navigate(`/admin/sellers/${sellerId}`);
   };
 
-  const isLoading = activeTab === 'pending' 
-    ? isLoadingPending 
-    : activeTab === 'active' 
-    ? isLoadingActive 
-    : isLoadingBanned;
-  
-  const isError = activeTab === 'pending' 
-    ? isErrorPending 
-    : activeTab === 'active' 
-    ? isErrorActive 
-    : isErrorBanned;
-  
-  const error = activeTab === 'pending' 
-    ? errorPending 
-    : activeTab === 'active' 
-    ? errorActive 
-    : errorBanned;
-
-  const sellers = activeTab === 'pending' 
-    ? (pendingSellers?.sellers || [])
-    : activeTab === 'active'
-    ? (activeSellers?.sellers || [])
-    : (bannedSellers?.sellers || []);
-  
-  const pagination = activeTab === 'pending'
-    ? (pendingSellers?.pagination || {})
-    : activeTab === 'active'
-    ? (activeSellers?.pagination || {})
-    : (bannedSellers?.pagination || {});
-
-  const filteredSellers = sellers.filter(seller => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      seller.shopName?.toLowerCase().includes(searchLower) ||
-      seller.userId?.email?.toLowerCase().includes(searchLower) ||
-      seller.country?.toLowerCase().includes(searchLower)
-    );
-  });
-
-  const getStatusBadge = (status) => {
-    const variants = {
-      pending: 'warning',
-      active: 'success',
-      banned: 'destructive',
-    };
-    return <Badge variant={variants[status] || 'default'} className="text-xs px-2 py-0.5">{status.toUpperCase()}</Badge>;
+  const tabQueries = {
+    pending: { data: pendingSellers, isLoading: isLoadingPending, isError: isErrorPending, error: errorPending },
+    active: { data: activeSellers, isLoading: isLoadingActive, isError: isErrorActive, error: errorActive },
+    rejected: { data: rejectedSellers, isLoading: isLoadingRejected, isError: isErrorRejected, error: errorRejected },
+    banned: { data: bannedSellers, isLoading: isLoadingBanned, isError: isErrorBanned, error: errorBanned },
   };
+  const { isLoading, isError, error, data: tabData } = tabQueries[activeTab];
+  const sellers = tabData?.sellers || [];
+  const pagination = tabData?.pagination || {};
 
   if (isLoading) return <Loading message={`Loading ${activeTab} sellers...`} />;
   if (isError) return <ErrorMessage message={error?.response?.data?.message || `Error loading ${activeTab} sellers`} />;
@@ -268,7 +224,7 @@ const SellersManagement = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); setPage(1); }} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-secondary border border-gray-700">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-secondary border border-gray-700">
           <TabsTrigger 
             value="pending" 
             className="data-[state=active]:bg-accent data-[state=active]:text-white text-gray-300"
@@ -282,6 +238,13 @@ const SellersManagement = () => {
           >
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Active ({activeSellers?.pagination?.total || 0})
+          </TabsTrigger>
+          <TabsTrigger
+            value="rejected"
+            className="data-[state=active]:bg-accent data-[state=active]:text-white text-gray-300"
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Rejected ({rejectedSellers?.pagination?.total || 0})
           </TabsTrigger>
           <TabsTrigger 
             value="banned" 
@@ -300,6 +263,7 @@ const SellersManagement = () => {
                   <Store className="h-5 w-5 text-accent-on-dark" />
                   {activeTab === 'pending' && 'Pending Seller Applications'}
                   {activeTab === 'active' && 'Active Sellers'}
+                  {activeTab === 'rejected' && 'Rejected Applications'}
                   {activeTab === 'banned' && 'Banned Sellers'}
                 </CardTitle>
                 <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
@@ -318,19 +282,20 @@ const SellersManagement = () => {
                   </Select>
                   <SearchInput
                     value={searchTerm}
-                    onChange={setSearchTerm}
-                    placeholder="Search sellers..."
+                    onChange={(value) => { setSearchTerm(value); setPage(1); }}
+                    placeholder="Search shop, email or country..."
+                    aria-label="Search sellers by shop name, email or country"
                     className="w-full md:w-64"
                   />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {filteredSellers.length === 0 ? (
+              {sellers.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <Store className="h-16 w-16 mx-auto mb-4 text-gray-600" />
                   <p className="text-lg">No {activeTab} sellers found</p>
-                  {searchTerm && <p className="text-sm mt-2">Try adjusting your search</p>}
+                  {search && <p className="text-sm mt-2">Try adjusting your search</p>}
                 </div>
               ) : (
                 <>
@@ -348,7 +313,7 @@ const SellersManagement = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredSellers.map((seller) => (
+                        {sellers.map((seller) => (
                           <TableRow 
                             key={seller._id} 
                             className="border-gray-700 hover:bg-gray-800/50 transition-colors cursor-pointer"
@@ -380,7 +345,7 @@ const SellersManagement = () => {
                               {seller.city ? `${seller.city}, ` : ''}
                               {seller.country || 'N/A'}
                             </TableCell>
-                            <TableCell>{getStatusBadge(seller.status)}</TableCell>
+                            <TableCell><StatusBadge domain="sellerAccount" status={seller.status} /></TableCell>
                             <TableCell className="text-gray-400">
                               {new Date(seller.createdAt).toLocaleDateString()}
                             </TableCell>
@@ -419,7 +384,6 @@ const SellersManagement = () => {
                                 )}
                                 {activeTab === 'active' && (
                                   <>
-                                    {/* CLIENT REQ: reversible hold / lift */}
                                     {seller.isOnHold ? (
                                       <Button
                                         size="sm"
@@ -481,7 +445,6 @@ const SellersManagement = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>
@@ -517,7 +480,6 @@ const SellersManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Block Dialog */}
       <Dialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>
@@ -553,7 +515,6 @@ const SellersManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* CLIENT REQ: Hold Dialog */}
       <Dialog open={holdDialogOpen} onOpenChange={setHoldDialogOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>

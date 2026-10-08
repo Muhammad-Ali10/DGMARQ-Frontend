@@ -1,10 +1,3 @@
-// Client-supplied final copy (last updated / effective 10 August 2026). Legal
-// wording is verbatim — change it only on the owner's instruction.
-//
-// Numbering: the source opens with "1. Contents", which pushed every heading one
-// number past its own cross-references ("see Section 12" means Cookies, which the
-// source headed 13). The contents list is now the page's table of contents, so
-// sections run 1–15 and every in-text reference lands on the right clause.
 export const privacyPolicy = {
   path: '/privacy-policy',
   seo: {

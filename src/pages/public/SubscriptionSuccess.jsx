@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { subscriptionAPI } from '@services/api';
 import { CheckCircle2, Loader2, Home, CreditCard } from 'lucide-react';
 import { Button } from '@components/ui/button';
@@ -10,6 +10,13 @@ const SubscriptionSuccess = () => {
   const [searchParams] = useSearchParams();
   const subscriptionId = searchParams.get('subscription_id');
   const [error, setError] = useState(null);
+
+  const { data: planData } = useQuery({
+    queryKey: ['subscription-plans'],
+    queryFn: () => subscriptionAPI.getSubscriptionPlans().then((res) => res.data.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const discountPercentage = planData?.plan?.discountPercentage;
 
   const confirmMutation = useMutation({
     mutationFn: (id) => subscriptionAPI.confirmSubscription({ subscriptionId: id }),
@@ -24,8 +31,6 @@ const SubscriptionSuccess = () => {
     } else {
       setError('Missing subscription ID. Please contact support.');
     }
-    // confirmMutation is a new object every render — including it would
-    // re-fire the confirmation request in a loop. Fire once per subscriptionId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscriptionId]);
 
@@ -86,7 +91,9 @@ const SubscriptionSuccess = () => {
           <div className="space-y-2">
             <h3 className="text-xl font-semibold text-white">Welcome to DGMARQ Plus</h3>
             <p className="text-gray-400">
-              Your 2% discount will now be automatically applied to all your purchases.
+              {discountPercentage != null
+                ? `Your ${discountPercentage}% discount will now be automatically applied to all your purchases.`
+                : 'Your Plus discount will now be automatically applied to all your purchases.'}
             </p>
           </div>
           

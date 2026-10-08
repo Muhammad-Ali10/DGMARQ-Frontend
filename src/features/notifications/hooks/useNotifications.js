@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSocket } from '@hooks/useSocket';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationAPI } from '@services/api';
@@ -6,44 +6,52 @@ import { useSelector } from 'react-redux';
 import { invalidateAllNotificationQueries } from '../utils/notificationQueries';
 import { playNotificationSound } from '../utils/notificationSound';
 
-/**
- * Optimized notifications hook.
- * Uses local state updates for real-time events, debounced refetch for consistency.
- */
-export const useNotifications = () => {
+const LIST_KEY = ['notifications'];
+const COUNT_KEY = ['notification-unread-count'];
+
+const formatNotification = (notif) => ({
+  id: notif._id,
+  notificationId: notif._id,
+  type: notif.type,
+  title: notif.title || '',
+  message: notif.message || '',
+  data: notif.data || {},
+  actionUrl: notif.actionUrl || null,
+  priority: notif.priority || 'medium',
+  createdAt: notif.createdAt,
+  timestamp: new Date(notif.createdAt),
+  isRead: notif.isRead || false,
+});
+
+export const useNotifications = ({ listEnabled = true } = {}) => {
   const { socket, isConnected } = useSocket();
   const { user } = useSelector((state) => state.auth);
   const queryClient = useQueryClient();
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  // De-dupes by notificationId so a notification that's delivered twice (rare,
-  // e.g. socket reconnect replay) is handled once — while EVERY genuinely
-  // distinct notification still increments the count and plays a sound.
   const lastNotifIdRef = useRef(null);
-  const { data: notificationsData, isLoading: notificationsLoading } = useQuery({
-    queryKey: ['notifications'],
+
+  const { data: notificationsData } = useQuery({
+    queryKey: LIST_KEY,
     queryFn: async () => {
       try {
-        const res = await notificationAPI.getNotifications({ page: 1, limit: 50 });
+        const res = await notificationAPI.getNotifications({ page: 1, limit: 20 });
         const responseData = res?.data;
         if (responseData?.data) return responseData.data;
         if (responseData?.notifications) return responseData;
-        return { notifications: [], pagination: {}, unreadCount: 0 };
+        return { notifications: [], pagination: {} };
       } catch {
-        return { notifications: [], pagination: {}, unreadCount: 0 };
+        return { notifications: [], pagination: {} };
       }
     },
-    enabled: !!user,
+    enabled: !!user && listEnabled,
     retry: 2,
     retryDelay: 1000,
     staleTime: 30000,
     gcTime: 300000,
-    refetchInterval: 120000, // Poll every 2 min as consistency fallback
     refetchOnWindowFocus: false,
   });
 
-  const { data: unreadCountData } = useQuery({
-    queryKey: ['notification-unread-count'],
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: COUNT_KEY,
     queryFn: async () => {
       try {
         const res = await notificationAPI.getUnreadCount();
@@ -61,56 +69,22 @@ export const useNotifications = () => {
     refetchOnWindowFocus: false,
   });
 
-  useEffect(() => {
-    if (notificationsData) {
-      const notificationsList = Array.isArray(notificationsData.notifications)
-        ? notificationsData.notifications
-        : [];
-      const formattedNotifications = notificationsList.map(notif => ({
-        id: notif._id,
-        notificationId: notif._id,
-        type: notif.type,
-        title: notif.title || '',
-        message: notif.message || '',
-        data: notif.data || {},
-        actionUrl: notif.actionUrl || null,
-        priority: notif.priority || 'medium',
-        createdAt: notif.createdAt,
-        timestamp: new Date(notif.createdAt),
-        isRead: notif.isRead || false,
-      }));
-       
-      setNotifications(formattedNotifications);
-    } else if (!notificationsLoading) {
-      setNotifications([]);
-    }
-  }, [notificationsData, notificationsLoading]);
-
-  useEffect(() => {
-    if (unreadCountData !== undefined) {
-      // Sync the authoritative server count into local state.
-       
-      setUnreadCount(unreadCountData);
-    }
-  }, [unreadCountData]);
+  const notifications = useMemo(
+    () => (Array.isArray(notificationsData?.notifications) ? notificationsData.notifications.map(formatNotification) : []),
+    [notificationsData]
+  );
 
   useEffect(() => {
     if (!socket || !isConnected || !user) return;
 
     const handleNotificationNew = (payload) => {
-      // Ignore an exact duplicate of the immediately-preceding event; otherwise
-      // EVERY notification (any type) increments the count and plays the ding.
       const id = payload?.notificationId;
       if (id && id === lastNotifIdRef.current) {
         return;
       }
       lastNotifIdRef.current = id || null;
 
-      setUnreadCount((prev) => prev + 1);
       invalidateAllNotificationQueries(queryClient);
-      // Sound on every notification type (respects the user's on/off preference,
-      // default ON). Browsers may block audio until the first user gesture; the
-      // sound util resumes the AudioContext best-effort on play.
       playNotificationSound();
     };
 
@@ -121,38 +95,38 @@ export const useNotifications = () => {
     };
   }, [socket, isConnected, user, queryClient]);
 
-  const markNotificationAsRead = useCallback(async (notificationId) => {
-    // Optimistic local update
-    setNotifications((prev) =>
-      prev.map((n) => (n.notificationId === notificationId ? { ...n, isRead: true } : n))
+  const patchList = useCallback((fn) => {
+    queryClient.setQueryData(LIST_KEY, (old) =>
+      old && Array.isArray(old.notifications) ? { ...old, notifications: fn(old.notifications) } : old
     );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
-    // Persist (non-blocking)
-    notificationAPI.markAsRead(notificationId).then(() => {
-      invalidateAllNotificationQueries(queryClient);
-    }).catch(() => {});
   }, [queryClient]);
 
-  const clearNotifications = useCallback(() => {
-    setNotifications([]);
-    setUnreadCount(0);
-  }, []);
-
-  const removeNotification = useCallback(async (notificationId) => {
-    // Optimistic local update
-    setNotifications((prev) => prev.filter((n) => n.notificationId !== notificationId));
-    setUnreadCount((prev) => Math.max(0, prev - 1));
-    // Persist (non-blocking)
-    notificationAPI.deleteNotification(notificationId).then(() => {
-      invalidateAllNotificationQueries(queryClient);
-    }).catch(() => {});
+  const decrementUnread = useCallback(() => {
+    queryClient.setQueryData(COUNT_KEY, (count) => Math.max(0, (Number(count) || 0) - 1));
   }, [queryClient]);
+
+  const resync = useCallback(() => invalidateAllNotificationQueries(queryClient), [queryClient]);
+
+  const markNotificationAsRead = useCallback((notification) => {
+    if (!notification?.notificationId || notification.isRead) return;
+    const id = notification.notificationId;
+    patchList((list) => list.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
+    decrementUnread();
+    notificationAPI.markAsRead(id).then(resync, resync);
+  }, [patchList, decrementUnread, resync]);
+
+  const removeNotification = useCallback((notification) => {
+    if (!notification?.notificationId) return;
+    const id = notification.notificationId;
+    patchList((list) => list.filter((n) => n._id !== id));
+    if (!notification.isRead) decrementUnread();
+    notificationAPI.deleteNotification(id).then(resync, resync);
+  }, [patchList, decrementUnread, resync]);
 
   return {
     notifications,
     unreadCount,
     markNotificationAsRead,
-    clearNotifications,
     removeNotification,
   };
 };

@@ -1,6 +1,3 @@
-// Client-supplied final copy (effective 18 April 2026). Legal wording is
-// verbatim — change it only on the owner's instruction. Structure (callouts,
-// steps, outcome cards) is presentation only; see ../LegalBlocks.jsx.
 export const refundPolicy = {
   path: '/refund-policy',
   seo: {
@@ -88,8 +85,6 @@ export const refundPolicy = {
               title: 'Example',
               content: [
                 [
-                  // Dates rather than the drafted "the 1st … the 8th of that month":
-                  // the window is admin-set, and a 30-day window has no 35th.
                   'If an order is delivered on {refundExampleDeliveredOn}, the refund window closes at the end of {refundExampleDeliveredBy}.',
                   'If a digital order is confirmed on {refundExampleConfirmedOn}, the refund window closes at the end of {refundExampleConfirmedBy}.',
                 ],

@@ -2,18 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Search, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/**
- * A styled, searchable dropdown that matches the wizard's design. Used for the
- * country / state / city selects which are fed by react-country-state-city's
- * data helpers. Renders our own UI (the library ships its own components but we
- * want full styling control).
- *
- * Props:
- *  - options: Array<{ id, name }>
- *  - value: number|null            selected option id
- *  - onChange: (option) => void    fires with the full { id, name } object
- *  - placeholder, label, error, disabled, loading
- */
 const LocationSelect = ({
   options = [],
   value,
@@ -45,8 +33,6 @@ const LocationSelect = ({
 
   const isDisabled = disabled || loading;
 
-  // Focus the filter when the popup opens — same effect autoFocus had, but it
-  // only fires on an explicit open rather than on every mount.
   useEffect(() => {
     if (open) searchRef.current?.focus();
   }, [open]);

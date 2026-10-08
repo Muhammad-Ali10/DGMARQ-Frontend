@@ -8,28 +8,21 @@ const MicrosoftCard = ({ product, width }) => {
   const wishlisted = isWishlisted(product._id);
 
   const handleToggleWishlist = (e) => {
-    // The whole tile is a <Link>; without this the toggle also navigates.
     e.preventDefault();
     e.stopPropagation();
     toggle(product._id);
   };
 
-  // Get platform name, region name, and product type
   const platformName = getPlatformName(product);
-  const regionName = product.region?.name || "Global";
   const typeName = getTypeName(product);
 
-  // Extract main title and subtitle from product name
-  // Example: "Microsoft Office 2024 | LTSC Standard (PC)" -> "Microsoft Office 2024" and "| LTSC Standard (PC)"
   const nameParts = product.name.split("|").map((part) => part.trim());
   const mainTitle = nameParts[0] || product.name;
   const subtitle = nameParts.length > 1 ? nameParts.slice(1).join(" | ") : "";
 
-  // Get background image URL
   const backgroundImage =
     product.images && product.images.length > 0 ? product.images[0] : null;
 
-  // Inline style for background image
   const backgroundStyle = backgroundImage
     ? {
         backgroundImage: `linear-gradient(to right, rgba(30, 58, 95, 0.9), rgba(37, 99, 235, 0.7)), url('${backgroundImage}')`,
@@ -50,14 +43,8 @@ const MicrosoftCard = ({ product, width }) => {
         className="relative h-full min-h-[280px] sm:min-h-[320px] md:min-h-[340px] rounded-2xl w-full overflow-hidden"
         style={backgroundStyle}
       >
-        {/* Gradient overlay for better text readability */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1e3a5f]120 via-[#2563eb]/10 to-[#60a5fa]/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1e3a5f]/20 via-[#2563eb]/10 to-[#60a5fa]/10"></div>
 
-        {/* CLIENT REQ 1 — heart on EVERY product card. This is a product card
-            (it links to /product/:slug and shows the product's platform, type
-            and region); it just renders as a wide banner tile, which is why it
-            was missed. z-20 puts it above BOTH the gradient overlay above and
-            the hover overlay below, which are absolute siblings. */}
         <button
           type="button"
           onClick={handleToggleWishlist}
@@ -70,9 +57,7 @@ const MicrosoftCard = ({ product, width }) => {
           />
         </button>
 
-        {/* Content */}
         <div className="relative z-10 flex flex-col h-full p-6 sm:p-8 justify-end">
-          {/* Product Title Section */}
           <div>
             <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-fg leading-tight mb-1.5 sm:mb-2">
               {mainTitle}
@@ -84,17 +69,14 @@ const MicrosoftCard = ({ product, width }) => {
             )}
           </div>
 
-          {/* Bottom Info */}
           <div className="pt-2">
             <div className="space-y-1 text-xs sm:text-sm text-fg/85 font-normal">
               <p>Platform: <span className="font-semibold">{platformName}</span></p>
               <p>Type: <span className="font-semibold">{typeName}</span></p>
-              <p>Region: <span className="font-semibold">{regionName}</span></p>
             </div>
           </div>
         </div>
 
-        {/* Hover overlay effect */}
         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-2xl"></div>
       </div>
     </Link>

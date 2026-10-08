@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { TableEmptyRow } from '@components/common/EmptyState';
-import { Badge } from '@components/ui/badge';
 import { StatusBadge } from '@components/common/StatusBadge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { Button } from '@components/ui/button';
@@ -14,14 +13,11 @@ import { Eye } from 'lucide-react';
 import { Pagination } from '@components/common/Pagination';
 import { countryName, countryFlag } from '@lib/regionCompat';
 import useCurrency from '@hooks/useCurrency';
+import { getStatusDisplay } from '@lib/statusTaxonomy';
 
-/**
- * M14: PayPal's own fee for the order. Null on wallet-paid orders, on captures
- * PayPal has not settled yet, and on everything sold before we started
- * recording it — all of which read as "—" rather than a fabricated $0.00.
- * Currency is shown when it is not USD so a converted figure can never be
- * silently mislabelled with a dollar sign.
- */
+const ORDER_STATUS_FILTERS = ['completed', 'partially_completed', 'processing', 'pending', 'PARTIALLY_REFUNDED', 'REFUNDED', 'cancelled'];
+const PAYMENT_STATUS_FILTERS = ['paid', 'pending', 'failed', 'partially_refunded', 'refunded'];
+
 const formatPayPalFee = (amount, currency) => {
   if (typeof amount !== 'number') return null;
   return currency && currency !== 'USD'
@@ -33,14 +29,16 @@ const OrdersManagement = () => {
   const { format: formatMoney } = useCurrency();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('');
 
   const { data: ordersData, isLoading, isError, error } = useQuery({
-    queryKey: ['admin-orders', page, status],
+    queryKey: ['admin-orders', page, status, paymentStatus],
     queryFn: async () => {
-      const response = await orderAPI.getAllOrders({ 
-        page, 
-        limit: 10, 
-        status: status || undefined 
+      const response = await orderAPI.getAllOrders({
+        page,
+        limit: 10,
+        status: status || undefined,
+        paymentStatus: paymentStatus || undefined,
       });
       return response.data.data;
     },
@@ -53,7 +51,6 @@ const OrdersManagement = () => {
     return <ErrorMessage message={errorMessage} />;
   }
 
-  // Handle different response structures (backend returns { orders, pagination: { page, limit, total, pages } })
   const orders = Array.isArray(ordersData) 
     ? ordersData 
     : (ordersData?.orders || ordersData?.docs || []);
@@ -70,21 +67,32 @@ const OrdersManagement = () => {
       </div>
 
       <Card variant="hud">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>All Orders</CardTitle>
-          <Select value={status || "all"} onValueChange={(value) => { setStatus(value === "all" ? "" : value); setPage(1); }}>
-            <SelectTrigger className="w-48 bg-gray-800 border-gray-700 text-white">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="returned">Returned</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Select value={status || "all"} onValueChange={(value) => { setStatus(value === "all" ? "" : value); setPage(1); }}>
+              <SelectTrigger className="w-48 bg-gray-800 border-gray-700 text-white" aria-label="Filter by order status">
+                <SelectValue placeholder="All order statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All order statuses</SelectItem>
+                {ORDER_STATUS_FILTERS.map((value) => (
+                  <SelectItem key={value} value={value}>{getStatusDisplay('order', value).label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={paymentStatus || "all"} onValueChange={(value) => { setPaymentStatus(value === "all" ? "" : value); setPage(1); }}>
+              <SelectTrigger className="w-48 bg-gray-800 border-gray-700 text-white" aria-label="Filter by payment status">
+                <SelectValue placeholder="All payments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All payments</SelectItem>
+                {PAYMENT_STATUS_FILTERS.map((value) => (
+                  <SelectItem key={value} value={value}>{getStatusDisplay('payment', value).label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent>
           {orders.length === 0 ? (
@@ -112,9 +120,9 @@ const OrdersManagement = () => {
                       orders.map((order) => {
                         const orderId = order._id?.toString() || order.id?.toString() || 'N/A';
                         const displayId = order.orderNumber || (orderId !== 'N/A' ? orderId.slice(-8) : 'N/A');
-                        const userName = order.userId?.name || 
-                                       (typeof order.userId === 'object' ? order.userId?.email : null) || 
-                                       'N/A';
+                        const userName = order.userId?.name
+                          || (typeof order.userId === 'object' ? order.userId?.email : null)
+                          || (order.isGuest ? (order.guestEmail ? `Guest · ${order.guestEmail}` : 'Guest checkout') : 'N/A');
                         const refundedAmount = (order.items || []).reduce(
                           (sum, item) => sum + (Number(item.refundedAmount) || 0),
                           0
@@ -127,7 +135,7 @@ const OrdersManagement = () => {
                             </TableCell>
                             <TableCell className="text-gray-300">{userName}</TableCell>
                             <TableCell className="text-white font-semibold">
-                              {formatMoney(order.totalAmount || 0)}
+                              {formatMoney(order.grandTotal ?? order.totalAmount ?? 0)}
                             </TableCell>
                             <TableCell className={order.buyerCountry ? "text-gray-300" : "text-gray-500"}>
                               {order.buyerCountry
@@ -141,11 +149,7 @@ const OrdersManagement = () => {
                               {refundedAmount > 0 ? `-${formatMoney(refundedAmount)}` : "—"}
                             </TableCell>
                             <TableCell><StatusBadge domain="order" status={order.orderStatus} /></TableCell>
-                            <TableCell>
-                              <Badge variant={order.paymentStatus === 'paid' ? 'success' : 'warning'}>
-                                {order.paymentStatus || 'pending'}
-                              </Badge>
-                            </TableCell>
+                            <TableCell><StatusBadge domain="payment" status={order.paymentStatus || 'pending'} /></TableCell>
                             <TableCell className="text-gray-300">
                               {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                             </TableCell>

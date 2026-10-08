@@ -13,12 +13,10 @@ const ContactUs = () => {
     title: "Contact | DGMARQ",
     description: "Contact DGMARQ for support with buying, selling, and marketplace help.",
     canonical: "/contactus",
-    useDefaults: false,
   });
 
   return (
     <main className="flex min-h-screen flex-col text-white">
-      {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />
         <div className="relative flex flex-col gap-8 max-w-4xl mx-auto text-center">
@@ -37,7 +35,6 @@ const ContactUs = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 1: Contact Channels */}
       <SectionWrapper id="channels">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -60,7 +57,6 @@ const ContactUs = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 2: Buyer & Seller Assistance */}
       <SectionWrapper id="assistance">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -93,7 +89,6 @@ const ContactUs = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 3: Escalation Process */}
       <SectionWrapper id="escalation">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
@@ -114,7 +109,6 @@ const ContactUs = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 4: Business & Legal */}
       <SectionWrapper id="business">
         <div className="flex flex-col gap-6 max-w-2xl mx-auto text-center">
           <AnimatedHeading
@@ -131,7 +125,6 @@ const ContactUs = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 5: Transparency Commitment */}
       <SectionWrapper id="transparency">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -149,7 +142,6 @@ const ContactUs = () => {
         </div>
       </SectionWrapper>
 
-      {/* FAQ */}
       <SectionWrapper id="faq" className="bg-gradient-to-b from-transparent via-accent/5 to-transparent">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
@@ -161,7 +153,6 @@ const ContactUs = () => {
         </div>
       </SectionWrapper>
 
-      {/* Final CTA */}
       <SectionWrapper id="final-cta">
         <div className="flex flex-col items-center gap-6 text-center max-w-2xl mx-auto">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">

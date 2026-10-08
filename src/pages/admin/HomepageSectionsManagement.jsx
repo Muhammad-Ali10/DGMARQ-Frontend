@@ -25,18 +25,17 @@ import {
 import { Badge } from "@components/ui/badge";
 import { Loading, ErrorMessage } from "@components/ui/loading";
 import { EmptyState, TableEmptyRow } from "@components/common/EmptyState";
+import ConfirmationModal from "@components/common/ConfirmationModal";
 import { Plus, Edit, Trash2, RefreshCw, LayoutList, Search } from "lucide-react";
 
 const EMPTY_FORM = { title: "", subtitle: "", searchQuery: "", productLimit: 6, order: 0, isActive: true };
 
-// M15: admin CRUD for custom homepage heading-sections. Each section renders on
-// the homepage as heading + N products from `searchQuery` + a "Show More" link
-// to the search page.
 const HomepageSectionsManagement = () => {
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   const { data: sections = [], isLoading, isError, error } = useQuery({
     queryKey: ["homepage-sections-admin"],
@@ -292,7 +291,7 @@ const HomepageSectionsManagement = () => {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => deleteMutation.mutate(s._id)}
+                            onClick={() => setPendingDelete(s)}
                             className="hover:bg-red-700"
                             title="Delete section"
                           >
@@ -326,6 +325,16 @@ const HomepageSectionsManagement = () => {
           {formBody}
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title="Delete homepage section?"
+        description={`"${pendingDelete?.title || ""}" will be removed from the homepage permanently.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => deleteMutation.mutate(pendingDelete._id)}
+      />
     </div>
   );
 };

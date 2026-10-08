@@ -10,16 +10,11 @@ import { Badge } from '@components/ui/badge';
 import { Button } from '@components/ui/button';
 import { cn } from '@lib/utils';
 import { useNotifications } from '../hooks/useNotifications';
-import { resolveNotificationActionUrl } from '../utils/notificationActionUrl';
+import { resolveNotificationActionUrl, enterBuyerViewForUrl } from '../utils/notificationActionUrl';
 import { invalidateAllNotificationQueries } from '../utils/notificationQueries';
 import { notificationAPI } from '@services/api';
 import { isSoundEnabled, setSoundEnabled, subscribeSoundPref } from '../utils/notificationSound';
 
-/**
- * Global notification bell: unread badge, dropdown list, mark-read, remove,
- * mark-all-read, a sound on/off toggle, and a "View all" link. Real-time via
- * useNotifications (Socket.IO + polling) which also plays the ding.
- */
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
@@ -29,9 +24,8 @@ const NotificationBell = () => {
   const queryClient = useQueryClient();
   const { user, roles: authRoles } = useSelector((state) => state.auth);
   const roles = authRoles?.length ? authRoles : (user?.roles || []);
-  const { notifications, unreadCount, markNotificationAsRead, removeNotification } = useNotifications();
+  const { notifications, unreadCount, markNotificationAsRead, removeNotification } = useNotifications({ listEnabled: isOpen });
 
-  // Keep the toggle in sync if changed from another tab/component.
   useEffect(() => subscribeSoundPref(setSoundOn), []);
 
   const sortedNotifications = Array.isArray(notifications)
@@ -59,12 +53,16 @@ const NotificationBell = () => {
     : normalizedRoles.includes('seller') ? '/seller' : '/user';
   const getNotificationsRoute = () => `${rolePrefix}/notifications`;
 
-  const handleNotificationClick = async (notification) => {
-    await markNotificationAsRead(notification.notificationId || notification.id);
+  const handleNotificationClick = (notification) => {
+    markNotificationAsRead(notification);
     setIsOpen(false);
     const actionUrl = resolveNotificationActionUrl(notification.actionUrl, roles);
-    if (actionUrl) navigate(actionUrl);
-    else navigate(getNotificationsRoute());
+    if (actionUrl) {
+      enterBuyerViewForUrl(actionUrl, roles);
+      navigate(actionUrl);
+    } else {
+      navigate(getNotificationsRoute());
+    }
   };
 
   const handleMarkAll = async () => {
@@ -129,7 +127,6 @@ const NotificationBell = () => {
             'max-h-[28rem] overflow-hidden flex flex-col'
           )}
         >
-          {/* Header */}
           <div className="p-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-accent-on-dark" />
@@ -161,7 +158,6 @@ const NotificationBell = () => {
             </div>
           </div>
 
-          {/* List */}
           <div className="overflow-y-auto flex-1">
             {sortedNotifications.length === 0 ? (
               <div className="p-8 text-center text-fg-muted">
@@ -200,7 +196,7 @@ const NotificationBell = () => {
                           <p className="text-fg-muted text-sm line-clamp-2">{notification.message}</p>
                         </div>
                         <button
-                          onClick={(e) => { e.stopPropagation(); removeNotification(notification.notificationId || notification.id); }}
+                          onClick={(e) => { e.stopPropagation(); removeNotification(notification); }}
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-600 rounded"
                           aria-label="Remove notification"
                         >
@@ -214,7 +210,6 @@ const NotificationBell = () => {
             )}
           </div>
 
-          {/* Footer */}
           {sortedNotifications.length > 0 && (
             <div className="p-3 border-t border-border">
               <button

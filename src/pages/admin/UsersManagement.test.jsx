@@ -12,11 +12,6 @@ vi.mock('@services/api', () => ({
 const { adminAPI } = await import('@services/api');
 const UsersManagement = (await import('./UsersManagement')).default;
 
-// The list is paginated 10 at a time, so the search has to reach the SERVER —
-// filtering the loaded page in the browser would only ever look at 10 users.
-// These pin that the typed term becomes a request parameter, and that the
-// list jumps back to page 1 for a new search.
-
 const page = (users = [], total = users.length) => ({
   data: { data: { users, pagination: { page: 1, limit: 10, total, pages: Math.max(1, Math.ceil(total / 10)) } } },
 });
@@ -58,8 +53,6 @@ describe('Admin users — search', () => {
     renderWithProviders(<UsersManagement />);
     const box = await screen.findByRole('textbox', { name: /search users/i });
 
-    // A request that never settles: without placeholder data the page would
-    // swap to its full-screen loader here and drop the box mid-typing.
     adminAPI.getAllUsers.mockReturnValue(new Promise(() => {}));
     fireEvent.change(box, { target: { value: 'ali' } });
 

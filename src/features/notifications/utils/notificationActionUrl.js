@@ -1,7 +1,3 @@
-/**
- * Resolve in-app notification deep links for the current user's role.
- * Legacy notifications may store bare or outdated paths.
- */
 export const resolveNotificationActionUrl = (actionUrl, roles = []) => {
   if (!actionUrl || typeof actionUrl !== 'string') return null;
 
@@ -17,22 +13,17 @@ export const resolveNotificationActionUrl = (actionUrl, roles = []) => {
       ? '/seller'
       : '/user';
 
-  // Already role-scoped
   if (
     trimmed.startsWith('/user/') ||
     trimmed.startsWith('/seller/') ||
     trimmed.startsWith('/admin/')
   ) {
-    // Fix known broken role-scoped paths
     if (trimmed.startsWith('/seller/payouts/')) {
       return trimmed.replace('/seller/payouts/', '/seller/earnings/');
     }
     if (trimmed === '/seller/payouts') {
       return '/seller/earnings';
     }
-    // Legacy seller product pages were removed (master + Offer model). Redirect
-    // any old `/seller/products/:id` or `/seller/products/:id/edit` deep links to
-    // the seller's offer for that product.
     const sellerProductView = trimmed.match(/^\/seller\/products\/([^/]+?)(?:\/edit)?$/);
     if (sellerProductView) {
       return `/seller/offers?productId=${sellerProductView[1]}`;
@@ -63,12 +54,27 @@ export const resolveNotificationActionUrl = (actionUrl, roles = []) => {
     return `${rolePrefix}${trimmed.startsWith('/') ? trimmed : `/${trimmed}`}`;
   }
 
-  // Chat-reply notifications are stored role-agnostic (/chat or /chat?c=...).
   if (trimmed === '/chat' || trimmed.startsWith('/chat?') || trimmed.startsWith('/chat/')) {
     return `${rolePrefix}${trimmed}`;
   }
 
+  if (trimmed === '/support' || trimmed.startsWith('/support?')) {
+    return `${rolePrefix}${trimmed}`;
+  }
+
   return trimmed;
+};
+
+export const enterBuyerViewForUrl = (url, roles = []) => {
+  if (typeof url !== 'string' || !url.startsWith('/user/')) return;
+  const normalized = Array.isArray(roles) ? roles.map((r) => String(r).toLowerCase()) : [];
+  if (normalized.includes('seller') && !normalized.includes('admin')) {
+    try {
+      sessionStorage.setItem('allowCustomerAccess', 'true');
+    } catch {
+      return;
+    }
+  }
 };
 
 export const getNotificationPagination = (pagination, currentPage = 1) => {

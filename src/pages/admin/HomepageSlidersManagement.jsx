@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { homepageSliderAPI, productAPI } from '@services/api';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -11,11 +11,17 @@ import { Badge } from '@components/ui/badge';
 import TargetPicker from '@components/common/TargetPicker';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { TableEmptyRow } from '@components/common/EmptyState';
-import { Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Power, Image as ImageIcon } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { showSuccess, showApiError } from '@utils/toast';
 import SafeImage from '@components/ui/safe-image';
 import useCurrency from '@hooks/useCurrency';
+import { useDebounce } from '@hooks/useDebounce';
+import { Pagination } from '@components/common/Pagination';
+
+const PAGE_SIZE = 100;
+
+const slidePosition = (slider) => (slider.slideIndex !== undefined ? slider.slideIndex : slider.order || 0);
 
 const SLIDE_POSITIONS = [
   { value: 0, label: 'Position 1 - Left Small' },
@@ -31,13 +37,9 @@ const HomepageSlidersManagement = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedSlider, setSelectedSlider] = useState(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
-  // Controls the product-suggestion dropdown so it closes once a product is
-  // picked (selecting sets the query to the product name, which alone is not
-  // enough to hide the list).
+  const debouncedProductSearch = useDebounce(productSearchQuery.trim(), 350);
+  const [page, setPage] = useState(1);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
-  // FIX: the delete flow was half-wired (button set state but no modal was
-  // rendered and no mutation was called — clicking delete did nothing).
-  // Completed with ConfirmationModal + deleteMutation below.
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [formData, setFormData] = useState({
@@ -50,26 +52,24 @@ const HomepageSlidersManagement = () => {
   const queryClient = useQueryClient();
 
   const { data: sliders, isLoading, isError } = useQuery({
-    queryKey: ['homepage-sliders'],
-    queryFn: () => homepageSliderAPI.getAllHomepageSliders().then(res => res.data.data),
+    queryKey: ['homepage-sliders', 'admin', page],
+    queryFn: () => homepageSliderAPI.getAllHomepageSliders({ page, limit: PAGE_SIZE }).then(res => res.data.data),
+    placeholderData: keepPreviousData,
   });
 
-  // Fetch products for search
+  const sortedSliders = [...(sliders?.sliders || [])].sort((a, b) => slidePosition(a) - slidePosition(b));
+
   const { data: productsData, isLoading: productsLoading } = useQuery({
-    queryKey: ['products-search', productSearchQuery],
+    queryKey: ['slider-products-search', debouncedProductSearch],
     queryFn: async () => {
-      if (!productSearchQuery.trim()) return { docs: [] };
-      // No adminView: the buyer-visibility gate applies, so only products a
-      // buyer can actually purchase (approved offer with stock / live
-      // pre-order) can go on a slide.
       const response = await productAPI.getProducts({
-        search: productSearchQuery,
+        search: debouncedProductSearch,
         status: 'active',
         limit: 50,
       });
       return response.data.data || { docs: [] };
     },
-    enabled: productSearchQuery.trim().length > 0,
+    enabled: debouncedProductSearch.length > 0,
   });
 
   const products = productsData?.docs || [];
@@ -81,6 +81,25 @@ const HomepageSlidersManagement = () => {
       setIsCreateOpen(false);
       setFormData({ title: '', productId: '', target: null, slideIndex: 0, image: null });
       setProductSearchQuery('');
+      showSuccess('Slide created successfully');
+    },
+    onError: (err) => {
+      showApiError(err, 'Failed to create slide');
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: (slider) => {
+      const body = new FormData();
+      body.append('isActive', String(!slider.isActive));
+      return homepageSliderAPI.updateHomepageSlider(slider._id, body);
+    },
+    onSuccess: (_, slider) => {
+      queryClient.invalidateQueries({ queryKey: ['homepage-sliders'] });
+      showSuccess(slider.isActive ? 'Slide hidden from the homepage' : 'Slide shown on the homepage');
+    },
+    onError: (err) => {
+      showApiError(err, 'Failed to update slide status');
     },
   });
 
@@ -133,7 +152,7 @@ const HomepageSlidersManagement = () => {
     if (formData.productId) {
       formDataToSend.append('productId', formData.productId);
     } else {
-      formDataToSend.append('productId', ''); // Clear product if none selected
+      formDataToSend.append('productId', '');
     }
     formDataToSend.append('target', formData.target ? JSON.stringify(formData.target) : '');
     formDataToSend.append('slideIndex', formData.slideIndex.toString());
@@ -156,7 +175,7 @@ const HomepageSlidersManagement = () => {
     setIsEditOpen(true);
   };
 
-  if (isLoading) return <Loading message="Loading homepage sliders..." />;
+  if (isLoading && !sliders) return <Loading message="Loading homepage sliders..." />;
   if (isError) return <ErrorMessage message="Error loading homepage sliders" />;
 
   return (
@@ -226,7 +245,7 @@ const HomepageSlidersManagement = () => {
                     onFocus={() => setShowProductDropdown(true)}
                     className="bg-secondary border-gray-700 text-white"
                   />
-                  {showProductDropdown && productSearchQuery.trim() && (
+                  {showProductDropdown && debouncedProductSearch && (
                     <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-md bg-secondary">
                       {productsLoading ? (
                         <div className="p-4 text-center text-gray-400">Loading...</div>
@@ -288,7 +307,6 @@ const HomepageSlidersManagement = () => {
                 </div>
               </div>
 
-              {/* M15: a slide can point somewhere other than a product */}
               {!formData.productId && (
                 <div className="rounded-lg border border-gray-700 p-3">
                   <TargetPicker
@@ -340,15 +358,10 @@ const HomepageSlidersManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sliders?.sliders?.length > 0 ? (
-                  sliders.sliders
-                    .sort((a, b) => {
-                      const aIndex = a.slideIndex !== undefined ? a.slideIndex : a.order || 0;
-                      const bIndex = b.slideIndex !== undefined ? b.slideIndex : b.order || 0;
-                      return aIndex - bIndex;
-                    })
+                {sortedSliders.length > 0 ? (
+                  sortedSliders
                     .map((slider) => {
-                      const position = slider.slideIndex !== undefined ? slider.slideIndex : slider.order || 0;
+                      const position = slidePosition(slider);
                       const positionLabel = SLIDE_POSITIONS[position]?.label || `Position ${position + 1}`;
                       return (
                         <TableRow key={slider._id} className="border-gray-700">
@@ -399,6 +412,15 @@ const HomepageSlidersManagement = () => {
                               </Button>
                               <Button
                                 size="sm"
+                                variant="outline"
+                                title={slider.isActive ? 'Hide from homepage' : 'Show on homepage'}
+                                disabled={toggleActiveMutation.isPending}
+                                onClick={() => toggleActiveMutation.mutate(slider)}
+                              >
+                                <Power className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
                                 variant="destructive"
                                 onClick={() => {
                                   setDeleteId(slider._id);
@@ -418,6 +440,7 @@ const HomepageSlidersManagement = () => {
               </TableBody>
             </Table>
           </div>
+          <Pagination variant="numbered" page={page} totalPages={sliders?.pagination?.pages || 1} onPageChange={setPage} />
         </CardContent>
       </Card>
 
@@ -468,7 +491,7 @@ const HomepageSlidersManagement = () => {
                   onFocus={() => setShowProductDropdown(true)}
                   className="bg-secondary border-gray-700 text-white"
                 />
-                {showProductDropdown && productSearchQuery.trim() && (
+                {showProductDropdown && debouncedProductSearch && (
                   <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-md bg-secondary">
                     {productsLoading ? (
                       <div className="p-4 text-center text-gray-400">Loading...</div>
@@ -530,7 +553,6 @@ const HomepageSlidersManagement = () => {
               </div>
             </div>
 
-            {/* M15: a slide can point somewhere other than a product */}
             {!formData.productId && (
               <div className="rounded-lg border border-gray-700 p-3">
                 <TargetPicker

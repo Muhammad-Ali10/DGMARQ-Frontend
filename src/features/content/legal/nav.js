@@ -1,6 +1,3 @@
-// Every legal document on the site, for the "More policies" row at the foot of
-// each one. Kept apart from the documents themselves so a page's chunk carries
-// this short list, not the full text of the other four policies.
 export const LEGAL_NAV = [
   {
     path: '/terms-conditions',

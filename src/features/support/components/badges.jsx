@@ -1,7 +1,3 @@
-/**
- * Color-coded priority and status pills shared by the support UIs.
- */
-
 const PRIORITY_STYLES = {
   low: 'bg-green-900/40 text-success border-green-700/50',
   medium: 'bg-yellow-900/40 text-warning border-yellow-700/50',
@@ -12,7 +8,6 @@ const PRIORITY_STYLES = {
 const STATUS_META = {
   open: { label: 'Open', cls: 'bg-blue-900/40 text-blue-300 border-blue-700/50' },
   in_progress: { label: 'In Progress', cls: 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50' },
-  // legacy alias
   pending: { label: 'In Progress', cls: 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50' },
   waiting_customer: { label: 'Waiting Customer', cls: 'bg-amber-900/40 text-warning border-amber-700/50' },
   resolved: { label: 'Resolved', cls: 'bg-green-900/40 text-success border-green-700/50' },

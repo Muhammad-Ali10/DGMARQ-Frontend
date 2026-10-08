@@ -17,22 +17,15 @@ import SafeImage from "@components/ui/safe-image";
 import useCurrency from "@hooks/useCurrency";
 import useBuyerCountry from "@hooks/useBuyerCountry";
 import { resolveOfferAvailability, isBuyerCompatible } from "@lib/regionCompat";
+import { showApiError } from "@utils/toast";
 
-// ── Design tokens for the v74 mockup HUD flyout ───────────────────────────────
-// Keyframes live once in src/index.css as Tailwind v4 `--animate-*` theme
-// entries; these only reference them.
-
-// The flyout shell: fixed rail on the right, animated gradient hairline border
-// drawn with the padding+mask trick in ::before.
 const PANEL =
   'fixed top-[70px] right-3 bottom-3 z-[2000] isolate flex max-h-[720px] w-[384px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-[18px] border border-[rgba(58,116,240,0.3)] bg-[linear-gradient(180deg,#0c1430,#070b18)] shadow-[0_30px_70px_rgba(0,0,0,0.66),0_0_60px_rgba(14,81,226,0.18)] origin-top-right animate-dgc-open motion-reduce:animate-none ' +
   "before:pointer-events-none before:absolute before:inset-0 before:z-[5] before:rounded-[inherit] before:p-[1.3px] before:content-[''] before:bg-[linear-gradient(120deg,rgba(14,81,226,0.9),rgba(58,155,245,0.35),rgba(123,47,247,0.85),rgba(58,155,245,0.35),rgba(14,81,226,0.9))] before:[background-size:300%_300%] before:[-webkit-mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)] before:[-webkit-mask-composite:xor] before:[mask-composite:exclude] before:animate-dgc-border before:motion-reduce:animate-none";
 
-// Sweeping 2px highlight pinned to the top edge of the panel.
 const TOPLINE =
   'absolute top-0 left-0 right-0 z-[6] h-[2px] bg-[linear-gradient(90deg,transparent,#0e51e2,#3a9bf5,#7b2ff7,transparent)] [background-size:200%_100%] animate-rail-slide motion-reduce:animate-none';
 
-// Blurred colour orbs + the masked 26px HUD grid, both behind the content.
 const ORB =
   'pointer-events-none absolute z-0 rounded-full opacity-[0.35] blur-[44px] animate-dgc-float motion-reduce:animate-none';
 const ORB_1 =
@@ -42,23 +35,18 @@ const ORB_2 =
 const GRID =
   'pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(rgba(58,116,240,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(58,116,240,0.06)_1px,transparent_1px)] [background-size:26px_26px] [-webkit-mask-image:radial-gradient(circle_at_50%_0%,#000,transparent_78%)] [mask-image:radial-gradient(circle_at_50%_0%,#000,transparent_78%)]';
 
-// Shimmering gradient wordmark (same sweep as the topline, clipped to the text).
 const TITLE =
   'bg-[linear-gradient(90deg,#ffffff,#9fc6ff,#ffffff)] [background-size:200%_100%] bg-clip-text text-transparent animate-rail-slide [animation-duration:6s] motion-reduce:animate-none';
 
-// Scroll area with the thin gradient webkit scrollbar.
 const SCROLL =
   'flex-[1_1_auto] min-h-0 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-[6px] [&::-webkit-scrollbar-thumb]:bg-[linear-gradient(#0e51e2,#7b2ff7)]';
 
-// Line item: slides in from the right, lifts + glows on hover.
-// Red variant when the offer can't activate in the buyer's region.
 const itemCls = (regionBad) =>
   'mb-2.5 flex overflow-hidden rounded-[11px] border ' +
   (regionBad
     ? 'border-[rgba(255,107,107,0.45)] hover:border-[rgba(255,107,107,0.65)] hover:shadow-[0_0_0_1px_rgba(255,107,107,0.25),0_8px_24px_rgba(255,50,50,0.15)] '
     : 'border-[rgba(58,116,240,0.28)] hover:border-[rgba(58,155,245,0.65)] hover:shadow-[0_0_0_1px_rgba(58,155,245,0.28),0_8px_24px_rgba(14,81,226,0.22)] ') +
   'bg-[#101d3a] animate-dgc-item-in motion-reduce:animate-none [transition:border-color_0.2s,box-shadow_0.2s,transform_0.2s] hover:[transform:translateY(-1px)]';
-// Staggered entrance (was `:nth-child(1..3)` / `:nth-child(n+4)` in CSS).
 const ITEM_DELAYS = [
   '[animation-delay:0.08s]',
   '[animation-delay:0.15s]',
@@ -71,9 +59,6 @@ const QTY_BTN =
 const CHECKOUT_BTN =
   'flex h-[46px] w-full items-center justify-center rounded-[11px] bg-gradient-to-br from-[#0e51e2] to-[#7b2ff7] text-[15px] font-extrabold tracking-[0.3px] text-fg [transition:filter_0.18s,box-shadow_0.2s] hover:[filter:brightness(1.08)] hover:shadow-[0_12px_40px_rgba(123,47,247,0.6),0_0_26px_rgba(168,85,247,0.4)]';
 
-// Mini-cart flyout (header). Reuses the real cart (auth via API, guest via
-// localStorage) and mirrors the full cart page's data — images, platform·type,
-// region verdict, "Sold by", stock, qty stepper — in the v74 HUD design.
 const CartDropdown = ({ open, onClose }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -82,13 +67,10 @@ const CartDropdown = ({ open, onClose }) => {
   const { country } = useBuyerCountry();
   const [guestItems, setGuestItems] = useState([]);
 
-  // Same key/options as the Header's cart query → react-query dedupes them into
-  // ONE fetch and one cache. Not gated on `open`: the data is already there, so
-  // the flyout renders instantly instead of showing stale items then refetching.
   const { data: cart } = useQuery({
     queryKey: ["cart"],
     queryFn: () => cartAPI.getCart().then((r) => r.data.data),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && open,
     staleTime: 30_000,
   });
 
@@ -119,33 +101,39 @@ const CartDropdown = ({ open, onClose }) => {
     ? cart?.subtotal ?? items.reduce((s, i) => s + i.price * i.qty, 0)
     : guestView.subtotal || items.reduce((s, i) => s + i.price * i.qty, 0);
 
+  const bundleDiscount = isAuthenticated ? cart?.bundleDiscount || 0 : 0;
+  const plusDiscount = isAuthenticated ? cart?.subscriptionDiscount || 0 : 0;
+  const feeBase = isAuthenticated && cart?.total != null ? cart.total : subtotal;
+
   const { data: feeEst } = useQuery({
-    queryKey: ["handling-fee-estimate", subtotal],
-    queryFn: () => checkoutAPI.getHandlingFeeEstimate(subtotal).then((r) => r.data.data),
-    enabled: open && subtotal > 0,
+    queryKey: ["handling-fee-estimate", feeBase],
+    queryFn: () => checkoutAPI.getHandlingFeeEstimate(feeBase).then((r) => r.data.data),
+    enabled: open && feeBase > 0,
     retry: false,
   });
   const protectionFee = feeEst?.protectionFee ?? 0;
   const processingFee = feeEst?.processingFee ?? 0;
-  const total = feeEst?.grandTotal ?? subtotal;
+  const total = feeEst?.grandTotal ?? feeBase;
 
   const updateMut = useMutation({
     mutationFn: (d) => cartAPI.updateCart(d),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+    onError: (error) => showApiError(error, "Failed to update cart"),
   });
   const removeMut = useMutation({
     mutationFn: (d) => cartAPI.removeItem(d),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+    onError: (error) => showApiError(error, "Failed to remove item from cart"),
   });
 
   const remove = (productId, sellerId) => {
     if (isAuthenticated) removeMut.mutate({ productId, sellerId });
-    else { removeFromGuestCart(productId); setGuestItems(getGuestCart().items || []); }
+    else { removeFromGuestCart(productId, sellerId); setGuestItems(getGuestCart().items || []); }
   };
   const setQty = (productId, sellerId, qty) => {
     if (qty <= 0) return remove(productId, sellerId);
     if (isAuthenticated) updateMut.mutate({ productId, sellerId, qty });
-    else { updateGuestCartQuantity(productId, qty); setGuestItems(getGuestCart().items || []); }
+    else { updateGuestCartQuantity(productId, sellerId, qty); setGuestItems(getGuestCart().items || []); }
   };
 
   const go = (path) => { onClose?.(); navigate(path); };
@@ -154,8 +142,6 @@ const CartDropdown = ({ open, onClose }) => {
 
   return (
     <>
-      {/* Click-catcher. Escape and the panel's close button are the real
-          dismiss paths; this is a pointer convenience, hence presentational. */}
       <div role="presentation" className="fixed inset-0 z-[1999] bg-transparent" onClick={onClose} />
       <div className={PANEL} role="dialog" aria-label="Shopping cart">
         <span className={TOPLINE} />
@@ -163,7 +149,6 @@ const CartDropdown = ({ open, onClose }) => {
         <span className={`${ORB} ${ORB_2}`} />
         <span className={GRID} />
 
-        {/* Header */}
         <div className="relative z-[2] flex items-center justify-between px-4 pb-2.5 pt-3.5">
           <h3 className="m-0 flex items-center gap-2 text-[13px] font-extrabold tracking-[1.4px] text-fg">
             <ShoppingCart className="h-4 w-4 text-[#3a9bf5]" strokeWidth={2} />
@@ -182,7 +167,6 @@ const CartDropdown = ({ open, onClose }) => {
           </button>
         </div>
 
-        {/* Items */}
         <div className={`${SCROLL} relative z-[2] px-3 pb-1 pt-0.5`}>
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
@@ -260,7 +244,11 @@ const CartDropdown = ({ open, onClose }) => {
                   </div>
 
                   <div className="mt-1.5 flex items-center justify-between text-[10.5px]">
-                    {it.stock != null ? (
+                    {it.unavailable ? (
+                      <span className="font-semibold text-[#ff8080]">No longer available from this seller</span>
+                    ) : it.stockShort ? (
+                      <span className="font-semibold text-[#ff8080]">{it.availabilityMessage || "Not enough stock"}</span>
+                    ) : it.stock != null ? (
                       <span className="flex items-center gap-1 font-semibold text-[#22c55e]">
                         <CheckCircle2 className="h-3 w-3" /> {it.stock} in stock
                       </span>
@@ -274,13 +262,24 @@ const CartDropdown = ({ open, onClose }) => {
           )}
         </div>
 
-        {/* Footer */}
         {items.length > 0 && (
           <div className="relative z-[2] flex-none border-t border-[rgba(58,116,240,0.18)] bg-[#090e1c] px-4 pb-4 pt-3">
             <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-fg/50">
               <span>Subtotal</span>
               <span className="text-fg/80">{format(subtotal)}</span>
             </div>
+            {bundleDiscount > 0 && (
+              <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-[#34d399]">
+                <span>Bundle deal</span>
+                <span>−{format(bundleDiscount)}</span>
+              </div>
+            )}
+            {plusDiscount > 0 && (
+              <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-[#34d399]">
+                <span>DGMARQ Plus discount</span>
+                <span>−{format(plusDiscount)}</span>
+              </div>
+            )}
             {protectionFee > 0 && (
               <div className="mb-1.5 flex items-center justify-between text-[12.5px] text-fg/50">
                 <span>Buyer Protection</span>

@@ -1,6 +1,3 @@
-/**
- * Guest cart in localStorage. Format: { items: [{ productId, qty, price, sellerId }] }
- */
 export const GUEST_CART_KEY = 'dgmarq_guest_cart';
 
 function safeParse(json, fallback) {
@@ -27,6 +24,14 @@ export function setGuestCart(cart) {
   localStorage.setItem(GUEST_CART_KEY, JSON.stringify(payload));
 }
 
+const idOf = (value) => (value == null ? '' : String(value._id || value));
+
+const isLine = (item, productId, sellerId) => {
+  if (idOf(item.productId) !== productId) return false;
+  const stored = idOf(item.sellerId);
+  return !stored || stored === sellerId;
+};
+
 export function addToGuestCart({
   productId,
   qty = 1,
@@ -42,10 +47,11 @@ export function addToGuestCart({
   typeName,
 }) {
   const cart = getGuestCart();
-  const id = (productId && (productId._id || productId)).toString();
+  const id = idOf(productId);
   if (!id) return cart;
+  const seller = idOf(sellerId);
   const existing = cart.items.find(
-    (i) => (i.productId && (i.productId._id || i.productId).toString()) === id
+    (i) => idOf(i.productId) === id && idOf(i.sellerId) === seller
   );
   const numQty = Math.max(1, parseInt(qty, 10) || 1);
   if (existing) {
@@ -58,7 +64,7 @@ export function addToGuestCart({
       originalPrice: originalPrice != null ? Number(originalPrice) : undefined,
       discountPercentage:
         discountPercentage != null ? Number(discountPercentage) : undefined,
-      sellerId: sellerId != null ? (sellerId._id || sellerId).toString() : undefined,
+      sellerId: seller || undefined,
       shopName: shopName || undefined,
       name: name || undefined,
       slug: slug || undefined,
@@ -72,24 +78,23 @@ export function addToGuestCart({
   return getGuestCart();
 }
 
-export function removeFromGuestCart(productId) {
+export function removeFromGuestCart(productId, sellerId) {
   const cart = getGuestCart();
-  const id = (productId && (productId._id || productId)).toString();
-  cart.items = cart.items.filter(
-    (i) => (i.productId && (i.productId._id || i.productId).toString()) !== id
-  );
+  const id = idOf(productId);
+  const seller = idOf(sellerId);
+  const index = cart.items.findIndex((i) => isLine(i, id, seller));
+  if (index !== -1) cart.items.splice(index, 1);
   setGuestCart(cart);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('guestCartChange'));
   return getGuestCart();
 }
 
-export function updateGuestCartQuantity(productId, qty) {
+export function updateGuestCartQuantity(productId, sellerId, qty) {
   const cart = getGuestCart();
-  const id = (productId && (productId._id || productId)).toString();
-  if (qty <= 0) return removeFromGuestCart(id);
-  const item = cart.items.find(
-    (i) => (i.productId && (i.productId._id || i.productId).toString()) === id
-  );
+  const id = idOf(productId);
+  const seller = idOf(sellerId);
+  if (qty <= 0) return removeFromGuestCart(id, seller);
+  const item = cart.items.find((i) => isLine(i, id, seller));
   if (item) item.qty = Math.max(1, parseInt(qty, 10) || 1);
   setGuestCart(cart);
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('guestCartChange'));

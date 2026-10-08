@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { sellerAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -12,10 +12,11 @@ import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { StatCardGridSkeleton, TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
-import { WithdrawalRequestModal, payoutBadgeProps } from '@features/wallet-payout';
+import { Pagination } from '@components/common/Pagination';
+import { WithdrawalRequestModal, payoutBadgeProps, payoutLineState } from '@features/wallet-payout';
 import { useSocket } from '@hooks/useSocket';
 import useCurrency from '@hooks/useCurrency';
-import { formatDateTime, formatRelativeDate, formatExactTitle } from '@lib/datetime';
+import { formatDateTime, formatRelativeDate, formatExactTitle, formatDate } from '@lib/datetime';
 import {
   Wallet,
   Clock,
@@ -29,30 +30,20 @@ import {
   Snowflake,
 } from 'lucide-react';
 
-// ============================================================================
-// Seller earnings & payouts.
-//
-// The withdrawal lifecycle, the payout-row split and the ?tab / ?id deep-link
-// handling below are unchanged business logic — only the presentation moved.
-// ============================================================================
-
 const METHOD_LABEL = { paypal: 'PayPal' };
+const HISTORY_PAGE_SIZE = 25;
+const WITHDRAWALS_PAGE_SIZE = 20;
 
-// Split a payout row into seller-facing total / available / frozen /
-// refunded amounts.
-//
-// Total uses the SALE-TIME `originalNetAmount` (shipped by the backend
-// via getSellerPayouts) — falling back to live `netAmount` for legacy
-// rows. This is critical: live netAmount is reduced by completed refunds
-// so it can't be used as a row "Total" without misleading the seller.
-//
-// Refunded amount is derived: each key contributes an equal slice of the
-// original net, so refundedAmount = perKeyNet * refundedKeyCount.
-//
-// SECURITY: this is purely a presentation transform over fields already
-// shipped to the seller (`originalNetAmount`, `netAmount`, `frozenAmount`,
-// `frozenKeyIds`, `licenseKeyIds`, `refundedKeyCount`). No admin fields.
+const withdrawalFees = (w) =>
+  Math.round((Number(w?.providerFee || 0) + Number(w?.chargebackFee || 0)) * 100) / 100;
+
+const withdrawalFeeTitle = (w, money) =>
+  `${money(w?.providerFee)} payout fee + ${money(w?.chargebackFee)} chargeback fee${
+    w?.chargebackFeePercent ? ` (${w.chargebackFeePercent}%)` : ''
+  }`;
+
 const splitPayoutRow = (payout) => {
+  const lineState = payoutLineState(payout);
   const totalKeys = Array.isArray(payout?.licenseKeyIds) ? payout.licenseKeyIds.length : 0;
   const frozenKeys = Math.min(
     Array.isArray(payout?.frozenKeyIds) ? payout.frozenKeyIds.length : 0,
@@ -72,16 +63,23 @@ const splitPayoutRow = (payout) => {
 
   const frozen = Math.max(0, Number(payout?.frozenAmount || 0));
   const refunded = Math.round(perKeyNet * refundedKeys * 100) / 100;
-  const available = Math.max(0, Math.round((originalNet - frozen - refunded) * 100) / 100);
+  const available =
+    lineState === 'withdrawable'
+      ? Math.max(0, Math.round((originalNet - frozen - refunded) * 100) / 100)
+      : 0;
 
   let derivedStatus = payout?.status || 'pending';
-  if (totalKeys > 0) {
+  if (lineState === 'deduction') derivedStatus = 'deduction';
+  else if (derivedStatus === 'pending' && lineState === 'withdrawable') derivedStatus = 'available';
+  if (lineState !== 'deduction' && totalKeys > 0) {
     if (refundedKeys === totalKeys) derivedStatus = 'refunded';
     else if (frozenKeys === totalKeys) derivedStatus = 'frozen';
     else if (frozenKeys > 0 || refundedKeys > 0) derivedStatus = 'partial';
   }
 
   return {
+    lineState,
+    releasesOn: lineState === 'held' ? payout?.holdUntil || null : null,
     total: Math.round(originalNet * 100) / 100,
     available,
     frozen: Math.round(frozen * 100) / 100,
@@ -104,8 +102,6 @@ const SellerEarnings = () => {
   const { socket, isConnected } = useSocket();
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
 
-  // Phase 6 / Step 12 PART A — controlled tab + deep-link to a specific
-  // withdrawal row via ?tab=withdrawals&id=<withdrawalId>.
   const location = useLocation();
   const navigate = useNavigate();
   const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -131,22 +127,32 @@ const SellerEarnings = () => {
 
   const holdDays =
     typeof settingsQuery.data?.payoutHoldDays === 'number' ? settingsQuery.data.payoutHoldDays : 15;
-  // Same query key as the dashboard, so this is a cache read, not a second call.
   const { commissionRatePercent, featuredCommissionPercent } = settingsQuery.data ?? {};
   const minWithdrawal =
     typeof settingsQuery.data?.minimumWithdrawalUsd === 'number'
       ? settingsQuery.data.minimumWithdrawalUsd
       : 50;
 
+  const [historyPage, setHistoryPage] = useState(1);
+  const [withdrawalsPage, setWithdrawalsPage] = useState(1);
+
   const historyQuery = useQuery({
-    queryKey: ['withdrawal-history'],
-    queryFn: () => sellerAPI.getMyPayouts({ page: 1, limit: 100 }).then((res) => res.data.data),
+    queryKey: ['withdrawal-history', historyPage],
+    queryFn: () =>
+      sellerAPI
+        .getMyPayouts({ page: historyPage, limit: HISTORY_PAGE_SIZE })
+        .then((res) => res.data.data),
+    placeholderData: keepPreviousData,
     retry: false,
   });
 
   const withdrawalsQuery = useQuery({
-    queryKey: ['seller-withdrawals'],
-    queryFn: () => sellerAPI.listMyWithdrawals({ page: 1, limit: 50 }).then((res) => res.data.data),
+    queryKey: ['seller-withdrawals', withdrawalsPage],
+    queryFn: () =>
+      sellerAPI
+        .listMyWithdrawals({ page: withdrawalsPage, limit: WITHDRAWALS_PAGE_SIZE })
+        .then((res) => res.data.data),
+    placeholderData: keepPreviousData,
     retry: false,
     refetchInterval: 30_000,
   });
@@ -165,10 +171,10 @@ const SellerEarnings = () => {
   const reportsQuery = useQuery({
     queryKey: ['payout-reports'],
     queryFn: () => sellerAPI.getPayoutReports().then((res) => res.data.data),
+    enabled: activeTab === 'settings',
     retry: false,
   });
 
-  // Real-time refresh on withdrawal lifecycle events.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const invalidate = () => {
@@ -197,7 +203,6 @@ const SellerEarnings = () => {
     navigate(`${location.pathname}${search ? `?${search}` : ''}`, { replace: true });
   };
 
-  // Step 12 PART A — scroll to a deep-linked withdrawal row once it exists.
   useEffect(() => {
     if (!highlightWithdrawalId || activeTab !== 'withdrawals') return undefined;
     if (!withdrawals.some((w) => String(w._id) === String(highlightWithdrawalId))) return undefined;
@@ -215,8 +220,7 @@ const SellerEarnings = () => {
   const availableBalance = Number(balance?.available || 0);
   const canWithdraw =
     availableBalance >= minWithdrawal && accounts.some((a) => a.status === 'verified');
-  const payoutRows =
-    historyQuery.data?.payouts?.length > 0 ? historyQuery.data.payouts : historyQuery.data?.docs || [];
+  const payoutRows = historyQuery.data?.payouts || [];
 
   const withdrawReason = () => {
     if (accounts.length === 0) return 'Connect a payout method first.';
@@ -232,9 +236,6 @@ const SellerEarnings = () => {
           <p className="mt-1 text-sm text-fg-muted">
             What you've made, what's on hold, and how to get paid.
           </p>
-          {/* The CURRENT rates, deliberately here and not beside the period
-              totals below: those were charged at whatever rate applied when each
-              sale completed, so quoting today's rate next to them would misread. */}
           {typeof commissionRatePercent === 'number' && (
             <p className="mt-1 text-xs text-fg-subtle">
               Commission {commissionRatePercent}%
@@ -252,7 +253,6 @@ const SellerEarnings = () => {
         </div>
       </header>
 
-      {/* ── Balance tiles ────────────────────────────────────────────────── */}
       {balanceQuery.isPending ? (
         <StatCardGridSkeleton count={4} />
       ) : balanceQuery.isError ? (
@@ -299,7 +299,6 @@ const SellerEarnings = () => {
         </StatCardGrid>
       )}
 
-      {/* Conditional callouts — only when they apply, so they stay meaningful. */}
       {balance?.frozen?.amount > 0 && (
         <Card variant="sunken">
           <CardContent className="flex items-start gap-3">
@@ -361,7 +360,6 @@ const SellerEarnings = () => {
         </Card>
       )}
 
-      {/* ── Tabs ─────────────────────────────────────────────────────────── */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="withdrawals">
@@ -378,7 +376,6 @@ const SellerEarnings = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* ── Withdrawals ───────────────────────────────────────────────── */}
         <TabsContent value="withdrawals">
           <Card variant="hud">
             <CardHeader>
@@ -433,13 +430,8 @@ const SellerEarnings = () => {
                               >
                                 <TableCell>{METHOD_LABEL[w.methodType] || w.methodType}</TableCell>
                                 <TableCell numeric>{formatSettlement(w.requestedAmount)}</TableCell>
-                                <TableCell numeric>
-                                  {formatSettlement(w.providerFee)}
-                                  {w.fallbackUsed && (
-                                    <Badge variant="warning" className="ml-2">
-                                      fallback
-                                    </Badge>
-                                  )}
+                                <TableCell numeric title={withdrawalFeeTitle(w, formatSettlement)}>
+                                  {formatSettlement(withdrawalFees(w))}
                                 </TableCell>
                                 <TableCell numeric className="font-semibold text-success">
                                   {formatSettlement(w.netAmount)}
@@ -493,7 +485,7 @@ const SellerEarnings = () => {
                               <span className="font-medium text-success">
                                 {formatSettlement(w.netAmount)}
                               </span>{' '}
-                              after {formatSettlement(w.providerFee)} fee ·{' '}
+                              after {formatSettlement(withdrawalFees(w))} fees ·{' '}
                               {METHOD_LABEL[w.methodType] || w.methodType}
                             </p>
                             <p className="mt-1 text-xs text-fg-subtle">
@@ -509,13 +501,19 @@ const SellerEarnings = () => {
                       </ul>
                     )}
                   </div>
+                  <Pagination
+                    page={withdrawalsPage}
+                    totalPages={withdrawalsQuery.data?.pages || 1}
+                    onPageChange={setWithdrawalsPage}
+                    total={withdrawalsQuery.data?.total}
+                    totalNoun="withdrawals"
+                  />
                 </>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ── Earning lines ─────────────────────────────────────────────── */}
         <TabsContent value="history">
           <Card variant="hud">
             <CardHeader>
@@ -573,19 +571,31 @@ const SellerEarnings = () => {
                                   )}
                                 </TableCell>
                                 <TableCell numeric>
-                                  <span
-                                    className={
-                                      split.available > 0
-                                        ? 'font-semibold text-success'
-                                        : 'font-semibold text-fg-subtle'
-                                    }
-                                  >
-                                    {formatSettlement(split.available)}
-                                  </span>
-                                  {split.totalKeys > 0 && split.availableKeys < split.totalKeys && (
+                                  {split.lineState === 'deduction' ? (
+                                    <span className="text-fg-subtle">—</span>
+                                  ) : (
+                                    <span
+                                      className={
+                                        split.available > 0
+                                          ? 'font-semibold text-success'
+                                          : 'font-semibold text-fg-subtle'
+                                      }
+                                    >
+                                      {formatSettlement(split.available)}
+                                    </span>
+                                  )}
+                                  {split.releasesOn ? (
                                     <div className="mt-0.5 text-xs text-fg-subtle">
-                                      {split.availableKeys} of {split.totalKeys}
+                                      Releases {formatDate(split.releasesOn)}
                                     </div>
+                                  ) : (
+                                    split.lineState === 'withdrawable' &&
+                                    split.totalKeys > 0 &&
+                                    split.availableKeys < split.totalKeys && (
+                                      <div className="mt-0.5 text-xs text-fg-subtle">
+                                        {split.availableKeys} of {split.totalKeys}
+                                      </div>
+                                    )
                                   )}
                                 </TableCell>
                                 <TableCell>
@@ -658,14 +668,17 @@ const SellerEarnings = () => {
                                 </span>
                                 <Badge {...meta} />
                               </div>
-                              <p className="mt-2 text-xs text-fg-muted">
-                                Available{' '}
-                                <span className="font-medium text-success">
-                                  {formatSettlement(split.available)}
-                                </span>
-                                {split.hasFrozen && ` · ${formatSettlement(split.frozen)} frozen`}
-                                {split.hasRefunded && ` · ${formatSettlement(split.refunded)} refunded`}
-                              </p>
+                              {split.lineState !== 'deduction' && (
+                                <p className="mt-2 text-xs text-fg-muted">
+                                  Available{' '}
+                                  <span className="font-medium text-success">
+                                    {formatSettlement(split.available)}
+                                  </span>
+                                  {split.releasesOn && ` · releases ${formatDate(split.releasesOn)}`}
+                                  {split.hasFrozen && ` · ${formatSettlement(split.frozen)} frozen`}
+                                  {split.hasRefunded && ` · ${formatSettlement(split.refunded)} refunded`}
+                                </p>
+                              )}
                               <p className="mt-1 text-xs text-fg-subtle">
                                 {formatRelativeDate(payout.createdAt)}
                               </p>
@@ -686,13 +699,19 @@ const SellerEarnings = () => {
                       </ul>
                     )}
                   </div>
+                  <Pagination
+                    page={historyPage}
+                    totalPages={historyQuery.data?.pagination?.pages || 1}
+                    onPageChange={setHistoryPage}
+                    total={historyQuery.data?.pagination?.total}
+                    totalNoun="earning lines"
+                  />
                 </>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ── Reports ───────────────────────────────────────────────────── */}
         <TabsContent value="settings">
           <Card variant="hud">
             <CardHeader>
@@ -710,7 +729,7 @@ const SellerEarnings = () => {
                   title="Couldn't load your reports"
                   onRetry={() => reportsQuery.refetch()}
                 />
-              ) : !reportsQuery.data?.summary && !reportsQuery.data?.payouts?.length ? (
+              ) : !reportsQuery.data?.summary?.totalPayouts ? (
                 <EmptyState
                   icon={FileText}
                   title="No reports yet"
@@ -720,15 +739,15 @@ const SellerEarnings = () => {
                 <>
                   {reportsQuery.data.summary && (
                     <div className="rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4">
-                      <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
+                      <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
                         <div>
-                          <dt className="mb-1 text-xs text-fg-subtle">Total payouts</dt>
+                          <dt className="mb-1 text-xs text-fg-subtle">Net earnings (all time)</dt>
                           <dd className="font-semibold tabular-nums text-fg">
                             {formatSettlement(reportsQuery.data.summary.totalAmount)}
                           </dd>
                         </div>
                         <div>
-                          <dt className="mb-1 text-xs text-fg-subtle">Count</dt>
+                          <dt className="mb-1 text-xs text-fg-subtle">Earning lines</dt>
                           <dd className="font-semibold tabular-nums text-fg">
                             {reportsQuery.data.summary.totalPayouts || 0}
                           </dd>
@@ -737,14 +756,6 @@ const SellerEarnings = () => {
                           <dt className="mb-1 text-xs text-fg-subtle">Commission</dt>
                           <dd className="font-semibold tabular-nums text-fg">
                             {formatSettlement(reportsQuery.data.summary.totalCommission)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="mb-1 text-xs text-fg-subtle">Period</dt>
-                          <dd className="text-xs font-semibold text-fg">
-                            {reportsQuery.data.period?.startDate
-                              ? `${formatRelativeDate(reportsQuery.data.period.startDate)} – ${formatRelativeDate(reportsQuery.data.period.endDate)}`
-                              : 'All time'}
                           </dd>
                         </div>
                       </dl>
@@ -768,8 +779,8 @@ const SellerEarnings = () => {
 
                   {reportsQuery.data.payouts?.length > 0 && (
                     <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-fg">Recent payouts</h3>
-                      {reportsQuery.data.payouts.slice(0, 10).map((payout) => (
+                      <h3 className="text-sm font-semibold text-fg">Recent earning lines</h3>
+                      {reportsQuery.data.payouts.map((payout) => (
                         <div
                           key={payout.id}
                           className="flex items-center justify-between gap-3 rounded-lg border border-brand-cyan/12 bg-brand-cyan/3 p-3"

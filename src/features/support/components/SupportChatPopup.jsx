@@ -19,7 +19,7 @@ const ensureArray = (value, key) => {
   return [];
 };
 
-const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
+const SupportChatPopup = ({ isOpen, onClose }) => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [subject, setSubject] = useState('');
@@ -42,25 +42,16 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
     chatId: selectedChat,
     side: 'customer',
     enabled: !!selectedChat && isOpen,
+    onStatusChange: () => queryClient.invalidateQueries({ queryKey: ['user-support-chats-popup'] }),
   });
 
-  // Auto-select first open chat
   useEffect(() => {
     if (chatsList.length > 0 && !selectedChat) {
       const openChat = chatsList.find((c) => c.status === 'open') || chatsList[0];
-      // Initialize the selection once the list arrives from the server.
        
       setSelectedChat(openChat._id);
     }
   }, [chatsList, selectedChat]);
-
-  // Surface unread count to the launcher badge
-  useEffect(() => {
-    if (chatsList.length && onUnreadCountChange) {
-      const unread = chatsList.reduce((total, chat) => total + (chat.unreadCountUser || 0), 0);
-      onUnreadCountChange(unread);
-    }
-  }, [chatsList, onUnreadCountChange]);
 
   const createChatMutation = useMutation({
     mutationFn: (data) => supportAPI.createSupportChat(data),
@@ -96,7 +87,6 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Chat list */}
         <div className="w-1/3 border-r border-border bg-surface-sunken overflow-y-auto">
           <div className="p-2">
             <Button size="sm" className="w-full mb-2" onClick={() => setDialogOpen(true)}>
@@ -143,7 +133,6 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
           )}
         </div>
 
-        {/* Messages */}
         <div className="flex-1 flex flex-col bg-surface-sunken overflow-hidden">
           {!selectedChat ? (
             <div className="flex-1 flex items-center justify-center text-fg-muted">
@@ -201,6 +190,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="What do you need help with?"
                 required
+                maxLength={200}
                 className="bg-surface-2 border-border text-fg"
               />
             </div>
@@ -212,6 +202,7 @@ const SupportChatPopup = ({ isOpen, onClose, onUnreadCountChange }) => {
                 onChange={(e) => setInitialMessage(e.target.value)}
                 placeholder="Describe your issue..."
                 required
+                maxLength={2000}
                 rows={4}
                 className="bg-surface-2 border-border text-fg"
               />

@@ -2,19 +2,6 @@ import { Search, X } from 'lucide-react';
 import { Input } from '@components/ui/input';
 import { cn } from '@lib/utils';
 
-/**
- * Search field with a leading magnifier icon (and an optional clear button).
- * Standardizes the ~20 hand-rolled `relative` + `<Search/>` + `<Input pl-9…>`
- * blocks. Controlled — pass `value` and an `onChange` that receives the raw
- * string (not the event), so callers can wire `onChange={setSearchInput}`.
- *
- * @param {string} value
- * @param {(next: string) => void} onChange - receives the new string value
- * @param {() => void} [onClear] - when set, shows an X button that calls this
- * @param {string} [placeholder]
- * @param {string} [className] - classes for the wrapper (e.g. width/flex)
- * @param {string} [inputClassName] - extra classes for the <Input>
- */
 export const SearchInput = ({
   value,
   onChange,

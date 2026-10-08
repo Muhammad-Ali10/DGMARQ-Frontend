@@ -13,12 +13,10 @@ const BuyerSupport = () => {
     title: "Buyer Support | DGMARQ",
     description: "Get help with your purchases on DGMARQ. Our buyer support team is here to help.",
     canonical: "/buyer-support",
-    useDefaults: false,
   });
 
   return (
     <main className="flex min-h-screen flex-col text-white">
-      {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />
         <div className="relative flex flex-col gap-8 max-w-4xl mx-auto text-center">
@@ -37,7 +35,6 @@ const BuyerSupport = () => {
         </div>
       </SectionWrapper>
 
-      {/* Help Topics */}
       <SectionWrapper id="help-topics">
         <div className="flex flex-col gap-12 max-w-6xl mx-auto">
           <AnimatedHeading
@@ -77,7 +74,6 @@ const BuyerSupport = () => {
         </div>
       </SectionWrapper>
 
-      {/* FAQ */}
       <SectionWrapper id="faq" className="bg-gradient-to-b from-transparent via-accent/5 to-transparent">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
@@ -89,7 +85,6 @@ const BuyerSupport = () => {
         </div>
       </SectionWrapper>
 
-      {/* Final CTA */}
       <SectionWrapper id="final-cta">
         <div className="flex flex-col items-center gap-6 text-center max-w-2xl mx-auto">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">

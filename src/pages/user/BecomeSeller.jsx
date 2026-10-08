@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useId, cloneElement, isValidElement } from
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import api from '@lib/axios';
 import { setCredentials } from '@store/slices/authSlice';
 import { GetCountries, GetState, GetCity } from 'react-country-state-city';
 import 'react-country-state-city/dist/react-country-state-city.css';
@@ -13,12 +12,14 @@ import {
 } from 'lucide-react';
 
 import { sellerAPI } from '@services/api';
+import { ME_QUERY_KEY, fetchMe } from '@hooks/useMe';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
 import { Checkbox } from '@components/ui/checkbox';
 import { Textarea } from '@components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 import { FormSkeleton } from '@components/common/Skeletons';
+import { ErrorState } from '@components/common/ErrorState';
 import { cn } from '@/lib/utils';
 import { showApiError } from '@utils/toast';
 
@@ -34,7 +35,6 @@ const STEPS = [
   { label: 'Store & Tax' },
   { label: 'Review' },
 ];
-// Every step before Review holds input that must validate.
 const LAST_FORM_STEP = STEPS.length - 2;
 
 const SELLER_TYPE_OPTIONS = [
@@ -42,18 +42,14 @@ const SELLER_TYPE_OPTIONS = [
   { value: 'business', description: 'A registered company or other legal entity.', icon: Building2 },
 ];
 
-// Proof of address is a bank statement under 3 months old; the server enforces
-// the same window.
 const MAX_STATEMENT_AGE_DAYS = 90;
 
-// 18 years ago as yyyy-mm-dd, for the date input's max attribute.
 const maxDobString = () => {
   const d = new Date();
   d.setFullYear(d.getFullYear() - 18);
   return d.toISOString().split('T')[0];
 };
 
-// yyyy-mm-dd in the viewer's own calendar — the format <input type="date"> uses.
 const localDateString = (date) => {
   const pad = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -65,8 +61,6 @@ const daysAgoString = (days) => {
   return localDateString(d);
 };
 
-// Shows a yyyy-mm-dd input value as a local date. Parsed bare it would be read
-// as UTC midnight and print the previous day west of Greenwich.
 const formatDateInput = (value) => (value ? new Date(`${value}T00:00:00`).toLocaleDateString() : '');
 
 const ageFrom = (dobStr) => {
@@ -79,15 +73,8 @@ const ageFrom = (dobStr) => {
   return age;
 };
 
-/* ── Small inline helpers ───────────────────────────────────────────── */
-
 const Field = ({ label, error, required, children, hint }) => {
-  // A real <label htmlFor> wired to the control. This used to render a bare
-  // <span>, which looked like a label but associated with nothing — clicking it
-  // did not focus the field and screen readers announced the inputs unnamed.
   const generatedId = useId();
-  // If the child brings its own id, the label must point at THAT one — pointing
-  // at the generated id would leave the pair silently unassociated.
   const id = (isValidElement(children) && children.props?.id) || generatedId;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -140,9 +127,6 @@ const SectionTitle = ({ icon: Icon, title, subtitle }) => (
   </div>
 );
 
-// Thumbnail for a selected File (image preview or PDF icon) used in review step.
-// The preview URL is owned by the parent (generated on upload) so it is always
-// valid here — we never create object URLs during render.
 const FileThumb = ({ file, previewUrl, label }) => {
   if (!file) return null;
   const isPdf = file.type === 'application/pdf';
@@ -171,8 +155,6 @@ const SummaryRow = ({ label, value }) => (
   </div>
 );
 
-/* ── Main component ─────────────────────────────────────────────────── */
-
 const BecomeSeller = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -182,6 +164,7 @@ const BecomeSeller = () => {
   const [errors, setErrors] = useState({});
   const [confirmed, setConfirmed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [reapplying, setReapplying] = useState(false);
 
   const [form, setForm] = useState({
     sellerType: '',
@@ -197,8 +180,6 @@ const BecomeSeller = () => {
     additionalNotes: '',
   });
 
-  // Location: keep ids (for fetching children) + names (for submit). The ISO
-  // code drives which tax IDs the country offers.
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
@@ -209,27 +190,21 @@ const BecomeSeller = () => {
   });
   const [locLoading, setLocLoading] = useState({ states: false, cities: false });
 
-  // Files
   const [idFront, setIdFront] = useState(null);
   const [idBack, setIdBack] = useState(null);
   const [proofOfAddress, setProofOfAddress] = useState(null);
   const [certificate, setCertificate] = useState(null);
 
-  // Object-URL previews for the uploaded files, generated on upload (NOT during
-  // render) so they survive StrictMode and never point at a revoked URL.
   const [previews, setPreviews] = useState({
     idFront: null, idBack: null, proofOfAddress: null, certificate: null,
   });
   const previewsRef = useRef(previews);
   useEffect(() => { previewsRef.current = previews; }, [previews]);
 
-  // Revoke every outstanding object URL when the form unmounts.
   useEffect(() => () => {
     Object.values(previewsRef.current).forEach((u) => u && URL.revokeObjectURL(u));
   }, []);
 
-  // Store a file + its image preview URL together. Revokes any prior URL for
-  // that slot and clears the field error. PDFs get no preview (we show an icon).
   const setFile = (key, setter) => (file) => {
     setter(file);
     const url = file && file.type?.startsWith('image/') ? URL.createObjectURL(file) : null;
@@ -240,34 +215,30 @@ const BecomeSeller = () => {
     setErrors((p) => ({ ...p, [key]: undefined }));
   };
 
-  /* ── Existing-application check ── */
-  const { data: sellerStatus, isLoading: isLoadingStatus } = useQuery({
+  const {
+    data: sellerStatus,
+    isLoading: isLoadingStatus,
+    isError: isStatusError,
+    error: statusError,
+    refetch: refetchStatus,
+    isFetching: isFetchingStatus,
+  } = useQuery({
     queryKey: ['seller-application-status'],
-    queryFn: async () => {
-      try {
-        const res = await sellerAPI.checkSellerApplicationStatus();
-        return res.data.data;
-      } catch {
-        return { hasApplication: false };
-      }
-    },
+    queryFn: () => sellerAPI.checkSellerApplicationStatus().then((res) => res.data.data),
     retry: false,
   });
 
-  // Only someone about to fill the form needs the tax-ID catalogue.
   const {
     data: taxCatalog,
     isLoading: isLoadingTaxCatalog,
     isError: isTaxCatalogError,
     refetch: refetchTaxCatalog,
-  } = useTaxIdCatalog({ enabled: sellerStatus?.hasApplication === false });
+  } = useTaxIdCatalog({ enabled: sellerStatus?.hasApplication === false || reapplying });
 
-  /* ── Load countries once ── */
   useEffect(() => {
     GetCountries().then(setCountries).catch(() => setCountries([]));
   }, []);
 
-  /* ── Load states when country changes ── */
   useEffect(() => {
     if (!loc.countryId) return;
     let active = true;
@@ -278,7 +249,6 @@ const BecomeSeller = () => {
     return () => { active = false; };
   }, [loc.countryId]);
 
-  /* ── Load cities when state changes ── */
   useEffect(() => {
     if (!loc.countryId || !loc.stateId) return;
     let active = true;
@@ -297,13 +267,10 @@ const BecomeSeller = () => {
 
   const isBusiness = form.sellerType === 'business';
 
-  // The tax-ID type is derived, not synced: whatever the seller picked while it
-  // is still offered for this country + seller type, else the country default.
   const taxOptions = taxIdOptions(taxCatalog, loc.countryCode, form.sellerType);
   const taxIdType = taxOptions.includes(form.taxIdType) ? form.taxIdType : (taxOptions[0] || '');
   const taxType = taxCatalog?.types[taxIdType];
 
-  /* ── Mutation ── */
   const applyMutation = useMutation({
     mutationFn: (fd) => sellerAPI.applySeller(fd),
     onSuccess: () => {
@@ -313,7 +280,6 @@ const BecomeSeller = () => {
     onError: (err) => showApiError(err, 'Failed to submit seller application'),
   });
 
-  /* ── Per-step validation ── */
   const validateStep = (s) => {
     const e = {};
     if (s === 0) {
@@ -325,8 +291,10 @@ const BecomeSeller = () => {
       else if (Number.isNaN(ageFrom(form.dateOfBirth))) e.dateOfBirth = 'Enter a valid date';
       else if (ageFrom(form.dateOfBirth) < 18) e.dateOfBirth = 'Must be at least 18 years old';
       if (!loc.countryId) e.country = 'Country is required';
-      if (states.length > 0 && !loc.stateId) e.state = 'State / province is required';
-      if (cities.length > 0 && !loc.cityId) e.city = 'City is required';
+      if (locLoading.states) e.state = 'Please wait for the list to load';
+      else if (states.length > 0 && !loc.stateId) e.state = 'State / province is required';
+      if (locLoading.cities) e.city = 'Please wait for the list to load';
+      else if (cities.length > 0 && !loc.cityId) e.city = 'City is required';
     }
     if (s === 2) {
       if (!form.idType) e.idType = 'Please select an ID type';
@@ -366,7 +334,6 @@ const BecomeSeller = () => {
   };
 
   const handleSubmit = () => {
-    // Re-validate all steps defensively.
     for (let i = 0; i <= LAST_FORM_STEP; i++) {
       if (!validateStep(i)) { goToStep(i); return; }
     }
@@ -382,8 +349,6 @@ const BecomeSeller = () => {
     fd.append('dateOfBirth', form.dateOfBirth);
     fd.append('idType', form.idType);
     fd.append('proofOfAddressDate', form.proofOfAddressDate);
-    // Business-only fields are sent only for a business: switching the type
-    // back to individual keeps what was typed, but it never reaches the server.
     if (isBusiness) fd.append('businessName', form.businessName.trim());
     if (form.additionalNotes.trim()) fd.append('additionalNotes', form.additionalNotes.trim());
     if (form.taxId.trim()) {
@@ -397,16 +362,24 @@ const BecomeSeller = () => {
     applyMutation.mutate(fd);
   };
 
-  /* ── Loading / already-applied / success short-circuits ── */
   if (isLoadingStatus) return <FormSkeleton fields={4} />;
+
+  if (isStatusError) {
+    return (
+      <ErrorState
+        error={statusError}
+        title="We couldn't load your seller application"
+        onRetry={isFetchingStatus ? undefined : () => refetchStatus()}
+      />
+    );
+  }
 
   if (submitted) return <SuccessScreen onDashboard={() => navigate('/user/dashboard')} />;
 
-  if (sellerStatus?.hasApplication && sellerStatus?.seller) {
-    return <AlreadyApplied seller={sellerStatus.seller} />;
+  if (sellerStatus?.hasApplication && sellerStatus?.seller && !reapplying) {
+    return <AlreadyApplied seller={sellerStatus.seller} onApplyAgain={() => setReapplying(true)} />;
   }
 
-  /* ── Wizard ── */
   return (
     <div className="mx-auto w-full max-w-[720px] px-1 py-2 sm:py-4">
       <div className="mb-6 text-center">
@@ -421,7 +394,6 @@ const BecomeSeller = () => {
           <StepProgress steps={STEPS} current={step} onStepClick={goToStep} />
         </div>
 
-        {/* Animated step content */}
         <div
           key={step}
           className={direction === 'forward' ? 'seller-step-forward' : 'seller-step-back'}
@@ -524,7 +496,6 @@ const BecomeSeller = () => {
                       stateId: null, stateName: '',
                       cityId: null, cityName: '',
                     });
-                    // A tax number belongs to one country's scheme.
                     setForm((p) => ({ ...p, taxIdType: '', taxId: '' }));
                     setStates([]); setCities([]);
                     setLocLoading({ states: true, cities: false });
@@ -611,7 +582,6 @@ const BecomeSeller = () => {
                 </div>
               </Field>
 
-              {/* Upload zones with smooth show/hide between passport / license */}
               <Collapse open={!!form.idType}>
                 <div className="pt-2">
                   {form.idType === 'drivers_license' ? (
@@ -695,6 +665,7 @@ const BecomeSeller = () => {
                   value={form.shopName}
                   onChange={setField('shopName')}
                   placeholder="e.g. PixelKeys Store"
+                  maxLength={60}
                   error={errors.shopName}
                 />
               </Field>
@@ -859,7 +830,6 @@ const BecomeSeller = () => {
           )}
         </div>
 
-        {/* Controls */}
         <div className="mt-8 flex items-center justify-between border-t border-brand-cyan/10 pt-5">
           {step > 0 ? (
             <Button
@@ -903,7 +873,6 @@ const BecomeSeller = () => {
   );
 };
 
-/* ── Review card ── */
 const ReviewCard = ({ title, icon: Icon, onEdit, children }) => (
   <div className="rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4">
     <div className="mb-2 flex items-center justify-between border-b border-brand-cyan/10 pb-2">
@@ -922,7 +891,6 @@ const ReviewCard = ({ title, icon: Icon, onEdit, children }) => (
   </div>
 );
 
-/* ── Success screen ── */
 const SuccessScreen = ({ onDashboard }) => (
   <div className="mx-auto flex max-w-[560px] flex-col items-center justify-center px-4 py-16 text-center">
     <div className="seller-pop-check mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-success-soft">
@@ -938,23 +906,24 @@ const SuccessScreen = ({ onDashboard }) => (
   </div>
 );
 
-/* ── Already-applied status view ── */
-const AlreadyApplied = ({ seller }) => {
+const STATUS_BADGE = {
+  active: { variant: 'success', label: 'Approved' },
+  rejected: { variant: 'destructive', label: 'Rejected' },
+  banned: { variant: 'destructive', label: 'Suspended' },
+};
+
+const AlreadyApplied = ({ seller, onApplyAgain }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
   const status = seller.status;
 
-  // Approval grants the 'seller' role server-side; re-fetch the profile so the
-  // client picks up the new role before the seller route guard runs.
   const refreshThenGoToSeller = async () => {
     try {
-      const { data: body } = await api.get('/user/profile');
-      const user = body?.data;
+      const user = await queryClient.fetchQuery({ queryKey: ME_QUERY_KEY, queryFn: fetchMe, staleTime: 0 });
       if (!user) throw new Error('Invalid profile response');
       dispatch(setCredentials({ user }));
       sessionStorage.removeItem('allowCustomerAccess');
-      queryClient.invalidateQueries({ queryKey: ['verify-token'] });
       navigate('/seller/dashboard', { replace: true });
     } catch (err) {
       showApiError(err, 'Could not update your session. Please try again or sign in again.');
@@ -970,9 +939,15 @@ const AlreadyApplied = ({ seller }) => {
       icon: CheckCircle2, color: 'green', title: 'Application Approved!',
       text: 'Congratulations! Your seller application has been approved. You can now access the seller dashboard and start selling.',
     },
-    banned: {
+    rejected: {
       icon: XCircle, color: 'red', title: 'Application Rejected',
-      text: 'Unfortunately, your seller application has been rejected. If you believe this is an error, please contact support.',
+      text: seller.rejectionReason
+        ? `Reason: ${seller.rejectionReason}. You can fix this and apply again.`
+        : 'Your seller application was not approved. You can update your details and apply again.',
+    },
+    banned: {
+      icon: XCircle, color: 'red', title: 'Seller account suspended',
+      text: 'Your seller account has been suspended. Please contact support if you believe this is a mistake.',
     },
   }[status] || {
     icon: AlertCircle, color: 'yellow', title: 'Application Submitted',
@@ -999,8 +974,8 @@ const AlreadyApplied = ({ seller }) => {
             <p className="text-sm text-fg-muted">Store Name</p>
             <p className="text-lg font-semibold text-fg">{seller.shopName}</p>
           </div>
-          <Badge variant={status === 'active' ? 'success' : status === 'banned' ? 'destructive' : 'warning'}>
-            {status === 'active' ? 'Approved' : status === 'banned' ? 'Rejected' : 'Pending Review'}
+          <Badge variant={STATUS_BADGE[status]?.variant || 'warning'}>
+            {STATUS_BADGE[status]?.label || 'Pending Review'}
           </Badge>
         </div>
 
@@ -1013,6 +988,11 @@ const AlreadyApplied = ({ seller }) => {
               {status === 'active' && (
                 <Button className="mt-3 bg-accent hover:bg-accent/90" onClick={refreshThenGoToSeller}>
                   Go to Seller Dashboard
+                </Button>
+              )}
+              {status === 'rejected' && (
+                <Button className="mt-3 bg-accent hover:bg-accent/90" onClick={onApplyAgain}>
+                  Apply again
                 </Button>
               )}
             </div>

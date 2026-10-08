@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
-import { userAPI, sellerAPI } from "@services/api";
+import { orderAPI, sellerAPI } from "@services/api";
 import { payoutBadgeProps } from "@features/wallet-payout";
 import {
   Card,
@@ -21,10 +21,8 @@ import {
   ArrowLeft,
   Package,
   CreditCard,
-  MapPin,
   Calendar,
 } from "lucide-react";
-import { showApiError } from "@utils/toast";
 import useCurrency from "@hooks/useCurrency";
 
 const SellerOrderDetail = () => {
@@ -40,29 +38,28 @@ const SellerOrderDetail = () => {
     error,
   } = useQuery({
     queryKey: ["order-detail", orderId],
-    queryFn: () => userAPI.getOrderById(orderId).then((res) => res.data.data),
+    queryFn: () => orderAPI.getOrderById(orderId).then((res) => res.data.data),
     enabled: !!orderId,
     retry: 1,
-    onError: (err) => {
-      showApiError(err, "Failed to load order details");
-    },
   });
 
-  // Phase 2: per-item payout lines so the UI shows backend-driven release-state
-  // (held / available / released / blocked) instead of computing it locally.
   const { data: payoutLinesData } = useQuery({
     queryKey: ["seller-order-payout-lines", orderId],
     queryFn: () => sellerAPI.getOrderPayoutLines(orderId).then((res) => res.data.data),
     enabled: !!orderId,
     retry: 0,
   });
-  // Index payout lines by productId for fast per-item lookup.
-  const payoutLineByProductId = useMemo(() => {
+  const payoutByProductId = useMemo(() => {
     const map = new Map();
-    const lines = payoutLinesData?.lines || [];
-    for (const line of lines) {
+    for (const line of payoutLinesData?.lines || []) {
       const key = (line.productId || "").toString();
-      if (key && !map.has(key)) map.set(key, line);
+      if (!key) continue;
+      const entry = map.get(key) || { line: null, net: 0, deduction: 0 };
+      const amount = Number(line.netAmount) || 0;
+      entry.net += amount;
+      if (amount < 0) entry.deduction += amount;
+      else if (!entry.line) entry.line = line;
+      map.set(key, entry);
     }
     return map;
   }, [payoutLinesData]);
@@ -173,14 +170,13 @@ const SellerOrderDetail = () => {
                     item.lineTotal ?? (item.qty || 0) * (item.unitPrice || 0);
                   const itemRefunded = Number(item.refundedAmount) || 0;
                   const productKey = (item.productId?._id || item.productId || "").toString();
-                  const payoutLine = productKey ? payoutLineByProductId.get(productKey) : null;
-                  const itemSellerEarning = payoutLine
-                    ? Number(payoutLine.netAmount) || 0
+                  const payout = productKey ? payoutByProductId.get(productKey) : null;
+                  const payoutLine = payout?.line || null;
+                  const refundDeduction = payout?.deduction || 0;
+                  const itemSellerEarning = payout
+                    ? payout.net
                     : (Number(item.sellerEarning) || 0) -
                       (Number(item.refundedSellerAmount) || 0);
-                  // Phase 5: highlight rows whose payout line is currently held / blocked
-                  // because of an open dispute or refund request. Operators (and sellers
-                  // double-checking their orders) can spot disputed rows at a glance.
                   const isDisputedRow =
                     !!payoutLine &&
                     (payoutLine.status === "blocked" || payoutLine.status === "hold");
@@ -221,11 +217,6 @@ const SellerOrderDetail = () => {
                               SKU: {item.productId.slug}
                             </p>
                           )}
-                          {item.productId?.description && (
-                            <p className="text-sm text-fg-muted mb-2">
-                              {item.productId.description}
-                            </p>
-                          )}
                           <div className="flex flex-wrap items-center gap-4 text-sm text-fg-muted">
                             <span>Quantity: {item.qty}</span>
                             <span>Unit price: {formatSettlement(item.unitPrice)}</span>
@@ -250,9 +241,6 @@ const SellerOrderDetail = () => {
                           )}
                         </div>
                       </div>
-                      {/* Two columns, as the product page's spec table is
-                          (`.fx-pd4-body`) — these are short pairs and a single
-                          column would leave half the card empty. */}
                       <SpecList className="mt-3 grid grid-cols-1 gap-x-6 border-t border-brand-cyan/10 pt-1 sm:grid-cols-2">
                         <SpecRow
                           label="Your net earnings"
@@ -263,6 +251,13 @@ const SellerOrderDetail = () => {
                           <SpecRow
                             label="Refunded amount"
                             value={`-${formatSettlement(itemRefunded)}`}
+                            tone="warning"
+                          />
+                        )}
+                        {refundDeduction < 0 && (
+                          <SpecRow
+                            label="Refund deduction"
+                            value={`-${formatSettlement(Math.abs(refundDeduction))}`}
                             tone="warning"
                           />
                         )}
@@ -290,39 +285,6 @@ const SellerOrderDetail = () => {
               </div>
             </CardContent>
           </Card>
-
-          {order.shippingAddress && (
-            <Card variant="hud">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
-                  Shipping Address
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-fg-muted space-y-1">
-                  <p className="font-medium text-fg">
-                    {order.shippingAddress.fullName}
-                  </p>
-                  <p>{order.shippingAddress.address}</p>
-                  {order.shippingAddress.address2 && (
-                    <p>{order.shippingAddress.address2}</p>
-                  )}
-                  <p>
-                    {order.shippingAddress.city},{" "}
-                    {order.shippingAddress.state}{" "}
-                    {order.shippingAddress.zipCode}
-                  </p>
-                  <p>{order.shippingAddress.country}</p>
-                  {order.shippingAddress.phone && (
-                    <p className="mt-2">
-                      Phone: {order.shippingAddress.phone}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         <div className="space-y-6">
@@ -360,10 +322,6 @@ const SellerOrderDetail = () => {
                   label="Subtotal"
                   value={formatSettlement(order.subtotal ?? order.totalAmount)}
                 />
-                {order.shippingCost > 0 && (
-                  <SpecRow label="Shipping" value={formatSettlement(order.shippingCost)} />
-                )}
-                {order.tax > 0 && <SpecRow label="Tax" value={formatSettlement(order.tax)} />}
                 {order.discount > 0 && (
                   <SpecRow
                     label="Discount"
@@ -420,8 +378,7 @@ const SellerOrderDetail = () => {
           </Card>
 
           {(order.orderStatus === "completed" ||
-            order.orderStatus === "PARTIALLY_REFUNDED" ||
-            order.orderStatus === "partially_completed") &&
+            order.orderStatus === "PARTIALLY_REFUNDED") &&
             order.paymentStatus === "paid" &&
             !(order.items || []).every((item) => item.refunded) && (
               <Card variant="hud">
@@ -442,7 +399,6 @@ const SellerOrderDetail = () => {
                     open={licenseKeysModalOpen}
                     onOpenChange={setLicenseKeysModalOpen}
                     orderId={order._id}
-                    guestEmail={order.isGuest ? order.guestEmail : undefined}
                   />
                 </CardContent>
               </Card>

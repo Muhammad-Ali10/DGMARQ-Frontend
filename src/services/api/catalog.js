@@ -3,20 +3,17 @@ import api from '@lib/axios';
 export const productAPI = {
   getProducts: (params) => api.get('/product/get-products', { params }),
   getProductById: (id) => api.get(`/product/${id}`),
-  createProduct: (formData) => api.post('/product/create-product', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
-  updateProduct: (id, data) => api.patch(`/product/update-product/${id}`, data),
+  suggestProducts: (params) => api.get('/product/suggest', { params, skipErrorToast: true }),
   updateProductImages: (id, formData) => api.patch(`/product/update-product-images/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
-  deleteProduct: (id) => api.delete(`/product/delete-product/${id}`),
   getUploadKeysStatus: (productId, jobId) => api.get(`/product/${productId}/upload-keys/status/${jobId}`),
 };
 
 export const categoryAPI = {
   getCategories: (params) => api.get('/category/get-categories', { params }),
   getCategoryById: (categoryId) => api.get(`/category/get-category/${categoryId}`),
+  getCategoryBySlug: (slug) => api.get(`/category/get-category-by-slug/${encodeURIComponent(slug)}`, { skipErrorToast: true }),
   createCategory: (formData) => api.post('/category/create-category', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
@@ -30,7 +27,6 @@ export const categoryAPI = {
 
 export const subcategoryAPI = {
   getSubcategories: (params) => api.get('/subcategory/get-subcategories', { params }),
-  // M15: opted-in subcategories for the homepage icon rail (cached, ordered).
   getHomepageSubcategories: () => api.get('/subcategory/homepage'),
   updateSubcategoryImage: (subCategoryId, formData) => api.patch(`/subcategory/update-subcategory-image/${subCategoryId}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -60,16 +56,12 @@ export const deviceAPI = {
   deleteDevice: (id) => api.delete(`/device/delete-device/${id}`),
 };
 
-// Buyer-country auto-detect (M9 region compatibility).
 export const geoAPI = {
   getCountry: () => api.get('/geo/country'),
 };
 
-// Display exchange rates (M10) — base USD, refreshed server-side ~daily.
 export const currencyAPI = {
   getRates: () => api.get('/currency/rates'),
-  // Signed-in buyers only: the server keeps a copy of the pick so emails can be
-  // written in it (a background email job cannot read localStorage).
   setDisplayCurrency: (currency) => api.patch('/currency/preference', { currency }),
 };
 
@@ -102,12 +94,10 @@ export const modeAPI = {
   deleteMode: (modeId) => api.delete(`/mode/delete-mode/${modeId}`),
 };
 
-// Master Product Catalog (ADMIN). Admin creates/imports the master products
-// that sellers then list Offers against.
 export const masterCatalogAPI = {
   importCatalog: (formData) => api.post('/catalog/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120000, // batches do many DB writes; allow well past the 20s default
+    timeout: 120000,
   }),
   listProducts: (params) => api.get('/catalog/products', { params }),
   createProduct: (formData) => api.post('/catalog/products', formData, {
@@ -118,11 +108,10 @@ export const masterCatalogAPI = {
   getProductOffers: (id) => api.get(`/catalog/products/${id}/offers`),
 };
 
-// Seller Offers (seller listings against master products) + admin approval.
 export const offerAPI = {
-  // Seller
   browseCatalog: (params) => api.get('/offer/catalog', { params }),
   getMyOffers: (params) => api.get('/offer/mine', { params }),
+  getMyOfferSummary: () => api.get('/offer/mine/summary'),
   getOffer: (id) => api.get(`/offer/${id}`),
   createOffer: (data) => api.post('/offer', data),
   updateOffer: (id, data) => api.patch(`/offer/${id}`, data),
@@ -132,13 +121,11 @@ export const offerAPI = {
   revealOfferKey: (id, keyId) => api.get(`/offer/${id}/keys/${keyId}/reveal`),
   deleteOfferKey: (id, keyId) => api.delete(`/offer/${id}/keys/${keyId}`),
   syncOfferStock: (id) => api.post(`/offer/${id}/sync-stock`),
-  // Seller asks to be featured (costs extra commission) or withdraws.
   requestFeatured: (id, featured) => api.post(`/offer/${id}/featured`, { featured }),
-  // Admin
   adminGetOffers: (params) => api.get('/offer/admin', { params }),
+  adminGetOfferCounts: () => api.get('/offer/admin/counts'),
   adminApproveOffer: (id) => api.post(`/offer/admin/${id}/approve`),
   adminRejectOffer: (id, data) => api.post(`/offer/admin/${id}/reject`, data),
-  // Takedown of a live listing (reason required, seller notified) and its undo.
   adminRemoveOffer: (id, data) => api.post(`/offer/admin/${id}/remove`, data),
   adminRestoreOffer: (id) => api.post(`/offer/admin/${id}/restore`),
   adminDecideFeatured: (id, data) => api.post(`/offer/admin/${id}/featured`, data),

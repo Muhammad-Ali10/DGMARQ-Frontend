@@ -4,7 +4,6 @@ import { describeError } from './ErrorState';
 const withStatus = (status, message) => ({ response: { status, data: message ? { message } : {} } });
 
 describe('describeError', () => {
-  // The rule this whole module exists to enforce: never show a bare code.
   it('never surfaces a raw status code as the message', () => {
     for (const status of [400, 401, 403, 404, 429, 500, 503]) {
       const { title, description } = describeError(withStatus(status));
@@ -21,12 +20,19 @@ describe('describeError', () => {
     expect(d.canRetry).toBe(true);
   });
 
-  it('maps auth failures to an expired session', () => {
+  it('maps a 401 to an expired session', () => {
     expect(describeError(withStatus(401)).title).toMatch(/session/i);
-    expect(describeError(withStatus(403)).title).toMatch(/session/i);
   });
 
-  // Retrying a 401 or a 404 cannot help, so no retry button is offered.
+  it('maps a 403 to a permission denial and shows the server reason', () => {
+    const denied = describeError(withStatus(403, 'Your seller account is on hold'));
+    expect(denied.title).toMatch(/access/i);
+    expect(denied.title).not.toMatch(/session/i);
+    expect(denied.description).toBe('Your seller account is on hold');
+    expect(denied.canRetry).toBe(false);
+    expect(describeError(withStatus(403)).description.length).toBeGreaterThan(10);
+  });
+
   it('only offers retry where retrying can actually work', () => {
     expect(describeError(withStatus(401)).canRetry).toBe(false);
     expect(describeError(withStatus(404)).canRetry).toBe(false);

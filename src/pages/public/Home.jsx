@@ -23,8 +23,6 @@ import { useInView } from "@hooks/useInView";
 
 const widths = ["w-1/4", "w-1/4", "w-1/2", "w-1/4", "w-1/4", "w-1/2"];
 
-// M15 page fetchers. Each returns the { docs, totalDocs } shape ProductRowSection
-// paginates on, so all four rows share one component and one Show More flow.
 const fetchFeatured = (page, limit) =>
   productAPI
     .getProducts({ isFeatured: true, sort: "rating", page, limit })
@@ -38,9 +36,6 @@ const fetchGiftCards = (page, limit) =>
     .getProducts({ categoryName: "Gift Cards", sort: "rating", page, limit })
     .then((r) => r.data.data);
 
-// Bestsellers are BestSeller records, not products — unwrap to the populated
-// product and drop rows whose product or seller went inactive (the backend's
-// populate `match` leaves those null).
 const fetchBestsellers = (page, limit) =>
   bestsellerAPI.getBestsellers({ page, limit }).then((r) => {
     const payload = r.data.data;
@@ -53,9 +48,6 @@ const fetchBestsellers = (page, limit) =>
   });
 
 const Home = () => {
-  // The legacy block (upcoming games, Microsoft) lives far below the fold but
-  // used to fetch at mount. One sentinel gates both, keeping them out of the
-  // initial request burst.
   const { ref: legacyRef, isInView: legacyInView } = useInView({
     rootMargin: "600px",
     threshold: 0,
@@ -102,21 +94,14 @@ const Home = () => {
     title: seoSettings?.metaTitle || undefined,
     description: seoSettings?.metaDescription || undefined,
     canonical: "/",
-    useDefaults: true,
   });
 
   const microsoftProducts = softwarePageData?.microsoft || [];
   return (
     <div className="min-h-screen">
       <Hero />
-      {/* M15: platform trust strip (logo · global · dispute · instant) */}
       <PlatformTrustGrid />
       <CategoryNavigation scrollOffset={140} />
-
-      {/* ── M15 section order: Featured → Subscriptions → Best Sellers →
-          [subcategory icons] → Top Viewed → Gift Cards → admin sections.
-          The legacy rows below keep their existing admin tooling and simply
-          move underneath. ── */}
 
       <ProductRowSection
         id="featured-products"
@@ -125,12 +110,9 @@ const Home = () => {
         queryKey={["home-row", "featured"]}
         fetchPage={fetchFeatured}
         seeAllTo="/search?isFeatured=true"
-        // First row sits near the fold — load it immediately; every row below
-        // waits until it scrolls into range.
         defer={false}
       />
 
-      {/* M15: DGMARQ Plus subscriptions promo */}
       <PlusPromoSection />
 
       <ProductRowSection
@@ -142,7 +124,6 @@ const Home = () => {
         seeAllTo="/bestsellers"
       />
 
-      {/* M15: admin-curated subcategory icons, auto-looping to the right */}
       <SubcategoryRail />
 
       <ProductRowSection
@@ -163,12 +144,9 @@ const Home = () => {
         seeAllTo="/gift-cards"
       />
 
-      {/* M15: admin-defined custom heading sections (search-driven product rows).
-          Placed above the legacy rows so admin content is not buried. */}
       <CustomHomepageSections />
 
-      {/* Sentinel: everything below fetches once this scrolls into range. */}
-      <div ref={legacyRef}></div>
+      <div ref={legacyRef} id="home-deferred-sections"></div>
 
       {(isLoadingUpcomingGames || (upcomingGamesData && upcomingGamesData.length > 0)) && (
         <section id="upcoming-games" className="py-16">

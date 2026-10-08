@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { reviewAPI, sellerAPI, productAPI } from '@services/api';
+import { reviewAPI, sellerAPI } from '@services/api';
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Badge } from '@components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Label } from '@components/ui/label';
 import { Skeleton } from '@components/ui/skeleton';
 import { Textarea } from '@components/ui/textarea';
@@ -14,6 +14,8 @@ import { showSuccess, showApiError } from '@utils/toast';
 import { Pagination } from '@components/common/Pagination';
 import { useSocket } from '@hooks/useSocket';
 
+const MAX_REPLY_LENGTH = 500;
+
 const SellerReviews = () => {
   const [page, setPage] = useState(1);
   const [selectedReview, setSelectedReview] = useState(null);
@@ -21,9 +23,6 @@ const SellerReviews = () => {
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
 
-  // Live: a review written, edited or deleted on one of this seller's products
-  // is pushed to their own socket room (review.service), so the list refreshes
-  // without a reload.
   useEffect(() => {
     if (!socket || !isConnected) return;
     const invalidate = () => queryClient.invalidateQueries({ queryKey: ['seller-reviews'] });
@@ -31,97 +30,30 @@ const SellerReviews = () => {
     return () => socket.off('review_changed', invalidate);
   }, [socket, isConnected, queryClient]);
 
-  // Get seller info to get seller ID
-  const { data: sellerInfo, isLoading: sellerInfoLoading } = useQuery({
+  const {
+    data: sellerInfo,
+    isLoading: sellerInfoLoading,
+    isError: sellerInfoError,
+    refetch: refetchSellerInfo,
+  } = useQuery({
     queryKey: ['seller-info'],
     queryFn: () => sellerAPI.getSellerInfo().then(res => res.data.data),
   });
 
-  // Server-paginated page of the SELLER'S OWN products. The public reviews
-  // endpoint (/review/get-reviews) only filters by a single productId and has
-  // no sellerId filter, so we paginate the seller's products server-side
-  // (8 per page) and then pull each product's reviews server-side below.
-  // This removes the previous limit:1000 product + limit:1000 review fetches.
-  const PRODUCTS_PER_PAGE = 8;
-  const { data: productsData, isLoading: productsLoading } = useQuery({
-    queryKey: ['seller-products-for-reviews', page],
-    queryFn: async () => {
-      const response = await productAPI.getProducts({
-        mine: true,
-        page,
-        limit: PRODUCTS_PER_PAGE,
-      });
-      return response.data.data;
-    },
-    enabled: !!sellerInfo,
-    placeholderData: keepPreviousData,
-  });
+  const REVIEWS_PER_PAGE = 10;
+  const sellerId = sellerInfo?._id;
 
-  const pageProducts = productsData?.docs || productsData?.products || [];
-  const productTotalPages = productsData?.totalPages || 0;
-
-  // Fetch reviews server-side for just the products on the current page, then
-  // flatten + enrich them with product info for display.
   const { data: reviewsData, isLoading, isError } = useQuery({
-    queryKey: ['seller-reviews', page, sellerInfo?._id, pageProducts.map((p) => p._id)],
+    queryKey: ['seller-reviews', sellerId, page],
     queryFn: async () => {
-      const productMap = new Map();
-      pageProducts.forEach((product) => {
-        if (product._id) productMap.set(product._id.toString(), product);
-      });
-
-      const perProductLimit = 100;
-      const responses = await Promise.all(
-        pageProducts.map((product) =>
-          reviewAPI
-            .getReviews({ productId: product._id, page: 1, limit: perProductLimit })
-            .then((res) => res.data.data)
-            .catch(() => null),
-        ),
-      );
-
-      const enrichedReviews = [];
-      responses.forEach((data) => {
-        if (!data) return;
-        const list = data.reviews || data.docs || [];
-        list.forEach((review) => {
-          let productId = null;
-          if (review.productId) {
-            if (typeof review.productId === 'object' && review.productId._id) {
-              productId = review.productId._id.toString();
-            } else if (typeof review.productId === 'object' && review.productId.toString) {
-              productId = review.productId.toString();
-            } else if (typeof review.productId === 'string') {
-              productId = review.productId;
-            }
-          }
-          const product = productId ? productMap.get(productId) : null;
-          enrichedReviews.push({
-            ...review,
-            productId: productId
-              ? { _id: productId, name: product?.name, slug: product?.slug, images: product?.images }
-              : review.productId,
-          });
-        });
-      });
-
-      // Newest first across all products on this page.
-      enrichedReviews.sort(
-        (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
-      );
-
+      const { data } = await reviewAPI.getReviews({ sellerId, page, limit: REVIEWS_PER_PAGE });
+      const result = data.data;
       return {
-        reviews: enrichedReviews,
-        pagination: {
-          page,
-          total: enrichedReviews.length,
-          totalPages: productTotalPages,
-          hasNextPage: page < productTotalPages,
-          hasPrevPage: page > 1,
-        },
+        reviews: result.docs || [],
+        pagination: { totalPages: result.totalPages || 0 },
       };
     },
-    enabled: !!sellerInfo && !!productsData,
+    enabled: !!sellerId,
     placeholderData: keepPreviousData,
   });
 
@@ -151,9 +83,11 @@ const SellerReviews = () => {
     });
   };
 
-  // Reviews need the seller id before they can be requested, so this gate is
-  // genuinely sequential rather than three independent queries being blocked.
-  if (isLoading || sellerInfoLoading || productsLoading || !sellerInfo || !productsData) {
+  if (sellerInfoError) {
+    return <ErrorState title="Couldn't load your seller account" onRetry={() => refetchSellerInfo()} />;
+  }
+
+  if (isLoading || sellerInfoLoading || !sellerInfo) {
     return (
       <div className="space-y-8">
         <Skeleton className="h-8 w-48" />
@@ -201,7 +135,7 @@ const SellerReviews = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-fg font-semibold text-lg">
-                        {review.productId?.name || review.product?.name || 'Product'}
+                        {review.productId?.name || 'Product'}
                       </h3>
                       <Badge variant="outline" className="border-border text-fg-muted">
                         {review.isVerifiedPurchase ? 'Verified Purchase' : 'Review'}
@@ -220,7 +154,7 @@ const SellerReviews = () => {
                     </div>
                     <p className="text-fg-muted mb-3">{review.comment}</p>
                     <div className="flex items-center gap-4 text-sm text-fg-subtle">
-                      <span>{review.userId?.name || 'Customer'}</span>
+                      <span>{review.user?.name || 'Customer'}</span>
                       <span>•</span>
                       <span>{new Date(review.createdAt).toLocaleDateString()}</span>
                     </div>
@@ -235,61 +169,66 @@ const SellerReviews = () => {
                     )}
                   </div>
                   {(!review.replies || review.replies.length === 0) && (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleReply(review)}
-                          className="border-border text-fg-muted"
-                        >
-                          <MessageSquare className="w-4 h-4 mr-2" />
-                          Reply
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent size="sm" variant="hud">
-                        <DialogHeader>
-                          <DialogTitle className="text-fg">Reply to Review</DialogTitle>
-                          <DialogDescription className="text-fg-muted">
-                            Respond to this customer review
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          <div className="p-4 bg-secondary rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`w-4 h-4 ${
-                                    i < review.rating ? 'text-warning fill-warning' : 'text-fg-subtle'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                            <p className="text-fg-muted text-sm">{review.comment}</p>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="replyText" className="text-fg-muted">Your Reply</Label>
-                            <Textarea
-                              id="replyText"
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              rows={4}
-                              placeholder="Write your reply…"
-                              required
-                            />
-                          </div>
-                          <Button
-                            onClick={handleSubmitReply}
-                            disabled={replyMutation.isPending || !replyText.trim()}
-                            className="w-full "
-                          >
-                            {replyMutation.isPending ? 'Posting...' : 'Post Reply'}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleReply(review)}
+                      className="border-border text-fg-muted"
+                    >
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      Reply
+                    </Button>
                   )}
+                  <Dialog
+                    open={selectedReview?._id === review._id}
+                    onOpenChange={(open) => { if (!open) setSelectedReview(null); }}
+                  >
+                    <DialogContent size="sm" variant="hud">
+                      <DialogHeader>
+                        <DialogTitle className="text-fg">Reply to Review</DialogTitle>
+                        <DialogDescription className="text-fg-muted">
+                          Respond to this customer review
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="p-4 bg-secondary rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-4 h-4 ${
+                                  i < review.rating ? 'text-warning fill-warning' : 'text-fg-subtle'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-fg-muted text-sm">{review.comment}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="replyText" className="text-fg-muted">Your Reply</Label>
+                          <Textarea
+                            id="replyText"
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            rows={4}
+                            maxLength={MAX_REPLY_LENGTH}
+                            placeholder="Write your reply…"
+                            required
+                          />
+                          <p className="text-xs text-fg-subtle">
+                            {replyText.length}/{MAX_REPLY_LENGTH} characters. You can reply once, and buyers will see it on the product page.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleSubmitReply}
+                          disabled={replyMutation.isPending || !replyText.trim()}
+                          className="w-full "
+                        >
+                          {replyMutation.isPending ? 'Posting...' : 'Post Reply'}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardContent>
             </Card>

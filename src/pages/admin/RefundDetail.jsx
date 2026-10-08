@@ -19,14 +19,6 @@ import { getDisplayOrderId } from '@lib/orderDisplay';
 import { formatDate, formatDateTime } from '@lib/datetime';
 import useCurrency from '@hooks/useCurrency';
 
-// AUDIT FIX (DEAD-3): this file carried a PRIVATE copy of the refund status
-// vocabulary that disagreed with the admin LIST page one click away — the list
-// rendered ADMIN_REVIEW as 'In progress', this page as 'Admin review' — and
-// neither private copy carried the legacy lowercase aliases that the canonical
-// taxonomy has (rows this file itself branches on below). Both maps and the
-// local StatusBadge that shadowed the shared one are gone; it reads
-// refundBadgeProps like the seller and buyer pages already did.
-// Small copy-to-clipboard button — admins paste order/capture ids a lot.
 const CopyButton = ({ value, label = 'Copy' }) => {
   const [copied, setCopied] = useState(false);
   const onClick = async () => {
@@ -51,9 +43,6 @@ const CopyButton = ({ value, label = 'Copy' }) => {
   );
 };
 
-// Compact vertical timeline. Stage order derived from real refund fields —
-// no fabricated milestones. Reached stages show accent color; the current
-// stage shows a pulsing dot; unreached stages are muted.
 const Timeline = ({ refund }) => {
   const status = String(refund?.status || '').toUpperCase();
   const finalStatuses = ['COMPLETED', 'ADMIN_REJECTED', 'completed', 'rejected'];
@@ -116,8 +105,6 @@ const Timeline = ({ refund }) => {
   );
 };
 
-// Collapsible section — used for less-critical content (history/notes) so the
-// page stays scannable by default.
 const Collapsible = ({ title, defaultOpen = false, children, count }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -197,11 +184,11 @@ const AdminRefundDetail = () => {
   }
 
   const status = String(refund.status || '').toUpperCase();
-  const canApprove = status === 'ADMIN_REVIEW';
+  const canApprove = status === 'ADMIN_REVIEW' || status === 'ON_HOLD_INSUFFICIENT_FUNDS';
   const canReject = status === 'ADMIN_REVIEW' || status === 'ON_HOLD_INSUFFICIENT_FUNDS';
   const isTerminal = ['ADMIN_APPROVED', 'ADMIN_REJECTED', 'COMPLETED', 'completed', 'rejected'].includes(refund.status);
 
-  const totalAmount = Number(refund.refundAmount || refund.productId?.price || 0);
+  const totalAmount = Number(refund.refundAmount || 0);
   const walletPortion = Number(refund.walletRefundAmount || 0);
   const providerPortion = Number(refund.providerRefundAmount || 0);
   const hasSplit = walletPortion > 0 || providerPortion > 0;
@@ -224,7 +211,6 @@ const AdminRefundDetail = () => {
     }
   };
 
-  // ── DECISION PANEL (used in both right sidebar and mobile sticky bar) ──
   const decisionPanel = (
     <div className="space-y-4">
       <div>
@@ -303,7 +289,6 @@ const AdminRefundDetail = () => {
 
   return (
     <div className="space-y-4 px-4 sm:px-0 pb-24 lg:pb-6">
-      {/* Top row: back + compact meta strip */}
       <div className="flex flex-wrap items-center gap-3">
         {back}
         <div className="flex items-center gap-2 text-sm">
@@ -313,7 +298,6 @@ const AdminRefundDetail = () => {
         </div>
       </div>
 
-      {/* Meta strip — one-line facts admin needs before opening any section */}
       <Card variant="hud">
         <CardContent className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -356,11 +340,8 @@ const AdminRefundDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Two-column layout — LEFT: review content, RIGHT: sticky decision */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* LEFT COLUMN — the review flow (top-down as an admin reads) */}
         <div className="lg:col-span-2 space-y-4">
-          {/* REASON + PRODUCT snapshot (why is this being refunded, of what) */}
           <Card variant="hud">
             <CardContent className="p-5 space-y-4">
               <div className="flex items-start gap-4">
@@ -376,7 +357,11 @@ const AdminRefundDetail = () => {
                   <p className="text-white font-medium truncate">{refund.productId?.name || 'N/A'}</p>
                   <div className="flex flex-wrap items-center gap-2 mt-1.5">
                     {refund.productId?.productType && <ProductTypeBadge type={refund.productId.productType} />}
-                    <span className="text-xs text-gray-500">Listed at {formatMoney(refund.productId?.price || 0)}</span>
+                    {refund.licenseKeyIds?.length > 0 && (
+                      <span className="text-xs text-gray-500">
+                        {refund.licenseKeyIds.length} key{refund.licenseKeyIds.length === 1 ? '' : 's'} in this refund
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -390,7 +375,6 @@ const AdminRefundDetail = () => {
             </CardContent>
           </Card>
 
-          {/* EVIDENCE — prominent, click-to-lightbox */}
           {refund.evidenceFiles?.length > 0 && (
             <Card variant="hud">
               <CardContent className="p-5">
@@ -417,7 +401,6 @@ const AdminRefundDetail = () => {
             </Card>
           )}
 
-          {/* LICENSE KEYS — collapsible reveal */}
           {refund.licenseKeyIds?.length > 0 && (
             <Card variant="hud">
               <CardContent className="p-5">
@@ -477,34 +460,24 @@ const AdminRefundDetail = () => {
             </Card>
           )}
 
-          {/* SELLER FEEDBACK — advisory only, prominent when present */}
-          {(refund.sellerFeedback || refund.sellerDecisionReason) && (
+          {refund.sellerFeedback && (
             <Card variant="hud">
               <CardContent className="p-5 space-y-3">
                 <p className="text-sm font-semibold text-white flex items-center gap-2">
                   <Store className="w-4 h-4 text-accent-on-dark" />
                   From the seller
                 </p>
-                {refund.sellerDecisionReason && (
-                  <div>
-                    <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Rejection reason (escalated)</p>
-                    <p className="text-amber-200 text-sm">{refund.sellerDecisionReason}</p>
-                  </div>
-                )}
-                {refund.sellerFeedback && (
-                  <div>
-                    <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Advisory feedback</p>
-                    <p className="text-white text-sm">{refund.sellerFeedback}</p>
-                    {refund.sellerFeedbackAt && (
-                      <p className="text-[11px] text-gray-500 mt-1">{formatDateTime(refund.sellerFeedbackAt)}</p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-1">Advisory feedback</p>
+                  <p className="text-white text-sm">{refund.sellerFeedback}</p>
+                  {refund.sellerFeedbackAt && (
+                    <p className="text-[11px] text-gray-500 mt-1">{formatDateTime(refund.sellerFeedbackAt)}</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* COLLAPSIBLE: audit trail (history + admin notes + rejection reason + refund timestamps) */}
           {(refund.refundHistory?.length > 0 || refund.adminNotes || refund.rejectionReason || refund.refundedAt) && (
             <Collapsible
               title="Audit trail"
@@ -563,23 +536,19 @@ const AdminRefundDetail = () => {
             </Collapsible>
           )}
 
-          {/* REFUND CHAT — full-width at bottom */}
           <Card variant="hud">
             <CardContent className="p-5">
-              <RefundChat refundId={refund._id} canSend={true} locked={isRefundChatLocked(refund.status)} />
+              <RefundChat refundId={refund._id} locked={isRefundChatLocked(refund.status)} />
             </CardContent>
           </Card>
         </div>
 
-        {/* RIGHT COLUMN — sticky decision panel + timeline (desktop only sticky) */}
         <div className="space-y-4">
           <div className="lg:sticky lg:top-4 space-y-4">
-            {/* Decision panel */}
             <Card variant="hud">
               <CardContent className="p-5">{decisionPanel}</CardContent>
             </Card>
 
-            {/* Timeline */}
             <Card variant="hud">
               <CardContent className="p-5">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-3">Timeline</p>
@@ -590,7 +559,6 @@ const AdminRefundDetail = () => {
         </div>
       </div>
 
-      {/* Lightbox — click evidence to enlarge */}
       {lightbox && (
         <button
           type="button"

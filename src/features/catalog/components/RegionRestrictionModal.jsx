@@ -4,11 +4,6 @@ import useOfferVerdict from "@hooks/useOfferVerdict";
 import { describeOfferAvailability, countryName, countryFlag } from "@lib/regionCompat";
 import { ALL_COUNTRY_CODES } from "@lib/regionPresets";
 
-// Region-restrictions modal (Eneba-style): lists the countries where THIS offer's
-// key can be activated, with the buyer's own country ✓-marked. Fed entirely by
-// the real offer region data (regionCodes/presets) + the detected buyer country.
-//
-// Props: offer { regionCodes, countries, excludedCountries } · open · onClose
 const RegionRestrictionModal = ({ offer, open, onClose }) => {
   const { availability, verdict, country } = useOfferVerdict(offer);
   const detail = useMemo(() => (offer ? describeOfferAvailability(offer) : null), [offer]);
@@ -26,10 +21,11 @@ const RegionRestrictionModal = ({ offer, open, onClose }) => {
     };
   }, [open, onClose]);
 
-  // Allowed ISO codes: global / unrestricted → every country; else the resolved set.
   const allowedCodes = useMemo(() => {
     if (!availability) return [];
-    if (availability.global || availability.unrestricted) return ALL_COUNTRY_CODES;
+    if (availability.global || availability.unrestricted) {
+      return ALL_COUNTRY_CODES.filter((c) => !availability.excluded.has(c));
+    }
     return Array.from(availability.allowed);
   }, [availability]);
 

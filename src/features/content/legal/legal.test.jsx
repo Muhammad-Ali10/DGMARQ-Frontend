@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { legalAPI } from '@services/api';
 import { screen, within } from '@testing-library/react';
 import { renderWithProviders } from '../../../test/render';
 import { collectAnchors, sectionAnchor } from './anchors';
@@ -6,10 +7,8 @@ import { DRAFTED_FIGURES, mergeFigures, resolveDocument, resolveText } from './f
 import { parseInline } from './inline';
 import { PUBLISHED_FIGURES } from './publishedFigures';
 
-// The figures endpoint is exercised on its own below; document tests render against
-// the drafted fallback so their assertions do not depend on a live platform value.
 vi.mock('@services/api', () => ({
-  legalAPI: { getFigures: vi.fn(() => Promise.reject(new Error('offline'))) },
+  legalAPI: { getFigures: vi.fn(() => Promise.resolve({ data: { data: {} } })) },
 }));
 import {
   LegalDocument,
@@ -32,7 +31,6 @@ describe('parseInline', () => {
     expect(parseInline('**Email:** privacy@dgmarq.com. See [ICO](https://ico.org.uk).')).toEqual([
       { type: 'strong', value: 'Email:' },
       { type: 'text', value: ' ' },
-      // The sentence's full stop is not swallowed into the address.
       { type: 'email', value: 'privacy@dgmarq.com' },
       { type: 'text', value: '. See ' },
       { type: 'link', value: 'ICO', href: 'https://ico.org.uk' },
@@ -53,7 +51,6 @@ describe('parseInline', () => {
 
 const DOCUMENTS = { refundPolicy, privacyPolicy, termsConditions, feeSchedule, vendorTerms };
 
-// Every string a document renders, wherever it sits in the block tree.
 const strings = (node) => {
   if (typeof node === 'string') return [node];
   if (Array.isArray(node)) return node.flatMap(strings);
@@ -61,8 +58,6 @@ const strings = (node) => {
   return [];
 };
 
-// The figures admin screens quote back must be the ones the cited clause states,
-// or the drift warning would be policing the wrong number.
 describe('published policy figures', () => {
   const DOC_BY_PATH = Object.fromEntries(Object.values(DOCUMENTS).map((d) => [d.path, d]));
 
@@ -87,8 +82,6 @@ describe('published policy figures', () => {
     const doc = DOC_BY_PATH[path];
     expect(doc, `no document is published at ${path}`).toBeDefined();
 
-    // Resolved with the drafted values: the clause holds a token now, and this is
-    // what a reader sees before the live figures arrive.
     const clause = clauseStrings(resolveDocument(doc, DRAFTED_FIGURES), anchor);
     expect(clause, `${doc.title} has no clause ${figure.clause}`).not.toBeNull();
     expect(clause.join(' ')).toMatch(STATED[figure.unit](figure.value));
@@ -107,8 +100,8 @@ describe('live figures', () => {
   const LIVE = {
     refundWindowDays: 30,
     payoutHoldDays: 16,
-    buyerProtectionFeePercent: 20,
-    buyerProcessingFeeFixed: 0.8,
+    buyerProtectionFee: { type: 'percentage', value: 20 },
+    buyerProcessingFee: { type: 'fixed', value: 0.8 },
     commissionRatePercent: 7,
     featuredCommissionPercent: 3,
     currency: 'USD',
@@ -127,13 +120,10 @@ describe('live figures', () => {
     expect(() => resolveText('within {refundWindowDaze} days', DRAFTED_FIGURES)).toThrow(/refundWindowDaze/);
   });
 
-  // A live value is used only when it is usable, so a null or a non-numeric field
-  // from the API cannot print "NaN%" inside a clause.
   it.each([null, undefined, 'soon'])('falls back to the drafted figure when the API sends %s', (broken) => {
     const figures = mergeFigures({ ...LIVE, refundWindowDays: broken });
     expect(resolveText('{refundWindowDays} days', figures)).toBe('7 days');
-    // The fields that did arrive are still live.
-    expect(resolveText('{buyerProtectionFeePercent}%', figures)).toBe('20%');
+    expect(resolveText('{buyerProtectionFee}', figures)).toBe('20%');
   });
 
   it('uses the drafted figures when the request fails outright', () => {
@@ -155,8 +145,6 @@ describe('live figures', () => {
     expect(longWindow).toContain('confirmed on 5 June, the refund window closes at the end of 5 July');
   });
 
-  // The Vendor Terms carried "[currently +10%]" as placeholder copy while the
-  // platform had long since moved to 3%.
   it('carries the featured surcharge into the Vendor Terms', () => {
     const live = strings(resolveDocument(vendorTerms, LIVE)).join(' ');
     expect(live).toContain('Featured-listing surcharge: +3%');
@@ -170,11 +158,46 @@ describe('live figures', () => {
     const drafted = strings(resolveDocument(termsConditions, DRAFTED_FIGURES)).join(' ');
     expect(drafted).toContain('A flat fee of AUD $0.86 per Transaction');
   });
+
+  it('describes a fee in the shape the admin configured it, never as $0.00', () => {
+    const switched = mergeFigures({
+      ...LIVE,
+      buyerProtectionFee: { type: 'fixed', value: 1.5 },
+      buyerProcessingFee: { type: 'percentage', value: 2 },
+    });
+    const text = strings(resolveDocument(termsConditions, switched)).join(' ');
+    expect(text).toContain('A fee of 2% of the Transaction value, applied at checkout');
+    expect(text).toContain('The applicable fee is USD $1.50 per Transaction');
+    expect(text).not.toContain('$0.00');
+  });
+
+  it('ignores a malformed fee and keeps the drafted one', () => {
+    const figures = mergeFigures({ ...LIVE, buyerProcessingFee: { type: 'weird', value: 3 } });
+    expect(figures.buyerProcessingFee).toEqual(DRAFTED_FIGURES.buyerProcessingFee);
+  });
+});
+
+describe('figure loading states', () => {
+  it('shows a skeleton instead of drafted figures while the live ones load', () => {
+    renderWithProviders(<LegalDocument doc={termsConditions} />, { route: termsConditions.path });
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    expect(screen.getByText('Loading the current figures')).toBeInTheDocument();
+  });
+
+  it('says so when the live figures cannot be loaded', async () => {
+    legalAPI.getFigures.mockImplementation(() => Promise.reject(new Error('offline')));
+    try {
+      renderWithProviders(<LegalDocument doc={termsConditions} />, { route: termsConditions.path });
+      expect(
+        await screen.findByText(/could not load the current fees and time periods/, {}, { timeout: 4000 }),
+      ).toBeInTheDocument();
+    } finally {
+      legalAPI.getFigures.mockImplementation(() => Promise.resolve({ data: { data: {} } }));
+    }
+  });
 });
 
 describe('PolicyFigureNotice', () => {
-  // The live refund window really is 30 days against a policy that promises 7, so
-  // this is the case the admin sees today, not a hypothetical.
   it('warns when the live setting has moved away from the drafted figure', () => {
     renderWithProviders(<PolicyFigureNotice figure="refundWindowDays" live="30" />);
     expect(
@@ -184,7 +207,6 @@ describe('PolicyFigureNotice', () => {
   });
 
   it('stays quiet on a match, tolerating a converted rate', () => {
-    // 0.07 * 100 is 7.000000000000001 in JS — the comparison must survive it.
     renderWithProviders(<PolicyFigureNotice figure="commissionRatePercent" live={0.07 * 100} />);
     expect(screen.getByText(/Published live in Terms and Conditions 6\.3, which was drafted as 7%/)).toBeInTheDocument();
   });
@@ -203,8 +225,6 @@ describe('PolicyFigureNotice', () => {
 
 describe.each(Object.entries(DOCUMENTS))('%s', (_, doc) => {
   const anchors = collectAnchors(doc.sections);
-  // What the page renders when the live figures are unavailable, which is the state
-  // these tests run in (the API is mocked as offline above).
   const rendered = resolveDocument(doc, DRAFTED_FIGURES);
 
   it('gives every section and subsection a unique number', () => {
@@ -226,25 +246,23 @@ describe.each(Object.entries(DOCUMENTS))('%s', (_, doc) => {
     for (const h of doc.highlights ?? []) expect(anchors, h.label).toContain(h.target);
   });
 
-  it('renders the title, every section and a TOC entry for each', () => {
+  it('renders the title, every section and a TOC entry for each', async () => {
     renderWithProviders(<LegalDocument doc={doc} />, { route: doc.path });
 
-    expect(screen.getByRole('heading', { level: 1, name: rendered.title })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: rendered.title })).toBeInTheDocument();
+    expect(screen.queryByText(/could not load the current fees/)).not.toBeInTheDocument();
     for (const section of rendered.sections) {
       const id = sectionAnchor(section.num);
       expect(document.getElementById(id)).toHaveAttribute('aria-labelledby', `${id}-title`);
-      // textContent, not getByRole's name: jsdom's name computation drops the
-      // space at the sr-only span boundary that browsers keep.
       expect(document.getElementById(`${id}-title`)).toHaveTextContent(`Section ${section.num}: ${section.title}`);
     }
-    // Both TOC variants render (CSS decides which shows); the desktop one is first.
     const [toc] = screen.getAllByRole('navigation', { name: 'On this page' });
     expect(within(toc).getAllByRole('link')).toHaveLength(doc.sections.length);
   });
 
-  it('does not list itself under "More policies"', () => {
+  it('does not list itself under "More policies"', async () => {
     renderWithProviders(<LegalDocument doc={doc} />, { route: doc.path });
-    const related = screen.getByRole('navigation', { name: 'More policies' });
+    const related = await screen.findByRole('navigation', { name: 'More policies' });
     const hrefs = within(related).getAllByRole('link').map((a) => a.getAttribute('href'));
     expect(hrefs).not.toContain(doc.path);
     expect(hrefs).toHaveLength(4);

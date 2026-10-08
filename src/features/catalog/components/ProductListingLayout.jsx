@@ -1,4 +1,3 @@
- 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { useSEO } from '@hooks/useSEO';
@@ -6,6 +5,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { productAPI, platformAPI, categoryAPI, subcategoryAPI, deviceAPI, genreAPI, themeAPI, modeAPI } from '@services/api';
 import { REGION_PRESETS } from '@lib/regionPresets';
 import { PRODUCT_TYPE_OPTIONS } from '../utils/productUtils';
+import { useActiveCategories } from '../hooks/useActiveCategories';
 import ProductCard from './ProductCard';
 import CategoryProduct from './CategoryProduct';
 import { ErrorMessage } from '@components/ui/loading';
@@ -19,10 +19,6 @@ import { Pagination } from '@components/common/Pagination';
 import { ChevronDown, ChevronUp, X, Search, Lock } from 'lucide-react';
 import { useDebounce } from '@hooks/useDebounce';
 
-// Hoisted to module scope so they keep a stable component identity across the
-// parent's renders (otherwise they remount every render -> filter inputs lose
-// focus and the whole subtree needlessly reconciles). Everything they need is
-// passed explicitly as props instead of being captured from the render closure.
 const FilterSection = ({
   title,
   children,
@@ -159,7 +155,6 @@ const ProductListingLayout = ({
       ? `Search results for "${trimmedSearch}" on DGMARQ marketplace.`
       : `Browse ${pageTitle} on DGMARQ marketplace. Find great deals with instant delivery.`,
     canonical: location.pathname,
-    useDefaults: false,
   });
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
@@ -210,8 +205,6 @@ const ProductListingLayout = ({
   }, [checkboxFilters.subCategoryId, defaultSubCategoryId]);
 
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest');
-  // Read-only URL flags (no UI control) — set by the homepage's Featured
-  // "See All" and by an admin menu item pointing at upcoming pre-orders.
   const isFeaturedOnly = searchParams.get('isFeatured') === 'true';
   const isPreorderOnly = searchParams.get('isPreorder') === 'true';
   const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true');
@@ -260,14 +253,7 @@ const ProductListingLayout = ({
     ...STATIC_FILTER_QUERY_OPTIONS,
   });
 
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories', 'all'],
-    queryFn: async () => {
-      const response = await categoryAPI.getCategories({ isActive: true, limit: 100 });
-      return response.data.data;
-    },
-    ...STATIC_FILTER_QUERY_OPTIONS,
-  });
+  const { data: categoriesData } = useActiveCategories();
 
   const { data: subcategoriesData } = useQuery({
     queryKey: ['subcategories', lockedCategoryId || effectiveCategoryIds],
@@ -279,7 +265,7 @@ const ProductListingLayout = ({
       if (!categoryIds.length) return { docs: [] };
       
       const subcategoryPromises = categoryIds.map(categoryId =>
-        subcategoryAPI.getSubcategoriesByCategoryId(categoryId, { limit: 100 })
+        subcategoryAPI.getSubcategoriesByCategoryId(categoryId, { limit: 100, isActive: true })
           .then(res => res.data.data?.docs || [])
           .catch(() => [])
       );
@@ -333,8 +319,8 @@ const ProductListingLayout = ({
   });
 
   const categories = useMemo(() => {
-    if (!categoriesData?.docs) return [];
-    return categoriesData.docs.map(cat => ({
+    if (!categoriesData) return [];
+    return categoriesData.map(cat => ({
       _id: cat._id,
       title: cat.name,
       count: null,
@@ -350,9 +336,6 @@ const ProductListingLayout = ({
     }));
   }, [subcategoriesData]);
 
-  // Activation-region presets (Europe, Asia, Global, …) — a buyer filters to
-  // products whose offers can be activated in that region. The `_id` is the
-  // preset CODE the backend filters on (offerRegionCodes), not a Mongo id.
   const regions = useMemo(
     () => REGION_PRESETS.map((r) => ({ _id: r.code, title: r.name, count: null })),
     []
@@ -424,9 +407,6 @@ const ProductListingLayout = ({
 
     if (debouncedSearch.trim()) {
       params.search = debouncedSearch.trim();
-      // Use the SAME index-backed prefix search the header typeahead uses, so
-      // pressing Enter on "fortn" returns the same Fortnite results the
-      // suggestions showed (no suggestions -> empty-results-page mismatch).
       params.searchMode = 'prefix';
     }
 
@@ -474,8 +454,6 @@ const ProductListingLayout = ({
       params.sort = sortBy;
     }
 
-    // M15: lets the homepage "Featured Products → See All" land on a real
-    // filtered listing instead of the unfiltered catalogue.
     if (isFeaturedOnly) {
       params.isFeatured = 'true';
     }
@@ -540,9 +518,6 @@ const ProductListingLayout = ({
     if (sortBy !== 'newest') params.set('sort', sortBy);
     if (inStock) params.set('inStock', 'true');
     if (layout !== 'listing') params.set('layout', layout);
-    // This effect rebuilds the querystring from scratch, so the featured flag
-    // has to be re-set or the filter would silently drop on the first
-    // interaction (sort change, pagination, …).
     if (isFeaturedOnly) params.set('isFeatured', 'true');
     if (isPreorderOnly) params.set('isPreorder', 'true');
 
@@ -646,8 +621,6 @@ const ProductListingLayout = ({
     );
   }, []);
 
-  // Resolves the checked state for a given filter type/id so the hoisted
-  // CheckboxItem stays presentational (no closure over parent state).
   const isItemChecked = useCallback((type, id) => {
     if (type === 'categoryId') return effectiveCategoryIds.includes(id);
     if (type === 'subCategoryId') return effectiveSubCategoryIds.includes(id);
@@ -716,10 +689,312 @@ const ProductListingLayout = ({
   const displayTitle = lockedCategoryData?.name || pageTitle;
   const displayItemCount = totalDocs > 0 ? `${totalDocs} items` : '';
 
+  const filterPanel = (
+    <>
+      {hasActiveFilters && (
+        <Button
+          variant="outline"
+          onClick={clearFilters}
+          className="w-full mb-4"
+        >
+          <X className="h-4 w-4 mr-2" />
+          Clear Filters
+        </Button>
+      )}
+
+      <FilterSection
+        title="Categories"
+        section="categories"
+        hasSearch={categories.length > 10}
+        itemCount={effectiveCategoryIds.length || 0}
+        totalItems={filteredCategories.length}
+        isExpanded={expandedSections.categories}
+        searchValue={searchTerms.categories}
+        onSearchChange={handleSearch}
+        onToggleSection={toggleSection}
+      >
+        {displayedCategories.map(cat => {
+          const isLocked = lockedCategoryId === cat._id;
+          return (
+            <CheckboxItem
+              key={cat._id}
+              id={cat._id}
+              title={cat.title}
+              type="categoryId"
+              count={cat.count}
+              isLocked={isLocked}
+              isChecked={isItemChecked('categoryId', cat._id)}
+              onToggle={handleCheckboxChange}
+            />
+          );
+        })}
+      </FilterSection>
+
+      {subcategories.length > 0 && (
+        <FilterSection
+          title="Subcategories"
+          section="subcategories"
+          hasSearch={subcategories.length > 10}
+          itemCount={effectiveSubCategoryIds.length || 0}
+          totalItems={filteredSubcategories.length}
+          isExpanded={expandedSections.subcategories}
+          searchValue={searchTerms.subcategories}
+          onSearchChange={handleSearch}
+          onToggleSection={toggleSection}
+        >
+          {displayedSubcategories.map(subcat => (
+            <CheckboxItem
+              key={subcat._id}
+              id={subcat._id}
+              title={subcat.title}
+              type="subCategoryId"
+              count={subcat.count}
+              isChecked={isItemChecked('subCategoryId', subcat._id)}
+              onToggle={handleCheckboxChange}
+            />
+          ))}
+        </FilterSection>
+      )}
+
+      <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
+        <div className="bg-[#043086] px-4 py-3">
+          <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
+            Price (USD)
+          </h3>
+        </div>
+        <div className="p-4 bg-[#06051C]/60">
+          <div className="flex items-center space-x-3">
+            <div className="flex-1">
+              <Input
+                type="number"
+                placeholder="From"
+                value={minPrice || ''}
+                onChange={(e) => handleInputChange('minPrice', e.target.value)}
+                className="bg-transparent text-fg placeholder-slate-400 focus:border-red-500"
+              />
+            </div>
+            <span className="text-slate-400">—</span>
+            <div className="flex-1">
+              <Input
+                type="number"
+                placeholder="To"
+                value={maxPrice || ''}
+                onChange={(e) => handleInputChange('maxPrice', e.target.value)}
+                className="bg-transparent border-slate-600 text-fg placeholder-slate-400 focus:border-red-500"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
+        <div className="bg-[#043086] px-4 py-3">
+          <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
+            Availability
+          </h3>
+        </div>
+        <div className="p-4 bg-[#052157] space-y-2">
+          <label htmlFor="filter-in-stock" className="flex items-center gap-2 cursor-pointer">
+            <Checkbox
+              id="filter-in-stock"
+              checked={inStock}
+              onCheckedChange={(checked) => {
+                setInStock(checked);
+                setPage(1);
+              }}
+            />
+            <Label className="text-sm text-slate-200 cursor-pointer">
+              Items In Stock
+            </Label>
+          </label>
+        </div>
+      </div>
+
+      <FilterSection
+        title="Platform"
+        section="platforms"
+        hasSearch={platforms.length > 5}
+        itemCount={checkboxFilters.platform?.length || 0}
+        totalItems={filteredPlatforms.length}
+        isExpanded={expandedSections.platforms}
+        searchValue={searchTerms.platforms}
+        onSearchChange={handleSearch}
+        onToggleSection={toggleSection}
+      >
+        {displayedPlatforms.map(platform => {
+          const isLocked = lockedPlatformId === platform._id;
+          return (
+            <CheckboxItem
+              key={platform._id}
+              id={platform._id}
+              title={platform.title}
+              type="platform"
+              count={platform.count}
+              isLocked={isLocked}
+              isChecked={isItemChecked('platform', platform._id)}
+              onToggle={handleCheckboxChange}
+            />
+          );
+        })}
+      </FilterSection>
+
+      <FilterSection
+        title="Region"
+        section="regions"
+        hasSearch={regions.length > 5}
+        itemCount={checkboxFilters.region?.length || 0}
+        totalItems={filteredRegions.length}
+        isExpanded={expandedSections.regions}
+        searchValue={searchTerms.regions}
+        onSearchChange={handleSearch}
+        onToggleSection={toggleSection}
+      >
+        {displayedRegions.map(region => (
+          <CheckboxItem
+            key={region._id}
+            id={region._id}
+            title={region.title}
+            type="region"
+            count={region.count}
+            isChecked={isItemChecked('region', region._id)}
+            onToggle={handleCheckboxChange}
+          />
+        ))}
+      </FilterSection>
+
+      <FilterSection
+        title="Device"
+        section="devices"
+        hasSearch={devices.length > 5}
+        itemCount={checkboxFilters.device?.length || 0}
+        totalItems={filteredDevices.length}
+        isExpanded={expandedSections.devices}
+        searchValue={searchTerms.devices}
+        onSearchChange={handleSearch}
+        onToggleSection={toggleSection}
+      >
+        {displayedDevices.map(device => (
+          <CheckboxItem
+            key={device._id}
+            id={device._id}
+            title={device.title}
+            type="device"
+            count={device.count}
+            isChecked={isItemChecked('device', device._id)}
+            onToggle={handleCheckboxChange}
+          />
+        ))}
+      </FilterSection>
+
+      <FilterSection
+        title="Type"
+        section="types"
+        itemCount={checkboxFilters.productType?.length || 0}
+        totalItems={PRODUCT_TYPE_OPTIONS.length}
+        isExpanded={expandedSections.types}
+        onToggleSection={toggleSection}
+      >
+        {PRODUCT_TYPE_OPTIONS.map(option => (
+          <CheckboxItem
+            key={option._id}
+            id={option._id}
+            title={option.title}
+            type="productType"
+            isChecked={isItemChecked('productType', option._id)}
+            onToggle={handleCheckboxChange}
+          />
+        ))}
+      </FilterSection>
+
+      {genres.length > 0 && (
+        <FilterSection
+          title="Genres"
+          section="genres"
+          hasSearch={genres.length > 5}
+          itemCount={checkboxFilters.genre?.length || 0}
+          totalItems={filteredGenres.length}
+          isExpanded={expandedSections.genres}
+          searchValue={searchTerms.genres}
+          onSearchChange={handleSearch}
+          onToggleSection={toggleSection}
+        >
+          {displayedGenres.map(genre => (
+            <CheckboxItem
+              key={genre._id}
+              id={genre._id}
+              title={genre.title}
+              type="genre"
+              count={genre.count}
+              isChecked={isItemChecked('genre', genre._id)}
+              onToggle={handleCheckboxChange}
+            />
+          ))}
+        </FilterSection>
+      )}
+
+      {themes.length > 0 && (
+        <FilterSection
+          title="Themes"
+          section="themes"
+          hasSearch={themes.length > 5}
+          itemCount={checkboxFilters.theme?.length || 0}
+          totalItems={filteredThemes.length}
+          isExpanded={expandedSections.themes}
+          searchValue={searchTerms.themes}
+          onSearchChange={handleSearch}
+          onToggleSection={toggleSection}
+        >
+          {displayedThemes.map(theme => (
+            <CheckboxItem
+              key={theme._id}
+              id={theme._id}
+              title={theme.title}
+              type="theme"
+              count={theme.count}
+              isChecked={isItemChecked('theme', theme._id)}
+              onToggle={handleCheckboxChange}
+            />
+          ))}
+        </FilterSection>
+      )}
+
+      {modes.length > 0 && (
+        <FilterSection
+          title="Modes"
+          section="modes"
+          hasSearch={modes.length > 5}
+          itemCount={checkboxFilters.mode?.length || 0}
+          totalItems={filteredModes.length}
+          isExpanded={expandedSections.modes}
+          searchValue={searchTerms.modes}
+          onSearchChange={handleSearch}
+          onToggleSection={toggleSection}
+        >
+          {displayedModes.map(mode => (
+            <CheckboxItem
+              key={mode._id}
+              id={mode._id}
+              title={mode.title}
+              type="mode"
+              count={mode.count}
+              isChecked={isItemChecked('mode', mode._id)}
+              onToggle={handleCheckboxChange}
+            />
+          ))}
+        </FilterSection>
+      )}
+
+      <div className="pt-4">
+        <p className="text-sm text-fg-muted text-center">
+          Need More Filters? Let Us Know.
+        </p>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-[#0E092C] text-fg">
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">{displayTitle}</h1>
           {displayItemCount && (
@@ -728,327 +1003,16 @@ const ProductListingLayout = ({
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 relative">
-          {/* Mobile Filter Button */}
           <div className="md:hidden absolute -top-20 right-4 z-10">
             <Button onClick={() => setIsOpen(true)} className="bg-info-solid text-fg">
               Filters
             </Button>
           </div>
 
-          {/* Left Sidebar - Filters (Desktop) */}
           <aside className="hidden md:block w-80 space-y-4">
-            {/* Clear Filters Button */}
-            {hasActiveFilters && (
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                className="w-full mb-4"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Clear Filters
-              </Button>
-            )}
-
-            {/* Categories */}
-            <FilterSection
-              title="Categories"
-              section="categories"
-              hasSearch={categories.length > 10}
-              itemCount={effectiveCategoryIds.length || 0}
-              isExpanded={expandedSections.categories}
-              searchValue={searchTerms.categories}
-              onSearchChange={handleSearch}
-              onToggleSection={toggleSection}
-            >
-              {displayedCategories.map(cat => {
-                const isLocked = lockedCategoryId === cat._id;
-                return (
-                  <CheckboxItem
-                    key={cat._id}
-                    id={cat._id}
-                    title={cat.title}
-                    type="categoryId"
-                    count={cat.count}
-                    isLocked={isLocked}
-                    isChecked={isItemChecked('categoryId', cat._id)}
-                    onToggle={handleCheckboxChange}
-                  />
-                );
-              })}
-            </FilterSection>
-
-            {/* Subcategories */}
-            {subcategories.length > 0 && (
-              <FilterSection
-                title="Subcategories"
-                section="subcategories"
-                hasSearch={subcategories.length > 10}
-                itemCount={effectiveSubCategoryIds.length || 0}
-                totalItems={filteredSubcategories.length}
-                isExpanded={expandedSections.subcategories}
-                searchValue={searchTerms.subcategories}
-                onSearchChange={handleSearch}
-                onToggleSection={toggleSection}
-              >
-                {displayedSubcategories.map(subcat => (
-                  <CheckboxItem
-                    key={subcat._id}
-                    id={subcat._id}
-                    title={subcat.title}
-                    type="subCategoryId"
-                    count={subcat.count}
-                    isChecked={isItemChecked('subCategoryId', subcat._id)}
-                    onToggle={handleCheckboxChange}
-                  />
-                ))}
-              </FilterSection>
-            )}
-
-            {/* Price Range */}
-            <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
-              <div className="bg-[#043086] px-4 py-3">
-                <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
-                  Price (USD)
-                </h3>
-              </div>
-              <div className="p-4 bg-[#06051C]/60">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      placeholder="From"
-                      value={minPrice || ''}
-                      onChange={(e) => handleInputChange('minPrice', e.target.value)}
-                      className="bg-transparent text-fg placeholder-slate-400 focus:border-red-500"
-                    />
-                  </div>
-                  <span className="text-slate-400">—</span>
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      placeholder="To"
-                      value={maxPrice || ''}
-                      onChange={(e) => handleInputChange('maxPrice', e.target.value)}
-                      className="bg-transparent border-slate-600 text-fg placeholder-slate-400 focus:border-red-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Availability */}
-            <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
-              <div className="bg-[#043086] px-4 py-3">
-                <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
-                  Availability
-                </h3>
-              </div>
-              <div className="p-4 bg-[#052157] space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={inStock}
-                    onCheckedChange={(checked) => {
-                      setInStock(checked);
-                      setPage(1);
-                    }}
-                  />
-                  <Label className="text-sm text-slate-200 cursor-pointer">
-                    Items In Stock ({totalDocs})
-                  </Label>
-                </label>
-              </div>
-            </div>
-
-            {/* Platform */}
-            <FilterSection
-              title="Platform"
-              section="platforms"
-              hasSearch={platforms.length > 5}
-              itemCount={checkboxFilters.platform?.length || 0}
-              totalItems={filteredPlatforms.length}
-              isExpanded={expandedSections.platforms}
-              searchValue={searchTerms.platforms}
-              onSearchChange={handleSearch}
-              onToggleSection={toggleSection}
-            >
-              {displayedPlatforms.map(platform => {
-                const isLocked = lockedPlatformId === platform._id;
-                return (
-                  <CheckboxItem
-                    key={platform._id}
-                    id={platform._id}
-                    title={platform.title}
-                    type="platform"
-                    count={platform.count}
-                    isLocked={isLocked}
-                    isChecked={isItemChecked('platform', platform._id)}
-                    onToggle={handleCheckboxChange}
-                  />
-                );
-              })}
-            </FilterSection>
-
-            {/* Region */}
-            <FilterSection
-              title="Region"
-              section="regions"
-              hasSearch={regions.length > 5}
-              itemCount={checkboxFilters.region?.length || 0}
-              totalItems={filteredRegions.length}
-              isExpanded={expandedSections.regions}
-              searchValue={searchTerms.regions}
-              onSearchChange={handleSearch}
-              onToggleSection={toggleSection}
-            >
-              {displayedRegions.map(region => (
-                <CheckboxItem
-                  key={region._id}
-                  id={region._id}
-                  title={region.title}
-                  type="region"
-                  count={region.count}
-                  isChecked={isItemChecked('region', region._id)}
-                  onToggle={handleCheckboxChange}
-                />
-              ))}
-            </FilterSection>
-
-            {/* Device */}
-            <FilterSection
-              title="Device"
-              section="devices"
-              hasSearch={devices.length > 5}
-              itemCount={checkboxFilters.device?.length || 0}
-              totalItems={filteredDevices.length}
-              isExpanded={expandedSections.devices}
-              searchValue={searchTerms.devices}
-              onSearchChange={handleSearch}
-              onToggleSection={toggleSection}
-            >
-              {displayedDevices.map(device => (
-                <CheckboxItem
-                  key={device._id}
-                  id={device._id}
-                  title={device.title}
-                  type="device"
-                  count={device.count}
-                  isChecked={isItemChecked('device', device._id)}
-                  onToggle={handleCheckboxChange}
-                />
-              ))}
-            </FilterSection>
-
-            {/* Type = delivery model. Four fixed values, so nothing is fetched. */}
-            <FilterSection
-              title="Type"
-              section="types"
-              itemCount={checkboxFilters.productType?.length || 0}
-              totalItems={PRODUCT_TYPE_OPTIONS.length}
-              isExpanded={expandedSections.types}
-              onToggleSection={toggleSection}
-            >
-              {PRODUCT_TYPE_OPTIONS.map(option => (
-                <CheckboxItem
-                  key={option._id}
-                  id={option._id}
-                  title={option.title}
-                  type="productType"
-                  isChecked={isItemChecked('productType', option._id)}
-                  onToggle={handleCheckboxChange}
-                />
-              ))}
-            </FilterSection>
-
-            {/* Genre */}
-            {genres.length > 0 && (
-              <FilterSection
-                title="Genres"
-                section="genres"
-                hasSearch={genres.length > 5}
-                itemCount={checkboxFilters.genre?.length || 0}
-                totalItems={filteredGenres.length}
-                isExpanded={expandedSections.genres}
-                searchValue={searchTerms.genres}
-                onSearchChange={handleSearch}
-                onToggleSection={toggleSection}
-              >
-                {displayedGenres.map(genre => (
-                  <CheckboxItem
-                    key={genre._id}
-                    id={genre._id}
-                    title={genre.title}
-                    type="genre"
-                    count={genre.count}
-                    isChecked={isItemChecked('genre', genre._id)}
-                    onToggle={handleCheckboxChange}
-                  />
-                ))}
-              </FilterSection>
-            )}
-
-            {/* Theme */}
-            {themes.length > 0 && (
-              <FilterSection
-                title="Themes"
-                section="themes"
-                hasSearch={themes.length > 5}
-                itemCount={checkboxFilters.theme?.length || 0}
-                totalItems={filteredThemes.length}
-                isExpanded={expandedSections.themes}
-                searchValue={searchTerms.themes}
-                onSearchChange={handleSearch}
-                onToggleSection={toggleSection}
-              >
-                {displayedThemes.map(theme => (
-                  <CheckboxItem
-                    key={theme._id}
-                    id={theme._id}
-                    title={theme.title}
-                    type="theme"
-                    count={theme.count}
-                    isChecked={isItemChecked('theme', theme._id)}
-                    onToggle={handleCheckboxChange}
-                  />
-                ))}
-              </FilterSection>
-            )}
-
-            {/* Mode */}
-            {modes.length > 0 && (
-              <FilterSection
-                title="Modes"
-                section="modes"
-                hasSearch={modes.length > 5}
-                itemCount={checkboxFilters.mode?.length || 0}
-                totalItems={filteredModes.length}
-                isExpanded={expandedSections.modes}
-                searchValue={searchTerms.modes}
-                onSearchChange={handleSearch}
-                onToggleSection={toggleSection}
-              >
-                {displayedModes.map(mode => (
-                  <CheckboxItem
-                    key={mode._id}
-                    id={mode._id}
-                    title={mode.title}
-                    type="mode"
-                    count={mode.count}
-                    isChecked={isItemChecked('mode', mode._id)}
-                    onToggle={handleCheckboxChange}
-                  />
-                ))}
-              </FilterSection>
-            )}
-
-            {/* Need More Filters */}
-            <div className="pt-4">
-              <p className="text-sm text-fg-muted text-center">
-                Need More Filters? Let Us Know.
-              </p>
-            </div>
+            {filterPanel}
           </aside>
 
-          {/* Mobile Slide-In Drawer */}
           <div
             className={`fixed top-0 right-0 h-full w-80 bg-slate-900 z-50 transform transition-transform duration-300 md:hidden ${
               isOpen ? 'translate-x-0' : 'translate-x-full'
@@ -1062,160 +1026,11 @@ const ProductListingLayout = ({
             </div>
 
             <div className="p-4 overflow-y-auto space-y-4 h-full">
-              {/* Same filter sections as desktop - reuse components */}
-              {hasActiveFilters && (
-                <Button
-                  variant="outline"
-                  onClick={clearFilters}
-                  className="w-full mb-4"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Clear Filters
-                </Button>
-              )}
-
-              <FilterSection
-                title="Categories"
-                section="categories"
-                hasSearch={categories.length > 10}
-                itemCount={effectiveCategoryIds.length || 0}
-                totalItems={filteredCategories.length}
-                isExpanded={expandedSections.categories}
-                searchValue={searchTerms.categories}
-                onSearchChange={handleSearch}
-                onToggleSection={toggleSection}
-              >
-                {displayedCategories.map(cat => {
-                  const isLocked = lockedCategoryId === cat._id;
-                  return (
-                    <CheckboxItem
-                      key={cat._id}
-                      id={cat._id}
-                      title={cat.title}
-                      type="categoryId"
-                      count={cat.count}
-                      isLocked={isLocked}
-                      isChecked={isItemChecked('categoryId', cat._id)}
-                      onToggle={handleCheckboxChange}
-                    />
-                  );
-                })}
-              </FilterSection>
-
-              {/* Price Range */}
-              <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
-                <div className="bg-[#043086] px-4 py-3">
-                  <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
-                    Price (USD)
-                  </h3>
-                </div>
-                <div className="p-4 bg-[#06051C]/60">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-1">
-                      <Input
-                        type="number"
-                        placeholder="From"
-                        value={minPrice || ''}
-                        onChange={(e) => handleInputChange('minPrice', e.target.value)}
-                        className="bg-transparent text-fg placeholder-slate-400 focus:border-red-500"
-                      />
-                    </div>
-                    <span className="text-slate-400">—</span>
-                    <div className="flex-1">
-                      <Input
-                        type="number"
-                        placeholder="To"
-                        value={maxPrice || ''}
-                        onChange={(e) => handleInputChange('maxPrice', e.target.value)}
-                        className="bg-transparent border-slate-600 text-fg placeholder-slate-400 focus:border-red-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Availability */}
-              <div className="bg-slate-800 rounded-lg overflow-hidden mb-4">
-                <div className="bg-[#043086] px-4 py-3">
-                  <h3 className="text-fg font-medium text-sm uppercase tracking-wide">
-                    Availability
-                  </h3>
-                </div>
-                <div className="p-4 bg-[#052157] space-y-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={inStock}
-                      onCheckedChange={(checked) => {
-                        setInStock(checked);
-                        setPage(1);
-                      }}
-                    />
-                    <Label className="text-sm text-slate-200 cursor-pointer">
-                      Items In Stock ({totalDocs})
-                    </Label>
-                  </label>
-                </div>
-              </div>
-
-              <FilterSection
-                title="Region"
-                section="regions"
-                hasSearch={regions.length > 5}
-                itemCount={checkboxFilters.region?.length || 0}
-                totalItems={filteredRegions.length}
-                isExpanded={expandedSections.regions}
-                searchValue={searchTerms.regions}
-                onSearchChange={handleSearch}
-                onToggleSection={toggleSection}
-              >
-                {displayedRegions.map(region => (
-                  <CheckboxItem
-                    key={region._id}
-                    id={region._id}
-                    title={region.title}
-                    type="region"
-                    count={region.count}
-                    isChecked={isItemChecked('region', region._id)}
-                    onToggle={handleCheckboxChange}
-                  />
-                ))}
-              </FilterSection>
-
-              <FilterSection
-                title="Platform"
-                section="platforms"
-                hasSearch={platforms.length > 5}
-                itemCount={checkboxFilters.platform?.length || 0}
-                totalItems={filteredPlatforms.length}
-                isExpanded={expandedSections.platforms}
-                searchValue={searchTerms.platforms}
-                onSearchChange={handleSearch}
-                onToggleSection={toggleSection}
-              >
-                {displayedPlatforms.map(platform => {
-                  const isLocked = lockedPlatformId === platform._id;
-                  return (
-                    <CheckboxItem
-                      key={platform._id}
-                      id={platform._id}
-                      title={platform.title}
-                      type="platform"
-                      count={platform.count}
-                      isLocked={isLocked}
-                      isChecked={isItemChecked('platform', platform._id)}
-                      onToggle={handleCheckboxChange}
-                    />
-                  );
-                })}
-              </FilterSection>
-
-              {/* Other filters... */}
+              {filterPanel}
             </div>
           </div>
 
-          {/* Right Section - Products */}
           <div className="flex-1">
-            {/* Sort and Search Bar */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
               <Input
                 type="text"
@@ -1265,7 +1080,6 @@ const ProductListingLayout = ({
               </div>
             </div>
 
-            {/* Products List */}
             {initialLoading ? (
               <div className={layout === 'listing' ? 'space-y-4' : 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6'}>
                 {skeletonKeys.map((skeletonKey) => (
@@ -1299,7 +1113,6 @@ const ProductListingLayout = ({
                   </div>
                 )}
 
-                {/* Pagination */}
                 <Pagination variant="compact" page={page} totalPages={totalPages} onPageChange={setPage} />
               </>
             ) : (

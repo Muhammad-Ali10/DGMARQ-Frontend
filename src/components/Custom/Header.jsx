@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { getGuestCartCount } from "@features/cart-checkout";
+import { useCartCount } from "@features/cart-checkout";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { calculateProductPrice, getProductPath, getPlatformName, getTypeName, useWishlist } from "@features/catalog";
+import { calculateProductPrice, getProductPath, getPlatformName, getTypeName, getCardRegionOffer, useWishlist, useActiveCategories } from "@features/catalog";
 import RegionBadges from "@features/catalog/components/RegionBadges";
 import {
   Search,
@@ -19,20 +19,15 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@components/ui/button";
-import {
-  categoryAPI,
-  productAPI,
-  cartAPI,
-  menuAPI,
-  storefrontAPI,
-} from "@services/api";
+import { menuAPI } from "@services/api";
 import { cn } from "@lib/utils";
 import { getMenuIcon } from "@lib/menuIcons";
 import { resolveTarget } from "@lib/resolveTarget";
 import SessionMenu from "./SessionMenu";
 import SafeImage from "@components/ui/safe-image";
 import { NotificationBell } from "@features/notifications";
-import { useDebounce } from "@hooks/useDebounce";
+import { useSearchSuggestions } from "@hooks/useSearchSuggestions";
+import { useStorefrontConfig } from "@hooks/useStorefrontConfig";
 import useCurrency from "@hooks/useCurrency";
 import useLanguage from "@hooks/useLanguage";
 import useBuyerCountry from "@hooks/useBuyerCountry";
@@ -46,24 +41,26 @@ const PROMO_MESSAGES = [
   { icon: <Gift width={16} height={16} />, node: (<>Gift cards, top-ups &amp; accounts &mdash; <span className="fx-promo-em">new deals daily</span></>) },
 ];
 
+const selectSearchWords = (config) => config?.searchWords || [];
+const EMPTY = [];
+
 const Header = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileQuery, setMobileQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  // New futuristic-chrome state
   const [promoIdx, setPromoIdx] = useState(0);
   const [promoHidden, setPromoHidden] = useState(false);
-  const { currency: currencyCode } = useCurrency();
+  const { currency: currencyCode, format } = useCurrency();
   const { language } = useLanguage();
   const { country } = useBuyerCountry();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [spot, setSpot] = useState({ left: 0, width: 0, opacity: 0 });
-  // M15: id of the admin menu item whose mega panel is open (null = none).
   const [openMega, setOpenMega] = useState(null);
   const [expandedMenuId, setExpandedMenuId] = useState(null);
   const [searchWordIdx, setSearchWordIdx] = useState(0);
@@ -73,88 +70,26 @@ const Header = () => {
   const cmdbarRef = useRef(null);
   const megaTimeout = useRef(null);
 
-  // Flat category list — the only thing left that needs it is the search bar's
-  // "All Categories" filter. The Categories mega dropdown that used to drive an
-  // N+1 of per-hover subcategory fetches is gone; the nav is admin-built now.
-  const { data: categories = [] } = useQuery({
-    queryKey: ["header-categories"],
-    queryFn: () =>
-      categoryAPI
-        .getCategories({ isActive: true, limit: 100 })
-        .then((r) => r.data.data?.docs || []),
-    staleTime: 300000,
-  });
+  const { data: categories = EMPTY } = useActiveCategories();
+  const { data: searchWords = EMPTY } = useStorefrontConfig(selectSearchWords);
 
-  // M15: admin-controlled search hints. Empty by default, in which case the
-  // static placeholder below stays exactly as it was.
-  const { data: searchWords = [] } = useQuery({
-    queryKey: ["storefront-config", "search-words"],
-    queryFn: () => storefrontAPI.getConfig().then((r) => r.data.data?.searchWords || []),
-    staleTime: 300000,
-  });
-
-  // The entire command strip. With no items configured the strip is hidden.
   const { data: adminMenu = [] } = useQuery({
     queryKey: ["header-menu"],
     queryFn: () => menuAPI.getMenu().then((r) => r.data.data || []),
     staleTime: 300000,
   });
 
-  // ONE shared cart query for the whole app: the badge below and the mini-cart
-  // flyout both read this cache, so the cart is fetched once (not once per
-  // component) and any `invalidateQueries(['cart'])` updates both instantly.
-  const { data: cart } = useQuery({
-    queryKey: ["cart"],
-    queryFn: () => cartAPI.getCart().then((r) => r.data.data),
-    enabled: isAuthenticated,
-    staleTime: 30_000, // don't refetch a heavy cart on every window focus
-  });
+  const cartCount = useCartCount();
 
-  const [guestCartCount, setGuestCartCount] = useState(() =>
-    typeof getGuestCartCount === "function" ? getGuestCartCount() : 0,
-  );
-  useEffect(() => {
-    if (!isAuthenticated && typeof getGuestCartCount === "function") {
-      setGuestCartCount(getGuestCartCount());
-      const onGuestCartChange = () => setGuestCartCount(getGuestCartCount());
-      window.addEventListener("guestCartChange", onGuestCartChange);
-      return () => window.removeEventListener("guestCartChange", onGuestCartChange);
-    }
-  }, [isAuthenticated]);
-
-  const cartCount = isAuthenticated ? cart?.items?.length || 0 : guestCartCount;
-
-  // The badge count comes from the shared wishlist hook, which reads the
-  // ID-ONLY endpoint.
-  //
-  // AUDIT FIX (PERF-10) shared the ['wishlist'] cache entry so this component —
-  // mounted on EVERY route — stopped firing a second request. But it was still
-  // pulling fully-populated product documents just to read `.length`. The
-  // membership endpoint returns ids and a count and nothing else, so the header
-  // now costs a bounded ~12KB at worst instead of a page of products.
   const { count: wishlistCount } = useWishlist();
 
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-
-  const { data: searchSuggestions, isLoading: searchLoading } = useQuery({
-    queryKey: ["search-suggestions", debouncedSearchQuery, selectedCategory],
-    queryFn: async () => {
-      if (!debouncedSearchQuery.trim()) return [];
-      try {
-        const params = { search: debouncedSearchQuery, limit: 10, status: "active", searchMode: "prefix" };
-        if (selectedCategory !== "all") params.categoryId = selectedCategory;
-        const response = await productAPI.getProducts(params);
-        return response.data.data?.docs || [];
-      } catch {
-        return [];
-      }
-    },
-    enabled: debouncedSearchQuery.trim().length > 0,
-    staleTime: 60000,
-  });
+  const { term: suggestionTerm, suggestions: searchSuggestions, isLoading: searchLoading } = useSearchSuggestions(
+    searchQuery,
+    { categoryId: selectedCategory },
+  );
 
   const shouldShowSuggestions =
-    showSearchSuggestions && debouncedSearchQuery.trim() && (searchSuggestions?.length > 0 || searchLoading);
+    showSearchSuggestions && suggestionTerm && (searchSuggestions.length > 0 || searchLoading);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -168,8 +103,6 @@ const Header = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Mega panels open on tap too (touch has no hover to leave), so they need
-      // outside-click dismissal.
       if (cmdbarRef.current && !cmdbarRef.current.contains(event.target)) {
         setOpenMega(null);
       }
@@ -186,8 +119,6 @@ const Header = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Rotating search-bar hint. Frozen while the user is typing so the
-  // placeholder never changes under an in-progress search.
   useEffect(() => {
     if (searchWords.length <= 1 || searchQuery) return;
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
@@ -196,7 +127,6 @@ const Header = () => {
     return () => clearInterval(t);
   }, [searchWords.length, searchQuery]);
 
-  // Rotating promo banner.
   useEffect(() => {
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce || PROMO_MESSAGES.length <= 1) return;
@@ -220,6 +150,12 @@ const Header = () => {
     setShowSearchSuggestions(false);
     navigate(`/search?${params.toString()}`);
   };
+  const handleMobileSearch = (e) => {
+    e.preventDefault();
+    if (!mobileQuery.trim()) return;
+    setMobileMenuOpen(false);
+    navigate(`/search?${new URLSearchParams({ q: mobileQuery }).toString()}`);
+  };
   const handleSuggestionClick = (product) => {
     setShowSearchSuggestions(false);
     setSearchQuery("");
@@ -231,8 +167,6 @@ const Header = () => {
   };
   const hideSpot = () => setSpot((s) => ({ ...s, opacity: 0 }));
 
-  // Mega panels open on hover but close on a short delay, so the pointer can
-  // cross the gap between the bar and the panel without it snapping shut.
   const openMegaPanel = (id) => {
     if (megaTimeout.current) {
       clearTimeout(megaTimeout.current);
@@ -247,7 +181,6 @@ const Header = () => {
 
   return (
     <div className="hdr-fx">
-      {/* Animated promo banner */}
       <div className={cn("fx-promo", promoHidden && "is-hidden")} role="region" aria-label="Promotions">
         <span className="fx-promo-beam" aria-hidden="true" />
         <div className="fx-promo-row">
@@ -269,11 +202,9 @@ const Header = () => {
         </button>
       </div>
 
-      {/* Main Header */}
       <div className={cn("sticky top-0 z-50 transition-all duration-300", isScrolled ? "bg-[#060318] backdrop-blur-md shadow-lg" : "bg-transparent")}>
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between gap-4 py-2.5">
-            {/* Logo */}
             <Link to="/" className="flex items-center gap-2 shrink-0" onClick={() => setMobileMenuOpen(false)}>
               <SafeImage
                 src="https://res.cloudinary.com/dhuhvbzpj/image/upload/v1773483947/logo_gos33k.png"
@@ -283,12 +214,6 @@ const Header = () => {
               />
             </Link>
 
-            {/* Mobile top-nav actions — wishlist, then the menu toggle.
-                CLIENT REQUIREMENT 1c. The wishlist was reachable on mobile only
-                from the BOTTOM bar; the top bar had the logo and the hamburger
-                and nothing else, and the drawer below had no wishlist entry
-                either. This is the desktop heart (:426) at mobile breakpoints,
-                sharing the same badge count. */}
             <div className="flex items-center gap-2 md:hidden shrink-0">
               <button
                 type="button"
@@ -315,7 +240,6 @@ const Header = () => {
               </Button>
             </div>
 
-            {/* Futuristic search bar — desktop */}
             <div className="hidden md:flex flex-1 mx-4 relative" ref={searchContainerRef}>
               <form className="fx-search w-full" role="search" onSubmit={handleSearch}>
                 <span className="fx-corner fx-corner-tl" /><span className="fx-corner fx-corner-tr" /><span className="fx-corner fx-corner-bl" /><span className="fx-corner fx-corner-br" />
@@ -350,28 +274,18 @@ const Header = () => {
                 </div>
               </form>
 
-              {/* Suggestions panel (real data) */}
               {shouldShowSuggestions && (
                 <div className="fx-search-panel" role="listbox" aria-label="Search results">
                   <div className="fx-sp-list">
                     {searchLoading ? (
                       <div className="fx-sp-empty">Searching…</div>
-                    ) : searchSuggestions && searchSuggestions.length > 0 ? (
+                    ) : searchSuggestions.length > 0 ? (
                       searchSuggestions.map((product) => {
                         const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
                         const platformName = getPlatformName(product);
                         const typeName = getTypeName(product);
                         const offersCount = product.offersCount ?? 0;
-                        // Union of all offers' region codes (same shape the cards use) →
-                        // "can activate" if ANY seller covers the buyer's region. Static +
-                        // label-less so it drops cleanly into the clickable suggestion row.
-                        const regionOffer = (product.offerRegionCodes !== undefined || product.bestOfferRegionCodes !== undefined)
-                          ? {
-                              regionCodes: product.offerRegionCodes || product.bestOfferRegionCodes || [],
-                              countries: [],
-                              excludedCountries: [],
-                            }
-                          : null;
+                        const regionOffer = getCardRegionOffer(product);
                         return (
                           <button key={product._id} type="button" className="fx-sp-row" onClick={() => handleSuggestionClick(product)}>
                             <span className="fx-sp-icon">
@@ -394,10 +308,10 @@ const Header = () => {
                               {discountPercentage > 0 && (
                                 <span className="fx-sp-oldline">
                                   <span className="fx-sp-disc">-{discountPercentage.toFixed(0)}%</span>
-                                  <del className="fx-sp-old">${originalPrice.toFixed(2)}</del>
+                                  <del className="fx-sp-old">{format(originalPrice)}</del>
                                 </span>
                               )}
-                              {discountPrice != null && <span className="fx-sp-price">${discountPrice.toFixed(2)}</span>}
+                              {discountPrice != null && <span className="fx-sp-price">{format(discountPrice)}</span>}
                               <span className="fx-sp-subrow">
                                 {offersCount > 1 && <span className="fx-sp-offers">+{offersCount - 1} more offers</span>}
                                 {product.stock !== undefined && (
@@ -410,7 +324,7 @@ const Header = () => {
                           </button>
                         );
                       })
-                    ) : debouncedSearchQuery.trim() ? (
+                    ) : suggestionTerm ? (
                       <div className="fx-sp-empty">No products found. Try a different search.</div>
                     ) : null}
                   </div>
@@ -418,24 +332,19 @@ const Header = () => {
               )}
             </div>
 
-            {/* Right actions — desktop */}
             <div className="hidden md:flex items-center gap-3 shrink-0">
-              {/* Region / language / currency — opens the settings modal */}
               <button className="fx-curr-btn" onClick={() => setSettingsOpen(true)} type="button">
                 <img src={`https://flagcdn.com/w20/${String(country || "us").toLowerCase()}.png`} width={22} height={16} alt={country || ""} style={{ borderRadius: 2, objectFit: "cover", flexShrink: 0 }} />
                 <span className="fx-curr-label">{language}&nbsp;&nbsp;|&nbsp;&nbsp;{currencyCode}</span>
               </button>
 
-              {/* Session (login / register / account) */}
               <SessionMenu />
 
-              {/* Wishlist */}
               <button className="fx-iconbtn" onClick={() => navigate("/wishlist")} aria-label="Wishlist" type="button">
                 <Heart className="h-5 w-5" strokeWidth={2} />
                 {wishlistCount > 0 && <span className="fx-iconbtn-badge">{wishlistCount > 9 ? "9+" : wishlistCount}</span>}
               </button>
 
-              {/* Cart — opens the mini-cart flyout */}
               <button className="fx-iconbtn" onClick={() => setCartOpen((o) => !o)} aria-label="Cart" type="button">
                 <ShoppingCart className="h-5 w-5" strokeWidth={2} />
                 {cartCount > 0 && <span className="fx-iconbtn-badge">{cartCount > 9 ? "9+" : cartCount}</span>}
@@ -446,21 +355,12 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Command strip (sub-nav) — desktop. Fully admin-driven: the previous
-            hardcoded links and the Categories dropdown were removed in favour
-            of the menu built in Admin → Header Menu. With no menu configured
-            the whole strip is hidden rather than rendered empty. */}
         {adminMenu.length > 0 && (
         <div className="fx-cmdbar container mx-auto" ref={cmdbarRef}>
           <nav className="fx-cmd" aria-label="Browse the store">
-            {/* The spot is a decorative hover highlight, so its pointer handlers
-                live on a presentational wrapper rather than on the <nav>. */}
             <div className="fx-cmd-track" role="presentation" onMouseLeave={hideSpot}>
               <span className="fx-cmd-spot" aria-hidden="true" style={{ left: spot.left, width: spot.width, opacity: spot.opacity }} />
 
-              {/* An item with headings opens a mega panel; one without renders
-                  as a plain link. Either way a missing target renders nothing
-                  rather than a dead <Link>. */}
               {adminMenu.map((item) => {
                 const Icon = getMenuIcon(item.icon);
                 const headings = item.children || [];
@@ -503,14 +403,11 @@ const Header = () => {
             </div>
           </nav>
 
-          {/* Plus capsule */}
           <button type="button" className="fx-plus" onClick={() => navigate("/dgmarq-plus")}>
             <span className="fx-plus-spark" aria-hidden="true"><Sparkles width={18} height={18} /></span>
             <span className="fx-plus-text">Save more with <strong>DGMARQ&nbsp;Plus</strong></span>
           </button>
 
-          {/* M15: mega panels for admin items with headings. "View All" falls
-              back to the item's own target, so admins rarely set it. */}
           {adminMenu.map((item) => {
             const headings = item.children || [];
             if (headings.length === 0) return null;
@@ -530,9 +427,6 @@ const Header = () => {
                 <div className="fx-mega-inner">
                   <div className="fx-mega-panel fx-active">
                     {headings.map((heading) => {
-                      // A heading pointed at a category becomes the reference's
-                      // clickable group head (icon chip + name + growing
-                      // underline). Without a target it stays a plain label.
                       const headingTo = resolveTarget(heading.target);
                       const HeadingIcon = heading.icon ? getMenuIcon(heading.icon) : null;
 
@@ -540,8 +434,6 @@ const Header = () => {
                       <div key={heading._id} className="fx-mega-col">
                         {headingTo ? (
                           <Link className="fx-catgroup-head" to={headingTo} onClick={() => setOpenMega(null)}>
-                            {/* Auto-generated columns carry the category's own
-                                artwork; hand-built ones use a preset glyph. */}
                             {heading.image ? (
                               <span className="fx-catgroup-ic">
                                 <SafeImage src={heading.image} alt="" w={64} />
@@ -585,25 +477,21 @@ const Header = () => {
         </div>
         )}
 
-        {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-border max-h-[calc(100vh-80px)] overflow-y-auto bg-[#060318]">
             <div className="p-4 space-y-4">
-              {/* Mobile search */}
-              <form onSubmit={handleSearch} className="flex items-center gap-2">
+              <form onSubmit={handleMobileSearch} className="flex items-center gap-2">
                 <input
                   type="search"
                   aria-label="Search products"
                   className="flex-1 bg-surface-sunken/60 border border-accent rounded-lg px-3 h-10 text-fg text-sm outline-none"
                   placeholder="Search…"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
+                  value={mobileQuery}
+                  onChange={(e) => setMobileQuery(e.target.value)}
                 />
                 <Button type="submit" className="h-10 bg-gradient-to-r from-[#172AA4] to-[#0E9FE2]" aria-label="Search"><Search className="h-5 w-5" /></Button>
               </form>
 
-              {/* The same admin menu, as an accordion. No item cap here — the
-                  desktop bar is the only place width is a constraint. */}
               {adminMenu.map((item) => {
                 const headings = item.children || [];
                 const to = resolveTarget(item.target);
@@ -661,9 +549,6 @@ const Header = () => {
                 );
               })}
 
-              {/* Wishlist in the drawer too: the icon above is easy to miss
-                  next to the hamburger, and the drawer is where a mobile user
-                  goes looking for a named destination. */}
               <Link
                 to="/wishlist"
                 onClick={() => setMobileMenuOpen(false)}
@@ -682,7 +567,6 @@ const Header = () => {
                 Save more with DGMARQ Plus
               </Button>
 
-              {/* Region / language / currency — opens the settings modal */}
               <button type="button" onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }} className="flex items-center justify-center gap-2.5 w-full py-[10px] px-5 bg-[#07142E] rounded-lg text-fg">
                 <img src={`https://flagcdn.com/w20/${String(country || "us").toLowerCase()}.png`} width={22} height={16} alt={country || ""} style={{ borderRadius: 2, objectFit: "cover" }} />
                 <span className="text-sm font-semibold">{language}&nbsp;&nbsp;|&nbsp;&nbsp;{currencyCode}</span>

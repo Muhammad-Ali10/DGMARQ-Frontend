@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSocket } from '@hooks/useSocket';
 
-/**
- * Tracks whether a given user is online, using the server's existing presence
- * protocol: emit `check_online` → receive `online_statuses`, and listen to live
- * `user_status` broadcasts. Re-polls every 30s while mounted.
- */
 export const useUserPresence = (userId) => {
   const { socket, isConnected } = useSocket();
   const [online, setOnline] = useState(false);

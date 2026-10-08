@@ -2,10 +2,6 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
-/**
- * Full-screen image viewer for chat attachments. Closes on backdrop click or
- * Escape. Rendered through a portal so it sits above dialogs/popups.
- */
 const ImageLightbox = ({ src, alt = 'Attachment', onClose }) => {
   useEffect(() => {
     if (!src) return undefined;
@@ -13,7 +9,6 @@ const ImageLightbox = ({ src, alt = 'Attachment', onClose }) => {
       if (e.key === 'Escape') onClose?.();
     };
     document.addEventListener('keydown', onKey);
-    // Prevent the page behind from scrolling while open.
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -31,8 +26,6 @@ const ImageLightbox = ({ src, alt = 'Attachment', onClose }) => {
       aria-modal="true"
       aria-label={alt || 'Image preview'}
     >
-      {/* Click-to-dismiss scrim, behind the content. As its own layer the image
-          no longer needs a stopPropagation to avoid closing itself. */}
       <div
         role="presentation"
         className="absolute inset-0 bg-black/90"

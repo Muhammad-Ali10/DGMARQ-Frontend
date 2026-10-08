@@ -1,26 +1,38 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { cartAPI } from '@services/api';
 import { getGuestCart, clearGuestCart } from '../utils/guestCart';
 
-/**
- * Owns the guest (localStorage) cart for a page that renders both the guest and
- * the signed-in cart — currently public/Cart and public/Checkout, which carried
- * byte-identical copies of these two effects (F43).
- *
- * 1. Keeps local state in sync with the `guestCartChange` event other components
- *    dispatch (add-to-cart from a product card, the header dropdown, other tabs).
- * 2. On login, merges the guest lines into the server cart exactly once, then
- *    clears localStorage.
- *
- * @param {boolean} isAuthenticated
- * @returns {[Array, Function]} the guest lines and their setter
- */
+let mergeInFlight = null;
+
+const mergeGuestCart = async () => {
+  const { items } = getGuestCart();
+  if (items.length === 0) return;
+  clearGuestCart();
+  const failed = [];
+  for (const item of items) {
+    const productId = item.productId && (item.productId._id || item.productId);
+    if (!productId) continue;
+    try {
+      await cartAPI.addItem({ productId, qty: item.qty || 1, sellerId: item.sellerId });
+    } catch {
+      failed.push(item.name || 'An item');
+    }
+  }
+  if (failed.length) {
+    toast.error(
+      failed.length === 1
+        ? `${failed[0]} could not be moved to your cart — it may be out of stock.`
+        : `${failed.length} items could not be moved to your cart — they may be out of stock.`
+    );
+  }
+};
+
 export function useGuestCart(isAuthenticated) {
   const queryClient = useQueryClient();
   const [guestCartItems, setGuestCartItems] = useState([]);
 
-  // Guest cart lives in localStorage; keep it in sync with other tabs/components.
   useEffect(() => {
     if (isAuthenticated) return undefined;
     const sync = () => setGuestCartItems(getGuestCart().items);
@@ -29,34 +41,14 @@ export function useGuestCart(isAuthenticated) {
     return () => window.removeEventListener('guestCartChange', sync);
   }, [isAuthenticated]);
 
-  // On login, merge the guest cart into the server cart (once).
-  const guestCartMergedRef = useRef(false);
   useEffect(() => {
-    if (!isAuthenticated) {
-      guestCartMergedRef.current = false;
-      return;
-    }
-    if (guestCartMergedRef.current) return;
-    const { items } = getGuestCart();
-    if (items.length === 0) return;
-    guestCartMergedRef.current = true;
-    (async () => {
-      for (const item of items) {
-        const productId = item.productId && (item.productId._id || item.productId);
-        if (!productId) continue;
-        try {
-          // `sellerId` MUST be forwarded: the guest picked a specific seller's
-          // offer, and without it the server falls back to the cheapest offer —
-          // silently rebinding the line to a different seller and price.
-          await cartAPI.addItem({ productId, qty: item.qty || 1, sellerId: item.sellerId });
-        } catch {
-          /* out of stock / removed — merge the rest */
-        }
-      }
-      clearGuestCart();
+    if (!isAuthenticated) return;
+    if (!mergeInFlight && getGuestCart().items.length === 0) return;
+    mergeInFlight = mergeInFlight || mergeGuestCart().finally(() => { mergeInFlight = null; });
+    mergeInFlight.then(() => {
       setGuestCartItems([]);
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-    })();
+    });
   }, [isAuthenticated, queryClient]);
 
   return [guestCartItems, setGuestCartItems];

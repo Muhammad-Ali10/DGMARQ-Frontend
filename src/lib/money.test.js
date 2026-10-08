@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatUSD, formatUSDWithApprox, formatDisplayWithUsd } from './money';
 
-// Rates are "1 USD = N of the currency", the shape GET /currency/rates returns.
 const RATES = { EUR: 0.92, JPY: 150 };
 
 describe('formatUSD', () => {
@@ -20,8 +19,6 @@ describe('formatUSD', () => {
     expect(formatUSD('12.3')).toBe('$12.30');
   });
 
-  // These are financial surfaces — a stray "$NaN" reads as a system fault, so
-  // every non-numeric input has to land on a real amount instead.
   it('renders $0.00 rather than NaN for missing or unusable input', () => {
     expect(formatUSD(null)).toBe('$0.00');
     expect(formatUSD(undefined)).toBe('$0.00');
@@ -42,10 +39,6 @@ describe('formatUSD', () => {
   });
 });
 
-// M10: the seller dashboard follows the currency selector, but a seller is PAID
-// in USD — so the USD figure stays primary and the converted one is marked as an
-// approximation. The rule these guard: never show a converted number alone, and
-// never invent one when the rates are not there.
 describe('formatUSDWithApprox (seller settlement)', () => {
   it('adds the viewer currency beside the USD amount', () => {
     expect(formatUSDWithApprox(100, { currency: 'EUR', rates: RATES })).toBe('$100.00 ≈ €92.00');
@@ -66,9 +59,6 @@ describe('formatUSDWithApprox (seller settlement)', () => {
   });
 });
 
-// Admin money-movement screens: converted first (admins asked for every figure
-// to follow the selector) with the USD original kept, because the transfer that
-// actually leaves the platform is in USD.
 describe('formatDisplayWithUsd (admin payouts)', () => {
   it('leads with the viewer currency and keeps the USD original', () => {
     expect(formatDisplayWithUsd(100, { currency: 'EUR', rates: RATES })).toBe('€92.00 (USD $100.00)');

@@ -31,9 +31,6 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       data-size={size}
-      // Matched to Input: same surface, border token and hover/focus ladder.
-      // The stock string had `bg-surface-sunken` and `bg-transparent` both
-      // present after patching — transparent won, so the control had no fill.
       className={cn(
         "flex w-fit items-center justify-between gap-2 rounded-md border border-input bg-surface-sunken px-3 py-2",
         "text-sm text-fg whitespace-nowrap",

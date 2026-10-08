@@ -6,27 +6,12 @@ import { sectionAnchor } from './anchors';
 import LegalText from './LegalText';
 import { BODY, ICONS, LINK } from './styles';
 
-/*
- * A document's `content` is a list of blocks:
- *   "string"                         paragraph
- *   ["a", "b"]                       bullet list
- *   { type: "subsection", num, title, content }
- *   { type: "steps", items }         an ordered procedure
- *   { type: "callout", tone, title?, content }
- *   { type: "cards", items: [{ tone, icon?, title, value?, text }] }
- *   { type: "table", caption, columns, rows }
- *   { type: "definitions", items: [{ term, text }] }
- *   { type: "contacts", items: [{ icon, label, value, href?, links? }] }
- */
-
 const Paragraph = ({ text }) => (
   <p className={BODY}>
     <LegalText text={text} />
   </p>
 );
 
-// Hanging indent with a drawn bullet: `list-inside` wraps continuation lines
-// under the marker, which is unreadable on multi-line clauses.
 const BulletList = ({ items }) => (
   <ul className="space-y-2.5">
     {items.map((item, i) => (
@@ -55,8 +40,6 @@ const Subsection = ({ num, title, content }) => (
   </div>
 );
 
-// The rail between numbers is the li's ::after, so it spans exactly the gap to
-// the next step and stops at the last one.
 const Steps = ({ items }) => (
   <ol className="space-y-4">
     {items.map((item, i) => (
@@ -78,8 +61,6 @@ const Steps = ({ items }) => (
   </ol>
 );
 
-// Opaque `-soft` fills: they are measured under -fg text and stay put whatever
-// the panel behind them does. `highlight` is the one rule a document leads with.
 const TONES = {
   highlight: {
     box: 'border-brand-cyan/35 bg-linear-135 from-accent-deep/45 to-info-soft',
@@ -131,8 +112,6 @@ const Cards = ({ items }) => (
   </div>
 );
 
-// A real table from `sm` up; below that, three columns of prose would be
-// ~100px each, so each row becomes its own labelled card instead.
 const DataTable = ({ caption, columns, rows }) => (
   <>
     <Table containerClassName="hidden rounded-xl border border-white/10 bg-surface-sunken/40 sm:block">
@@ -254,13 +233,10 @@ const Block = ({ block }) => {
   if (typeof block === 'string') return <Paragraph text={block} />;
   if (Array.isArray(block)) return <BulletList items={block} />;
   const Component = BLOCKS[block.type];
-  // Documents are static data; an unknown type is an authoring mistake, and the
-  // document test renders every page, so it fails there rather than in prod.
   if (!Component) throw new Error(`Unknown legal block type "${block.type}"`);
   return <Component {...block} />;
 };
 
-// Static content never reorders, so the index is a stable key here.
 const LegalBlocks = ({ blocks }) => blocks.map((block, i) => <Block key={i} block={block} />);
 
 export default LegalBlocks;

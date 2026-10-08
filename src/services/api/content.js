@@ -2,7 +2,7 @@ import api from '@lib/axios';
 
 export const homepageSliderAPI = {
   getHomepageSliders: () => api.get('/homepage-slider'),
-  getAllHomepageSliders: () => api.get('/homepage-slider/admin/all'),
+  getAllHomepageSliders: (params) => api.get('/homepage-slider/admin/all', { params }),
   createHomepageSlider: (formData) => api.post('/homepage-slider', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
@@ -12,7 +12,6 @@ export const homepageSliderAPI = {
   deleteHomepageSlider: (id) => api.delete(`/homepage-slider/${id}`),
 };
 
-// M15: admin custom homepage heading-sections (heading + product row → search).
 export const homepageSectionAPI = {
   getHomepageSections: () => api.get('/homepage-section'),
   getAllHomepageSections: () => api.get('/homepage-section/admin/all'),
@@ -21,8 +20,6 @@ export const homepageSectionAPI = {
   deleteHomepageSection: (id) => api.delete(`/homepage-section/${id}`),
 };
 
-// M15: admin-editable storefront chrome — homepage trust tiles + the header's
-// rotating search hints. One public read, admin-only writes.
 export const storefrontAPI = {
   getConfig: () => api.get('/storefront/config'),
   updateTrustTiles: (tiles) => api.patch('/storefront/trust-tiles', { tiles }),
@@ -32,7 +29,6 @@ export const storefrontAPI = {
   }),
 };
 
-// M15: admin-built header mega menu (item → heading → link tree).
 export const menuAPI = {
   getMenu: () => api.get('/menu'),
   getMenuAdmin: () => api.get('/menu/admin/all'),
@@ -40,7 +36,6 @@ export const menuAPI = {
   updateMenuItem: (id, data) => api.patch(`/menu/${id}`, data),
   deleteMenuItem: (id) => api.delete(`/menu/${id}`),
   reorderMenu: (items) => api.patch('/menu/reorder', { items }),
-  // Creates one link per subcategory of the category a heading points at.
   fillSubcategories: (headingId) => api.post(`/menu/${headingId}/fill-subcategories`),
 };
 
@@ -50,16 +45,12 @@ export const upcomingGamesAPI = {
   addProducts: (data) => api.post('/upcoming-games/add', data),
   removeProducts: (data) => api.delete('/upcoming-games/remove', { data }),
   reorderProducts: (data) => api.put('/upcoming-games/reorder', data),
-  updateUpcomingGames: (data) => api.put('/upcoming-games', data),
 };
 
-// SEO APIs (Public)
 export const seoAPI = {
   getHomePageSEO: () => api.get('/seo/home'),
 };
 
-// Legal APIs (Public) — the admin-configured figures the policy pages quote in
-// their own text (refund window, escrow period, buyer fees, vendor commission).
 export const legalAPI = {
   getFigures: () => api.get('/legal/figures'),
 };

@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatAPI } from '@services/api';
 import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { MessageSquare, Send, ImagePlus, Ban, ShieldOff } from 'lucide-react';
 import { useSocket } from '@hooks/useSocket';
-import { useChatNotifications } from '../hooks/useChatNotifications';
+import { invalidateAllNotificationQueries } from '@features/notifications/utils/notificationQueries';
 import ErrorBoundary from '@components/common/ErrorBoundary';
 import { ConfirmationModal } from '@components/common/ConfirmationModal';
 import { EmptyState } from '@components/common/EmptyState';
@@ -18,7 +18,6 @@ import ChatMessageSkeleton from './ChatMessageSkeleton';
 import { useSelector } from 'react-redux';
 import { showApiError, showSuccess } from '@utils/toast';
 
-// ─── Helper: append message to infinite query cache with dedup ───
 function appendMessageToCache(queryClient, queryKey, newMsg) {
   queryClient.setQueryData(queryKey, (old) => {
     if (!old?.pages?.length) return old;
@@ -26,10 +25,8 @@ function appendMessageToCache(queryClient, queryKey, newMsg) {
     const existing = lastPage.messages || [];
     const msgId = newMsg._id?.toString();
 
-    // Dedup by _id
     if (msgId && existing.some(m => m._id?.toString() === msgId)) return old;
 
-    // Remove optimistic message that this real message replaces
     const filtered = existing.filter(m => {
       if (!m.isOptimistic) return true;
       const mText = m.messageText || '';
@@ -50,31 +47,63 @@ function appendMessageToCache(queryClient, queryKey, newMsg) {
   });
 }
 
-// Links inside the red blocked banner. They inherit the banner's colour and carry
-// an underline, so the affordance is not signalled by colour alone.
 const BLOCKED_LINK =
   'font-medium underline underline-offset-4 rounded-sm hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-const CONVERSATIONS_DEBOUNCE_MS = 2000;
-// One module-level cache per role, mirroring the original per-page module
-// caches, so buyer and seller conversation lists never mix.
-const conversationsCacheByRole = {
-  buyer: { ts: 0, data: [], pending: null },
-  seller: { ts: 0, data: [], pending: null },
+const CONVERSATIONS_PAGE_SIZE = 20;
+
+const SEND_ERROR_MESSAGES = {
+  rate_limited: 'Sending too fast. Please wait a moment.',
+  blocked: 'This conversation is blocked.',
+  access_denied: "You don't have access to this conversation.",
+  not_found: 'This conversation no longer exists.',
+  invalid_message: 'Your message is empty or longer than 2000 characters.',
+  invalid_data: 'Your message could not be sent.',
 };
 
-// Everything that differs between the buyer and seller chat pages lives here.
-// Query keys are intentionally distinct per role — they are load-bearing for
-// react-query cache separation (and useChatNotifications invalidations).
+const sameId = (a, b) => a != null && b != null && a.toString() === b.toString();
+
+const normalizeConversationsPage = (payload) => {
+  if (Array.isArray(payload)) return { conversations: payload, pagination: null };
+  return {
+    conversations: Array.isArray(payload?.conversations) ? payload.conversations : [],
+    pagination: payload?.pagination || null,
+  };
+};
+
+const mapConversations = (old, fn) =>
+  old?.pages
+    ? { ...old, pages: old.pages.map((page) => ({ ...page, conversations: fn(page.conversations || []) })) }
+    : old;
+
+const patchConversation = (old, convId, patch) =>
+  mapConversations(old, (list) => list.map((conv) => (sameId(conv?._id, convId) ? patch(conv) : conv)));
+
+const bumpConversation = (old, convId, patch) => {
+  if (!old?.pages?.length) return old;
+  let found = null;
+  const pages = old.pages.map((page) => ({
+    ...page,
+    conversations: (page.conversations || []).filter((conv) => {
+      if (!sameId(conv?._id, convId)) return true;
+      found = conv;
+      return false;
+    }),
+  }));
+  if (!found) return old;
+  pages[0] = { ...pages[0], conversations: [patch(found), ...pages[0].conversations] };
+  return { ...old, pages };
+};
+
+const hasConversation = (data, convId) =>
+  Boolean(data?.pages?.some((page) => (page.conversations || []).some((conv) => sameId(conv?._id, convId))));
+
 const ROLE_CONFIG = {
   buyer: {
     conversationsKey: 'user-conversations',
     headerSubtitle: 'Chat with sellers about your orders',
     getPeerName: (conv) => conv?.sellerId?.shopName || 'Seller',
-    getUnreadCount: (conv) => conv?.unreadCountBuyer ?? 0,
-    // Where a participant who has BEEN blocked can still get help. Blocking only
-    // freezes this thread — the refund/dispute channel is a separate collection
-    // and is unaffected — but the blocked party could not tell from the UI.
+    unreadField: 'unreadCountBuyer',
     supportPath: '/buyer-support',
     getOrderPath: (conv) => (conv?.orderId?._id ? `/user/orders/${conv.orderId._id}` : null),
     chatCardClassName: 'lg:col-span-2 flex flex-col max-w-full h-full min-h-0 overflow-hidden',
@@ -85,9 +114,8 @@ const ROLE_CONFIG = {
     conversationsKey: 'seller-conversations',
     headerSubtitle: 'Communicate with buyers',
     getPeerName: (conv) => conv?.buyerId?.name || 'Buyer',
-    getUnreadCount: (conv) => conv?.unreadCountSeller ?? 0,
+    unreadField: 'unreadCountSeller',
     supportPath: '/seller-support',
-    // A seller does not raise refunds; support is their whole escape hatch.
     getOrderPath: () => null,
     chatCardClassName: 'lg:col-span-2 flex flex-col max-w-full py-2 h-full min-h-0 overflow-hidden',
     chatHeaderClassName: 'shrink-0 border-b border-brand-cyan/10 px-4 py-0!',
@@ -97,7 +125,7 @@ const ROLE_CONFIG = {
 
 const ChatPage = ({ role }) => {
   const config = ROLE_CONFIG[role];
-  const { conversationsKey } = config;
+  const { conversationsKey, unreadField } = config;
   const [searchParams, setSearchParams] = useSearchParams();
   const conversationFromUrl = searchParams.get('conversation');
   const [selectedConversation, setSelectedConversation] = useState(conversationFromUrl || null);
@@ -111,12 +139,6 @@ const ChatPage = ({ role }) => {
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const fetchNextPageTimeoutRef = useRef(null);
-  // ─── Scroll management state (per conversation) ───
-  // initialScrollDone: have we pinned to the bottom for this conversation yet?
-  // prependAnchor: scrollHeight/scrollTop captured right before loading an older
-  // page, so we can restore the visual position after the older messages prepend.
-  // scrollMeta: first/last message ids of the last render, to tell a prepend
-  // (older page) apart from an append (new incoming/sent message).
   const initialScrollDoneRef = useRef(false);
   const prependAnchorRef = useRef(null);
   const scrollMetaRef = useRef({ firstId: null, lastId: null });
@@ -124,44 +146,58 @@ const ChatPage = ({ role }) => {
   selectedConversationRef.current = selectedConversation;
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
-  const { markNotificationAsRead } = useChatNotifications();
   const { user } = useSelector((state) => state.auth);
   const myId = user?._id?.toString();
 
-  // ─── Conversations query ───
-  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery({
+  const {
+    data: conversationPages,
+    isLoading: conversationsLoading,
+    error: conversationsError,
+    fetchNextPage: fetchMoreConversations,
+    hasNextPage: hasMoreConversations,
+    isFetchingNextPage: loadingMoreConversations,
+  } = useInfiniteQuery({
     queryKey: [conversationsKey],
-    queryFn: async () => {
-      const now = Date.now();
-      if (conversationsCacheByRole[role].pending) return conversationsCacheByRole[role].pending;
-      if (now - conversationsCacheByRole[role].ts < CONVERSATIONS_DEBOUNCE_MS) {
-        return conversationsCacheByRole[role].data;
-      }
-      conversationsCacheByRole[role].pending = chatAPI
-        .getConversations({ role })
-        .then((res) => {
-          const payload = res?.data?.data;
-          const normalized = Array.isArray(payload)
-            ? payload
-            : Array.isArray(payload?.conversations)
-              ? payload.conversations
-              : [];
-          conversationsCacheByRole[role] = { ts: Date.now(), data: normalized, pending: null };
-          return normalized;
-        })
-        .catch((error) => {
-          conversationsCacheByRole[role].pending = null;
-          throw error;
-        });
-      return conversationsCacheByRole[role].pending;
+    queryFn: ({ pageParam }) =>
+      chatAPI
+        .getConversations({ role, page: pageParam, limit: CONVERSATIONS_PAGE_SIZE })
+        .then((res) => normalizeConversationsPage(res?.data?.data)),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage?.pagination;
+      return pagination && pagination.page < pagination.pages ? pagination.page + 1 : undefined;
     },
     enabled: !!user,
-    staleTime: CONVERSATIONS_DEBOUNCE_MS,
+    staleTime: 2000,
     gcTime: 300000,
     refetchOnWindowFocus: false,
-    retryDelay: CONVERSATIONS_DEBOUNCE_MS,
-    useErrorBoundary: false,
+    retryDelay: 2000,
   });
+
+  const conversations = useMemo(() => {
+    const seen = new Set();
+    return (conversationPages?.pages || [])
+      .flatMap((page) => page.conversations || [])
+      .filter((conv) => {
+        const id = conv?._id?.toString();
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+  }, [conversationPages]);
+
+  const dropOptimisticMessages = useCallback((conversationId) => {
+    queryClient.setQueryData(['conversation-messages', conversationId], (old) => {
+      if (!old?.pages) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          messages: (page.messages || []).filter((m) => !m.isOptimistic),
+        })),
+      };
+    });
+  }, [queryClient]);
 
   useEffect(() => {
     if (conversationFromUrl && conversations && !selectedConversation) {
@@ -173,24 +209,20 @@ const ChatPage = ({ role }) => {
   useEffect(() => {
     if (selectedConversation) {
       setSearchParams({ conversation: selectedConversation });
-      markNotificationAsRead(selectedConversation);
     }
-  }, [selectedConversation, setSearchParams, markNotificationAsRead]);
+  }, [selectedConversation, setSearchParams]);
 
-  // ─── Clear stale cache when switching conversations ───
   const prevConvRef = useRef(null);
   useEffect(() => {
     if (selectedConversation && prevConvRef.current && prevConvRef.current !== selectedConversation) {
       queryClient.removeQueries({ queryKey: ['conversation-messages', prevConvRef.current] });
     }
     prevConvRef.current = selectedConversation;
-    // A new conversation must re-pin to the bottom on its first render.
     initialScrollDoneRef.current = false;
     prependAnchorRef.current = null;
     scrollMetaRef.current = { firstId: null, lastId: null };
   }, [selectedConversation, queryClient]);
 
-  // ─── Messages infinite query ───
   const { data: messagesData, isLoading: messagesLoading, fetchNextPage, hasNextPage, isFetchingNextPage, error: messagesError } = useInfiniteQuery({
     queryKey: ['conversation-messages', selectedConversation],
     queryFn: ({ pageParam }) => {
@@ -212,10 +244,8 @@ const ChatPage = ({ role }) => {
       const nextCursor = lastPage?.nextCursor ?? lastPage?.pagination?.nextCursor;
       return hasMore && nextCursor ? nextCursor : undefined;
     },
-    meta: { skipErrorToast: true },
   });
 
-  // ─── Deduplicate + sort messages ───
   const messages = useMemo(() => {
     if (!messagesData?.pages) return [];
     const all = messagesData.pages.flatMap(page => page.messages || []);
@@ -231,15 +261,11 @@ const ChatPage = ({ role }) => {
     return unique;
   }, [messagesData?.pages]);
 
-  // ─── Socket: join conversation room + recover missed messages on reconnect ───
   useEffect(() => {
     if (!socket || !selectedConversation) return;
     const joinRoom = () => socket.emit('join_conversation', selectedConversation);
     joinRoom();
     socket.on('connect', joinRoom);
-    // Reconnection recovery: after a dropped connection the live push for any
-    // messages sent while we were offline is gone, so re-fetch the thread (and
-    // the conversation list) once the socket reconnects.
     const onReconnect = () => {
       queryClient.invalidateQueries({ queryKey: ['conversation-messages', selectedConversation], refetchType: 'active' });
       queryClient.invalidateQueries({ queryKey: [conversationsKey] });
@@ -252,26 +278,19 @@ const ChatPage = ({ role }) => {
     };
   }, [socket, selectedConversation, queryClient, conversationsKey]);
 
-  // ─── Socket: new_message from conversation room ───
   useEffect(() => {
     if (!socket || !selectedConversation) return;
 
     const handleNewMessage = (msg) => {
       if (!msg?._id) return;
       const convId = msg.conversationId?.toString();
-      // CRITICAL: Only process messages for the SELECTED conversation
       if (convId !== selectedConversation) return;
 
       appendMessageToCache(queryClient, ['conversation-messages', selectedConversation], msg);
 
-      queryClient.setQueryData([conversationsKey], (old) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((conv) =>
-          conv._id?.toString() === convId
-            ? { ...conv, lastMessage: msg.messageText || conv.lastMessage }
-            : conv
-        );
-      });
+      queryClient.setQueryData([conversationsKey], (old) =>
+        bumpConversation(old, convId, (conv) => ({ ...conv, lastMessage: msg.messageText || conv.lastMessage }))
+      );
     };
 
     const handleMessageUpdated = (msg) => {
@@ -298,63 +317,59 @@ const ChatPage = ({ role }) => {
     };
   }, [socket, selectedConversation, queryClient, conversationsKey]);
 
-  // ─── M13: block-status sync ───
-  // Own effect, NOT gated on selectedConversation — the backend emits to the
-  // personal user room, so the non-blocker must receive this even when they
-  // have no conversation open (their list state still needs the flip).
   useEffect(() => {
     if (!socket) return;
     const handleBlockChanged = (payload) => {
       if (!payload?.conversationId) return;
-      queryClient.setQueryData([conversationsKey], (old) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((conv) =>
-          conv._id?.toString() === payload.conversationId?.toString()
-            ? { ...conv, status: payload.status, blockedBy: payload.blockedBy }
-            : conv
-        );
-      });
-      conversationsCacheByRole[role].ts = 0;
+      queryClient.setQueryData([conversationsKey], (old) =>
+        patchConversation(old, payload.conversationId, (conv) => ({
+          ...conv,
+          status: payload.status,
+          blockedBy: payload.blockedBy,
+        }))
+      );
     };
     socket.on('conversation_block_changed', handleBlockChanged);
     return () => socket.off('conversation_block_changed', handleBlockChanged);
-  }, [socket, queryClient, conversationsKey, role]);
+  }, [socket, queryClient, conversationsKey]);
 
-  // ─── Socket: message_received from personal room (backup delivery) ───
   useEffect(() => {
     if (!socket) return;
     const handler = (data) => {
       const { conversationId: convId, message: msg } = data || {};
       if (!msg?._id) return;
       const senderId = msg.senderId?._id?.toString() || msg.senderId?.toString();
-      if (senderId === myId) return; // skip own echo
+      if (senderId === myId) return;
+
+      if (!hasConversation(queryClient.getQueryData([conversationsKey]), convId)) {
+        queryClient.invalidateQueries({ queryKey: [conversationsKey] });
+        return;
+      }
 
       const currentConv = selectedConversationRef.current;
-      if (currentConv && convId?.toString() === currentConv) {
+      const isOpen = Boolean(currentConv) && sameId(convId, currentConv);
+      if (isOpen) {
         appendMessageToCache(queryClient, ['conversation-messages', currentConv], msg);
       }
-      queryClient.setQueryData([conversationsKey], (old) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((conv) =>
-          conv._id?.toString() === convId?.toString()
-            ? { ...conv, lastMessage: msg.messageText || conv.lastMessage }
-            : conv
-        );
-      });
+      queryClient.setQueryData([conversationsKey], (old) =>
+        bumpConversation(old, convId, (conv) => ({
+          ...conv,
+          lastMessage: msg.messageText || conv.lastMessage,
+          ...(isOpen ? {} : { [unreadField]: (conv[unreadField] || 0) + 1 }),
+        }))
+      );
     };
     socket.on('message_received', handler);
     return () => { socket.off('message_received', handler); };
-  }, [socket, myId, queryClient, conversationsKey]);
+  }, [socket, myId, queryClient, conversationsKey, unreadField]);
 
-  // ─── Typing indicator (room-scoped) ───
   useEffect(() => {
     if (!socket || !selectedConversation) return;
     const onPeerTyping = ({ userId, isTyping }) => {
-      if (!userId || userId.toString() === myId) return; // ignore own echo
+      if (!userId || userId.toString() === myId) return;
       setPeerTyping(!!isTyping);
       if (peerTypingTimerRef.current) clearTimeout(peerTypingTimerRef.current);
       if (isTyping) {
-        // Safety auto-clear if the matching "stop" event is missed.
         peerTypingTimerRef.current = setTimeout(() => setPeerTyping(false), 5000);
       }
     };
@@ -363,7 +378,6 @@ const ChatPage = ({ role }) => {
       socket.off('user_typing', onPeerTyping);
       if (peerTypingTimerRef.current) clearTimeout(peerTypingTimerRef.current);
       setPeerTyping(false);
-      // Leaving this thread: stop my own typing here.
       if (typingStopTimerRef.current) { clearTimeout(typingStopTimerRef.current); typingStopTimerRef.current = null; }
       if (isTypingRef.current && socket.connected) {
         socket.emit('typing', { conversationId: selectedConversation, isTyping: false });
@@ -372,37 +386,19 @@ const ChatPage = ({ role }) => {
     };
   }, [socket, selectedConversation, myId]);
 
-  // ─── Mutations ───
   const sendMessageMutation = useMutation({
     mutationFn: (data) => chatAPI.sendMessage(data),
     onSuccess: (response) => {
       const sent = response?.data?.data;
       if (sent && selectedConversation) {
         appendMessageToCache(queryClient, ['conversation-messages', selectedConversation], sent);
-        queryClient.setQueryData([conversationsKey], (old) => {
-          if (!Array.isArray(old)) return old;
-          return old.map((conv) =>
-            conv._id?.toString() === selectedConversation
-              ? { ...conv, lastMessage: sent.messageText || conv.lastMessage }
-              : conv
-          );
-        });
+        queryClient.setQueryData([conversationsKey], (old) =>
+          bumpConversation(old, selectedConversation, (conv) => ({ ...conv, lastMessage: sent.messageText || conv.lastMessage }))
+        );
       }
     },
     onError: (error) => {
-      // Remove optimistic messages on error
-      if (selectedConversation) {
-        queryClient.setQueryData(['conversation-messages', selectedConversation], (old) => {
-          if (!old?.pages) return old;
-          return {
-            ...old,
-            pages: old.pages.map((page) => ({
-              ...page,
-              messages: (page.messages || []).filter((m) => !m.isOptimistic),
-            })),
-          };
-        });
-      }
+      if (selectedConversation) dropOptimisticMessages(selectedConversation);
       if (error?.response?.status === 429) {
         showApiError({ message: 'Sending too fast. Please wait a moment.' }, 'Rate limited');
       } else {
@@ -410,6 +406,27 @@ const ChatPage = ({ role }) => {
       }
     },
   });
+
+  const resendUnlessDelivered = async (conversationId, messageText, tempId) => {
+    const key = ['conversation-messages', conversationId];
+    const cached = queryClient.getQueryData(key)?.pages?.flatMap((page) => page.messages || []);
+    if (cached) {
+      if (!cached.some((m) => m._id === tempId)) return;
+      const known = new Set(cached.map((m) => m._id?.toString()));
+      const recent = await chatAPI
+        .getMessages(conversationId, { limit: 5 })
+        .then((res) => res?.data?.data?.messages || [], () => []);
+      const delivered = recent.find((m) =>
+        !known.has(m._id?.toString())
+        && sameId(m.senderId?._id || m.senderId, myId)
+        && m.messageText === messageText);
+      if (delivered) {
+        appendMessageToCache(queryClient, key, delivered);
+        return;
+      }
+    }
+    sendMessageMutation.mutate({ conversationId, messageText });
+  };
 
   const sendImageMessageMutation = useMutation({
     mutationFn: ({ formData }) => chatAPI.sendImageMessage(formData),
@@ -430,12 +447,9 @@ const ChatPage = ({ role }) => {
             ),
           };
         });
-        queryClient.setQueryData([conversationsKey], (old) => {
-          if (!Array.isArray(old)) return old;
-          return old.map((conv) =>
-            conv._id?.toString() === selectedConversation ? { ...conv, lastMessage: 'Image' } : conv
-          );
-        });
+        queryClient.setQueryData([conversationsKey], (old) =>
+          bumpConversation(old, selectedConversation, (conv) => ({ ...conv, lastMessage: 'Image' }))
+        );
       }
     },
     onError: (error, variables) => {
@@ -462,41 +476,26 @@ const ChatPage = ({ role }) => {
 
   const markAsReadMutation = useMutation({
     mutationFn: (conversationId) => chatAPI.markAsRead(conversationId),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [conversationsKey] }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [conversationsKey] });
+      invalidateAllNotificationQueries(queryClient);
+    },
     retry: false,
   });
 
-  // M13: block / unblock. The socket 'conversation_block_changed' event covers the
-  // other participant's UI; this covers ours.
-  //
-  // The response is written straight into the cache rather than left to the
-  // refetch: `blockedBy` decides whether Unblock is offered at all, so the button
-  // must not depend on a round trip landing first.
   const blockMutation = useMutation({
     mutationFn: (conversationId) => chatAPI.toggleBlock(conversationId).then((r) => r.data.data),
     onSuccess: (data) => {
       const patch = { status: data?.status, blockedBy: data?.blockedBy ?? null };
       queryClient.setQueryData([conversationsKey], (old) =>
-        Array.isArray(old)
-          ? old.map((conv) => (conv._id?.toString() === data?.conversationId?.toString() ? { ...conv, ...patch } : conv))
-          : old
+        patchConversation(old, data?.conversationId, (conv) => ({ ...conv, ...patch }))
       );
       queryClient.invalidateQueries({ queryKey: [conversationsKey] });
-      // Same-role cache also feeds the list; nudge it so the badge/state flips.
-      conversationsCacheByRole[role].ts = 0;
       showSuccess(data?.status === 'blocked' ? 'Conversation blocked' : 'Conversation unblocked');
     },
     onError: (err) => showApiError(err, 'Failed to update block status'),
   });
 
-  // ─── Scroll management ───
-  // Runs synchronously after every message-list change, before paint, so the
-  // user never sees a flash at the wrong position. Three cases:
-  //  1. First render of a conversation → jump to the bottom (newest message).
-  //  2. Older page just prepended (firstId changed, lastId unchanged) → restore
-  //     the prior visual position so the thread doesn't jump under the user.
-  //  3. New message appended (lastId changed) → follow to the bottom only if the
-  //     user was already near the bottom (don't yank them up out of history).
   useLayoutEffect(() => {
     const el = scrollContainerRef.current;
     if (!el || messages.length === 0) return;
@@ -508,7 +507,6 @@ const ChatPage = ({ role }) => {
       el.scrollTop = el.scrollHeight;
       initialScrollDoneRef.current = true;
     } else if (prependAnchorRef.current && firstId !== prev.firstId && lastId === prev.lastId) {
-      // Older messages were prepended: keep the same message under the viewport.
       const { scrollHeight: prevSH, scrollTop: prevST } = prependAnchorRef.current;
       el.scrollTop = el.scrollHeight - prevSH + prevST;
       prependAnchorRef.current = null;
@@ -526,8 +524,6 @@ const ChatPage = ({ role }) => {
     fetchNextPageTimeoutRef.current = setTimeout(() => {
       const el = scrollContainerRef.current;
       if (el) {
-        // Snapshot the position so the layout effect can restore it once the
-        // older page prepends (otherwise the thread jumps under the user).
         prependAnchorRef.current = { scrollHeight: el.scrollHeight, scrollTop: el.scrollTop };
       }
       fetchNextPage();
@@ -535,19 +531,26 @@ const ChatPage = ({ role }) => {
     }, 200);
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  // ─── Mark as read ───
   const markAsReadRef = useRef(null);
   useEffect(() => {
     if (!selectedConversation || markAsReadRef.current === selectedConversation) return;
     markAsReadRef.current = selectedConversation;
+    const conversationId = selectedConversation;
     const t = setTimeout(() => {
-      if (socket && isConnected) socket.emit('mark_read', selectedConversation);
-      else markAsReadMutation.mutate(selectedConversation);
+      queryClient.setQueryData([conversationsKey], (old) =>
+        patchConversation(old, conversationId, (conv) => ({ ...conv, [unreadField]: 0 }))
+      );
+      if (socket && isConnected) {
+        socket.emit('mark_read', conversationId, (ack) => {
+          if (ack?.notificationsCleared) invalidateAllNotificationQueries(queryClient);
+        });
+      } else {
+        markAsReadMutation.mutate(conversationId);
+      }
     }, 100);
     return () => clearTimeout(t);
-  }, [selectedConversation, socket, isConnected, markAsReadMutation]);
+  }, [selectedConversation, socket, isConnected, markAsReadMutation, queryClient, conversationsKey, unreadField]);
 
-  // ─── Send handlers ───
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedConversation) return;
@@ -584,8 +587,6 @@ const ChatPage = ({ role }) => {
     e.target.value = '';
   };
 
-  // Debounced typing: emit one 'typing:true' per burst, 'typing:false' after a
-  // 2.5s pause. The backend rebroadcasts room-scoped to the other participant.
   const handleMessageChange = (e) => {
     setMessage(e.target.value);
     if (!socket || !selectedConversation) return;
@@ -616,7 +617,6 @@ const ChatPage = ({ role }) => {
     const messageText = message.trim();
     stopTyping();
 
-    // Optimistic UI
     const optimisticMessage = {
       _id: `temp-${Date.now()}`, conversationId: selectedConversation,
       senderId: user, messageText, messageType: 'text',
@@ -633,13 +633,17 @@ const ChatPage = ({ role }) => {
     });
     setMessage('');
 
-    // Socket-first with HTTP fallback
     if (socket && isConnected) {
-      // FIX: timeout the socket send so a lost/missing ACK falls back to HTTP
-      // instead of leaving the optimistic bubble stuck forever.
-      socket.timeout(8000).emit('send_message', { conversationId: selectedConversation, messageText }, (err, ack) => {
-        if (err || (ack && ack.error)) {
-          sendMessageMutation.mutate({ conversationId: selectedConversation, messageText });
+      const conversationId = selectedConversation;
+      socket.timeout(8000).emit('send_message', { conversationId, messageText }, (err, ack) => {
+        if (err || ack?.error === 'server_error') {
+          resendUnlessDelivered(conversationId, messageText, optimisticMessage._id);
+          return;
+        }
+        if (ack?.error) {
+          dropOptimisticMessages(conversationId);
+          if (ack.error === 'blocked') queryClient.invalidateQueries({ queryKey: [conversationsKey] });
+          showApiError({ message: SEND_ERROR_MESSAGES[ack.error] || SEND_ERROR_MESSAGES.invalid_data }, 'Message not sent');
         }
       });
     } else {
@@ -665,7 +669,6 @@ const ChatPage = ({ role }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0 px-4 md:px-6 lg:px-8 pb-4 md:pb-6 lg:pb-8 overflow-hidden">
-        {/* Conversations List */}
         <Card variant="hud" className="flex flex-col h-full min-h-0 overflow-hidden">
           <CardHeader className="shrink-0 border-b ">
             <CardTitle className="flex items-center gap-2">
@@ -694,19 +697,14 @@ const ChatPage = ({ role }) => {
                         {config.getPeerName(conv)}
                       </span>
                       <span className="flex shrink-0 items-center gap-1.5">
-                        {/* Blocked state was only visible after opening the thread;
-                            in a list of conversations it belongs on the row. */}
                         {conv?.status === 'blocked' && (
-                          // Neutral, not destructive: the unread count beside it is
-                          // already the red chip, and two identical chips on one row
-                          // read as one thing. Blocked is a state, not an alert.
                           <Badge variant="neutral">
                             <Ban aria-hidden="true" />
                             Blocked
                           </Badge>
                         )}
-                        {config.getUnreadCount(conv) > 0 && (
-                          <Badge variant="destructive">{config.getUnreadCount(conv)}</Badge>
+                        {conv?.[unreadField] > 0 && (
+                          <Badge variant="destructive">{conv[unreadField]}</Badge>
                         )}
                       </span>
                     </div>
@@ -717,12 +715,23 @@ const ChatPage = ({ role }) => {
                     </p>
                   </button>
                 ))}
+                {hasMoreConversations && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    disabled={loadingMoreConversations}
+                    onClick={() => fetchMoreConversations()}
+                  >
+                    {loadingMoreConversations ? 'Loading…' : 'Load more conversations'}
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Chat Messages - Fixed Width Container */}
         <Card variant="hud" className={config.chatCardClassName}>
           <CardHeader className={config.chatHeaderClassName}>
             <div className="flex items-center justify-between gap-3">
@@ -732,7 +741,6 @@ const ChatPage = ({ role }) => {
               {conversation && (() => {
                 const isBlocked = conversation.status === 'blocked';
                 const blockedByMe = isBlocked && conversation.blockedBy?.toString() === myId;
-                // Blocked by the other party: no unblock button (only blocker can lift).
                 if (isBlocked && !blockedByMe) return null;
                 return (
                   <Button
@@ -754,7 +762,6 @@ const ChatPage = ({ role }) => {
           <CardContent className="flex-1 flex flex-col overflow-hidden p-0 min-h-0">
             {selectedConversation ? (
               <>
-                {/* Messages Area - Fixed width, scrollable with infinite scroll */}
                 <div
                   ref={scrollContainerRef}
                   className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0"
@@ -824,14 +831,12 @@ const ChatPage = ({ role }) => {
                   )}
                 </div>
 
-                {/* Typing indicator */}
                 {peerTyping && (
                   <div className="shrink-0 px-5 pb-1 text-xs text-fg-muted italic">
                     typing…
                   </div>
                 )}
 
-                {/* Input Area - Fixed at bottom */}
                 <div className="shrink-0 p-4 border-t border-brand-cyan/10">
                   {conversation?.status === 'blocked' ? (
                     <div className="max-w-2xl mx-auto flex items-start gap-2 rounded-md border border-red-600/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -839,10 +844,6 @@ const ChatPage = ({ role }) => {
                       {conversation.blockedBy?.toString() === myId ? (
                         <span>This conversation is blocked. Click Unblock above to resume messaging.</span>
                       ) : (
-                        // Only the blocker can lift a block, so the other party is
-                        // stuck here with no way out shown. A refund request and
-                        // support are both unaffected by the block — say so, or
-                        // they wait for a reply that cannot come.
                         <span>
                           The other party has blocked this conversation. Blocking only stops messages
                           here — you can still{' '}
@@ -912,9 +913,6 @@ const ChatPage = ({ role }) => {
       </div>
       </div>
 
-      {/* Blocking freezes the thread for both parties, so it takes the app's
-          confirm dialog rather than window.confirm — focus trapping, Escape to
-          cancel and the same look as every other consequential action. */}
       <ConfirmationModal
         open={blockConfirmOpen}
         onOpenChange={setBlockConfirmOpen}

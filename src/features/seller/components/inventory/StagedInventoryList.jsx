@@ -6,9 +6,6 @@ import { deliveryWords } from '@lib/deliveryType';
 import { describeRow } from '../../utils/inventoryRows';
 
 const ROW_HEIGHT = 56;
-// Below this many rows the list is short enough to render outright; above it,
-// only the rows near the viewport are mounted so a 10,000-row import stays
-// responsive.
 const VIRTUALIZE_FROM = 50;
 
 const StagedRow = ({ row, productType, isEditing, onEdit, onRemove, style }) => {
@@ -48,10 +45,6 @@ const StagedRow = ({ row, productType, isEditing, onEdit, onRemove, style }) => 
   );
 };
 
-/**
- * Everything queued for this upload — typed in or imported — with the same
- * edit/remove controls either way. Nothing here is sent until Submit.
- */
 export const StagedInventoryList = ({ rows, productType, editingId, onEdit, onRemove, onClear }) => {
   const scrollRef = useRef(null);
   const virtualize = rows.length > VIRTUALIZE_FROM;

@@ -13,16 +13,12 @@ import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeleton
 import { Pagination } from '@components/common/Pagination';
 import { LicenseKeysModal } from '@features/seller';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
+import { getDisplayOrderId } from '@lib/orderDisplay';
 import { Key, Eye, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 
 const PAGE_SIZE = 10;
 
-/**
- * Shapes a single-key reveal into the licenseDetails contract the shared modal
- * expects. `keyType` is carried through so the modal can show the real brand
- * mark and that platform's redemption steps.
- */
 const buildLicenseDetailsFromReveal = (data) => {
   if (!data) return [];
 
@@ -30,6 +26,7 @@ const buildLicenseDetailsFromReveal = (data) => {
     data.keyType === 'account' ||
     (typeof data.keyData === 'object' && data.keyData !== null) ||
     (typeof data.keyData === 'string' && data.keyData.trim().startsWith('{'));
+  const productType = data.productType || (isAccount ? 'ACCOUNT_BASED' : 'LICENSE_KEY');
 
   const keyEntry =
     typeof data.keyData === 'object' && data.keyData !== null
@@ -39,8 +36,8 @@ const buildLicenseDetailsFromReveal = (data) => {
   return [
     {
       productName: data.productName || 'Product',
-      productType: isAccount ? 'ACCOUNT_BASED' : 'LICENSE_KEY',
-      keyType: data.keyType,
+      productType,
+      platform: data.platform,
       keys: keyEntry ? [keyEntry] : [],
       refunded: false,
     },
@@ -48,22 +45,10 @@ const buildLicenseDetailsFromReveal = (data) => {
 };
 
 const displayOrderId = (key) => {
-  const orderNumber = typeof key?.orderNumber === 'string' ? key.orderNumber.trim() : '';
-  if (orderNumber) return `#${orderNumber}`;
-  const raw = key?.orderId?.toString?.() || '';
-  return raw ? `#${raw.slice(-8).toUpperCase()}` : '—';
+  const id = getDisplayOrderId(key, '');
+  return id ? `#${id}` : '—';
 };
 
-/**
- * My License Keys — every key the buyer owns, across all orders.
- *
- * This is the one buyer surface with a real platform identity: the endpoint
- * returns `keyType` per key, so the brand mark and the redemption route are
- * genuine rather than inferred.
- *
- * Page lives in the URL. The table collapses to stacked cards below `md` instead
- * of scrolling sideways on a phone.
- */
 const LicenseKeys = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [revealDetails, setRevealDetails] = useState(null);
@@ -149,7 +134,6 @@ const LicenseKeys = () => {
             />
           ) : (
             <>
-              {/* ── Desktop: a real table ──────────────────────────────── */}
               <div className="hidden md:block">
                 <Table variant="hud">
                   <TableHeader>
@@ -188,7 +172,11 @@ const LicenseKeys = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <PlatformBadge platform={key.keyType} />
+                            {key.platform ? (
+                              <PlatformBadge platform={key.platform} />
+                            ) : (
+                              <span className="text-fg-subtle">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-fg-muted">{displayOrderId(key)}</TableCell>
                           <TableCell
@@ -215,7 +203,6 @@ const LicenseKeys = () => {
                 </Table>
               </div>
 
-              {/* ── Mobile: stacked cards, no sideways scrolling ───────── */}
               <div className="md:hidden">
                 {keysQuery.isPending ? (
                   <CardListSkeleton rows={4} />
@@ -243,9 +230,11 @@ const LicenseKeys = () => {
                               {displayOrderId(key)} ·{' '}
                               {formatRelativeDate(key.purchaseDate || key.orderDate)}
                             </p>
-                            <div className="mt-2">
-                              <PlatformBadge platform={key.keyType} />
-                            </div>
+                            {key.platform && (
+                              <div className="mt-2">
+                                <PlatformBadge platform={key.platform} />
+                              </div>
+                            )}
                           </div>
                         </div>
                         <Button

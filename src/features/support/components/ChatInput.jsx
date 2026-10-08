@@ -1,27 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Send, ImagePlus, Loader2, Lock, MessageSquare } from 'lucide-react';
+import { Send, ImagePlus, Lock, MessageSquare } from 'lucide-react';
 import { Button } from '@components/ui/button';
 
 const MAX_CHARS = 2000;
 const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp';
 
-/**
- * Shared support chat composer.
- *  - Multi-line: Enter sends, Shift+Enter inserts a newline; auto-grows.
- *  - Character limit indicator.
- *  - Image attach via button, clipboard paste (Ctrl+V), and drag-and-drop.
- *  - Send disabled when empty; shows a sending state.
- *
- * Admin-only optional props:
- *  - cannedResponses: [{shortcut,title,message}] → typing "/" opens a picker.
- *  - allowInternal: shows an "internal note" toggle; when on, onSendText is
- *    called with { internal: true } and the composer turns yellow.
- */
 const ChatInput = ({
   onSendText,
   onSendImage,
-  disabled = false,
-  sending = false,
   placeholder = 'Type your message…',
   cannedResponses = null,
   allowInternal = false,
@@ -39,7 +25,6 @@ const ChatInput = ({
     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   }, []);
 
-  // Canned-response suggestions when the composer starts with "/".
   const suggestions = useMemo(() => {
     if (!cannedResponses?.length) return [];
     const t = text.trim().toLowerCase();
@@ -66,16 +51,15 @@ const ChatInput = ({
 
   const submitText = useCallback(() => {
     const value = text.trim();
-    if (!value || disabled) return;
+    if (!value) return;
     onSendText?.(value, { internal });
     setText('');
     if (taRef.current) taRef.current.style.height = 'auto';
-  }, [text, disabled, onSendText, internal]);
+  }, [text, onSendText, internal]);
 
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
-        // If the canned picker is open, Enter inserts the top suggestion.
         if (suggestions.length > 0) {
           e.preventDefault();
           insertCanned(suggestions[0]);
@@ -91,10 +75,11 @@ const ChatInput = ({
   const handleFiles = useCallback(
     (files) => {
       const file = Array.from(files || []).find((f) => f.type.startsWith('image/'));
-      if (file && !disabled) onSendImage?.(file, text.trim(), { internal });
+      if (!file) return;
+      onSendImage?.(file, text.trim(), { internal });
       setText('');
     },
-    [disabled, onSendImage, text, internal]
+    [onSendImage, text, internal]
   );
 
   const handlePaste = useCallback(
@@ -131,7 +116,6 @@ const ChatInput = ({
         dragOver ? 'ring-2 ring-accent ring-inset' : ''
       }`}
     >
-      {/* Canned response picker */}
       {suggestions.length > 0 && (
         <div className="absolute bottom-full left-3 right-3 mb-1 bg-surface-sunken border border-border rounded-lg shadow-xl overflow-hidden z-10">
           {suggestions.map((c) => (
@@ -177,7 +161,7 @@ const ChatInput = ({
       )}
 
       <div className="flex items-end gap-2">
-        <Button type="button" variant="outline" size="icon" disabled={disabled} onClick={() => fileRef.current?.click()} title="Attach image">
+        <Button type="button" variant="outline" size="icon" onClick={() => fileRef.current?.click()} title="Attach image">
           <ImagePlus className="h-4 w-4" />
         </Button>
         <div className="flex-1">
@@ -186,7 +170,6 @@ const ChatInput = ({
             aria-label="Message"
             rows={1}
             value={text}
-            disabled={disabled}
             onChange={(e) => {
               setText(e.target.value.slice(0, MAX_CHARS));
               autosize(e.target);
@@ -203,8 +186,8 @@ const ChatInput = ({
             </div>
           )}
         </div>
-        <Button type="submit" size="icon" disabled={disabled || sending || !text.trim()} title="Send">
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        <Button type="submit" size="icon" disabled={!text.trim()} title="Send">
+          <Send className="h-4 w-4" />
         </Button>
       </div>
     </form>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { adminAPI } from "@services/api";
 import { EmptyState } from "@components/common/EmptyState";
 import { Button } from "@components/ui/button";
@@ -37,7 +37,6 @@ import {
   CheckCircle2,
   XCircle,
   RotateCcw,
-  AlertTriangle,
   AlertCircle,
   Eye,
   Snowflake,
@@ -48,27 +47,6 @@ import { useSocket } from "@hooks/useSocket";
 import { Link } from "react-router-dom";
 import useCurrency from '@hooks/useCurrency';
 
-// ============================================================================
-// Phase 5 - Admin Payouts & Withdrawals Management
-// ============================================================================
-//
-// Two tabs:
-//   1. Withdrawals (NEW) - lifecycle: requested / approved / queued /
-//      processing / sent / failed / failed_with_retry / rejected
-//      Admin actions: approve, reject (with reason), retry.
-//      Surfaces fallbackUsed prominently so a fee that came from the static
-//      table gets visible operator review when fallback fees are used.
-//   2. All payouts (legacy) - retained for visibility of pre-Phase-5
-//      auto-released payout lines.
-// ============================================================================
-
-// AUDIT FIX (REL-4): `needs_review` was missing from both maps. That made it
-// unfilterable (the status Select iterates these keys), rendered it as a raw
-// unstyled string, and — because the Retry button was gated on the two "failed"
-// statuses — left it with NO action at all. It is the state the payout design
-// deliberately parks AMBIGUOUS money in, with the seller's funds still
-// reserved, and the backend's retryWithdrawal explicitly accepts it. The
-// capability existed; nothing in the UI could reach it.
 const WITHDRAWAL_STATUS_LABEL = {
   requested: "Requested",
   approved: "Approved",
@@ -97,23 +75,6 @@ const METHOD_LABEL = {
 };
 
 
-// A payout line represents the seller's earnings for ONE (order, product)
-// pair, which may contain multiple license keys. When a buyer disputes /
-// refunds a single key, only that key's portion of `netAmount` is moved
-// into `frozenAmount` (and its id is added to `frozenKeyIds`). On refund
-// completion the key id is moved into `metadata.refundedLicenseKeyIds`
-// and the live gross/commission/net are reduced.
-//
-// Total uses the sale-time `metadata.originalNetAmount` snapshot so it
-// stays anchored to the original sale across refunds. Refunded amount is
-// derived per-key. Mirrors the seller-side `splitPayoutRow`.
-//
-// Status taxonomy:
-//   - "available" (green)  → no frozen, no refunded, payout already released
-//   - "pending"   (yellow) → no frozen, no refunded, payout still on hold
-//   - "frozen"    (orange) → all keys frozen
-//   - "refunded"  (red)    → all keys refunded
-//   - "partial"   (yellow) → any mix
 const splitPayoutAmount = (payout) => {
   const meta = payout?.metadata || {};
   const totalKeys = Array.isArray(payout?.licenseKeyIds)
@@ -129,17 +90,6 @@ const splitPayoutAmount = (payout) => {
   const refundedKeys = Math.min(refundedKeysRaw, Math.max(totalKeys - frozenKeys, 0));
   const availableKeys = Math.max(totalKeys - frozenKeys - refundedKeys, 0);
 
-  // Resolve the sale-time net. Priority:
-  //   1. `metadata.originalNetAmount`  — snapshot taken at refund time.
-  //   2. Reconstruct from the live (post-refund) net:
-  //        remainingKeys = totalKeys - refundedKeys
-  //        perKeyNet     = liveNet / remainingKeys
-  //        originalNet   = perKeyNet * totalKeys
-  //      Handles legacy rows that were refunded before the snapshot
-  //      logic existed (without this, a $160 / 2-key line with 1 key
-  //      refunded would render as Total $80, halving the per-key math
-  //      and producing $40 / $40 / $40 instead of $160 / $80 / $80).
-  //   3. Otherwise, the live net IS the original.
   const liveNet = Number(payout?.netAmount ?? payout?.amount ?? 0);
   let originalNet;
   if (typeof meta.originalNetAmount === "number") {
@@ -148,9 +98,6 @@ const splitPayoutAmount = (payout) => {
     const remainingKeys = totalKeys - refundedKeys;
     originalNet = Math.round((liveNet / remainingKeys) * totalKeys * 100) / 100;
   } else if (totalKeys > 0 && refundedKeys >= totalKeys) {
-    // Every key refunded but no snapshot — can't recover from a $0
-    // residual; surface 0 so the row's "refunded" status carries the
-    // meaning. The detail page falls back to metadata for these.
     originalNet = 0;
   } else {
     originalNet = liveNet;
@@ -165,10 +112,6 @@ const splitPayoutAmount = (payout) => {
     Math.round((originalNet - frozen - refunded) * 100) / 100
   );
 
-  // Per-row derived state. Overrides the payout's lifecycle status when
-  // the key counts tell a clearer story (mixed / fully frozen / fully
-  // refunded). When no refunds or freezes are present we fall through to
-  // the payout's own lifecycle status.
   let derivedStatus = payout?.status || "pending";
   if (totalKeys > 0) {
     if (refundedKeys === totalKeys) derivedStatus = "refunded";
@@ -191,7 +134,6 @@ const splitPayoutAmount = (payout) => {
   };
 };
 
-// Visual mapping for the derived per-row status badge.
 const ROW_STATUS_META = {
   available: { label: "Available", variant: "success" },
   released:  { label: "Released",  variant: "success" },
@@ -199,7 +141,7 @@ const ROW_STATUS_META = {
   processing:{ label: "Processing",variant: "warning" },
   hold:      { label: "Hold",      variant: "warning" },
   partial:   { label: "Partial",   variant: "warning" },
-  frozen:    { label: "Frozen",    variant: "warning" }, // styled orange below
+  frozen:    { label: "Frozen",    variant: "warning" },
   refunded:  { label: "Refunded",  variant: "destructive" },
   failed:    { label: "Failed",    variant: "destructive" },
   blocked:   { label: "Blocked",   variant: "destructive" },
@@ -210,12 +152,14 @@ const PayoutsManagement = () => {
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
 
-  // --- Withdrawals tab state ---
   const [wPage, setWPage] = useState(1);
   const [wStatus, setWStatus] = useState("");
   const [wMethod, setWMethod] = useState("");
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [confirmedNotPaid, setConfirmedNotPaid] = useState(false);
+  const closeReject = () => { setRejectTarget(null); setRejectReason(""); setConfirmedNotPaid(false); };
+  const releasingStuck = rejectTarget && (rejectTarget.status === "needs_review" || rejectTarget.status === "failed_with_retry");
 
   const {
     data: withdrawalsData,
@@ -233,14 +177,13 @@ const PayoutsManagement = () => {
           methodType: wMethod || undefined,
         })
         .then((res) => res.data?.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     refetchInterval: 30000,
   });
   const withdrawals = withdrawalsData?.rows || [];
   const withdrawalsPages = withdrawalsData?.pages || 1;
   const withdrawalsTotal = withdrawalsData?.total || 0;
 
-  // Real-time updates from worker / webhook.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-withdrawals"] });
@@ -265,11 +208,10 @@ const PayoutsManagement = () => {
     onError: (err) => showApiError(err, "Failed to approve withdrawal"),
   });
   const rejectMutation = useMutation({
-    mutationFn: ({ id, reason }) => adminAPI.rejectWithdrawal(id, { reason }),
+    mutationFn: ({ id, reason, confirmedNotPaid: confirmed }) => adminAPI.rejectWithdrawal(id, { reason, confirmedNotPaid: confirmed }),
     onSuccess: () => {
       showSuccess("Withdrawal rejected.");
-      setRejectTarget(null);
-      setRejectReason("");
+      closeReject();
       queryClient.invalidateQueries({ queryKey: ["admin-withdrawals"] });
     },
     onError: (err) => showApiError(err, "Failed to reject withdrawal"),
@@ -283,7 +225,6 @@ const PayoutsManagement = () => {
     onError: (err) => showApiError(err, "Failed to retry withdrawal"),
   });
 
-  // --- Legacy payouts tab state ---
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -304,12 +245,6 @@ const PayoutsManagement = () => {
   const payoutList = useMemo(() => payouts?.payouts || [], [payouts]);
   const pagination = payouts?.pagination || {};
   const totalItems = pagination.total ?? 0;
-
-  // NOTE: per-row status is now derived from key counts via
-  // splitPayoutAmount().derivedStatus and rendered with ROW_STATUS_META at
-  // the call site (so a "partial" row reads "Partial" instead of just the
-  // raw lifecycle status). The old per-row getLegacyStatusBadge helper
-  // that read payout.status directly was removed.
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -398,20 +333,21 @@ const PayoutsManagement = () => {
                               <span className="text-[11px] text-gray-500 font-mono">
                                 {(w.sellerId?._id || w.sellerId || "").toString().slice(-8)}
                               </span>
+                              {w.notes && (
+                                <span className="mt-1 max-w-[220px] text-[11px] text-gray-400 break-words">
+                                  Seller note: {w.notes}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="text-gray-200 text-sm">{METHOD_LABEL[w.methodType] || w.methodType}</TableCell>
                           <TableCell className="text-white font-semibold">{formatMoney(w.requestedAmount)}</TableCell>
                           <TableCell className="text-gray-300">
-                            <div className="flex flex-col items-start gap-1">
-                              <span>{formatMoney(w.providerFee)}</span>
-                              {w.fallbackUsed && (
-                                <Badge variant="warning" className="text-[10px] flex items-center gap-1">
-                                  <AlertTriangle className="w-3 h-3" />
-                                  Fallback fee
-                                </Badge>
-                              )}
-                              <span className="text-[10px] text-gray-500">{w.feeSource}</span>
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span>{formatMoney((Number(w.providerFee) || 0) + (Number(w.chargebackFee) || 0))}</span>
+                              <span className="text-[10px] text-gray-500">
+                                {formatMoney(w.providerFee)} payout + {formatMoney(w.chargebackFee)} chargeback
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell className="text-green-400 font-medium">{formatMoney(w.netAmount)}</TableCell>
@@ -452,25 +388,27 @@ const PayoutsManagement = () => {
                                   </Button>
                                 </>
                               )}
-                              {/* AUDIT FIX (REL-4 + PAY-2): `failed` no longer
-                                  offers Retry — its funds were RELEASED back to
-                                  the seller's spendable balance, so re-driving
-                                  it pays the same money twice (the backend now
-                                  rejects it with a 409 explaining as much).
-                                  `needs_review` gains Retry, which is the only
-                                  way an admin can release a halted payout whose
-                                  funds are still reserved. */}
                               {(w.status === "failed_with_retry" || w.status === "needs_review") && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-gray-700 text-gray-200"
-                                  onClick={() => retryMutation.mutate(w._id)}
-                                  disabled={retryMutation.isPending}
-                                >
-                                  <RotateCcw className="w-3 h-3 mr-1" />
-                                  Retry
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-gray-700 text-gray-200"
+                                    onClick={() => retryMutation.mutate(w._id)}
+                                    disabled={retryMutation.isPending}
+                                  >
+                                    <RotateCcw className="w-3 h-3 mr-1" />
+                                    Retry
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => { setRejectTarget(w); setRejectReason(""); setConfirmedNotPaid(false); }}
+                                  >
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Reject &amp; release
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </TableCell>
@@ -541,10 +479,6 @@ const PayoutsManagement = () => {
                               label: split.derivedStatus,
                               variant: "default",
                             };
-                          // The 'frozen' state needs a custom orange chip
-                          // since the existing Badge variants don't include
-                          // an orange palette; same goes for the yellow
-                          // "Partial" chip.
                           const isFrozenRow = split.derivedStatus === "frozen";
                           const isPartialRow = split.derivedStatus === "partial";
                           return (
@@ -664,13 +598,13 @@ const PayoutsManagement = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Reject dialog */}
-      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason(""); } }}>
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) closeReject(); }}>
         <DialogContent size="md" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Reject withdrawal</DialogTitle>
             <DialogDescription className="text-gray-400">
               Provide a clear reason. The seller will see it on their earnings page.
+              {releasingStuck && " The reserved amount goes back to the seller's available balance."}
             </DialogDescription>
           </DialogHeader>
           {rejectTarget && (
@@ -696,16 +630,28 @@ const PayoutsManagement = () => {
                   maxLength={500}
                 />
               </div>
+              {releasingStuck && rejectTarget.paypalSubmissionUnknown && (
+                <label className="flex items-start gap-2 text-sm text-amber-200">
+                  <input
+                    type="checkbox"
+                    aria-label="I checked PayPal and this payout was not paid"
+                    className="mt-1"
+                    checked={confirmedNotPaid}
+                    onChange={(e) => setConfirmedNotPaid(e.target.checked)}
+                  />
+                  PayPal may already hold this payout batch. I checked PayPal and it was not paid.
+                </label>
+              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setRejectTarget(null); setRejectReason(""); }} className="border-gray-700 text-gray-300">
+            <Button variant="outline" onClick={closeReject} className="border-gray-700 text-gray-300">
               Cancel
             </Button>
             <Button
               variant="destructive"
-              disabled={!rejectReason.trim() || rejectMutation.isPending}
-              onClick={() => rejectMutation.mutate({ id: rejectTarget._id, reason: rejectReason.trim() })}
+              disabled={!rejectReason.trim() || rejectMutation.isPending || (releasingStuck && rejectTarget.paypalSubmissionUnknown && !confirmedNotPaid)}
+              onClick={() => rejectMutation.mutate({ id: rejectTarget._id, reason: rejectReason.trim(), confirmedNotPaid })}
             >
               Reject withdrawal
             </Button>

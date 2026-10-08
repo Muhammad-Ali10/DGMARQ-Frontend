@@ -4,11 +4,12 @@ import { Button } from '@components/ui/button';
 import { AlertCircle, Download, FileCheck, FileSpreadsheet, Info, Loader2, Plus, X } from 'lucide-react';
 import { ACCOUNT_CSV_ORDER } from '@lib/accountCredentials';
 import { deliveryWords } from '@lib/deliveryType';
-import { parseImportedRows, rowsFromMatrix, sampleFileContent } from '../../utils/inventoryRows';
+import { parseImportedRows, parseJsonRows, rowsFromMatrix, sampleFileContent } from '../../utils/inventoryRows';
 
 const ACCEPT = '.xlsx,.xls,.csv,.txt,.json';
 const TEXT_EXTENSIONS = /\.(csv|txt|json)$/i;
 const SHEET_EXTENSIONS = /\.(xlsx|xls)$/i;
+const JSON_EXTENSION = /\.json$/i;
 
 const readAs = (file, how) =>
   new Promise((resolve, reject) => {
@@ -19,16 +20,6 @@ const readAs = (file, how) =>
     else reader.readAsText(file);
   });
 
-/**
- * The bulk path: upload a file and its rows join the same staging list the form
- * feeds. Nothing uploads from here — the seller reviews, fixes or removes rows
- * first, then submits once.
- *
- * Excel is read with SheetJS, imported ON DEMAND: it is a large library and
- * most uploads are a CSV, so it must not sit in the main bundle. The build
- * comes from SheetJS's own CDN because the npm copy is stuck on a version with
- * two open high-severity advisories — and this parses seller-supplied files.
- */
 export const ImportPanel = ({ productType, onAppend }) => {
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState('');
@@ -61,12 +52,15 @@ export const ImportPanel = ({ productType, onAppend }) => {
         const XLSX = await import('xlsx');
         const workbook = XLSX.read(await readAs(file, 'buffer'), { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        // header:1 → rows of raw cells. raw:false keeps every cell as text, so a
-        // long numeric key does not arrive as 1.2345e+21.
         const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: false, defval: '' });
         setResult(rowsFromMatrix(matrix, productType));
       } else {
-        setResult(parseImportedRows(String(await readAs(file, 'text') ?? ''), productType));
+        const text = String(await readAs(file, 'text') ?? '');
+        setResult(
+          JSON_EXTENSION.test(file.name)
+            ? parseJsonRows(text, productType)
+            : parseImportedRows(text, productType)
+        );
       }
     } catch {
       toast.error(`Could not read "${file.name}"`);

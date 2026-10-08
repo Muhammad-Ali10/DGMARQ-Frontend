@@ -37,18 +37,6 @@ beforeEach(() => {
   userAPI.removeFromWishlist.mockResolvedValue({ data: {} });
 });
 
-// CLIENT REQUIREMENT 1 — "wishlist icon (heart toggle) top-right of EVERY
-// product card (listings, search, home sections, related products — anywhere
-// ProductCard renders)".
-//
-// The parenthetical is what made this easy to get wrong. Reading it as
-// "wherever the ProductCard COMPONENT renders" misses the fact that the
-// homepage also renders products through other components. MicrosoftCard had
-// no heart at all, so the Microsoft row was the only place on the site where a
-// buyer could not save a product.
-//
-// This suite is written per-COMPONENT rather than per-page precisely so that a
-// new card component cannot quietly ship without a heart.
 const CARDS = [
   ['ProductCard', ProductCard],
   ['MicrosoftCard', MicrosoftCard],
@@ -84,8 +72,6 @@ describe.each(CARDS)('%s — wishlist heart', (name, Card) => {
       screen.getByRole('button', { name: /wishlist/i })
     );
 
-    // Every one of these cards is wrapped in a <Link>, so the handler must
-    // preventDefault or the toggle doubles as navigation.
     expect(notDefaultPrevented).toBe(false);
     await waitFor(() =>
       expect(userAPI.addToWishlist).toHaveBeenCalledWith({ productId: PRODUCT_ID })
@@ -112,9 +98,6 @@ describe.each(CARDS)('%s — wishlist heart', (name, Card) => {
     expect(userAPI.addToWishlist).not.toHaveBeenCalled();
   });
 
-  // "top-right" is in the requirement text, not a styling preference: the heart
-  // has to land in the same corner on every card or it stops reading as one
-  // control. CategoryProduct used to put it in a row under the price.
   it('positions the heart in the top-right corner', async () => {
     renderWithProviders(<Card product={product} />, { preloadedState: signedIn });
     await waitFor(() => expect(userAPI.getWishlistIds).toHaveBeenCalled());

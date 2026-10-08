@@ -25,21 +25,6 @@ const now = new Date();
 const CURRENT_YEAR = now.getFullYear();
 const YEARS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - i);
 
-/**
- * Seller analytics.
- *
- * NO CHART LIBRARY. `getSellerMonthlyAnalytics` returns aggregate totals for one
- * period plus `topProducts` — there is no time series anywhere in the API, so a
- * revenue-over-time line would have nothing to plot. Rather than add ~50KB of
- * charting to render a single bar, the one genuinely comparative dataset
- * (topProducts) is drawn as a horizontal bar list from divs and token colours:
- * bars proportional to value, sorted descending, each value direct-labelled at
- * the end of its own bar so no legend or axis is required. Costs zero KB.
- *
- * KPI tiles carry no trend delta for the same reason — the endpoint returns
- * `allTime*` totals, which are a different thing from a prior-period comparison
- * and cannot honestly be rendered as "up 12%".
- */
 const SellerAnalytics = () => {
   const { formatSettlement } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -102,7 +87,6 @@ const SellerAnalytics = () => {
         </p>
       </header>
 
-      {/* ── Period picker ───────────────────────────────────────────────── */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle>Period</CardTitle>
@@ -203,7 +187,6 @@ const SellerAnalytics = () => {
         </CardContent>
       </Card>
 
-      {/* ── KPI row ─────────────────────────────────────────────────────── */}
       {analyticsQuery.isPending ? (
         <StatCardGridSkeleton count={4} />
       ) : analyticsQuery.isError ? (
@@ -220,21 +203,21 @@ const SellerAnalytics = () => {
         <StatCardGrid>
           <StatCard
             title="Revenue"
-            value={formatSettlement(analytics?.totalRevenue ?? analytics?.sales?.revenue)}
+            value={formatSettlement(analytics?.totalRevenue)}
             icon={DollarSign}
             tone="success"
             description={periodLabel}
           />
           <StatCard
             title="Keys sold"
-            value={analytics?.totalSales ?? analytics?.sales?.total ?? 0}
+            value={analytics?.totalSales ?? 0}
             icon={ShoppingCart}
             tone="accent"
             description={`${analytics?.totalOrders ?? 0} orders`}
           />
           <StatCard
             title="Net earnings"
-            value={formatSettlement(analytics?.netEarnings ?? analytics?.earnings?.total)}
+            value={formatSettlement(analytics?.netEarnings)}
             icon={TrendingUp}
             tone="info"
             description="After commission"
@@ -249,7 +232,6 @@ const SellerAnalytics = () => {
         </StatCardGrid>
       )}
 
-      {/* ── Top products: a bar list, not a chart library ────────────────── */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -276,54 +258,48 @@ const SellerAnalytics = () => {
             />
           ) : (
             <ol className="space-y-4">
-              {[...topProducts]
-                .sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0))
-                .map((product, index) => {
-                  const revenue = Number(product.revenue) || 0;
-                  // Bars start from zero and are proportional to the leader, so
-                  // relative magnitude is readable without an axis.
-                  const pct = maxRevenue > 0 ? Math.max((revenue / maxRevenue) * 100, 2) : 0;
-                  return (
-                    <li key={product.productId || index} className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <SafeImage
-                          src={product.productImage}
-                          alt=""
-                          w={32}
-                          className="size-8 shrink-0 rounded border border-border object-cover"
-                        />
-                        <span className="min-w-0 flex-1 truncate text-sm text-fg">
-                          {product.productName || 'Unknown product'}
-                        </span>
-                        <span className="shrink-0 text-xs text-fg-subtle tabular-nums">
-                          {product.salesCount || 0} sold
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
+              {topProducts.map((product, index) => {
+                const revenue = Number(product.revenue) || 0;
+                const pct = maxRevenue > 0 ? Math.max((revenue / maxRevenue) * 100, 2) : 0;
+                return (
+                  <li key={product.productId || index} className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <SafeImage
+                        src={product.productImage}
+                        alt=""
+                        w={32}
+                        className="size-8 shrink-0 rounded border border-border object-cover"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm text-fg">
+                        {product.productName || 'Unknown product'}
+                      </span>
+                      <span className="shrink-0 text-xs text-fg-subtle tabular-nums">
+                        {product.salesCount || 0} sold
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-sunken"
+                        role="img"
+                        aria-label={`${product.productName || 'Product'}: ${formatSettlement(revenue)} revenue`}
+                      >
                         <div
-                          className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-sunken"
-                          role="img"
-                          aria-label={`${product.productName || 'Product'}: ${formatSettlement(revenue)} revenue`}
-                        >
-                          <div
-                            className="h-full rounded-full bg-chart-1 transition-[width] duration-150 ease-out"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        {/* Direct-labelled at the end of its own bar — no legend. */}
-                        <span className="shrink-0 text-sm font-semibold tabular-nums text-fg">
-                          {formatSettlement(revenue)}
-                        </span>
+                          className="h-full rounded-full bg-chart-1 transition-[width] duration-150 ease-out"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
-                    </li>
-                  );
-                })}
+                      <span className="shrink-0 text-sm font-semibold tabular-nums text-fg">
+                        {formatSettlement(revenue)}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
             </ol>
           )}
         </CardContent>
       </Card>
 
-      {/* ── Payout context ──────────────────────────────────────────────── */}
       {balanceQuery.data && (
         <Card variant="sunken">
           <CardContent className="flex flex-wrap items-center justify-between gap-4">

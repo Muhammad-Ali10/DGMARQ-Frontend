@@ -5,26 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
-import { Loading } from '@components/ui/loading';
+import { Loading, ErrorMessage } from '@components/ui/loading';
 import { IconPicker } from '@components/common/IconPicker';
 import { showSuccess, showApiError } from '@utils/toast';
 import { LayoutGrid, Search, Upload } from 'lucide-react';
 
-// M15: the homepage 4-tile trust grid + the header's rotating search hints.
-// Lives in its own file rather than swelling the already-937-line Settings page;
-// Settings renders it as two more cards.
 const StorefrontSettings = () => {
   const queryClient = useQueryClient();
   const [tiles, setTiles] = useState([]);
   const [wordsText, setWordsText] = useState('');
   const [uploadingIndex, setUploadingIndex] = useState(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['storefront-config', 'admin'],
     queryFn: () => storefrontAPI.getConfig().then((r) => r.data.data),
   });
 
-  // Seed the local draft once the server state arrives.
   useEffect(() => {
     if (!data) return;
     setTiles(data.trustTiles || []);
@@ -63,8 +59,6 @@ const StorefrontSettings = () => {
       const body = new FormData();
       body.append('image', file);
       const res = await storefrontAPI.uploadTrustTileImage(body);
-      // Stored on the draft only — the admin still has to hit Save, so an
-      // accidental upload is discarded by simply reloading.
       setTile(index, { image: res.data.data.url });
       showSuccess('Image uploaded — remember to save');
     } catch (err) {
@@ -75,6 +69,7 @@ const StorefrontSettings = () => {
   };
 
   if (isLoading) return <Loading message="Loading storefront settings…" />;
+  if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Could not load the storefront settings'} />;
 
   return (
     <>

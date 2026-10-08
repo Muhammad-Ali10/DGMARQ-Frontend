@@ -1,6 +1,3 @@
-// Barrel file: the original ~470-line monolith was split into per-domain
-// modules under ./api/. Every named export is re-exported unchanged so the
-// ~111 importing files keep working without modification.
 export * from './api/auth.js';
 export * from './api/admin.js';
 export * from './api/seller.js';

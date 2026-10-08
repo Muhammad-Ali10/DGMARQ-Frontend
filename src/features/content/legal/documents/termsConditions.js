@@ -1,10 +1,3 @@
-// Client-supplied final copy (last updated / effective 10 June 2026). Legal
-// wording is verbatim — change it only on the owner's instruction. Straight
-// quotes in the source are set as typographic quotes; nothing else is altered.
-//
-// INCOMPLETE: the source text was cut off inside 10.3 (Prohibited Products), mid
-// way through the bullet "Access credentials for accounts not legitimately…".
-// The rest of 10.3 and every section after it are still to be added.
 export const termsConditions = {
   path: '/terms-conditions',
   seo: {
@@ -25,7 +18,7 @@ export const termsConditions = {
   operator: 'Operated by DGMARQ PTY LTD · ACN 698 682 736 · ABN 76 698 682 736',
   highlights: [
     { icon: 'user', value: '18+', label: 'minimum age to use the Platform', target: 'section-4-1' },
-    { icon: 'shield', value: '{buyerProtectionFeePercent}%', label: 'Buyer Protection Fee, shown at checkout', target: 'section-6-2' },
+    { icon: 'shield', value: '{buyerProtectionFee}', label: 'Buyer Protection Fee, shown at checkout', target: 'section-6-2' },
     { icon: 'clock', value: '{refundWindowDays} days', label: 'to report faulty, invalid or undelivered content', target: 'section-9-2' },
     { icon: 'lock', value: '{payoutHoldDays} days', label: 'escrow period before funds reach the Vendor', target: 'section-9-4' },
   ],
@@ -291,14 +284,14 @@ export const termsConditions = {
                 {
                   icon: 'shield',
                   title: 'Buyer Protection Fee',
-                  value: '{buyerProtectionFeePercent}%',
-                  text: 'A percentage fee applied to each Transaction to fund DGMARQ’s dispute resolution and buyer protection services. The applicable rate is {buyerProtectionFeePercent}% of the Transaction value and will be clearly displayed at checkout before you confirm your purchase.',
+                  value: '{buyerProtectionFee}',
+                  text: 'A fee applied to each Transaction to fund DGMARQ’s dispute resolution and buyer protection services. The applicable {buyerProtectionFeeTerms} and will be clearly displayed at checkout before you confirm your purchase.',
                 },
                 {
                   icon: 'card',
                   title: 'Checkout Fee',
                   value: '{processingFee}',
-                  text: 'A flat fee of {processingFee} per Transaction, applied at checkout.',
+                  text: '{processingFeeTerms}, applied at checkout.',
                 },
               ],
             },

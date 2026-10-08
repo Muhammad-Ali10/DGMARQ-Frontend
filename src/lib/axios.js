@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { store } from '@store/store';
-import { logout } from '@store/slices/authSlice';
+import { endSession } from './session';
 import { showApiError } from '@utils/toast';
 import { API_BASE_URL } from './config';
 
@@ -47,8 +47,6 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// SECURITY FIX (#5): no Authorization header from localStorage. The httpOnly
-// accessToken cookie is sent automatically because withCredentials:true.
 api.interceptors.request.use(
   (config) => {
     if (config.data instanceof FormData) {
@@ -58,6 +56,7 @@ api.interceptors.request.use(
       config.skipToast = config.skipErrorToast;
       delete config.skipErrorToast;
     }
+    config._sentAt = Date.now();
 
     return config;
   },
@@ -66,16 +65,6 @@ api.interceptors.request.use(
   }
 );
 
-// A 401 from an endpoint that TAKES credentials means those credentials were
-// wrong — not that an access token expired — so it must not go through the
-// refresh-and-replay path below.
-//
-// It used to. Logging in with a bad password 401'd, got retried via
-// /user/refresh-token, failed there too (no valid refresh cookie), and the
-// interceptor rejected with the REFRESH error — so the login form displayed that
-// endpoint's message, "unauthorize", instead of the real reason. Every failed
-// login also cost a wasted request and dispatched a logout for a session the
-// user did not have.
 const CREDENTIAL_ENDPOINTS = [
   '/user/login',
   '/user/register',
@@ -85,27 +74,60 @@ const CREDENTIAL_ENDPOINTS = [
 ];
 const takesCredentials = (url = '') => CREDENTIAL_ENDPOINTS.some((path) => url.includes(path));
 
-// The same mistake in its other shape: a 401 aimed at someone who never had a
-// session. Refreshing is meaningless for a guest — there is no refresh cookie —
-// and the attempt COSTS the real message, because the interceptor rejects with
-// the refresh endpoint's error instead of the original one.
-//
-// It bit the pre-order login gate. The server answers a guest with
-//   "X is a pre-order — please log in or create an account to pre-order it."
-// and the buyer saw "unauthorize", which explains nothing and names no remedy.
-// Any guest-reachable endpoint that 401s to say "log in for this" was affected.
-//
-// So: only endpoints a session could plausibly fix go down the refresh path.
 const hasSession = () => Boolean(store.getState()?.auth?.isAuthenticated);
+
+const REFRESH_LOCK = 'dgmarq-session-refresh';
+const REFRESH_STAMP_KEY = 'dgmarq:session-refreshed-at';
+let refreshInFlight = null;
+
+const readRefreshStamp = () => {
+  try {
+    return Number(localStorage.getItem(REFRESH_STAMP_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const writeRefreshStamp = (at) => {
+  try {
+    localStorage.setItem(REFRESH_STAMP_KEY, String(at));
+  } catch {
+    return;
+  }
+};
+
+const refreshUnlessAlreadyDone = async (since) => {
+  if (readRefreshStamp() > since) return;
+  await axios.post(`${API_BASE_URL}/user/refresh-token`, {}, { withCredentials: true });
+  writeRefreshStamp(Date.now());
+};
+
+const refreshSession = (since) => {
+  if (!refreshInFlight) {
+    const run = () => refreshUnlessAlreadyDone(since);
+    const locked = typeof navigator !== 'undefined' && navigator.locks?.request
+      ? navigator.locks.request(REFRESH_LOCK, run)
+      : run();
+    refreshInFlight = Promise.resolve(locked).finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+};
+
+const PUBLIC_SELLER_PROFILE = /^\/seller\/[0-9a-f]{24}\/?$/i;
+
+export const isProtectedPath = (pathname = '') => {
+  if (/^\/(admin|user)(\/|$)/.test(pathname)) return true;
+  return /^\/seller(\/|$)/.test(pathname) && !PUBLIC_SELLER_PROFILE.test(pathname);
+};
+
+const sessionRejected = (error) => [401, 403].includes(error?.response?.status);
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    const isProtectedRoute = (pathname) => {
-      const protectedRoutePrefixes = ['/admin', '/seller', '/user'];
-      return protectedRoutePrefixes.some(prefix => pathname.startsWith(prefix));
-    };
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
@@ -115,27 +137,22 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       const currentPath = window.location.pathname;
-      const isProtected = isProtectedRoute(currentPath);
+      const isProtected = isProtectedPath(currentPath);
 
-      // SECURITY FIX (#5): refresh relies on the httpOnly refresh cookie — we
-      // can't read it from JS, so we just POST (withCredentials) and the server
-      // reads the cookie. No token in the body, none in localStorage.
       try {
-        await axios.post(
-          `${API_BASE_URL}/user/refresh-token`,
-          {},
-          { withCredentials: true }
-        );
-        // New cookies are set by the server response; just replay the request.
-        return api(originalRequest);
+        await refreshSession(originalRequest._sentAt || 0);
       } catch (refreshError) {
-        store.dispatch(logout());
+        if (!sessionRejected(refreshError)) {
+          return Promise.reject(error);
+        }
+        endSession();
         if (isProtected && currentPath !== '/login') {
           showApiError(refreshError, 'Session expired. Please login again.');
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
       }
+      return api(originalRequest);
     }
     const isTimeout = error.code === 'ECONNABORTED' || 
                       error.message?.toLowerCase().includes('timeout') ||
@@ -150,8 +167,7 @@ api.interceptors.response.use(
                            isCancelled;
     const isChatRequest = originalRequest?.url?.includes('/messages') || 
                          originalRequest?.url?.includes('/conversations') ||
-                         originalRequest?.url?.includes('/chat/conversation') ||
-                         originalRequest?.url?.includes('/chat/unread-count');
+                         originalRequest?.url?.includes('/chat/conversation');
     const isGetRequest = !originalRequest?.method || originalRequest.method.toUpperCase() === 'GET';
     const isUserAction = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(originalRequest?.method?.toUpperCase());
     const timeSincePageLoad = Date.now() - pageLoadTime;

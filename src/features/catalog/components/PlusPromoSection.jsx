@@ -1,14 +1,10 @@
 import { Link } from "react-router-dom";
 import { Sparkles, BadgePercent, ArrowRight } from "lucide-react";
 
-// M15: DGMARQ Plus subscriptions promo — sits near the top of the homepage.
-// The actual discount percent is admin-configurable (A1), so the copy stays
-// generic rather than hardcoding a number.
 const PlusPromoSection = () => (
   <section aria-label="DGMARQ Plus subscription" className="py-4">
     <div className="max-w-7xl mx-auto px-4">
       <div className="relative overflow-hidden rounded-2xl border border-accent/30 bg-gradient-to-r from-[#0a1f47] via-[#0d2a5c] to-[#041536]">
-        {/* soft glow accents */}
         <div className="pointer-events-none absolute -top-16 -right-10 h-48 w-48 rounded-full bg-accent/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 left-1/4 h-40 w-40 rounded-full bg-sky-500/10 blur-3xl" />
 

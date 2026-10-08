@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@components/ui/table";
-import { payoutBadgeProps, getRefundStatusDisplay } from "@features/wallet-payout";
+import { payoutBadgeProps, getRefundStatusDisplay, payoutLineState, unavailableLineNote } from "@features/wallet-payout";
 import SafeImage from "@components/ui/safe-image";
 import {
   ArrowLeft,
@@ -60,29 +60,25 @@ const PAYOUT_STATUS_VARIANT = {
 
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 
-// Build a per-key row for the inner detail table.
-//
-// PER-KEY FORMULA (matches the user-facing spec):
-//   perKeyGross = originalGrossAmount / originalLicenseKeyCount
-//   perKeyNet   = originalNetAmount   / originalLicenseKeyCount
-//
-// We use the SALE-TIME originals (snapshotted by the backend in
-// payout.metadata before any refund mutation). Falling back to the live
-// `netAmount` is wrong after a partial refund because the live value has
-// already been reduced by `adjustPayoutForRefund`, which would cut every
-// per-key amount roughly in half (the original bug).
-//
-// Per-key Amount column always shows the ORIGINAL per-key net (e.g. $80)
-// regardless of status — it's the dollar value associated with that key
-// at sale time, not the seller's current entitlement. Status-specific
-// rendering communicates ownership:
-//   - available → perKeyNet, normal text                (seller gets it)
-//   - frozen    → perKeyNet, normal text                (seller's, but held)
-//   - refunded  → perKeyNet, strikethrough + grey text  (reassigned to buyer)
-//
-// The seller's actual withdrawable total stays clearly visible in the
-// Available summary card above the table.
-const buildKeyRows = (line, money) => {
+const SUMMARY_TONE = {
+  success: { box: "border-green-700/40 bg-green-950/20", label: "text-green-300", amount: "text-green-400" },
+  warning: { box: "border-amber-700/40 bg-amber-950/20", label: "text-amber-300", amount: "text-amber-400" },
+  muted: { box: "border-gray-700 bg-secondary", label: "text-gray-300", amount: "text-gray-300" },
+};
+
+const lineSummary = (line, lineState, unfrozenAmount) => {
+  if (lineState === "held") {
+    return { label: "On hold", amount: unfrozenAmount, note: `on hold until ${formatDate(line.holdUntil)}`, tone: "warning" };
+  }
+  if (lineState === "unavailable") {
+    return line.status === "released"
+      ? { label: "Paid out", amount: unfrozenAmount, note: "paid out to the seller", tone: "muted" }
+      : { label: "Not payable", amount: 0, note: "not payable", tone: "muted" };
+  }
+  return { label: "Available", amount: unfrozenAmount, note: "ready to withdraw", tone: "success" };
+};
+
+const buildKeyRows = (line, lineState, money) => {
   const keys = Array.isArray(line?.licenseKeys) ? line.licenseKeys : [];
   const frozenIds = new Set((line?.frozenKeyIds || []).map(String));
   const totalKeys =
@@ -108,11 +104,6 @@ const buildKeyRows = (line, money) => {
 
     let status = "available";
     let note = "Ready to withdraw";
-    // Refunded rows keep the ORIGINAL per-key amount visible (with a
-    // strikethrough at render time) so the admin can see the dollar value
-    // that was reassigned from seller → buyer, rather than a confusing
-    // bare "$0.00". The "seller actually gets" total is still preserved
-    // in the Available summary card above the table.
     const amount = perKeyNet;
     if (isRefunded) {
       status = "refunded";
@@ -122,6 +113,12 @@ const buildKeyRows = (line, money) => {
       note = refund?.refundAmount
         ? `Refund under admin review — ${money(refund.refundAmount)}`
         : "Refund under admin review";
+    } else if (lineState === "held") {
+      status = "held";
+      note = `On hold until ${formatDate(line?.holdUntil)}`;
+    } else if (lineState === "unavailable") {
+      status = "unavailable";
+      note = unavailableLineNote(line?.status);
     }
 
     return {
@@ -140,13 +137,6 @@ const buildKeyRows = (line, money) => {
     refundedCount,
     availableCount: totalKeys - frozenCount - refundedCount,
     perKeyNet,
-    // Sale-time net for every key currently in the "refunded" bucket.
-    // Frozen amount stays on `line.frozenAmount` (the live, withheld
-    // amount). Refunded amount lives only as a derived value here
-    // because once a refund completes, the freeze is RELEASED back to
-    // zero — there is no `line.refundedAmount` field carrying the
-    // historical sum. Derive it per-key from the snapshot:
-    //    refundedAmount = perKeyNet * refundedCount
     refundedAmount: round2(perKeyNet * refundedCount),
   };
 };
@@ -286,39 +276,28 @@ const AdminPayoutDetail = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             {seller.lines.map((line) => {
-              const statusBadge = payoutBadgeProps(line.status);
+              const lineState = payoutLineState(line);
+              const displayStatus = line.status === "pending" && lineState === "withdrawable" ? "available" : line.status;
+              const statusBadge = payoutBadgeProps(displayStatus);
               const refund = line.refund;
               const refundBadge = refund?.status ? getRefundStatusDisplay(refund.status) : null;
-              const keyBreakdown = buildKeyRows(line, formatMoney);
+              const keyBreakdown = buildKeyRows(line, lineState, formatMoney);
               const hasDisputeOnSomeKeys =
                 keyBreakdown.frozenCount > 0 && keyBreakdown.frozenCount < keyBreakdown.totalKeys;
-              const availableAmount =
+              const unfrozenAmount =
                 typeof line.availableAmount === "number"
                   ? line.availableAmount
                   : Math.max(0, Number(line.netAmount || 0) - Number(line.frozenAmount || 0));
+              const availableAmount = lineState === "withdrawable" ? unfrozenAmount : 0;
+              const summaryCard = lineSummary(line, lineState, unfrozenAmount);
+              const summaryTone = SUMMARY_TONE[summaryCard.tone];
 
-              // Inline-metrics state. Each is independent because a line
-              // can be frozen (some keys disputed), refunded (some keys
-              // returned to buyer), or both at the same time, and the
-              // operator needs to see each $-figure separately.
-              //
-              // NOTE: `refundedAmount` is derived in buildKeyRows() rather
-              // than read from `line.refundedAmount` — the backend has no
-              // such field because adjustPayoutForRefund releases the
-              // freeze to zero on refund completion. The derived value is
-              // perKeyNet * refundedCount.
               const isFrozen = line.status === "frozen" || (line.frozenAmount || 0) > 0;
               const refundedAmount = keyBreakdown.refundedAmount;
               const isRefunded = refundedAmount > 0;
-              // Available is redundant with Net on a fully-healthy line
-              // (everything is available), so only show it when something
-              // is being withheld or has been clawed back. Guarding on
-              // `availableAmount > 0` alone would surface the column on
-              // every line and add visual noise.
               const showAvailable = (isFrozen || isRefunded) && availableAmount > 0;
               const inlineCellCount =
                 4 + (isFrozen ? 1 : 0) + (isRefunded ? 1 : 0) + (showAvailable ? 1 : 0);
-              // Tailwind JIT needs literal class names — keep them static.
               const inlineGridCols =
                 {
                   4: "sm:grid-cols-4",
@@ -326,12 +305,6 @@ const AdminPayoutDetail = () => {
                   6: "sm:grid-cols-6",
                   7: "sm:grid-cols-3 lg:grid-cols-7",
                 }[inlineCellCount] || "sm:grid-cols-4";
-              // Sale-time originals — these drive the Gross / Commission /
-              // Net columns. After a refund the live values are reduced, so
-              // displaying them would show the wrong commission ($20 instead
-              // of $40 for the user's example). The backend snapshots the
-              // sale-time totals in metadata; resolveOriginals() restores
-              // them in the API response.
               const originalGross =
                 typeof line.originalGrossAmount === "number"
                   ? line.originalGrossAmount
@@ -377,7 +350,7 @@ const AdminPayoutDetail = () => {
                         )}
                       </div>
                     </div>
-                    <Badge variant={PAYOUT_STATUS_VARIANT[line.status] || "default"}>
+                    <Badge variant={PAYOUT_STATUS_VARIANT[displayStatus] || "default"}>
                       {statusBadge.children}
                     </Badge>
                   </div>
@@ -396,7 +369,6 @@ const AdminPayoutDetail = () => {
                       <p className="text-green-400 font-semibold">{formatMoney(originalNet)}</p>
                     </div>
 
-                    {/* Frozen — currently withheld pending refund review. */}
                     {isFrozen && (
                       <div>
                         <p className="text-gray-400">Frozen</p>
@@ -406,9 +378,6 @@ const AdminPayoutDetail = () => {
                       </div>
                     )}
 
-                    {/* Refunded — permanently returned to buyer. Shown
-                        with strikethrough to make it visually obvious the
-                        amount is no longer payable to the seller. */}
                     {isRefunded && (
                       <div>
                         <p className="text-gray-400">Refunded</p>
@@ -418,10 +387,6 @@ const AdminPayoutDetail = () => {
                       </div>
                     )}
 
-                    {/* Available — what the seller can still withdraw. Only
-                        shown when it diverges from Net (i.e. something is
-                        held or has been refunded); otherwise it duplicates
-                        the Net column. */}
                     {showAvailable && (
                       <div>
                         <p className="text-gray-400">Available</p>
@@ -507,16 +472,6 @@ const AdminPayoutDetail = () => {
                     </div>
                   )}
 
-                  {/*
-                    Summary cards. Always render Available; render Frozen
-                    only when a key on this line is currently in the
-                    frozen_disputed state; render Refunded only when a key
-                    on this line has completed refund.
-                    Both "Frozen" and "Refunded" are distinct outcomes
-                    that need their own card — the old layout collapsed
-                    them into a single "Frozen $0.00" card after a refund
-                    completed, which hid the refunded amount entirely.
-                  */}
                   {keyBreakdown.totalKeys > 0 && (() => {
                     const hasFrozen = keyBreakdown.frozenCount > 0;
                     const hasRefunded = keyBreakdown.refundedCount > 0;
@@ -529,16 +484,16 @@ const AdminPayoutDetail = () => {
                           : "grid-cols-1";
                     return (
                       <div className={`grid ${gridCols} gap-3`}>
-                        <div className="rounded-md border border-green-700/40 bg-green-950/20 p-3">
-                          <div className="flex items-center gap-2 text-green-300 text-xs uppercase tracking-wide">
-                            <CheckCircle2 className="w-4 h-4" /> Available
+                        <div className={`rounded-md border p-3 ${summaryTone.box}`}>
+                          <div className={`flex items-center gap-2 text-xs uppercase tracking-wide ${summaryTone.label}`}>
+                            {lineState === "held" ? <Clock className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />} {summaryCard.label}
                           </div>
-                          <p className="text-2xl font-semibold text-green-400 mt-1">
-                            {formatMoney(availableAmount)}
+                          <p className={`text-2xl font-semibold mt-1 ${summaryTone.amount}`}>
+                            {formatMoney(summaryCard.amount)}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             {keyBreakdown.availableCount} of {keyBreakdown.totalKeys} key
-                            {keyBreakdown.totalKeys === 1 ? "" : "s"} ready to withdraw
+                            {keyBreakdown.totalKeys === 1 ? "" : "s"} {summaryCard.note}
                           </p>
                         </div>
 
@@ -580,7 +535,7 @@ const AdminPayoutDetail = () => {
                       <p className="text-xs text-gray-400 mb-2 flex items-center gap-1.5">
                         <KeyRound className="w-3.5 h-3.5" /> License Keys
                         <span className="text-gray-500">
-                          ({keyBreakdown.totalKeys} total · {keyBreakdown.availableCount} available · {keyBreakdown.frozenCount} frozen
+                          ({keyBreakdown.totalKeys} total · {keyBreakdown.availableCount} {summaryCard.label.toLowerCase()} · {keyBreakdown.frozenCount} frozen
                           {keyBreakdown.refundedCount > 0 ? ` · ${keyBreakdown.refundedCount} refunded` : ""})
                         </span>
                       </p>
@@ -628,12 +583,22 @@ const AdminPayoutDetail = () => {
                                       <AlertCircle className="w-3 h-3" /> Refunded
                                     </Badge>
                                   )}
+                                  {row.status === "held" && (
+                                    <Badge variant="warning" className="flex items-center gap-1 w-fit">
+                                      <Clock className="w-3 h-3" /> On hold
+                                    </Badge>
+                                  )}
+                                  {row.status === "unavailable" && (
+                                    <Badge variant="secondary" className="w-fit">
+                                      {line.status === "released" ? "Paid out" : "Not payable"}
+                                    </Badge>
+                                  )}
                                 </TableCell>
                                 <TableCell
                                   className={`text-sm ${
-                                    row.status === "available"
+                                    row.status === "available" || row.status === "unavailable"
                                       ? "text-gray-300"
-                                      : row.status === "frozen"
+                                      : row.status === "frozen" || row.status === "held"
                                         ? "text-amber-300"
                                         : "text-red-300"
                                   }`}

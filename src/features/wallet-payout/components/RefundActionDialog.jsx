@@ -8,10 +8,6 @@ import { Textarea } from '@components/ui/textarea';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Shared admin approve/reject confirmation. Used by the admin refund list AND
-// the admin refund detail page — same mutation, same warning block, same
-// invalidation set. onSuccess lets the caller navigate/close after the flip
-// (detail page nav-back on approve; list stays put).
 const RefundActionDialog = ({ open, onOpenChange, refund, actionType, onSuccess }) => {
   const queryClient = useQueryClient();
   const [adminNotes, setAdminNotes] = useState('');
@@ -28,14 +24,14 @@ const RefundActionDialog = ({ open, onOpenChange, refund, actionType, onSuccess 
     mutationFn: ({ refundId, data }) => returnRefundAPI.updateRefundStatus(refundId, data),
     onSuccess: (res) => {
       const payload = res?.data?.data;
+      const notExecuted = payload?.providerFailed || payload?.hold;
       const message = actionType === 'reject'
         ? 'Refund request rejected'
-        : payload?.providerFailed
-          ? (res?.data?.message || 'Provider refund failed. Fix the issue and retry approval.')
+        : notExecuted
+          ? (res?.data?.message || 'The refund could not be executed yet. Fix the issue and approve again.')
           : (res?.data?.message || 'Refund approved and processed successfully');
-      if (payload?.providerFailed) toast.warning(message);
+      if (notExecuted) toast.warning(message);
       else toast.success(message);
-      // Every view that reads refund state.
       queryClient.invalidateQueries({ queryKey: ['admin-refunds'] });
       queryClient.invalidateQueries({ queryKey: ['admin-refund-details'] });
       queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
@@ -58,10 +54,7 @@ const RefundActionDialog = ({ open, onOpenChange, refund, actionType, onSuccess 
       toast.error('Rejection reason is required');
       return;
     }
-    const s = String(refund.status || '').toUpperCase();
-    const status = actionType === 'approve'
-      ? (s === 'ADMIN_REVIEW' ? 'ADMIN_APPROVED' : 'approved')
-      : (['ADMIN_REVIEW', 'ON_HOLD_INSUFFICIENT_FUNDS'].includes(s) ? 'ADMIN_REJECTED' : 'rejected');
+    const status = actionType === 'approve' ? 'ADMIN_APPROVED' : 'ADMIN_REJECTED';
     updateMutation.mutate({
       refundId: refund._id,
       data: {

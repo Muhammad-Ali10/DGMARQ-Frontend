@@ -2,16 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PreorderBadge, isActivePreorder, formatReleaseDate } from './PreorderBadge';
 
-// M21 (req 8): a seller must know a product is a pre-order BEFORE they list it —
-// listing one commits them to having stock on release day, with every buyer
-// auto-refunded (and no payout) if they miss by 24h.
-//
-// The trap this component exists to close: `isPreorder` stays TRUE forever
-// after a title releases. Release only stamps `preorderReleasedAt` and converts
-// the product to an ordinary listing. Every screen that reads the flag on its
-// own leaves a PRE-ORDER badge on released titles for the rest of their life —
-// which is also how the homepage section kept showing released games.
-
 const upcoming = { isPreorder: true, preorderReleasedAt: null, preorderReleaseDate: '2027-09-12' };
 const released = { isPreorder: true, preorderReleasedAt: '2027-09-12', preorderReleaseDate: '2027-09-12' };
 const ordinary = { isPreorder: false, preorderReleasedAt: null };
@@ -39,6 +29,13 @@ describe('formatReleaseDate', () => {
 
   it('formats a real date', () => {
     expect(formatReleaseDate('2027-09-12')).toMatch(/2027/);
+  });
+
+  it('shows the stored calendar day, not the day before in UTC- timezones', () => {
+    for (const stored of ['2026-12-01T00:00:00.000Z', '2026-12-01T23:30:00.000Z']) {
+      expect(formatReleaseDate(stored)).toMatch(/(^|\D)1(\D|$)/);
+      expect(formatReleaseDate(stored)).not.toMatch(/(^|\D)(30|2)(\D|$)/);
+    }
   });
 });
 

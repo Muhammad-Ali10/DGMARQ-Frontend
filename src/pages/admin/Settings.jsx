@@ -13,9 +13,6 @@ import { PolicyFigureNotice } from '@features/content/legal';
 import StorefrontSettings from './StorefrontSettings';
 
 const Settings = () => {
-  // Each setting input keeps a local "draft" overlay. `null` means "no edit yet"; the rendered
-  // <Input> value falls back to the server snapshot from the query, so we never need to call
-  // setState inside an effect when the server data first arrives.
   const [commissionRateDraft, setCommissionRateDraft] = useState(null);
   const [plusDiscountDraft, setPlusDiscountDraft] = useState(null);
   const [featuredCommissionDraft, setFeaturedCommissionDraft] = useState(null);
@@ -33,7 +30,6 @@ const Settings = () => {
   const [chargebackFeePercentDraft, setChargebackFeePercentDraft] = useState(null);
   const queryClient = useQueryClient();
 
-  // Commission Rate Query
   const { data: settings, isLoading, isError, error } = useQuery({
     queryKey: ['commission-rate'],
     queryFn: async () => {
@@ -43,20 +39,18 @@ const Settings = () => {
     retry: 1,
   });
 
-  // DGMARQ Plus discount + Featured commission queries
-  const { data: plusDiscountSettings } = useQuery({
+  const { data: plusDiscountSettings, isLoading: isLoadingPlus, isError: isErrorPlus } = useQuery({
     queryKey: ['plus-discount'],
     queryFn: async () => (await adminAPI.getPlusDiscount()).data.data,
     retry: 1,
   });
-  const { data: featuredCommissionSettings } = useQuery({
+  const { data: featuredCommissionSettings, isLoading: isLoadingFeatured, isError: isErrorFeatured } = useQuery({
     queryKey: ['featured-commission'],
     queryFn: async () => (await adminAPI.getFeaturedCommission()).data.data,
     retry: 1,
   });
 
-  // Auto-Approve Products Query
-  const { data: autoApproveSettings, isLoading: isLoadingAutoApprove } = useQuery({
+  const { data: autoApproveSettings, isLoading: isLoadingAutoApprove, isError: isErrorAutoApprove } = useQuery({
     queryKey: ['auto-approve-setting'],
     queryFn: async () => {
       const response = await adminAPI.getAutoApproveSetting();
@@ -65,8 +59,7 @@ const Settings = () => {
     retry: 1,
   });
 
-  // Home Page SEO Query
-  const { data: seoSettings, isLoading: isLoadingSEO } = useQuery({
+  const { data: seoSettings, isLoading: isLoadingSEO, isError: isErrorSEO } = useQuery({
     queryKey: ['home-page-seo'],
     queryFn: async () => {
       const response = await adminAPI.getHomePageSEO();
@@ -75,8 +68,7 @@ const Settings = () => {
     retry: 1,
   });
 
-    // Payment Processing Fee Query (fixed) — key 'buyer_handling_fee'
-  const { data: handlingFeeSettings, isLoading: isLoadingHandlingFee } = useQuery({
+  const { data: handlingFeeSettings, isLoading: isLoadingHandlingFee, isError: isErrorHandlingFee } = useQuery({
     queryKey: ['buyer-handling-fee'],
     queryFn: async () => {
       const response = await adminAPI.getBuyerHandlingFeeSetting();
@@ -85,8 +77,7 @@ const Settings = () => {
     retry: 1,
   });
 
-  // Buyer Protection Fee Query (percentage) — key 'buyer_protection_fee'
-  const { data: protectionFeeSettings } = useQuery({
+  const { data: protectionFeeSettings, isLoading: isLoadingProtectionFee, isError: isErrorProtectionFee } = useQuery({
     queryKey: ['buyer-protection-fee'],
     queryFn: async () => {
       const response = await adminAPI.getBuyerProtectionFeeSetting();
@@ -95,8 +86,7 @@ const Settings = () => {
     retry: 1,
   });
 
-  // Payout / Refund Settings Query
-  const { data: payoutSettings, isLoading: isLoadingPayoutSettings } = useQuery({
+  const { data: payoutSettings, isLoading: isLoadingPayoutSettings, isError: isErrorPayoutSettings } = useQuery({
     queryKey: ['payout-settings'],
     queryFn: async () => {
       const response = await adminAPI.getPayoutSettings();
@@ -105,8 +95,6 @@ const Settings = () => {
     retry: 1,
   });
 
-  // Effective input values: prefer the user's draft, fall back to the server snapshot, then
-  // to the bound default. Computed during render -> no setState-in-effect required.
   const commissionRate = commissionRateDraft
     ?? (settings?.commissionRate !== undefined ? settings.commissionRate.toString() : '');
 
@@ -150,7 +138,6 @@ const Settings = () => {
     },
   });
 
-  // Auto-Approve Toggle Mutation
   const autoApproveMutation = useMutation({
     mutationFn: (autoApprove) => adminAPI.updateAutoApproveSetting({ autoApprove }),
     onSuccess: () => {
@@ -171,7 +158,6 @@ const Settings = () => {
     updateMutation.mutate(rate);
   };
 
-  // DGMARQ Plus discount + Featured commission (percent 0–100)
   const plusDiscount = plusDiscountDraft
     ?? (plusDiscountSettings?.plusDiscountPercent !== undefined ? String(plusDiscountSettings.plusDiscountPercent) : '');
   const featuredCommission = featuredCommissionDraft
@@ -196,9 +182,12 @@ const Settings = () => {
     onError: (error) => showApiError(error, 'Failed to update featured commission'),
   });
 
+  const plusMin = plusDiscountSettings?.min ?? 0;
+  const plusMax = plusDiscountSettings?.max ?? 20;
+
   const handlePlusDiscountUpdate = () => {
     const pct = parseFloat(plusDiscount);
-    if (isNaN(pct) || pct < 0 || pct > 100) { showError('Enter a percentage between 0 and 100'); return; }
+    if (isNaN(pct) || pct < plusMin || pct > plusMax) { showError(`Enter a percentage between ${plusMin} and ${plusMax}`); return; }
     plusDiscountMutation.mutate(pct);
   };
   const handleFeaturedCommissionUpdate = () => {
@@ -212,7 +201,6 @@ const Settings = () => {
     autoApproveMutation.mutate(newValue);
   };
 
-  // SEO Update Mutation
   const seoUpdateMutation = useMutation({
     mutationFn: (data) => adminAPI.updateHomePageSEO(data),
     onSuccess: () => {
@@ -226,7 +214,6 @@ const Settings = () => {
     },
   });
 
-  // Payment Processing Fee Update Mutation
   const handlingFeeUpdateMutation = useMutation({
     mutationFn: (data) => adminAPI.updateBuyerHandlingFeeSetting(data),
     onSuccess: () => {
@@ -242,7 +229,6 @@ const Settings = () => {
     },
   });
 
-  // Buyer Protection Fee Update Mutation
   const protectionFeeUpdateMutation = useMutation({
     mutationFn: (data) => adminAPI.updateBuyerProtectionFeeSetting(data),
     onSuccess: () => {
@@ -256,7 +242,6 @@ const Settings = () => {
     },
   });
 
-  // Payout / Refund Settings Update Mutation
   const payoutSettingsMutation = useMutation({
     mutationFn: (data) => adminAPI.updatePayoutSettings(data),
     onSuccess: () => {
@@ -314,8 +299,6 @@ const Settings = () => {
       },
       {
         onSuccess: () => {
-          // Server is the source of truth again; clear local drafts so the inputs
-          // re-derive from the freshly invalidated query.
           setPayoutHoldDaysDraft(null);
           setMinimumWithdrawalUsdDraft(null);
           setRefundWindowDaysDraft(null);
@@ -383,8 +366,14 @@ const Settings = () => {
     });
   };
 
-  if (isLoading || isLoadingAutoApprove || isLoadingSEO || isLoadingHandlingFee || isLoadingPayoutSettings) return <Loading message="Loading settings..." />;
-  if (isError) return <ErrorMessage message={error?.response?.data?.message || "Error loading settings"} />;
+  const isLoadingAny = isLoading || isLoadingPlus || isLoadingFeatured || isLoadingAutoApprove || isLoadingSEO
+    || isLoadingHandlingFee || isLoadingProtectionFee || isLoadingPayoutSettings;
+  const isErrorAny = isError || isErrorPlus || isErrorFeatured || isErrorAutoApprove || isErrorSEO
+    || isErrorHandlingFee || isErrorProtectionFee || isErrorPayoutSettings;
+  if (isLoadingAny) return <Loading message="Loading settings..." />;
+  if (isErrorAny) {
+    return <ErrorMessage message={error?.response?.data?.message || "Some settings could not be loaded. Refresh the page before changing anything."} />;
+  }
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -451,7 +440,6 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Payment Processing Fee Setting (fixed) */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -538,9 +526,6 @@ const Settings = () => {
               )}
             </>
           )}
-          {/* Disabled means the buyer is charged nothing, which the Terms' flat fee
-              contradicts just as much as a wrong amount — so it reports 0 rather
-              than opting out. Percentage mode has no contractual counterpart. */}
           <PolicyFigureNotice
             figure="buyerProcessingFeeFixed"
             live={!handlingFeeEnabled ? 0 : handlingFeeType === 'fixed' ? handlingFeeFixed : null}
@@ -554,7 +539,6 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Buyer Protection Fee Setting (percentage) */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -607,7 +591,6 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Commission Rate Setting */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -656,7 +639,6 @@ const Settings = () => {
             <p className="text-xs text-gray-400">
               Enter a value between 0 and 1 (e.g., 0.1 = 10%, 0.15 = 15%)
             </p>
-            {/* The field is a 0–1 rate; the Terms quote a percentage. */}
             <PolicyFigureNotice
               figure="commissionRatePercent"
               live={commissionRate === '' ? null : Number(commissionRate) * 100}
@@ -665,7 +647,6 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* DGMARQ Plus Discount */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -684,14 +665,14 @@ const Settings = () => {
             <p className="text-xs text-gray-400 mt-1">Applied only to active DGMARQ Plus subscribers. Not deducted from seller earnings.</p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="plusDiscount" className="text-gray-300">New Plus Discount (%)</Label>
+            <Label htmlFor="plusDiscount" className="text-gray-300">New Plus Discount (%, {plusMin}–{plusMax})</Label>
             <div className="flex gap-2">
               <Input
                 id="plusDiscount"
                 type="number"
                 step="0.1"
-                min="0"
-                max="100"
+                min={plusMin}
+                max={plusMax}
                 value={plusDiscount}
                 onChange={(e) => setPlusDiscountDraft(e.target.value)}
                 placeholder="e.g., 5"
@@ -705,7 +686,6 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Featured Product Commission */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -749,7 +729,6 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Home Page SEO Settings */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -825,7 +804,6 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Payout & Refund Windows */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -922,8 +900,6 @@ const Settings = () => {
               <p className="text-xs text-gray-400">
                 Deducted from every seller withdrawal (% of the requested amount), on top of the provider fee. Default: 1.5%. Set 0 to disable.
               </p>
-              {/* Not this field's counterpart: the Terms promise a flat 3% withdrawal
-                  fee, which the platform does not implement at all. */}
               <PolicyFigureNotice figure="withdrawalFeePercent" absent />
             </div>
 
@@ -958,7 +934,6 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* M15: homepage trust tiles + header search hints */}
       <StorefrontSettings />
     </div>
   );

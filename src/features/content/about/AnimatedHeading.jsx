@@ -1,8 +1,5 @@
 import { useInView } from '@hooks/useInView';
 
-/**
- * Heading with thin animated underline (CSS only) and optional fade-up.
- */
 export default function AnimatedHeading({
   as: Tag = 'h2',
   children,

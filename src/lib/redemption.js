@@ -1,16 +1,4 @@
-/**
- * Where and how to redeem a key, per platform.
- *
- * This is static product knowledge, not data — no endpoint returns redemption
- * instructions, and none needs to. It is keyed by `LicenseKey.keyType`, which is
- * the only platform identity this system stores and is already returned by
- * `getMyLicenseKeys` and by `getOrderById` (which populates
- * `items.assignedKeyIds` with `keyType`).
- *
- * Deep links go to each store's official redemption page. They are intentionally
- * the *redeem* page rather than a storefront home, so the buyer lands one step
- * from done.
- */
+import { normalizePlatform } from './platform';
 
 const REDEMPTION = {
   steam: {
@@ -78,11 +66,4 @@ const REDEMPTION = {
   },
 };
 
-/**
- * @param {string} keyType - a LicenseKey.keyType value
- * @returns {{label: string, url: string, steps: string[]} | null} null for
- *          'account' / 'other', where there is no single redemption flow to
- *          send someone to. Callers must handle null rather than guessing.
- */
-export const getRedemption = (keyType) =>
-  REDEMPTION[String(keyType || '').trim().toLowerCase()] || null;
+export const getRedemption = (platform) => REDEMPTION[normalizePlatform(platform)] || null;

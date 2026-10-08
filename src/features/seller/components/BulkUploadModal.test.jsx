@@ -10,10 +10,6 @@ vi.mock('@services/api', () => ({
 const { offerAPI } = await import('@services/api');
 const BulkUploadModal = (await import('./BulkUploadModal')).default;
 
-// Three steps — listing, add, review — and nothing is sent until Submit on the
-// last one. Typed rows and rows read from a file join the same list, so these
-// pin the payload, the duplicate rule, and the refusal to stage a bad row.
-
 const offer = (productType, name = 'Zero Hour') => ({
   _id: 'offer-1',
   availableKeysCount: 0,
@@ -32,18 +28,15 @@ const openWith = async (productType) => {
   renderWithProviders(<BulkUploadModal open onOpenChange={() => {}} />);
   fireEvent.click(screen.getByRole('combobox'));
   fireEvent.click(await screen.findByRole('option', { name: /Zero Hour/i }));
-  next(); // step 2
+  next();
 };
 
-// Addressed by input id: two of the labels start with "Email", so a text match
-// is ambiguous. The ids come from the field keys the form is built from.
 const fillAccount = (values) => {
   for (const [key, value] of Object.entries(values)) {
     fireEvent.change(document.getElementById(`account-${key}`), { target: { value } });
   }
 };
 
-// Radix tabs activate on mouse DOWN, not click.
 const openTab = (name) => {
   const tab = screen.getByRole('tab', { name });
   fireEvent.mouseDown(tab);
@@ -153,8 +146,6 @@ describe('Upload inventory — importing a file', () => {
     expect(offerAPI.uploadOfferKeys.mock.calls[0][1][0].notes).toBe('EU region');
   });
 
-  // The sample file the dialog hands out starts with one, and sellers keep
-  // their own — a header row must never be uploaded as an account.
   it('ignores a header row', async () => {
     await openWith('ACCOUNT_BASED');
     openTab(/upload file/i);
@@ -182,7 +173,6 @@ describe('Upload inventory — importing a file', () => {
       ].join('\n')
     );
 
-    // Line 3 of the file, not line 2 of what is left after the header is dropped.
     expect(await screen.findByText(/Line 3:/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add 1 to list/i })).toBeEnabled();
   });
@@ -229,8 +219,6 @@ describe('Upload inventory — license keys', () => {
   });
 });
 
-// Gift codes and activation links used to be rejected outright — the dialog only
-// knew two types, and the old product upload route refused anything else.
 describe('Upload inventory — gift codes and activation links', () => {
   beforeEach(() => {
     offerAPI.uploadOfferKeys.mockReset();
@@ -262,8 +250,6 @@ describe('Upload inventory — gift codes and activation links', () => {
     expect(await screen.findByText('Ready to upload: 1 activation link')).toBeInTheDocument();
   });
 
-  // A buyer receives an activation link to FOLLOW. Anything that is not a link
-  // is not a delivery, and only http(s) is ever rendered as one.
   it('refuses an activation link that is not a link', async () => {
     await openWith('ACTIVATION_LINK');
 
@@ -296,7 +282,6 @@ describe('Upload inventory — finding the listing', () => {
     fireEvent.click(screen.getByRole('combobox'));
     await screen.findByRole('option', { name: /Zero Hour/i });
 
-    // A listing beyond the first page: only the server can find it.
     offerAPI.getMyOffers.mockResolvedValue(listings([offer('GIFT', 'Far Cry 6')]));
     fireEvent.change(screen.getByPlaceholderText(/type to search listings/i), {
       target: { value: 'far cry' },
@@ -323,7 +308,6 @@ describe('Upload inventory — finding the listing', () => {
     await waitFor(() =>
       expect(offerAPI.getMyOffers).toHaveBeenCalledWith(expect.objectContaining({ search: 'nothing' }))
     );
-    // Still selected: Next stays available.
     expect(screen.getByRole('button', { name: /^next/i })).toBeEnabled();
   });
 });

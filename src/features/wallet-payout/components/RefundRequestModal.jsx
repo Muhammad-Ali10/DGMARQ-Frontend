@@ -24,7 +24,13 @@ const REFUND_REASONS = [
 ];
 
 
-const RefundRequestModal = ({ open, onOpenChange }) => {
+const lineKeyOf = (item) => `${item.productId}|${item.sellerId || ''}`;
+const splitLineKey = (key) => {
+  const [productId = '', sellerId = ''] = String(key || '').split('|');
+  return { productId, sellerId: sellerId || undefined };
+};
+
+const RefundRequestModal = ({ open, onOpenChange, orderId: initialOrderId = null }) => {
   const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
   const [selectedOrderId, setSelectedOrderId] = useState('');
@@ -36,8 +42,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   const [errors, setErrors] = useState({});
   const [refundDestination, setRefundDestination] = useState('ORIGINAL_PAYMENT');
 
-  // Refund type: regular vs guest purchase
-  const [refundType, setRefundType] = useState('REGULAR'); // 'REGULAR' | 'GUEST'
+  const [refundType, setRefundType] = useState('REGULAR');
   const [guestPurchaseEmail, setGuestPurchaseEmail] = useState('');
   const [guestOrderNumber, setGuestOrderNumber] = useState('');
   const [guestOrder, setGuestOrder] = useState(null);
@@ -45,8 +50,9 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   const [guestSelectedKeyIds, setGuestSelectedKeyIds] = useState([]);
   const [validatingGuestOrder, setValidatingGuestOrder] = useState(false);
 
-  // Guard to prevent double submissions when the user clicks multiple times
   const submitGuardRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const selectedLine = splitLineKey(selectedProductId);
 
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['completed-orders-for-refund'],
@@ -63,7 +69,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   const { data: keysData, isLoading: keysLoading } = useQuery({
     queryKey: ['refund-order-item-keys', selectedOrderId, selectedProductId],
     queryFn: () =>
-      returnRefundAPI.getOrderItemLicenseKeys(selectedOrderId, selectedProductId).then(res => res.data.data),
+      returnRefundAPI.getOrderItemLicenseKeys(selectedOrderId, selectedLine.productId, selectedLine.sellerId).then(res => res.data.data),
     enabled: open && !!selectedOrderId && !!selectedProductId,
   });
   const licenseKeys = useMemo(() => keysData?.keys || [], [keysData]);
@@ -74,9 +80,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     return urls;
   }, [evidenceFiles]);
 
-  // Buyer chooses whether the refund follows the original payment split or is
-  // credited entirely to wallet. The backend previews and persists the same mode.
-  const orderForSplit = refundType === 'GUEST' ? guestOrder : selectedOrder;
   const productIdForSplit = refundType === 'GUEST' ? guestSelectedProductId : selectedProductId;
   const keyIdsForSplit = refundType === 'GUEST' ? guestSelectedKeyIds : selectedLicenseKeyIds;
   const splitOrderId = useMemo(() => {
@@ -88,24 +91,12 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     queryKey: ['refund-split-preview', splitOrderId, productIdForSplit, keyIdsForSplit?.join(','), refundDestination],
     queryFn: () =>
       returnRefundAPI
-        .previewSplit(splitOrderId, productIdForSplit, keyIdsForSplit, refundDestination)
+        .previewSplit(splitOrderId, splitLineKey(productIdForSplit).productId, keyIdsForSplit, refundDestination, splitLineKey(productIdForSplit).sellerId)
         .then((res) => res.data?.data),
     enabled: open && !!splitOrderId && !!productIdForSplit,
     staleTime: 5_000,
   });
 
-  // Phase 6 / Step 12 (Step 8 carry-over) — refund window expired path.
-  //
-  // Backend `previewSplit` returns { windowExpired: true, walletCreditFallback }
-  // when the order is past `holdDays + refundWindowDays`. In that case the
-  // refund cannot route to PayPal/card any more (capture is unrefundable),
-  // but we still let the buyer request a wallet-credit refund pending admin
-  // approval. We:
-  //   1. Render the preview as wallet=full / provider=$0 (override the
-  //      regular proportional split visual).
-  //   2. Show a confirmation step before submission.
-  //   3. Re-submit with `acknowledgeOutOfWindow: true` so the backend
-  //      forces the wallet-credit fallback path on `createReturnRefund`.
   const windowExpired = !!splitPreview?.windowExpired;
   const walletCreditFallback = splitPreview?.walletCreditFallback;
   const totalRefundAmount = Number(splitPreview?.refundAmount || 0);
@@ -118,9 +109,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
 
   const [outOfWindowConfirmOpen, setOutOfWindowConfirmOpen] = useState(false);
   const [pendingPayload, setPendingPayload] = useState(null);
-
-  // Suppress lint about unused order shape readers (kept available if needed later).
-  void orderForSplit;
 
   useEffect(() => {
     return () => {
@@ -147,12 +135,12 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       setGuestSelectedProductId('');
       setGuestSelectedKeyIds([]);
       setValidatingGuestOrder(false);
-      // Step 12 PART B — also clear out-of-window confirm state so re-opening
-      // the modal lands on a clean slate.
       setOutOfWindowConfirmOpen(false);
       setPendingPayload(null);
+    } else if (initialOrderId) {
+      setSelectedOrderId(initialOrderId);
     }
-  }, [open]);
+  }, [open, initialOrderId]);
 
   useEffect(() => {
     setSelectedLicenseKeyIds([]);
@@ -180,7 +168,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
         orderId: guestOrderNumber.trim(),
       });
 
-      // expects returnRefundAPI.validateGuestOrder(queryString) -> GET /returnrefund/guest/validate
       const res = await returnRefundAPI.validateGuestOrder(params.toString());
       const data = res.data?.data || res.data;
       setGuestOrder(data);
@@ -240,28 +227,14 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     },
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // Prevent double submission if user clicks multiple times before the request completes
+  const submitRefund = async (payload) => {
     if (submitGuardRef.current) return;
-
-    if (!validateForm()) return;
-
-    const reason = refundReason === 'Other' ? customReason : refundReason;
-    const productIdToSend =
-      refundType === 'REGULAR'
-        ? String(selectedProductId).trim()
-        : String(guestSelectedProductId).trim();
-    const orderIdToSend =
-      refundType === 'REGULAR'
-        ? String(selectedOrderId).trim()
-        : String(guestOrder?.orderId || '').trim();
-
-    let evidenceUrls = [];
-    if (evidenceFiles.length > 0) {
+    submitGuardRef.current = true;
+    setSubmitting(true);
+    try {
       const formData = new FormData();
       evidenceFiles.forEach((file) => formData.append('evidence', file));
+      let evidenceUrls = [];
       try {
         const uploadRes = await returnRefundAPI.uploadEvidence(formData);
         evidenceUrls = uploadRes.data?.data?.urls || [];
@@ -269,16 +242,36 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
         toast.error(err.response?.data?.message || 'Evidence upload failed');
         return;
       }
+      if (evidenceUrls.length === 0) {
+        toast.error('Please upload at least one evidence image.');
+        return;
+      }
+      await createRefundMutation.mutateAsync({ ...payload, evidenceFiles: evidenceUrls }).catch(() => null);
+    } finally {
+      submitGuardRef.current = false;
+      setSubmitting(false);
     }
-    if (evidenceUrls.length === 0) {
-      toast.error('Please upload at least one evidence image.');
-      return;
-    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (submitGuardRef.current) return;
+
+    if (!validateForm()) return;
+
+    const reason = refundReason === 'Other' ? customReason : refundReason;
+    const lineToSend = splitLineKey(refundType === 'REGULAR' ? selectedProductId : guestSelectedProductId);
+    const orderIdToSend =
+      refundType === 'REGULAR'
+        ? String(selectedOrderId).trim()
+        : String(guestOrder?.orderId || '').trim();
+
     const payload = {
       orderId: orderIdToSend,
-      productId: productIdToSend,
+      productId: lineToSend.productId,
+      ...(lineToSend.sellerId ? { sellerId: lineToSend.sellerId } : {}),
       reason: reason.trim(),
-      evidenceFiles: evidenceUrls,
       refundDestination,
     };
 
@@ -296,25 +289,16 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
       payload.orderNumber = guestOrderNumber.trim();
     }
 
-    // Step 12 PART B — refund window expired: pause and ask the buyer to
-    // explicitly opt into the wallet-credit fallback. The backend will
-    // reject createReturnRefund without `acknowledgeOutOfWindow=true`, so
-    // we MUST gate here rather than just setting the flag silently.
     if (windowExpired) {
       setPendingPayload(payload);
       setOutOfWindowConfirmOpen(true);
       return;
     }
 
-    try {
-      submitGuardRef.current = true;
-      await createRefundMutation.mutateAsync(payload);
-    } finally {
-      submitGuardRef.current = false;
-    }
+    submitRefund(payload);
   };
 
-  const handleOutOfWindowConfirm = async () => {
+  const handleOutOfWindowConfirm = () => {
     if (!pendingPayload) {
       setOutOfWindowConfirmOpen(false);
       return;
@@ -322,12 +306,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     const acknowledgedPayload = { ...pendingPayload, acknowledgeOutOfWindow: true };
     setOutOfWindowConfirmOpen(false);
     setPendingPayload(null);
-    try {
-      submitGuardRef.current = true;
-      await createRefundMutation.mutateAsync(acknowledgedPayload);
-    } finally {
-      submitGuardRef.current = false;
-    }
+    submitRefund(acknowledgedPayload);
   };
 
   const handleOutOfWindowCancel = () => {
@@ -345,7 +324,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
   const getMaskedLicenseKey = (key) => {
     if (!key) return 'XXXX-****';
 
-    // Prefer a backend-provided masked/display value if available
     if (key.displayKey && typeof key.displayKey === 'string') {
       return key.displayKey;
     }
@@ -356,9 +334,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
     const raw = typeof key.keyValue === 'string' ? key.keyValue : '';
     if (!raw) return 'XXXX-****';
 
-    // Backend may already return a safe, pre-masked value:
-    // - license format: XXXX-1234
-    // - account format: usernameId | ****1234
     if (/^XXXX-/i.test(raw) || raw.includes('|')) {
       return raw;
     }
@@ -415,7 +390,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-180px)] px-6 py-4 space-y-6">
-          {/* Refund Type */}
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
@@ -503,7 +477,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             )}
           </div>
 
-          {/* Guest purchase verification */}
           {refundType === 'GUEST' && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -577,7 +550,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* Order Selection (regular refunds) */}
           {refundType === 'REGULAR' && (
             <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -598,18 +570,19 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               value={selectedOrderId}
               onValueChange={(value) => {
                 setSelectedOrderId(value);
-                setSelectedProductId(''); // Reset product when order changes
+                setSelectedProductId('');
                 setErrors(prev => ({ ...prev, orderId: undefined }));
               }}
               placeholder="Select an order..."
               searchPlaceholder="Search orders by ID or date..."
+              countNoun="orders"
               emptyMessage={ordersLoading ? "Loading orders..." : "No completed orders found"}
               loading={ordersLoading}
               className="w-full"
               getOptionLabel={(order) => {
                 const date = new Date(order.orderDate).toLocaleDateString();
                 const displayId = order.orderNumber || (order._id || order.orderId || '').slice(-8).toUpperCase();
-                return `Order ID ${displayId} - ${date} - $${order.orderTotalAmount?.toFixed(2)}`;
+                return `Order ID ${displayId} - ${date} - ${formatSettlement(order.orderTotalAmount)}`;
               }}
               getOptionValue={(order) => order._id}
               filterFunction={(order, searchQuery) => {
@@ -637,7 +610,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                         <span>{new Date(order.orderDate).toLocaleDateString()}</span>
                         <span>•</span>
                         <span className="font-semibold text-fg">
-                          ${order.orderTotalAmount?.toFixed(2)}
+                          {formatSettlement(order.orderTotalAmount)}
                         </span>
                       </div>
                     </div>
@@ -657,7 +630,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
           </div>
           )}
 
-          {/* Product Selection (Dependent on Order, regular refunds) */}
           {refundType === 'REGULAR' && selectedOrder && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -683,12 +655,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 placeholder="Select a product..."
                 searchPlaceholder="Search products..."
                 emptyMessage="No products available in this order"
+                countNoun="products"
                 className="w-full"
-                getOptionLabel={(product) => product.productName || 'Product'}
-                getOptionValue={(product) => {
-                  const pid = product.productId;
-                  return pid ? String(pid) : '';
-                }}
+                getOptionLabel={(product) => `${product.productName || 'Product'}${product.sellerName ? ` — ${product.sellerName}` : ''}`}
+                getOptionValue={(product) => (product.productId ? lineKeyOf(product) : '')}
                 filterFunction={(product, searchQuery) => {
                   const query = searchQuery.toLowerCase();
                   const name = (product.productName || '').toLowerCase();
@@ -711,10 +681,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                         <div className="flex items-center gap-2 text-xs text-fg-muted mt-0.5">
                           <span>Qty: {product.qty}</span>
                           <span>•</span>
-                          <span>${product.unitPrice?.toFixed(2)}</span>
+                          <span>{formatSettlement(product.unitPrice)}</span>
                           <span>•</span>
                           <span className="font-semibold text-fg">
-                            ${product.lineTotal?.toFixed(2)}
+                            {formatSettlement(product.lineTotal)}
                           </span>
                         </div>
                       </div>
@@ -734,7 +704,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* Guest: select product and masked keys */}
           {refundType === 'GUEST' && guestOrder && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -752,10 +721,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               </div>
               <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
                 {guestOrder.items.map((item) => {
-                  const isSelectedProduct = guestSelectedProductId === item.productId;
+                  const isSelectedProduct = guestSelectedProductId === lineKeyOf(item);
                   return (
                     <div
-                      key={item.productId}
+                      key={lineKeyOf(item)}
                       className={`rounded-lg border p-3 transition-colors ${
                         isSelectedProduct
                           ? 'border-accent bg-accent/10'
@@ -778,10 +747,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                             <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-fg-muted">
                               <span>Qty: {item.qty}</span>
                               <span>•</span>
-                              <span>${item.unitPrice?.toFixed(2)}</span>
+                              <span>{formatSettlement(item.unitPrice)}</span>
                               <span>•</span>
                               <span className="font-semibold text-fg">
-                                ${item.lineTotal?.toFixed(2)}
+                                {formatSettlement(item.lineTotal)}
                               </span>
                             </div>
                           </div>
@@ -796,7 +765,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                               : 'border-border-interactive text-fg'
                           }
                           onClick={() => {
-                            setGuestSelectedProductId(item.productId);
+                            setGuestSelectedProductId(lineKeyOf(item));
                             setGuestSelectedKeyIds([]);
                             setErrors((prev) => ({
                               ...prev,
@@ -882,7 +851,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* License key(s) selection — card-based to avoid confusion (regular refunds) */}
           {refundType === 'REGULAR' && selectedOrder && selectedProductId && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -940,7 +908,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                                 </span>
                               </div>
                               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-fg-muted">
-                                <span>Price: ${(key.price ?? 0).toFixed(2)}</span>
+                                <span>Price: {formatSettlement(key.price ?? 0)}</span>
                                 <span>Type: {productTypeLabel}</span>
                                 <span>Status: {statusLabel(key.status)}</span>
                                 <span>Issued: {formatIssuedDate(key.issuedAt)}</span>
@@ -982,7 +950,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* Refund routing + split preview — shown for both regular and guest orders. */}
           {(selectedProductId || guestSelectedProductId) && (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -1057,15 +1024,10 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                     <span className="text-xs text-fg-muted">Total refund</span>
                     <span className="text-sm font-semibold text-fg">{formatSettlement(totalRefundAmount)}</span>
                   </div>
-                  {/* B8: say it BEFORE they commit. Fees are correctly withheld,
-                      but nothing told the buyer — so someone who paid $98 and
-                      received $95 opened a ticket to ask where $3 went. */}
                   <p className="text-xs text-fg-subtle">
                     This is the product price you paid. Buyer Protection and checkout fees are not refunded.
                   </p>
 
-                  {/* Step 12 PART B — refund window expired. Show a warning and
-                      override the proportional split visual to wallet=full. */}
                   {windowExpired && (
                     <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 space-y-1">
                       <div className="flex items-start gap-2">
@@ -1120,7 +1082,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* Evidence upload (mandatory) */}
           {(selectedProductId || guestSelectedProductId) && (
             <div className="space-y-2">
               <Label htmlFor="refund-evidence" className="text-sm font-semibold text-fg">Evidence (required)</Label>
@@ -1164,7 +1125,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          {/* Refund Reason */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10">
@@ -1207,7 +1167,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               </p>
             )}
 
-            {/* Custom Reason Textarea */}
             {refundReason === 'Other' && (
               <div className="space-y-2">
                 <Textarea
@@ -1230,7 +1189,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             )}
           </div>
 
-          {/* Submit Button */}
           <div className="flex items-center justify-between gap-4 pt-5 border-t border-white/[0.06]">
             <div className="text-sm text-fg-muted">
               {isFormValid && (
@@ -1246,16 +1204,16 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 className="border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white px-5"
-                disabled={createRefundMutation.isPending}
+                disabled={submitting}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={!isFormValid || createRefundMutation.isPending}
+                disabled={!isFormValid || submitting}
                 className="bg-accent hover:bg-accent/90 min-w-[160px] px-6 font-semibold shadow-lg shadow-accent/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                {createRefundMutation.isPending ? (
+                {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Submitting...
@@ -1269,9 +1227,6 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
         </form>
       </DialogContent>
 
-      {/* Step 12 PART B — refund-window expired confirmation.
-          Sibling Dialog (not nested) so it gets its own focus trap and the
-          backdrop layers cleanly above the parent modal. */}
       <Dialog open={outOfWindowConfirmOpen} onOpenChange={(o) => !o && handleOutOfWindowCancel()}>
         <DialogContent size="sm">
           <DialogHeader>
@@ -1292,7 +1247,7 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
             <p>
               The refund period for this order has ended. We can only credit{' '}
               <span className="font-semibold text-emerald-200">
-                {formatSettlement(walletCreditFallback?.refundAmount ?? totalRefundAmount)}
+                {formatSettlement(walletCreditFallback?.walletPortion ?? totalRefundAmount)}
               </span>{' '}
               to your wallet, and an admin must approve it manually before the credit is applied.
             </p>
@@ -1305,17 +1260,17 @@ const RefundRequestModal = ({ open, onOpenChange }) => {
               variant="outline"
               onClick={handleOutOfWindowCancel}
               className="border-white/[0.08] text-fg-muted hover:bg-white/[0.06] hover:text-white px-4"
-              disabled={createRefundMutation.isPending}
+              disabled={submitting}
             >
               Cancel
             </Button>
             <Button
               type="button"
               onClick={handleOutOfWindowConfirm}
-              disabled={createRefundMutation.isPending}
+              disabled={submitting}
               className="bg-amber-500/90 hover:bg-amber-500 text-amber-950 px-5 font-semibold"
             >
-              {createRefundMutation.isPending ? (
+              {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Submitting...

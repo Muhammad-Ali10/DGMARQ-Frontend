@@ -5,9 +5,6 @@ import { renderWithProviders } from '../../test/render';
 vi.mock('@services/api', () => ({
   userAPI: {
     getWishlist: vi.fn(),
-    // The cards on this page take their FILLED state from the shared
-    // membership endpoint, not from the page payload — one source of truth for
-    // every heart on the site. So the page needs both mocked.
     getWishlistIds: vi.fn(),
     addToWishlist: vi.fn(),
     removeFromWishlist: vi.fn(),
@@ -35,14 +32,6 @@ const savedProduct = {
 };
 
 const signedIn = { auth: { isAuthenticated: true, user: { _id: 'u1' } } };
-/**
- * Shape of the now-PAGINATED GET /wishlist/get-wishlist.
- *
- * `pagination.total` is the size of the WHOLE wishlist, not of this page. The
- * header copy, the Clear-all button and the confirmation modal all read it
- * rather than products.length — otherwise a user with 100 saved items would be
- * told "All 24 saved items will be removed".
- */
 const wishlistResponse = (products, { total, max = 500, page = 1, limit = 24 } = {}) => ({
   data: {
     data: {
@@ -58,7 +47,6 @@ const wishlistResponse = (products, { total, max = 500, page = 1, limit = 24 } =
   },
 });
 
-/** Membership shape — GET /wishlist/ids. */
 const idsResponse = (ids = []) => ({
   data: { data: { productIds: ids, count: ids.length, max: 500 } },
 });
@@ -68,23 +56,16 @@ beforeEach(() => {
   userAPI.getWishlist.mockResolvedValue(
     wishlistResponse([{ productId: savedProduct, addedAt: '2026-01-01' }])
   );
-  // Everything on this page is saved by definition.
   userAPI.getWishlistIds.mockResolvedValue(idsResponse([savedProduct._id]));
 });
 
 describe('Wishlist page', () => {
-  // CLIENT REQUIREMENT 2 — same info as a product card, via ProductCard itself.
-  // The two hand-rolled grids this replaced showed neither the offer count nor
-  // the region badge nor the featured chip, and computed the price in opposite
-  // directions from each other. Asserting on card-specific output is what
-  // proves the real card is rendering, not a look-alike.
   it('renders saved items using the real ProductCard', async () => {
     renderWithProviders(<Wishlist />, { preloadedState: signedIn });
 
     expect(await screen.findByText('Zero Hour')).toBeInTheDocument();
     expect(screen.getByText('Steam')).toBeInTheDocument();
     expect(screen.getByText('Account')).toBeInTheDocument();
-    // "+N more offers" — only ProductCard renders this.
     expect(screen.getByText('+2 more offers')).toBeInTheDocument();
     expect(screen.getByText('Featured')).toBeInTheDocument();
   });
@@ -92,8 +73,6 @@ describe('Wishlist page', () => {
   it('prices the item the same way every other card on the site does', async () => {
     renderWithProviders(<Wishlist />, { preloadedState: signedIn });
 
-    // 40 with a 25% discount → 30 now, 40 struck through. The deleted dashboard
-    // page divided instead of multiplying and showed a "was" price of 53.33.
     expect(await screen.findByText('$30.00')).toBeInTheDocument();
     expect(screen.getByText('$40.00')).toBeInTheDocument();
     expect(screen.getByText('-25%')).toBeInTheDocument();
@@ -111,8 +90,6 @@ describe('Wishlist page', () => {
     expect(heart).toHaveAttribute('aria-pressed', 'true');
   });
 
-  // M4 — the wishlist is the one surface that deliberately keeps sold-out
-  // items, because watching one until it returns is the reason to save it.
   it('marks a sold-out item and drops its add-to-cart control', async () => {
     userAPI.getWishlist.mockResolvedValue(
       wishlistResponse([{ productId: { ...savedProduct, hasStock: false } }])
@@ -135,10 +112,6 @@ describe('Wishlist page', () => {
   });
 
   it('drops entries whose product no longer exists', async () => {
-    // A populate that resolved to null (product deleted after it was saved)
-    // must not render an empty card. Asserted on the CARDS rather than on the
-    // count copy: `total` is the server's count of wishlist ENTRIES, which is
-    // deliberately not re-derived on the client.
     userAPI.getWishlist.mockResolvedValue(
       wishlistResponse([{ productId: null }, { productId: savedProduct }])
     );
@@ -176,8 +149,6 @@ describe('Wishlist page', () => {
   });
 
   it('surfaces a load failure with a retry instead of an empty wishlist', async () => {
-    // Rendering "your wishlist is empty" after a failed fetch would tell the
-    // user their saved items are gone.
     userAPI.getWishlist.mockRejectedValue({ response: { status: 500 } });
     renderWithProviders(<Wishlist />, { preloadedState: signedIn });
 
@@ -191,8 +162,6 @@ describe('Wishlist page', () => {
   });
 });
 
-// The endpoint runs on every page load via the header, and the wishlist is an
-// embedded array, so both the cap and the paging exist to keep it bounded.
 describe('Wishlist page — paging and the size cap', () => {
   const page = (n, count = 24) =>
     Array.from({ length: count }, (_, i) => ({
@@ -211,7 +180,6 @@ describe('Wishlist page — paging and the size cap', () => {
   it('hides pagination when everything fits on one page', async () => {
     renderWithProviders(<Wishlist />, { preloadedState: signedIn });
     await screen.findByText('Zero Hour');
-    // Pagination self-guards at <= 1 page.
     expect(screen.queryByRole('button', { name: /^next$/i })).not.toBeInTheDocument();
   });
 
@@ -228,8 +196,6 @@ describe('Wishlist page — paging and the size cap', () => {
   });
 
   it('counts the WHOLE wishlist in the clear-all confirmation, not the page', async () => {
-    // The bug this guards: with 24 of 60 items on screen, "All 24 saved items
-    // will be removed" understates what the button actually does.
     userAPI.getWishlist.mockResolvedValue(wishlistResponse(page(1), { total: 60 }));
     renderWithProviders(<Wishlist />, { preloadedState: signedIn });
     await screen.findByText('Item 1-0');
@@ -240,8 +206,6 @@ describe('Wishlist page — paging and the size cap', () => {
   });
 
   it('stays quiet about the cap when the user is nowhere near it', async () => {
-    // Telling someone with 1 saved item that they may save 500 makes the page
-    // feel constrained for no reason.
     renderWithProviders(<Wishlist />, { preloadedState: signedIn });
     await screen.findByText('Zero Hour');
     expect(screen.queryByText(/of 500 used/i)).not.toBeInTheDocument();

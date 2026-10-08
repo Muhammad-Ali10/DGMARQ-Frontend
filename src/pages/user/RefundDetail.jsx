@@ -16,23 +16,12 @@ import useCurrency from '@hooks/useCurrency';
 import { formatDateTime, formatRelativeDate } from '@lib/datetime';
 import { ArrowLeft, MessagesSquare } from 'lucide-react';
 
-/**
- * A buyer's refund request in full.
- *
- * This file carried a NINTH copy of the refund vocabulary — `STATUS_LABELS`,
- * `STATUS_VARIANTS`, and a local `StatusBadge` component shadowing the shared
- * one by the same name. All three are gone; it reads the canonical taxonomy.
- *
- * The facts grid used `<Label>` for read-only values. `<Label>` is for form
- * controls, so screen readers announced these as orphaned field labels; they
- * are a description list now.
- */
 const RefundDetail = () => {
   const { refundId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
-  const { format } = useCurrency();
+  const { formatSettlement } = useCurrency();
 
   const refundQuery = useQuery({
     queryKey: ['user-refund-details', refundId],
@@ -86,7 +75,7 @@ const RefundDetail = () => {
     );
   }
 
-  const amount = Number(refund.refundAmount ?? refund.productId?.price ?? 0);
+  const amount = Number(refund.refundAmount ?? 0);
 
   return (
     <div className="space-y-8">
@@ -113,7 +102,7 @@ const RefundDetail = () => {
             <Fact label="Sold by">{refund.sellerId?.shopName || 'Seller'}</Fact>
             <Fact label="Product">{refund.productId?.name || 'Product'}</Fact>
             <Fact label="Amount requested">
-              <span className="text-base font-semibold tabular-nums">{format(amount)}</span>
+              <span className="text-base font-semibold tabular-nums">{formatSettlement(amount)}</span>
             </Fact>
           </dl>
 
@@ -172,11 +161,7 @@ const RefundDetail = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <RefundChat
-            refundId={refund._id}
-            canSend
-            locked={isRefundChatLocked(refund.status)}
-          />
+          <RefundChat refundId={refund._id} locked={isRefundChatLocked(refund.status)} />
         </CardContent>
       </Card>
     </div>

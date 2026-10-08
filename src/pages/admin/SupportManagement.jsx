@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminAPI } from '@services/api';
 import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@components/ui/table';
 import { Button } from '@components/ui/button';
@@ -10,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Headphones, MessageSquare, Clock, CheckCircle2, UserPlus, UserMinus, BookText, Star } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
 import { EmptyState } from '@components/common/EmptyState';
+import { Pagination } from '@components/common/Pagination';
 import {
   MessageList,
   ChatInput,
@@ -23,8 +25,8 @@ import {
   useSupportThread,
 } from '@features/support';
 
-const Avatar = ({ user, fallback }) => {
-  const name = user?.name || fallback || 'Guest';
+const Avatar = ({ user }) => {
+  const name = user?.name || 'Customer';
   if (user?.profileImage) {
     return <img src={user.profileImage} alt={name} className="h-7 w-7 rounded-full object-cover" />;
   }
@@ -37,11 +39,18 @@ const Avatar = ({ user, fallback }) => {
 
 const SupportManagement = () => {
   const queryClient = useQueryClient();
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [chatDialogOpen, setChatDialogOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ticketFromUrl = searchParams.get('ticket');
+  const [pickedChat, setPickedChat] = useState(null);
+  const [pickedDialogOpen, setPickedDialogOpen] = useState(false);
+  const selectedChat = ticketFromUrl || pickedChat;
+  const chatDialogOpen = Boolean(ticketFromUrl) || pickedDialogOpen;
+  const setChatDialogOpen = (open) => {
+    if (!open && ticketFromUrl) setSearchParams({}, { replace: true });
+    setPickedDialogOpen(open);
+  };
   const [cannedOpen, setCannedOpen] = useState(false);
 
-  // Filters / search / sort
   const [statusFilter, setStatusFilter] = useState('all');
   const [sort, setSort] = useState('activity');
   const [mine, setMine] = useState(false);
@@ -52,9 +61,16 @@ const SupportManagement = () => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  const filterKey = `${statusFilter}|${sort}|${search}|${mine}`;
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = (next) => setPageState({ key: filterKey, page: next });
+
   const params = {
     status: statusFilter,
     sort,
+    page,
+    limit: 20,
     ...(search ? { search } : {}),
     ...(mine ? { mine: 'me' } : {}),
   };
@@ -108,8 +124,9 @@ const SupportManagement = () => {
   });
 
   const handleViewChat = (chat) => {
-    setSelectedChat(chat._id);
-    setChatDialogOpen(true);
+    if (ticketFromUrl) setSearchParams({}, { replace: true });
+    setPickedChat(chat._id);
+    setPickedDialogOpen(true);
   };
 
   if (isLoadingChats && !chats) return <Loading message="Loading support data..." />;
@@ -172,7 +189,6 @@ const SupportManagement = () => {
           <CardTitle className="flex items-center gap-2">
             <Headphones className="h-5 w-5" /> Support Chats
           </CardTitle>
-          {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex flex-wrap gap-1">
               {STATUS_FILTERS.map((f) => (
@@ -246,10 +262,10 @@ const SupportManagement = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Avatar user={chat.userId} fallback={chat.guestName} />
+                          <Avatar user={chat.userId} />
                           <div className="min-w-0">
-                            <p className="text-gray-200 text-sm truncate">{chat.userId?.name || chat.guestName || 'Guest'}</p>
-                            <p className="text-gray-500 text-xs truncate">{chat.userId?.email || chat.guestEmail || '—'}</p>
+                            <p className="text-gray-200 text-sm truncate">{chat.userId?.name || 'Customer'}</p>
+                            <p className="text-gray-500 text-xs truncate">{chat.userId?.email || '—'}</p>
                           </div>
                         </div>
                       </TableCell>
@@ -273,10 +289,16 @@ const SupportManagement = () => {
               </Table>
             </div>
           )}
+          <Pagination
+            page={page}
+            totalPages={chats?.pagination?.pages || 1}
+            onPageChange={setPage}
+            total={chats?.pagination?.total}
+            totalNoun="tickets"
+          />
         </CardContent>
       </Card>
 
-      {/* Chat dialog */}
       <Dialog open={chatDialogOpen} onOpenChange={setChatDialogOpen}>
         <DialogContent size="lg" className="flex flex-col h-[85vh]">
           <DialogHeader>
@@ -284,12 +306,11 @@ const SupportManagement = () => {
               <div className="min-w-0">
                 <span className="truncate">{selectedChatData?.subject || 'Support Chat'}</span>
                 <span className="ml-2 text-sm text-gray-400">
-                  - {selectedChatData?.userId?.name || selectedChatData?.guestName || 'Guest'}
+                  - {selectedChatData?.userId?.name || 'Customer'}
                 </span>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {selectedChatData && <PriorityBadge priority={selectedChatData.priority} />}
-                {/* Priority control */}
                 <select
                   value={selectedChatData?.priority || 'low'}
                   onChange={(e) => selectedChat && priorityMutation.mutate({ chatId: selectedChat, priority: e.target.value })}
@@ -298,7 +319,6 @@ const SupportManagement = () => {
                 >
                   {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
-                {/* Status control */}
                 <select
                   value={STATUS_OPTIONS.includes(selectedChatData?.status) ? selectedChatData?.status : 'in_progress'}
                   onChange={(e) => selectedChat && statusMutation.mutate({ chatId: selectedChat, status: e.target.value })}
@@ -319,7 +339,16 @@ const SupportManagement = () => {
               </div>
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              {selectedChatData?.userId?.email || selectedChatData?.guestEmail || 'No email'}
+              {selectedChatData?.userId?.email || 'No email'}
+              {selectedChatData?.category && <span className="ml-2">• {selectedChatData.category}</span>}
+              {selectedChatData?.relatedOrderId && (
+                <span className="ml-2">
+                  •{' '}
+                  <Link to={`/admin/orders/${selectedChatData.relatedOrderId}`} className="underline underline-offset-2 hover:text-white">
+                    Related order
+                  </Link>
+                </span>
+              )}
               {selectedChatData?.assignedTo?.name && <span className="ml-2">• Assigned to {selectedChatData.assignedTo.name}</span>}
             </DialogDescription>
           </DialogHeader>
@@ -327,7 +356,7 @@ const SupportManagement = () => {
           <div className="flex-1 flex flex-col overflow-hidden bg-gray-900 rounded-lg">
             <PresenceBar
               userId={selectedChatData?.userId?._id}
-              name={selectedChatData?.userId?.name || selectedChatData?.guestName || 'Customer'}
+              name={selectedChatData?.userId?.name || 'Customer'}
               connected={thread.connected}
               onlineText="Online now"
               offlineText="Offline"

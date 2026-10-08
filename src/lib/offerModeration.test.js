@@ -2,9 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { canRemoveOffer, isRemovedByAdmin, offerStatusKey } from './offerModeration';
 import { getStatusDisplay } from './statusTaxonomy';
 
-// These mirror the backend's removeOffer/restoreOffer rules, so a button only
-// appears where the server would accept the action.
-
 describe('offer moderation rules', () => {
   const removed = { status: 'delisted', delistReason: 'admin' };
   const soldOut = { status: 'delisted', delistReason: 'out_of_stock' };
@@ -13,10 +10,8 @@ describe('offer moderation rules', () => {
     expect(canRemoveOffer({ status: 'approved' })).toBe(true);
     expect(canRemoveOffer({ status: 'active' })).toBe(true);
     expect(canRemoveOffer(soldOut)).toBe(true);
-    // Pending is rejected, not removed; rejected is not listed at all.
     expect(canRemoveOffer({ status: 'pending' })).toBe(false);
     expect(canRemoveOffer({ status: 'rejected' })).toBe(false);
-    // Already removed → the action is Restore instead.
     expect(canRemoveOffer(removed)).toBe(false);
   });
 

@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { offerAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -23,8 +23,6 @@ const TABS = [
   { value: 'pending', label: 'Pending', icon: Clock },
   { value: 'approved', label: 'Approved', icon: CheckCircle2 },
   { value: 'rejected', label: 'Rejected', icon: XCircle },
-  // Removed by an admin, or delisted by the out-of-stock sweep. Both are hidden
-  // from buyers — and until this tab existed they were hidden from admins too.
   { value: 'delisted', label: 'Delisted', icon: EyeOff },
 ];
 
@@ -43,16 +41,10 @@ const SellerOffersManagement = () => {
     placeholderData: keepPreviousData,
   });
 
-  // Tab counts = number of PRODUCTS per status, so a badge always matches the
-  // number of product groups listed under that tab.
-  const countQueries = useQueries({
-    queries: TABS.map(({ value }) => ({
-      queryKey: ['admin-offers-count', value],
-      queryFn: () =>
-        offerAPI.adminGetOffers({ status: value, limit: 1 }).then((r) => r.data.data.pagination.total),
-    })),
+  const { data: counts } = useQuery({
+    queryKey: ['admin-offers-count'],
+    queryFn: () => offerAPI.adminGetOfferCounts().then((r) => r.data.data),
   });
-  const counts = Object.fromEntries(TABS.map(({ value }, i) => [value, countQueries[i].data ?? 0]));
 
   const groups = data?.groups || [];
   const pagination = data?.pagination || { page: 1, pages: 1, total: 0 };
@@ -76,7 +68,7 @@ const SellerOffersManagement = () => {
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-secondary border border-gray-700">
           {TABS.map(({ value, label, icon: Icon }) => (
             <TabsTrigger key={value} value={value} className="data-[state=active]:bg-accent data-[state=active]:text-white text-gray-300">
-              <Icon className="h-4 w-4 mr-2" /> {label} ({counts[value]})
+              <Icon className="h-4 w-4 mr-2" /> {label} ({counts?.[value]?.offers ?? 0})
             </TabsTrigger>
           ))}
         </TabsList>
@@ -109,7 +101,6 @@ const SellerOffersManagement = () => {
                   <TableBody>
                     {groups.map((g) => (
                       <Fragment key={g.product?._id || g.offers?.[0]?._id}>
-                        {/* Product header row — the offers below are this product's. */}
                         <TableRow className="border-gray-700 bg-secondary/20 hover:bg-secondary/20">
                           <TableCell colSpan={6}>
                             <div className="flex items-center justify-between gap-3">
@@ -138,9 +129,6 @@ const SellerOffersManagement = () => {
                               )}
                             </TableCell>
                             <TableCell className="text-white">{formatMoney(o.price || 0)}</TableCell>
-                            {/* Where the keys can be activated. This page showed
-                                nothing at all before, so an admin reviewing an
-                                offer could not see what the seller had chosen. */}
                             <TableCell>
                               <OfferRegionSummary offer={o} />
                             </TableCell>

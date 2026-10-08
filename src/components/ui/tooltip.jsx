@@ -2,12 +2,6 @@ import { Tooltip as TooltipPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
-// shadcn ships an INVERTED tooltip (`bg-foreground text-background`) — a
-// near-white block, which on a dark-only app reads as a rendering bug. Ours
-// uses the elevation-2 popover surface like every other floating layer.
-//
-// A tooltip explains, it never carries meaning on its own — touch users never
-// see it, so nothing may live exclusively in here.
 function TooltipProvider({
   delayDuration = 200,
   ...props

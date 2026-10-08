@@ -1,13 +1,6 @@
 import { useInView } from '@hooks/useInView';
 import AnimatedHeading from './AnimatedHeading';
 
-/**
- * Vertical timeline with center line and cards alternating left/right.
- * Futuristic, gaming-inspired: neon glow, gradients, sleek cards with hover/entrance animations.
- * Fully responsive: stacked on mobile, alternating on desktop.
- *
- * Items: { milestone, description, icon? } (milestone = step title, description = step details).
- */
 export default function RoadmapTimeline({ items, sectionTitle = 'Roadmap', className = '' }) {
   if (!items?.length) return null;
 
@@ -21,7 +14,6 @@ export default function RoadmapTimeline({ items, sectionTitle = 'Roadmap', class
         )}
 
         <div className="relative">
-          {/* Center vertical line – top to bottom (visible from md) */}
           <div
             className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 hidden md:block"
             aria-hidden
@@ -64,13 +56,11 @@ function TimelineStep({ title, description, icon, index, isLeft }) {
       `}
       style={{ transitionDelay: `${index * 80}ms` }}
     >
-      {/* Spacer – desktop: right when card is left, left when card is right */}
       <div
         className={`hidden md:block w-[calc(50%-28px)] shrink-0 ${isLeft ? 'order-last' : 'order-first'}`}
         aria-hidden
       />
 
-      {/* Center dot – aligned with vertical line */}
       <div
         className="absolute left-4 md:left-1/2 top-5 md:top-1/2 w-3 h-3 md:-translate-x-1/2 md:-translate-y-1/2 rounded-full border-2 border-[#030a14] bg-accent shadow-[0_0_16px_4px_rgba(14,81,226,0.5)] ring-4 ring-accent/20 z-10 shrink-0 transition-transform duration-300 hover:scale-125 group-hover:scale-125"
         aria-hidden
@@ -82,7 +72,6 @@ function TimelineStep({ title, description, icon, index, isLeft }) {
         )}
       </div>
 
-      {/* Card – alternating left/right on desktop */}
       <div
         className={`
           relative w-full md:w-[calc(50%-28px)] rounded-xl
@@ -94,7 +83,6 @@ function TimelineStep({ title, description, icon, index, isLeft }) {
           ${isLeft ? 'md:mr-auto md:pr-8' : 'md:ml-auto md:pl-8'}
         `}
       >
-        {/* Neon top edge glow */}
         <div
           className="absolute inset-x-0 top-0 h-px rounded-t-xl bg-gradient-to-r from-transparent via-accent/60 to-transparent opacity-80"
           aria-hidden

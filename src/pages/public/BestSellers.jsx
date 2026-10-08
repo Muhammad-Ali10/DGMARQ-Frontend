@@ -13,7 +13,6 @@ const BestSellers = () => {
     title: "Best Sellers | DGMARQ",
     description: "Shop the best selling games and digital products on DGMARQ marketplace.",
     canonical: "/bestsellers",
-    useDefaults: false,
   });
 
   const [page, setPage] = useState(1);
@@ -56,7 +55,6 @@ const BestSellers = () => {
   return (
     <div className="min-h-screen   py-12">
       <div className="max-w-7xl mx-auto px-4">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Best Sellers</h1>
           <p className="text-gray-400">
@@ -64,7 +62,6 @@ const BestSellers = () => {
           </p>
         </div>
 
-        {/* Products Grid */}
         {bestsellers.length > 0 ? (
           <>
             {isFetching && (
@@ -81,7 +78,6 @@ const BestSellers = () => {
               ))}
             </div>
 
-            {/* Pagination */}
             <Pagination
               page={page}
               totalPages={pagination.pages}

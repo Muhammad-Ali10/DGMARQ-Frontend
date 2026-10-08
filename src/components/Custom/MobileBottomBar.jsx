@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 import {
   Search,
   Heart,
@@ -15,10 +14,11 @@ import {
   Key,
 } from "lucide-react";
 import { calculateProductPrice, getProductPath, useWishlist } from "@features/catalog";
-import { cartAPI, productAPI, authAPI } from "@services/api";
-import { logout } from "@store/slices/authSlice";
 import { cn } from "@lib/utils";
-import { getGuestCartCount } from "@features/cart-checkout";
+import { useCartCount } from "@features/cart-checkout";
+import { useSearchSuggestions } from "@hooks/useSearchSuggestions";
+import { useLogout } from "@hooks/useLogout";
+import useCurrency from "@hooks/useCurrency";
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import SafeImage from "@components/ui/safe-image";
@@ -27,44 +27,20 @@ import RegisterPanel from "@components/common/RegisterPanel";
 const MobileBottomBar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const dispatch = useDispatch();
-  const queryClient = useQueryClient();
   const { isAuthenticated, user, roles } = useSelector((state) => state.auth);
+  const { format } = useCurrency();
   const [searchOpen, setSearchOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const searchContainerRef = useRef(null);
   const accountMenuRef = useRef(null);
   const accountButtonRef = useRef(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  const { data: searchSuggestions, isLoading: searchLoading } = useQuery({
-    queryKey: ["search-suggestions", debouncedSearchQuery, "all"],
-    queryFn: async () => {
-      if (!debouncedSearchQuery.trim()) return [];
-      try {
-        const params = {
-          search: debouncedSearchQuery,
-          limit: 10,
-          status: "active",
-        };
-        const response = await productAPI.getProducts(params);
-        return response.data.data?.docs || [];
-      } catch {
-        return [];
-      }
-    },
-    enabled: debouncedSearchQuery.trim().length > 0,
-    staleTime: 60000,
-  });
+  const { term: suggestionTerm, suggestions: searchSuggestions, isLoading: searchLoading } = useSearchSuggestions(
+    searchQuery,
+    { enabled: searchOpen },
+  );
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -104,35 +80,8 @@ const MobileBottomBar = () => {
     };
   }, [accountMenuOpen]);
 
-  // Shares the ONE ["cart"] query with the Header + mini-cart (react-query
-  // dedupes identical keys), so the heavy cart endpoint is fetched once for the
-  // whole app instead of once per nav component. Counts update on mutation via
-  // the existing invalidateQueries({queryKey:["cart"]}) — never on a timer.
-  const { data: cart } = useQuery({
-    queryKey: ["cart"],
-    queryFn: () => cartAPI.getCart().then((r) => r.data.data),
-    enabled: isAuthenticated,
-    staleTime: 30_000,
-  });
+  const cartCount = useCartCount();
 
-  const [guestCartCount, setGuestCartCount] = useState(() =>
-    typeof getGuestCartCount === "function" ? getGuestCartCount() : 0,
-  );
-  useEffect(() => {
-    if (!isAuthenticated && typeof getGuestCartCount === "function") {
-      setGuestCartCount(getGuestCartCount());
-      const onGuestCartChange = () => setGuestCartCount(getGuestCartCount());
-      window.addEventListener("guestCartChange", onGuestCartChange);
-      return () =>
-        window.removeEventListener("guestCartChange", onGuestCartChange);
-    }
-  }, [isAuthenticated]);
-
-  const cartCount = isAuthenticated ? cart?.items?.length || 0 : guestCartCount;
-
-  // Same shared hook as the header and every heart — the ID-ONLY endpoint. This
-  // component is mounted on every route too, and used to pull fully-populated
-  // products purely to render a number.
   const { count: wishlistCount } = useWishlist();
 
   const getDashboardRoute = () => {
@@ -150,21 +99,7 @@ const MobileBottomBar = () => {
     }
   };
 
-  const logoutMutation = useMutation({
-    mutationFn: () => authAPI.logout(),
-    onSuccess: () => {
-      dispatch(logout());
-      queryClient.clear();
-      setAccountMenuOpen(false);
-      navigate("/");
-    },
-    onError: () => {
-      dispatch(logout());
-      queryClient.clear();
-      setAccountMenuOpen(false);
-      navigate("/");
-    },
-  });
+  const logoutMutation = useLogout({ onDone: () => setAccountMenuOpen(false) });
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -265,12 +200,11 @@ const MobileBottomBar = () => {
 
   const shouldShowSuggestions =
     showSearchSuggestions &&
-    debouncedSearchQuery.trim() &&
-    (searchSuggestions?.length > 0 || searchLoading);
+    suggestionTerm &&
+    (searchSuggestions.length > 0 || searchLoading);
 
   return (
     <>
-      {/* Search Popup */}
       {searchOpen && (
         <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm md:hidden flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-[#041536] border-2 border-border-interactive rounded-lg shadow-2xl p-4 min-h-[400px] max-h-[85vh] flex flex-col">
@@ -313,14 +247,13 @@ const MobileBottomBar = () => {
                   </Button>
                 </div>
 
-                {/* Search Suggestions */}
                 {shouldShowSuggestions && (
                   <div className="flex-1 bg-surface-sunken border border-border rounded-lg shadow-xl overflow-y-auto z-50 min-h-[300px]">
                     {searchLoading ? (
                       <div className="p-4 text-center text-fg-muted">
                         Searching...
                       </div>
-                    ) : searchSuggestions && searchSuggestions.length > 0 ? (
+                    ) : searchSuggestions.length > 0 ? (
                       <div className="py-2">
                         {searchSuggestions.map((product) => {
                           const {
@@ -346,9 +279,9 @@ const MobileBottomBar = () => {
                                 <div className="text-fg font-medium truncate">
                                   {product.name}
                                 </div>
-                                {discountPrice && (
+                                {discountPrice > 0 && (
                                   <div className="text-accent-on-dark text-sm">
-                                    ${discountPrice.toFixed(2)}
+                                    {format(discountPrice)}
                                   </div>
                                 )}
                                 {discountPercentage > 0 && (
@@ -358,7 +291,7 @@ const MobileBottomBar = () => {
                                 )}
                                 {discountPercentage > 0 && (
                                   <del className="text-xs md:text-sm font-normal uppercase">
-                                    ${originalPrice.toFixed(2)}
+                                    {format(originalPrice)}
                                   </del>
                                 )}
                               </div>
@@ -379,7 +312,7 @@ const MobileBottomBar = () => {
                           );
                         })}
                       </div>
-                    ) : debouncedSearchQuery.trim() ? (
+                    ) : suggestionTerm ? (
                       <div className="p-4 text-center text-fg-muted">
                         No products found
                       </div>
@@ -392,7 +325,6 @@ const MobileBottomBar = () => {
         </div>
       )}
 
-      {/* Account Menu Popup */}
       {accountMenuOpen && (
         <div className="fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm md:hidden flex items-center justify-center p-4">
           <div
@@ -419,7 +351,6 @@ const MobileBottomBar = () => {
                 </>
               ) : (
                 <>
-                  {/* User Info Header */}
                   <div className="px-4 py-3 border-b border-border">
                     <div className="flex items-center gap-3">
                       {getUserDisplay()}
@@ -434,7 +365,6 @@ const MobileBottomBar = () => {
                     </div>
                   </div>
 
-                  {/* Dashboard Link */}
                   <button
                     onClick={() => {
                       setAccountMenuOpen(false);
@@ -446,7 +376,6 @@ const MobileBottomBar = () => {
                     <span>Dashboard</span>
                   </button>
 
-                  {/* Orders Link - Only show for customers */}
                   {!roles?.some(
                     (r) => String(r).toLowerCase() === "seller",
                   ) && (
@@ -462,7 +391,6 @@ const MobileBottomBar = () => {
                         <span>Orders</span>
                       </button>
 
-                      {/* License Keys Link */}
                       <button
                         onClick={() => {
                           setAccountMenuOpen(false);
@@ -478,7 +406,6 @@ const MobileBottomBar = () => {
 
                   <div className="border-t border-border my-1"></div>
 
-                  {/* Logout Button */}
                   <button
                     onClick={handleLogout}
                     disabled={logoutMutation.isPending}
@@ -496,13 +423,11 @@ const MobileBottomBar = () => {
         </div>
       )}
 
-      {/* Bottom Navigation Bar */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-[100] bg-[#041536] border-t-2 border-border-interactive shadow-2xl md:hidden"
     
         aria-label="Mobile navigation"
       >
-        {/* Section 1 */}
         <div className="grid grid-cols-4 border-b border-border-interactive">
           <button
             type="button"

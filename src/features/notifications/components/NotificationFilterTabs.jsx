@@ -6,10 +6,6 @@ const TABS = [
   { key: 'read', label: 'Read' },
 ];
 
-/**
- * All / Unread / Read filter tabs for the notification pages.
- * Controlled: pass `value` and `onChange`. Optional `unreadCount` shows a badge.
- */
 const NotificationFilterTabs = ({ value, onChange, unreadCount = 0 }) => (
   <div className="inline-flex rounded-lg border border-border bg-secondary p-1">
     {TABS.map((tab) => (

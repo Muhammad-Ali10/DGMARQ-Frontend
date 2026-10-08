@@ -1,14 +1,6 @@
-// Accepted-payment chip (v74 `dg-paylogo`) — one token string, five instances.
-// `[&_svg]:block` replaces the old `.dg-paylogo svg { display:block }` rule; the
-// transition is spelled out so hover keeps animating `transform` (Tailwind's
-// `-translate-y-*` writes the `translate` property, which that transition list
-// would not cover).
 const CHIP =
   'inline-flex h-8 items-center justify-center rounded-[8px] border border-[rgba(127,180,255,0.22)] bg-[linear-gradient(160deg,rgba(255,255,255,0.07),rgba(255,255,255,0.025))] px-[11px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] [transition:border-color_0.2s,box-shadow_0.25s,transform_0.15s] [&_svg]:block hover:border-[rgba(127,180,255,0.55)] hover:shadow-[0_0_14px_rgba(58,155,245,0.35),inset_0_1px_0_rgba(255,255,255,0.12)] hover:[transform:translateY(-1px)]';
 
-// The payment methods a buyer can actually reach from <PaymentModal>: Google Pay
-// and PayPal as their own tiles, and card brands via PayPal's card fields.
-// Apple Pay is deliberately absent (owner-locked: explicitly off).
 const PaymentLogos = () => (
   <>
     <span className={CHIP} title="Google Pay">

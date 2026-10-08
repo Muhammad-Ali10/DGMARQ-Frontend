@@ -3,18 +3,12 @@ import { Check, CheckCheck, Clock, AlertCircle, RotateCw, Lock } from 'lucide-re
 import LazyChatImage from './LazyChatImage';
 import { timeLabel } from '../utils/supportChat';
 
-/**
- * A single chat message. Wrapped in React.memo with an explicit comparator so a
- * keystroke in the input (or a new message elsewhere) never re-renders bubbles
- * whose own data hasn't changed. Date formatting is memoized per message.
- */
 const MessageBubbleBase = ({ message, isMine, isGrouped, onRetry, onOpenImage }) => {
   const time = useMemo(
     () => timeLabel(message.sentAt || message.createdAt),
     [message.sentAt, message.createdAt]
   );
 
-  // System messages (ticket created, status changed, assigned…) render centered.
   if (message.messageType === 'system') {
     return (
       <div className="flex justify-center my-2">
@@ -25,11 +19,10 @@ const MessageBubbleBase = ({ message, isMine, isGrouped, onRetry, onOpenImage })
     );
   }
 
-  const status = message.__status; // 'sending' | 'failed' | undefined (=sent)
+  const status = message.__status;
   const isImage = message.messageType === 'image' || !!message.attachment;
   const isInternal = !!message.isInternal;
-  const senderName =
-    message.senderName || message.senderId?.name || (isMine ? 'You' : 'Support');
+  const senderName = message.senderId?.name || (isMine ? 'You' : 'Support');
 
   return (
     <div

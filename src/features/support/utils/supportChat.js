@@ -1,16 +1,6 @@
-/**
- * Shared helpers for the support-chat module (used by the user, seller, admin
- * and popup chat UIs via useSupportThread / MessageList).
- */
-
-// A throwaway id for optimistic messages, echoed to the server as `clientId`
-// so the saved message can be reconciled back to its temporary bubble.
 export const genClientId = () =>
   `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
-// "Mine" depends on which side of the conversation is viewing it:
-//  - admin side  → only admin messages are mine
-//  - customer side → anything that isn't an admin message (user OR guest)
 export const isMineForSide = (msg, side) =>
   side === 'admin' ? msg?.senderType === 'admin' : msg?.senderType !== 'admin';
 
@@ -27,7 +17,6 @@ export const sameDay = (a, b) => {
   );
 };
 
-// "Today" / "Yesterday" / "June 8, 2026" — used for the date separators.
 export const dayLabel = (value) => {
   const d = toDate(value);
   if (Number.isNaN(d.getTime())) return '';
@@ -45,11 +34,6 @@ export const timeLabel = (value) => {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-// Two messages are "grouped" when they're from the same sender, on the same
-// day, and within a few minutes of each other (tighter spacing, no repeated
-// name). Keeps consecutive bursts visually compact.
-// Admin ticket-list filter tabs and the priority/status option lists. Kept here
-// (a non-component module) so the badge components file can stay fast-refresh-safe.
 export const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
   { value: 'open', label: 'Open' },

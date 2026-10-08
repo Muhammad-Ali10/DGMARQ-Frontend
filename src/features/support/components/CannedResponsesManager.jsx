@@ -8,16 +8,15 @@ import { Textarea } from '@components/ui/textarea';
 import { Label } from '@components/ui/label';
 import { Trash2, Pencil, Plus, X } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
+import { ConfirmationModal } from '@components/common/ConfirmationModal';
 
 const EMPTY = { title: '', message: '', category: 'general', shortcut: '', isGlobal: true };
 
-/**
- * Admin CRUD manager for canned responses. Opened from the support page toolbar.
- */
 const CannedResponsesManager = ({ open, onOpenChange }) => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['canned-responses'],
@@ -53,8 +52,9 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
 
   const deleteMut = useMutation({
     mutationFn: (id) => adminAPI.deleteCannedResponse(id),
-    onSuccess: () => {
+    onSuccess: (_res, id) => {
       invalidate();
+      if (id === editingId) reset();
       showSuccess('Deleted');
     },
     onError: (e) => showApiError(e, 'Failed to delete'),
@@ -89,7 +89,6 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
         </DialogHeader>
 
         <div className="grid md:grid-cols-2 gap-4">
-          {/* List */}
           <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
             {isLoading ? (
               <p className="text-fg-muted text-sm">Loading…</p>
@@ -103,6 +102,7 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
                       <div className="flex items-center gap-2">
                         {item.shortcut && <span className="text-accent-on-dark text-xs font-mono">{item.shortcut}</span>}
                         <span className="text-fg text-sm font-medium truncate">{item.title}</span>
+                        {!item.isGlobal && <span className="text-fg-subtle text-[10px] uppercase">Private</span>}
                       </div>
                       <p className="text-fg-muted text-xs mt-0.5 line-clamp-2">{item.message}</p>
                     </div>
@@ -110,7 +110,7 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
                       <button type="button" onClick={() => startEdit(item)} className="text-fg-muted hover:text-white p-1" title="Edit">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => deleteMut.mutate(item._id)} className="text-fg-muted hover:text-red-400 p-1" title="Delete">
+                      <button type="button" onClick={() => setPendingDelete(item)} className="text-fg-muted hover:text-red-400 p-1" title="Delete">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -120,7 +120,6 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
             )}
           </div>
 
-          {/* Form */}
           <form onSubmit={submit} className="space-y-3 bg-surface-sunken rounded-lg p-3 border border-border">
             <div className="flex items-center justify-between">
               <h4 className="text-fg text-sm font-semibold">{editingId ? 'Edit response' : 'New response'}</h4>
@@ -159,6 +158,15 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
                 />
               </div>
             </div>
+            <label className="flex items-center gap-2 text-xs text-fg-muted">
+              <input
+                type="checkbox"
+                aria-label="Share with all support agents"
+                checked={form.isGlobal}
+                onChange={(e) => setForm((f) => ({ ...f, isGlobal: e.target.checked }))}
+              />
+              Share with all support agents
+            </label>
             <div className="space-y-1">
               <Label className="text-fg-muted text-xs">Message</Label>
               <Textarea
@@ -174,6 +182,15 @@ const CannedResponsesManager = ({ open, onOpenChange }) => {
             </Button>
           </form>
         </div>
+        <ConfirmationModal
+          open={!!pendingDelete}
+          onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+          title="Delete this canned response?"
+          description={pendingDelete ? `"${pendingDelete.title}" will be removed for every agent who can use it.` : ''}
+          confirmText="Delete"
+          variant="destructive"
+          onConfirm={() => pendingDelete && deleteMut.mutate(pendingDelete._id)}
+        />
       </DialogContent>
     </Dialog>
   );

@@ -3,19 +3,16 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "@components/common/ProtectedRoute";
 import { Loading } from "./components/ui/loading";
 
-// Layouts — loaded eagerly since they wrap all routes
 import AdminLayout from "./layouts/AdminLayout";
 import SellerLayout from "./layouts/SellerLayout";
 import UserLayout from "./layouts/UserLayout";
 import PublicLayout from "./layouts/PublicLayout";
 import useCurrencySync from '@hooks/useCurrencySync';
 
-// Auth pages — lazy-loaded like the other routes
 const Login = lazy(() => import("./pages/public/Login"));
 const Register = lazy(() => import("./pages/public/Register"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 
-// Lazy-loaded public pages
 const Home = lazy(() => import("./pages/public/Home"));
 const About = lazy(() => import("./pages/public/About"));
 const ProductDetail = lazy(() => import("./pages/public/ProductDetail"));
@@ -40,20 +37,15 @@ const RefundPolicy = lazy(() => import("./pages/public/RefundPolicy"));
 const FeeSchedule = lazy(() => import("./pages/public/FeeSchedule"));
 const VendorTerms = lazy(() => import("./pages/public/VendorTerms"));
 const PublicSellerProfile = lazy(() => import("./pages/public/SellerProfile"));
-const Software = lazy(() => import("./pages/public/Software"));
-const RandomKeys = lazy(() => import("./pages/public/RandomKeys"));
-const SteamGiftCard = lazy(() => import("./pages/public/SteamGiftCard"));
 const GiftCards = lazy(() => import("./pages/public/GiftCards"));
 const CategoryListing = lazy(() => import("./pages/public/CategoryListing"));
 const SubcategoryListing = lazy(() => import("./pages/public/SubcategoryListing"));
 const ForgotPassword = lazy(() => import("./pages/public/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/public/ResetPassword"));
-// AUDIT FIX (DEAD-8): the backend has always mailed a link here; the route did not exist.
 const VerifyEmailChange = lazy(() => import("./pages/public/VerifyEmailChange"));
 const SubscriptionSuccess = lazy(() => import("./pages/public/SubscriptionSuccess"));
 const SubscriptionCancel = lazy(() => import("./pages/public/SubscriptionCancel"));
 
-// Lazy-loaded admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const SellersManagement = lazy(() => import("./pages/admin/SellersManagement"));
 const SellerProfileView = lazy(() => import("./pages/admin/SellerProfileView"));
@@ -89,7 +81,6 @@ const BundleDeals = lazy(() => import("./pages/admin/BundleDeals"));
 const AdminNotifications = lazy(() => import("./pages/admin/Notifications"));
 const AdminPayoutDetail = lazy(() => import("./pages/admin/AdminPayoutDetail"));
 
-// Lazy-loaded seller pages
 const SellerDashboard = lazy(() => import("./pages/seller/Dashboard"));
 const SellerOrders = lazy(() => import("./pages/seller/Orders"));
 const SellerOrderDetail = lazy(() => import("./pages/seller/SellerOrderDetail"));
@@ -102,7 +93,6 @@ const SellerChat = lazy(() => import("./pages/seller/Chat"));
 const SellerNotifications = lazy(() => import("./pages/seller/Notifications"));
 const SellerReturnRefunds = lazy(() => import("./pages/seller/ReturnRefunds"));
 const SellerRefundDetail = lazy(() => import("./pages/seller/RefundDetail"));
-const SellerSubscriptions = lazy(() => import("./pages/seller/Subscriptions"));
 const SellerLicenseKeys = lazy(() => import("./pages/seller/LicenseKeys"));
 const SellerProfile = lazy(() => import("./pages/seller/Profile"));
 const SellerAnalytics = lazy(() => import("./pages/seller/Analytics"));
@@ -111,7 +101,6 @@ const SellerCatalog = lazy(() => import("./pages/seller/SellerCatalog"));
 const SellerOffers = lazy(() => import("./pages/seller/SellerOffers"));
 const SellerOfferPage = lazy(() => import("./pages/seller/SellerOfferPage"));
 
-// Lazy-loaded user pages
 const UserDashboard = lazy(() => import("./pages/user/Dashboard"));
 const UserOrders = lazy(() => import("./pages/user/Orders"));
 const OrderDetail = lazy(() => import("./pages/user/OrderDetail"));
@@ -134,8 +123,6 @@ const PageLoader = () => (
 );
 
 function App() {
-  // M10: keeps the signed-in buyer's display currency on their account so
-  // server-rendered emails can speak it. Mounted once, here at the root.
   useCurrencySync();
 
   return (
@@ -143,11 +130,6 @@ function App() {
       <Routes>
         <Route path="/auth/callback" element={<AuthCallback />} />
 
-        {/* Auth screens are deliberately OUTSIDE PublicLayout: per the v74
-            mockup they are full-screen, carrying their own backdrop and a "Back
-            to store" chip instead of the site header and footer. Nesting them in
-            the layout would put a full nav, a cart dropdown and a footer around
-            a single centred card. */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -162,11 +144,9 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/checkout" element={<Checkout />} />
-          {/* Cart → Checkout → Reveal. Public so guests land here too; the
-              endpoint gates a guest by the ?guestEmail they proved at purchase. */}
           <Route path="/order-complete/:orderId" element={<OrderComplete />} />
           <Route path="/dgmarq-plus" element={<DGMarketPlus />} />
-          <Route path="/about-company" element={<About />} />
+          <Route path="/about-company" element={<Navigate to="/about" replace />} />
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/verify-email-change" element={<VerifyEmailChange />} />
           <Route path="/security" element={<Security />} />
@@ -183,18 +163,12 @@ function App() {
           <Route path="/fee-schedule" element={<FeeSchedule />} />
           <Route path="/vendor-terms" element={<VendorTerms />} />
           <Route path="/seller/:sellerId" element={<PublicSellerProfile />} />
-          <Route path="/software" element={<Software />} />
-          <Route path="/random-keys" element={<RandomKeys />} />
-          <Route path="/steam-gift-card" element={<SteamGiftCard />} />
-          <Route path="/steam-gift-cards" element={<SteamGiftCard />} />
           <Route path="/gift-cards" element={<GiftCards />} />
           <Route path="/category/:categoryId" element={<CategoryListing />} />
           <Route path="/category/:categorySlug/:subcategorySlug" element={<SubcategoryListing />} />
           <Route path="/subcategory/:subcategoryId" element={<SubcategoryListing />} />
           <Route path="/subscription/success" element={<SubscriptionSuccess />} />
           <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
-          {/* Catch-all. Must stay last inside PublicLayout so an unmatched URL
-              still renders with the header/footer and a route back out. */}
           <Route path="*" element={<NotFound />} />
         </Route>
 
@@ -261,7 +235,7 @@ function App() {
           <Route path="disputes" element={<Navigate to="/seller/return-refunds" replace />} />
           <Route path="return-refunds" element={<SellerReturnRefunds />} />
           <Route path="return-refunds/:refundId" element={<SellerRefundDetail />} />
-          <Route path="subscriptions" element={<SellerSubscriptions />} />
+          <Route path="subscriptions" element={<UserSubscriptions />} />
           <Route path="license-keys" element={<SellerLicenseKeys />} />
           <Route path="profile" element={<SellerProfile />} />
           <Route path="analytics" element={<SellerAnalytics />} />
@@ -276,9 +250,6 @@ function App() {
           <Route path="dashboard" element={<UserDashboard />} />
           <Route path="orders" element={<UserOrders />} />
           <Route path="orders/:orderId" element={<OrderDetail />} />
-          {/* The wishlist lives at the public /wishlist, which is the single
-              page and the one the header and mobile bar already link to. This
-              redirect keeps old links and bookmarks working. */}
           <Route path="wishlist" element={<Navigate to="/wishlist" replace />} />
           <Route path="wallet" element={<UserWallet />} />
           <Route path="reviews" element={<UserReviews />} />

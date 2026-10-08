@@ -1,8 +1,3 @@
-// Deterministic seller avatar. The v74 mockup used dicebear-generated images,
-// but that would be one external image request per cart line — this derives the
-// same "always has an avatar" effect locally from the shop name (initials + a
-// stable colour), which is what the mockup's own initials() fallback did.
-
 const PALETTES = [
   ['#1e3a8a', '#3730a3'],
   ['#0e7490', '#065f46'],
@@ -27,7 +22,6 @@ export const sellerInitials = (name) =>
     .join('')
     .toUpperCase() || '?';
 
-/** Small round avatar derived from the seller's shop name. */
 const SellerAvatar = ({ name, size = 18, className = '' }) => {
   const [from, to] = PALETTES[hash(String(name || '')) % PALETTES.length];
   return (

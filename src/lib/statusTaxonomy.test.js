@@ -11,13 +11,17 @@ describe('getStatusDisplay', () => {
     expect(getStatusDisplay('payoutAccount', 'verified').label).toBe('Connected');
   });
 
-  // The API mixes cases across code paths — "REFUNDED", "Active", "pending" all
-  // reach the UI, and they must not fall through to the raw-value branch.
   it('is case-insensitive', () => {
     expect(getStatusDisplay('order', 'REFUNDED').label).toBe('Refunded');
     expect(getStatusDisplay('order', 'Completed').label).toBe('Completed');
     expect(getStatusDisplay('licenseKey', 'USED').label).toBe('Used');
     expect(getStatusDisplay('order', 'PARTIALLY_REFUNDED').label).toBe('Partially refunded');
+  });
+
+  it('covers every backend payment and seller status', () => {
+    expect(getStatusDisplay('payment', 'partially_refunded').label).toBe('Partially refunded');
+    expect(getStatusDisplay('sellerAccount', 'closed').label).toBe('Closed');
+    expect(getStatusDisplay('sellerAccount', 'rejected').label).toBe('Rejected');
   });
 
   it('always supplies an icon, so colour is never the only signal', () => {
@@ -41,8 +45,6 @@ describe('getStatusDisplay', () => {
     expect(getStatusDisplay('payment', 'failed').variant).toBe('destructive');
   });
 
-  // An unknown status must render SOMETHING rather than a blank pill — a new
-  // server-side status should degrade visibly, not disappear.
   it('degrades gracefully for unknown values and domains', () => {
     const unknown = getStatusDisplay('order', 'some_new_status');
     expect(unknown.label).toBe('some_new_status');

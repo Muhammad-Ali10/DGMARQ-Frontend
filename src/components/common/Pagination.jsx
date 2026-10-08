@@ -1,26 +1,6 @@
 import { Button } from '@components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-/**
- * Shared pagination control — the single canonical look for every paged list
- * across admin / seller / user / public. Replaces the ~20 hand-rolled pagers.
- *
- * Variants:
- *   "default"  — summary (left) + Prev / "Page X of Y" / Next (right)
- *   "numbered" — summary (left) + Prev / windowed page numbers / Next (right)
- *   "compact"  — centered icon-only Prev / "Page X of Y" / Next
- *
- * Self-guards: renders nothing when there is one page or fewer, so callers can
- * drop their own `totalPages > 1 &&` wrapper.
- *
- * @param {number} page - current page (1-based)
- * @param {number} totalPages
- * @param {(page:number)=>void} onPageChange - receives the clamped next page
- * @param {number} [total] - total item count; when set, renders the left summary
- * @param {string} [totalNoun] - noun for the summary, e.g. "orders"
- */
-
-// Up to `size` page numbers, kept centered on the current page.
 const pageWindow = (page, totalPages, size = 5) => {
   const count = Math.min(size, totalPages);
   let start;

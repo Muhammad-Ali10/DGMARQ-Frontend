@@ -3,7 +3,6 @@ import { LegalAnchorsContext } from './context';
 import { parseInline } from './inline';
 import { LINK } from './styles';
 
-/** Renders one string of legal copy with its inline markup (see inline.js). */
 const LegalText = ({ text }) => {
   const anchors = useContext(LegalAnchorsContext);
 

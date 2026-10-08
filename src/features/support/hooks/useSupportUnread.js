@@ -4,12 +4,6 @@ import { useSelector } from 'react-redux';
 import { supportAPI } from '@services/api';
 import { useSocket } from '@hooks/useSocket';
 
-/**
- * Total unread support replies for the current customer (sum of unreadCountUser
- * across their tickets). Drives the sidebar "Support" badge. Refreshes on a
- * light interval and immediately whenever a support message arrives over the
- * socket.
- */
 export const useSupportUnread = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
   const { socket } = useSocket();
@@ -25,15 +19,21 @@ export const useSupportUnread = () => {
     },
     enabled: !!isAuthenticated,
     staleTime: 30000,
-    refetchInterval: 60000,
     refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     if (!socket) return undefined;
     const bump = () => queryClient.invalidateQueries({ queryKey: ['support-unread-total'] });
+    const onNotification = (payload) => {
+      if (payload?.type === 'support') bump();
+    };
     socket.on('support_message', bump);
-    return () => socket.off('support_message', bump);
+    socket.on('notification_new', onNotification);
+    return () => {
+      socket.off('support_message', bump);
+      socket.off('notification_new', onNotification);
+    };
   }, [socket, queryClient]);
 
   return data || 0;

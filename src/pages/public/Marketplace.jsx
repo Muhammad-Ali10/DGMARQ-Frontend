@@ -6,15 +6,15 @@ import {
   HiGiftTop,
   HiCommandLine,
 } from "react-icons/hi2";
+import { Link } from "react-router-dom";
 import SectionWrapper from "@features/content/marketing/SectionWrapper";
 import AnimatedHeading from "@features/content/marketing/AnimatedHeading";
 import GlowCard from "@features/content/marketing/GlowCard";
 import GridContainer from "@features/content/marketing/GridContainer";
-import MetricCounter from "@features/content/marketing/MetricCounter";
 import { useInView } from "@/hooks/useInView";
-import { useMarketplaceOverview } from "@/hooks/useMarketplaceOverview";
 import {
   MarketplaceHero,
+  MarketplaceCategories,
   MarketplaceBenefits,
   MarketplaceChallenges,
   MarketplaceTechnology,
@@ -33,13 +33,10 @@ const iconMap = {
 };
 
 const Marketplace = () => {
-  const { categories, metrics } = useMarketplaceOverview();
-
   useSEO({
     title: "About Our Marketplace | DGMARQ",
     description: "Discover how DGMARQ marketplace works for buyers and sellers.",
     canonical: "/marketplace",
-    useDefaults: false,
   });
 
   const { ref: roadmapRef, isInView: roadmapInView } = useInView({
@@ -49,10 +46,8 @@ const Marketplace = () => {
 
   return (
     <main className="flex min-h-screen flex-col text-white">
-      {/* 1. Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden bg-gradient-to-b from-accent/5 via-transparent to-transparent" withTopBorder>
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-          {/* Title, subcopy, CTAs */}
           <div className="flex flex-1 flex-col justify-center space-y-8">
             <div className="space-y-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-accent-on-dark/80">
@@ -84,18 +79,18 @@ const Marketplace = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-gray-400">
-              <button
-                type="button"
+              <Link
+                to={MarketplaceHero.ctaPrimaryUrl}
                 className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-2.5 text-xs font-semibold text-white shadow-[0_0_30px_rgba(14,81,226,0.8)] transition-transform hover:-translate-y-0.5"
               >
                 {MarketplaceHero.ctaPrimary}
-              </button>
-              <button
-                type="button"
+              </Link>
+              <Link
+                to={MarketplaceHero.ctaSecondaryUrl}
                 className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-transparent px-5 py-2.5 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/5"
               >
                 {MarketplaceHero.ctaSecondary}
-              </button>
+              </Link>
               <span className="text-[11px] text-gray-400">
                 Security, speed, and scale in a single marketplace layer.
               </span>
@@ -104,7 +99,6 @@ const Marketplace = () => {
         </div>
       </SectionWrapper>
 
-      {/* 2. Categories & Collections */}
       <SectionWrapper id="categories">
         <div className="flex flex-col gap-6">
           <AnimatedHeading
@@ -114,7 +108,7 @@ const Marketplace = () => {
           />
             <div className="flex flex-col gap-4">
             <div className="flex gap-3 overflow-x-auto pb-2 text-xs sm:hidden">
-              {categories.map((category) => {
+              {MarketplaceCategories.map((category) => {
                 const Icon =
                   category.icon && iconMap[category.icon]
                     ? iconMap[category.icon]
@@ -134,9 +128,6 @@ const Marketplace = () => {
                         <span className="text-xs font-semibold text-white">
                           {category.label}
                         </span>
-                        <span className="text-[11px] text-gray-400">
-                          {category.productCount.toLocaleString()} products
-                        </span>
                       </div>
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-gray-400">
@@ -151,7 +142,7 @@ const Marketplace = () => {
               cols={{ base: 1, sm: 2, md: 3, lg: 3 }}
               className="hidden sm:grid"
             >
-              {categories.map((category) => {
+              {MarketplaceCategories.map((category) => {
                 const Icon =
                   category.icon && iconMap[category.icon]
                     ? iconMap[category.icon]
@@ -168,9 +159,6 @@ const Marketplace = () => {
                         <span className="text-xs font-semibold text-white sm:text-sm">
                           {category.label}
                         </span>
-                        <span className="text-[11px] text-gray-400">
-                          {category.productCount.toLocaleString()} products
-                        </span>
                       </div>
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-gray-400 sm:text-sm">
@@ -184,7 +172,6 @@ const Marketplace = () => {
         </div>
       </SectionWrapper>
 
-      {/* 3. Marketplace Benefits */}
       <SectionWrapper id="benefits">
         <div className="flex flex-col gap-6">
           <AnimatedHeading
@@ -215,7 +202,6 @@ const Marketplace = () => {
         </div>
       </SectionWrapper>
 
-      {/* 5. Marketplace Challenges */}
       <SectionWrapper id="challenges">
         <div className="flex flex-col gap-6">
           <AnimatedHeading
@@ -238,7 +224,6 @@ const Marketplace = () => {
         </div>
       </SectionWrapper>
 
-      {/* 6. Technology & Infrastructure */}
       <SectionWrapper id="technology">
         <div className="flex flex-col gap-6">
           <AnimatedHeading
@@ -261,28 +246,6 @@ const Marketplace = () => {
         </div>
       </SectionWrapper>
 
-      {/* 7. Market Metrics */}
-      <SectionWrapper id="metrics">
-        <div className="flex flex-col gap-6">
-          <AnimatedHeading
-            eyebrow="Metrics"
-            title="Operational scale of the marketplace"
-            description="These metrics represent the scale the platform is engineered to support, not a marketing slogan."
-          />
-          <GridContainer cols={{ base: 1, sm: 2, md: 4, lg: 4 }}>
-            {metrics.map((metric) => (
-              <MetricCounter
-                key={metric.id}
-                value={metric.value}
-                suffix={metric.suffix}
-                label={metric.label}
-              />
-            ))}
-          </GridContainer>
-        </div>
-      </SectionWrapper>
-
-      {/* 8. Roadmap / Future Plans */}
       <SectionWrapper id="roadmap">
         <div ref={roadmapRef} className="flex flex-col gap-6">
           <AnimatedHeading
@@ -291,7 +254,6 @@ const Marketplace = () => {
             description="Each phase extends the same core ideas: secure transactions, predictable delivery, and global reach."
           />
           <div className="relative mt-6">
-            {/* center timeline line */}
             <div className="pointer-events-none absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-linear-to-b from-accent/70 via-accent/20 to-transparent md:block" />
             <div className="space-y-8">
               {MarketplaceRoadmap.map((step, index) => {
@@ -329,7 +291,6 @@ const Marketplace = () => {
                     key={step.id}
                     className="relative grid grid-cols-1 gap-4 md:grid-cols-2"
                   >
-                    {/* dot on center line */}
                     <div className="pointer-events-none absolute left-1/2 top-1/2 hidden h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-accent/40 bg-accent/40 md:block">
                       <span className="absolute inset-0 rounded-full bg-accent/60 blur-[6px]" />
                     </div>
@@ -355,7 +316,6 @@ const Marketplace = () => {
         </div>
       </SectionWrapper>
 
-      {/* 11. Final CTA */}
       <SectionWrapper id="final-cta">
         <div className="flex flex-col items-start gap-5 text-left md:flex-row md:items-center md:justify-between">
           <div className="max-w-xl space-y-3">
@@ -367,18 +327,18 @@ const Marketplace = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
+            <Link
+              to={MarketplaceFinalCta.ctaPrimaryUrl}
               className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-2.5 text-xs font-semibold text-white shadow-[0_0_30px_rgba(14,81,226,0.8)] ring-2 ring-accent/40 transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_0_45px_rgba(14,81,226,0.9)]"
             >
               {MarketplaceFinalCta.ctaPrimary}
-            </button>
-            <button
-              type="button"
+            </Link>
+            <Link
+              to={MarketplaceFinalCta.ctaSecondaryUrl}
               className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-transparent px-5 py-2.5 text-xs font-semibold text-white transition-transform hover:-translate-y-0.5 hover:border-accent/50 hover:bg-white/5"
             >
               {MarketplaceFinalCta.ctaSecondary}
-            </button>
+            </Link>
           </div>
         </div>
       </SectionWrapper>

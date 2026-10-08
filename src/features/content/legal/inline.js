@@ -1,12 +1,5 @@
 import { sectionAnchor } from './anchors';
 
-// The only inline markup legal copy needs, so documents stay plain strings:
-//   **bold**             -> <strong>   (lead-in labels such as "Account information")
-//   [label](https://…)   -> external link
-//   name@domain.tld      -> mailto link
-//   Section 9 / 9.2      -> in-page link, when that section exists
-// Bare domains are deliberately NOT auto-linked: "dgmarq.com" is the brand name
-// in running text and appears in almost every sentence.
 const INLINE =
   /\*\*(.+?)\*\*|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|([\w.%+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,})|\b(Section (\d+(?:\.\d+)*))/gi;
 

@@ -2,33 +2,41 @@
 # https://www.dgmarq.com
 
 User-agent: *
-
-# Allow public pages
 Allow: /
-Allow: /products
-Allow: /product/
-Allow: /category/
-Allow: /seller/
-Allow: /about/
-Allow: /contact
-Allow: /buyer-support
-Allow: /how-to-buy
-Allow: /dgmarq-plus
-Allow: /seller-support
-Allow: /how-to-sell
-Allow: /terms-and-conditions
-Allow: /privacy-policy
-Allow: /stay-safe
 
 # Block private pages
-Disallow: /dashboard
 Disallow: /admin
-Disallow: /settings
-Disallow: /messages
+Disallow: /user$
+Disallow: /user/
+Disallow: /seller$
+Disallow: /seller/dashboard
+Disallow: /seller/orders
+Disallow: /seller/catalog
+Disallow: /seller/offers
+Disallow: /seller/earnings
+Disallow: /seller/payout-account
+Disallow: /seller/performance
+Disallow: /seller/support
+Disallow: /seller/chat
+Disallow: /seller/notifications
+Disallow: /seller/disputes
+Disallow: /seller/return-refunds
+Disallow: /seller/subscriptions
+Disallow: /seller/license-keys
+Disallow: /seller/profile
+Disallow: /seller/analytics
+Disallow: /seller/reviews
+Disallow: /cart
 Disallow: /checkout
-Disallow: /payment
+Disallow: /order-complete/
+Disallow: /wishlist
+Disallow: /subscription/
+Disallow: /auth/
 Disallow: /login
 Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email-change
 Disallow: /api/
 Disallow: /*?sort=
 Disallow: /*?filter=

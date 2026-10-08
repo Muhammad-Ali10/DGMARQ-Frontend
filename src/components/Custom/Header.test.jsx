@@ -2,9 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render';
 
-// Header pulls in a lot that is irrelevant to this requirement (menu, currency,
-// search suggestions, mini-cart). Only the wishlist affordance is under test,
-// so the rest is stubbed at the API boundary.
 vi.mock('@services/api', () => ({
   userAPI: { getWishlist: vi.fn(), getWishlistIds: vi.fn() },
   cartAPI: { getCart: vi.fn() },
@@ -29,24 +26,15 @@ beforeEach(() => {
 });
 
 describe('Header wishlist entry points', () => {
-  // CLIENT REQUIREMENT 1c — a wishlist link in the MOBILE TOP navigation.
-  // Before this, the mobile top bar held the logo and the hamburger only, and
-  // the drawer had no wishlist entry: the sole mobile route to the wishlist was
-  // the separate bottom bar.
   it('exposes a wishlist control in the mobile top bar', () => {
     renderWithProviders(<Header />, { preloadedState: signedIn });
 
-    // Exactly two: one in the mobile top bar, one in the desktop action row.
-    // Both exist in the DOM at once; Tailwind's md: breakpoint decides which is
-    // visible. Before this requirement was built there was only the desktop
-    // one, so an exact count is what makes this test able to fail.
     expect(screen.getAllByRole('button', { name: 'Wishlist' })).toHaveLength(2);
   });
 
   it('the mobile control is hidden at desktop widths and vice versa', () => {
     const { container } = renderWithProviders(<Header />, { preloadedState: signedIn });
 
-    // The mobile cluster carries md:hidden; the desktop row carries hidden md:flex.
     const mobileCluster = container.querySelector('.md\\:hidden');
     expect(mobileCluster).toBeTruthy();
     expect(

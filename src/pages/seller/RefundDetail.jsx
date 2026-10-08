@@ -34,11 +34,12 @@ const SellerRefundDetail = () => {
     queryFn: () => returnRefundAPI.getRefundById(refundId).then((res) => res.data.data),
     enabled: !!refundId,
     retry: 1,
-    onSuccess: (data) => {
-      // Prefill feedback textarea with any existing note (one-shot on load).
-      if (data?.sellerFeedback && !feedbackText) setFeedbackText(data.sellerFeedback);
-    },
   });
+
+  const savedFeedback = refund?.sellerFeedback;
+  useEffect(() => {
+    if (savedFeedback) setFeedbackText((current) => current || savedFeedback);
+  }, [savedFeedback]);
 
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
@@ -139,7 +140,7 @@ const SellerRefundDetail = () => {
               <Badge {...refundBadgeProps(refund.status)} />
             </Fact>
             <Fact label="Customer">
-              {refund.userId?.name || refund.userId?.email || 'N/A'}
+              {refund.userId?.name || 'N/A'}
             </Fact>
             <Fact label="Product">{refund.productId?.name || 'Product'}</Fact>
           </dl>
@@ -151,7 +152,7 @@ const SellerRefundDetail = () => {
           <div>
             <p className="text-xs tracking-wide text-fg-subtle uppercase">Amount</p>
             <p className="text-fg mt-1 font-semibold text-lg">
-              {formatSettlement(refund.refundAmount ?? refund.productId?.price ?? 0)}
+              {formatSettlement(refund.refundAmount ?? 0)}
             </p>
           </div>
           {refund.refundMethod && (
@@ -285,7 +286,7 @@ const SellerRefundDetail = () => {
           <CardTitle>Refund chat</CardTitle>
         </CardHeader>
         <CardContent>
-          <RefundChat refundId={refund._id} canSend={!!refund.adminRequestedSellerInput} locked={isRefundChatLocked(refund.status)} />
+          <RefundChat refundId={refund._id} locked={isRefundChatLocked(refund.status)} />
         </CardContent>
       </Card>
     </div>

@@ -1,10 +1,8 @@
-
-
-import { REGION_PRESET_MAP } from "./regionPresets";
+import { ALL_COUNTRY_CODES, REGION_PRESET_MAP } from "./regionPresets";
+import { CURRENCY_COUNTRY_CODES } from "./currencyDisplay";
 
 const up = (s) => String(s || "").toUpperCase();
 
-/** Resolve an offer's preset codes to their preset defs (unknown codes dropped). */
 const resolveRegionPresets = (offer) => {
   const out = [];
   for (const code of offer?.regionCodes || []) {
@@ -14,10 +12,6 @@ const resolveRegionPresets = (offer) => {
   return out;
 };
 
-/**
- * Resolve an offer to an availability descriptor.
- * @returns {{ global:boolean, allowed:Set<string>, excluded:Set<string>, unrestricted:boolean }}
- */
 export const resolveOfferAvailability = (offer) => {
   const presets = resolveRegionPresets(offer);
   const global = presets.some((p) => p.isGlobal);
@@ -38,25 +32,16 @@ export const resolveOfferAvailability = (offer) => {
   return { global, allowed, excluded, unrestricted };
 };
 
-/**
- * Blue/red verdict for a buyer.
- * @returns {true|false|null} true = compatible (blue), false = not (red),
- *   null = can't tell (no regions set, or buyer country unknown) → neutral.
- */
 export const isBuyerCompatible = (availability, buyerCountry) => {
   if (!availability) return null;
-  if (availability.unrestricted) return true; // no restriction → everyone
-  if (!buyerCountry) return null; // unknown buyer → don't guess
+  if (availability.unrestricted) return true;
+  if (!buyerCountry) return null;
   const c = up(buyerCountry);
   if (availability.excluded.has(c)) return false;
   if (availability.global) return true;
   return availability.allowed.has(c);
 };
 
-/**
- * Human-readable breakdown for the restriction popup (9D).
- * @returns {{ global:boolean, unrestricted:boolean, regionNames:string[], includedCountries:string[], excludedCountries:string[], countryCount:number|null }}
- */
 export const describeOfferAvailability = (offer) => {
   const presets = resolveRegionPresets(offer);
   const availability = resolveOfferAvailability(offer);
@@ -70,7 +55,6 @@ export const describeOfferAvailability = (offer) => {
   };
 };
 
-// ── Display helpers ──────────────────────────────────────────────────────────
 let displayNames = null;
 const getDisplayNames = () => {
   if (displayNames) return displayNames;
@@ -82,7 +66,6 @@ const getDisplayNames = () => {
   return displayNames;
 };
 
-/** ISO alpha-2 → English country name (falls back to the code). */
 export const countryName = (code) => {
   const c = up(code);
   if (!/^[A-Z]{2}$/.test(c)) return code;
@@ -93,9 +76,20 @@ export const countryName = (code) => {
   }
 };
 
-/** ISO alpha-2 → 🇵🇰 emoji flag. */
 export const countryFlag = (code) => {
   const c = up(code);
   if (!/^[A-Z]{2}$/.test(c)) return "";
   return String.fromCodePoint(...[...c].map((ch) => 0x1f1a5 + ch.charCodeAt(0)));
+};
+
+let countryOptions = null;
+export const listCountryOptions = (selected) => {
+  if (!countryOptions) {
+    countryOptions = [...new Set([...ALL_COUNTRY_CODES, ...CURRENCY_COUNTRY_CODES])]
+      .map((iso2) => ({ iso2, name: countryName(iso2) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+  const c = up(selected);
+  if (!/^[A-Z]{2}$/.test(c) || countryOptions.some((o) => o.iso2 === c)) return countryOptions;
+  return [{ iso2: c, name: countryName(c) }, ...countryOptions];
 };

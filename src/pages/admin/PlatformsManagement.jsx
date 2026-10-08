@@ -4,8 +4,6 @@ import TaxonomyManagementPage from "./taxonomy/TaxonomyManagementPage";
 const config = {
   queryKey: "platforms",
   itemsKey: "platforms",
-  // Per-entity quirk: the platforms list endpoint has no name search,
-  // only the active-status filter.
   hasSearch: false,
   hasStatusFilter: true,
   api: {
@@ -15,8 +13,6 @@ const config = {
     toggleStatus: (id) => platformAPI.togglePlatformStatus(id),
     remove: (id) => platformAPI.deletePlatform(id),
   },
-  // Platform backend returns { total, page, limit, platforms } instead of
-  // the aggregatePaginate shape, so pagination is derived manually.
   getPagination: (data) => ({
     page: data.page || 1,
     totalPages: Math.ceil((data.total || 0) / (data.limit || 10)),

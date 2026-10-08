@@ -12,9 +12,11 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Eye } from 'lucide-react';
 import { Pagination } from '@components/common/Pagination';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
-import { refundBadgeProps } from '@features/wallet-payout';
+import { refundBadgeProps, getRefundStatusDisplay } from '@features/wallet-payout';
 import { getDisplayOrderId } from '@lib/orderDisplay';
 import useCurrency from '@hooks/useCurrency';
+
+const REFUND_STATUS_FILTERS = ['ADMIN_REVIEW', 'ADMIN_APPROVED', 'ON_HOLD_INSUFFICIENT_FUNDS', 'COMPLETED', 'ADMIN_REJECTED'];
 
 const ReturnRefundManagement = () => {
   const { format: formatMoney } = useCurrency();
@@ -29,8 +31,6 @@ const ReturnRefundManagement = () => {
     queryFn: () => returnRefundAPI.getAllRefunds({ page, limit: 10, status: statusFilter || undefined }).then(res => res.data.data),
   });
 
-  // Phase 6 / Step 12 PART C — refund_executed socket fan-out lands in the
-  // role:admin room, so every admin viewing the list sees the flip live.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const onRefundExecuted = () => {
@@ -42,10 +42,6 @@ const ReturnRefundManagement = () => {
     return () => socket.off('refund_executed', onRefundExecuted);
   }, [socket, isConnected, queryClient]);
 
-  // AUDIT FIX (DEAD-3): was a private status map that labelled ADMIN_REVIEW
-  // 'In progress' while the detail page one click away called the same status
-  // 'Admin review'. Both private copies are gone; this reads the canonical
-  // taxonomy, which also brings the legacy lowercase aliases with it.
   const getStatusBadge = (status) => <Badge {...refundBadgeProps(status)} />;
 
   const getProductTypeBadge = (productType) => {
@@ -82,16 +78,13 @@ const ReturnRefundManagement = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="ADMIN_REVIEW">In progress</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="ADMIN_REJECTED">Rejected</SelectItem>
-              <SelectItem value="ON_HOLD_INSUFFICIENT_FUNDS">On hold</SelectItem>
+              {REFUND_STATUS_FILTERS.map((value) => (
+                <SelectItem key={value} value={value}>{getRefundStatusDisplay(value).label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </CardHeader>
         <CardContent>
-          {/* Mobile card view */}
           <div className="lg:hidden space-y-3">
             {refunds.length > 0 ? (
               refunds.map((refund) => (
@@ -124,7 +117,7 @@ const ReturnRefundManagement = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400">Amount</span>
-                      <span className="text-white font-semibold">{formatMoney(refund.refundAmount ?? refund.productId?.price ?? 0)}</span>
+                      <span className="text-white font-semibold">{formatMoney(refund.refundAmount ?? 0)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-400">Date</span>
@@ -149,7 +142,6 @@ const ReturnRefundManagement = () => {
             )}
           </div>
 
-          {/* Desktop table view */}
           <div className="hidden lg:block overflow-x-auto">
             <Table variant="hud">
               <TableHeader>
@@ -187,7 +179,7 @@ const ReturnRefundManagement = () => {
                       </TableCell>
                       <TableCell className="text-gray-300">{refund.sellerId?.shopName || 'N/A'}</TableCell>
                       <TableCell className="text-white font-semibold">
-                        {formatMoney(refund.refundAmount ?? refund.productId?.price ?? 0)}
+                        {formatMoney(refund.refundAmount ?? 0)}
                       </TableCell>
                       <TableCell>{getStatusBadge(refund.status)}</TableCell>
                       <TableCell className="text-gray-400 text-sm">

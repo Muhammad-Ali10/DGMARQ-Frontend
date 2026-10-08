@@ -48,9 +48,9 @@ describe('guestCart', () => {
 
   it('updates quantity, and removes when qty <= 0', () => {
     addToGuestCart({ productId: 'p1', qty: 1, price: 5 });
-    updateGuestCartQuantity('p1', 5);
+    updateGuestCartQuantity('p1', undefined, 5);
     expect(getGuestCart().items[0].qty).toBe(5);
-    updateGuestCartQuantity('p1', 0);
+    updateGuestCartQuantity('p1', undefined, 0);
     expect(getGuestCart().items).toHaveLength(0);
   });
 
@@ -88,5 +88,36 @@ describe('guestCart', () => {
     addToGuestCart({ productId: 'p1', qty: 2, price: 5 });
     addToGuestCart({ productId: 'p2', qty: 3, price: 5 });
     expect(getGuestCartCount()).toBe(5);
+  });
+
+  it('keeps the same product from two sellers as two separate lines', () => {
+    addToGuestCart({ productId: 'p1', qty: 1, price: 10, sellerId: 'sX' });
+    addToGuestCart({ productId: 'p1', qty: 1, price: 12, sellerId: 'sY' });
+    const { items } = getGuestCart();
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => [i.sellerId, i.qty, i.price])).toEqual([['sX', 1, 10], ['sY', 1, 12]]);
+  });
+
+  it('still merges a repeat add from the SAME seller', () => {
+    addToGuestCart({ productId: 'p1', qty: 1, price: 10, sellerId: 'sX' });
+    addToGuestCart({ productId: 'p1', qty: 2, price: 10, sellerId: 'sX' });
+    expect(getGuestCart().items).toEqual([expect.objectContaining({ sellerId: 'sX', qty: 3 })]);
+  });
+
+  it("removes and updates only the chosen seller's line", () => {
+    addToGuestCart({ productId: 'p1', qty: 1, price: 10, sellerId: 'sX' });
+    addToGuestCart({ productId: 'p1', qty: 1, price: 12, sellerId: 'sY' });
+    updateGuestCartQuantity('p1', 'sY', 4);
+    expect(getGuestCart().items.map((i) => [i.sellerId, i.qty])).toEqual([['sX', 1], ['sY', 4]]);
+    removeFromGuestCart('p1', 'sX');
+    expect(getGuestCart().items.map((i) => i.sellerId)).toEqual(['sY']);
+  });
+
+  it('still removes a line saved before sellers were stored', () => {
+    localStorage.setItem(GUEST_CART_KEY, JSON.stringify({ items: [{ productId: 'p1', qty: 2, price: 5 }] }));
+    updateGuestCartQuantity('p1', 'sResolvedByServer', 3);
+    expect(getGuestCart().items[0].qty).toBe(3);
+    removeFromGuestCart('p1', 'sResolvedByServer');
+    expect(getGuestCart().items).toHaveLength(0);
   });
 });

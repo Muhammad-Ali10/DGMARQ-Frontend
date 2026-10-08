@@ -3,7 +3,7 @@ import { adminAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { StatCard, StatCardGrid } from '@components/common/StatCard';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Users, Store, ShoppingCart, DollarSign, AlertCircle, Package, Headphones, TrendingDown, Receipt } from 'lucide-react';
+import { Users, Store, ShoppingCart, DollarSign, AlertCircle, Package, Headphones, TrendingDown, Receipt, Snowflake, Clock } from 'lucide-react';
 import useCurrency from '@hooks/useCurrency';
 
 const AdminDashboard = () => {
@@ -16,10 +16,10 @@ const AdminDashboard = () => {
     },
     retry: 1,
     refetchOnWindowFocus: true,
-    refetchInterval: 30000,
+    refetchInterval: 120000,
   });
 
-  const { data: handlingFeeStats } = useQuery({
+  const { data: buyerFeeStats } = useQuery({
     queryKey: ['admin-handling-fee-stats'],
     queryFn: async () => {
       const response = await adminAPI.getHandlingFeeStats();
@@ -34,11 +34,13 @@ const AdminDashboard = () => {
 
   if (isError) {
     return (
-      <ErrorMessage 
-        message={error?.response?.data?.message || 'Error loading dashboard statistics'} 
+      <ErrorMessage
+        message={error?.response?.data?.message || 'Error loading dashboard statistics'}
       />
     );
   }
+
+  const payouts = stats?.payouts || {};
 
   const statCards = [
     {
@@ -53,7 +55,7 @@ const AdminDashboard = () => {
       value: stats?.users?.customers || 0,
       icon: Users,
       color: 'text-indigo-500',
-      description: 'Regular customers',
+      description: 'Users without a seller or admin role',
     },
     {
       title: 'Active Sellers',
@@ -67,7 +69,7 @@ const AdminDashboard = () => {
       value: stats?.users?.sellers?.pending || 0,
       icon: AlertCircle,
       color: 'text-orange-500',
-      description: 'Awaiting approval',
+      description: 'Applications awaiting review',
     },
     {
       title: 'Total Orders',
@@ -77,61 +79,74 @@ const AdminDashboard = () => {
       description: 'All paid orders',
     },
     {
-      title: 'Total Revenue',
-      value: formatMoney(stats?.revenue?.total || 0),
+      title: 'Gross Sales',
+      value: formatMoney(stats?.revenue?.gross || 0),
       icon: DollarSign,
       color: 'text-yellow-500',
-      description: 'Total platform revenue',
+      description: 'Product sales on paid orders, net of refunds, before buyer fees',
     },
     {
-      title: 'Handling Fees Collected',
-      value: formatMoney(handlingFeeStats?.totalHandlingFees ?? 0),
+      title: 'Platform Earnings',
+      value: formatMoney(stats?.revenue?.platform || 0),
+      icon: DollarSign,
+      color: 'text-emerald-500',
+      description: 'Commission plus buyer fees, net of refunded commission',
+    },
+    {
+      title: 'Buyer Fees Collected',
+      value: formatMoney(buyerFeeStats?.totalBuyerFees ?? 0),
       icon: Receipt,
       color: 'text-teal-500',
-      description: `Today: ${formatMoney(handlingFeeStats?.daily ?? 0)} · Week: ${formatMoney(handlingFeeStats?.weekly ?? 0)} · Month: ${formatMoney(handlingFeeStats?.monthly ?? 0)}`,
+      description: `Today: ${formatMoney(buyerFeeStats?.daily ?? 0)} · Week: ${formatMoney(buyerFeeStats?.weekly ?? 0)} · Month: ${formatMoney(buyerFeeStats?.monthly ?? 0)}`,
     },
     {
-      title: 'Pending Products',
-      value: stats?.products?.pending || 0,
+      title: 'Pending Offers',
+      value: stats?.offers?.pending || 0,
       icon: Package,
       color: 'text-red-500',
-      description: 'Awaiting approval',
+      description: 'Seller listings awaiting approval',
     },
     {
-      title: 'Pending Payouts',
-      value: stats?.payouts?.pending || 0,
-      icon: DollarSign,
-      color: 'text-pink-500',
-      description: 'Awaiting processing',
-    },
-    {
-      // Phase 2: amounts from the unified balance source so admin and seller views match.
       title: 'Available Payouts',
-      value: formatMoney(stats?.payouts?.availableAmount ?? 0),
+      value: formatMoney(payouts.availableAmount ?? 0),
       icon: DollarSign,
       color: 'text-green-500',
-      description: `${stats?.payouts?.availableCount ?? 0} line(s) ready`,
+      description: 'Seller earnings ready to withdraw',
     },
     {
-      title: 'Pending Payouts ($)',
-      value: formatMoney(stats?.payouts?.pendingAmount ?? 0),
-      icon: DollarSign,
+      title: 'Payouts On Hold',
+      value: formatMoney(payouts.onHoldAmount ?? 0),
+      icon: Clock,
       color: 'text-yellow-500',
-      description: `${stats?.payouts?.pendingCount ?? 0} line(s) on hold`,
+      description: `${payouts.onHoldCount ?? 0} line(s) still in the holding period`,
+    },
+    {
+      title: 'Frozen By Refunds',
+      value: formatMoney(payouts.frozenAmount ?? 0),
+      icon: Snowflake,
+      color: 'text-cyan-500',
+      description: 'Seller earnings paused by open refund requests',
+    },
+    {
+      title: 'Withdrawals In Progress',
+      value: formatMoney(payouts.inFlightAmount ?? 0),
+      icon: DollarSign,
+      color: 'text-pink-500',
+      description: `${payouts.inFlightCount ?? 0} withdrawal(s) requested or processing`,
     },
     {
       title: 'Paid Out',
-      value: formatMoney(stats?.payouts?.releasedAmount ?? 0),
+      value: formatMoney(payouts.releasedAmount ?? 0),
       icon: DollarSign,
       color: 'text-blue-500',
-      description: `${stats?.payouts?.releasedCount ?? 0} line(s) released`,
+      description: 'Released to sellers',
     },
     {
-      title: 'Active Conversations',
-      value: stats?.conversations?.active || 0,
+      title: 'Open Support Tickets',
+      value: stats?.support?.open || 0,
       icon: Headphones,
       color: 'text-cyan-500',
-      description: 'Support chats',
+      description: 'Support chats not yet resolved',
     },
     {
       title: 'Total Refunds',
@@ -157,9 +172,9 @@ const AdminDashboard = () => {
       </div>
 
       <StatCardGrid>
-        {statCards.map((stat, index) => (
+        {statCards.map((stat) => (
           <StatCard
-            key={index}
+            key={stat.title}
             title={stat.title}
             value={stat.value}
             icon={stat.icon}
@@ -169,7 +184,6 @@ const AdminDashboard = () => {
         ))}
       </StatCardGrid>
 
-      {/* Additional Metrics Section */}
       {stats?.metrics && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card variant="hud">
@@ -182,15 +196,21 @@ const AdminDashboard = () => {
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Conversion Rate</span>
+                  <span className="text-gray-300">Paid orders per user</span>
                   <span className="text-white font-semibold">
-                    {stats.metrics.conversionRate || '0.00'}%
+                    {Number(stats.metrics.ordersPerUser || 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Total Revenue</span>
+                  <span className="text-gray-300">Gross Sales</span>
                   <span className="text-green-400 font-semibold">
-                    {formatMoney(stats.revenue?.total || 0)}
+                    {formatMoney(stats.revenue?.gross || 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Platform Earnings</span>
+                  <span className="text-green-400 font-semibold">
+                    {formatMoney(stats.revenue?.platform || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -225,9 +245,9 @@ const AdminDashboard = () => {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-300">Approved Refunds</span>
+                  <span className="text-gray-300">Completed Refunds</span>
                   <span className="text-green-400 font-semibold">
-                    {stats.refunds?.approved || 0}
+                    {stats.refunds?.completed || 0}
                   </span>
                 </div>
               </div>

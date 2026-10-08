@@ -21,25 +21,6 @@ import { describeAccountCredentials } from '@lib/accountCredentials';
 import { Key, Copy, ShieldAlert, CheckCircle2, Eye, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
-/**
- * License keys / account credentials for an order.
- *
- * - Pass `orderId` (+ optional `guestEmail`) to fetch an order's keys.
- * - Pass `licenseDetails` to render pre-loaded keys (My License Keys, after a
- *   per-key reveal).
- *
- * Keys are MASKED until the buyer explicitly asks for them. Gaming keys get
- * screenshotted, streamed and shoulder-surfed; showing them the instant a modal
- * opens is the wrong default.
- *
- * On the warning copy: the brief asked to state that revealing voids refund
- * eligibility. That is NOT true on this platform, so it is not shown. There is
- * no reveal tracking anywhere — `LicenseKey` has no `isRevealed` field — and
- * refund eligibility is gated purely by order status, a prior admin rejection,
- * and a time window. What IS true, and what the confirm dialog says instead, is
- * the live refund window from `GET /payout/settings/public`, plus the fact that
- * redeeming a key on the platform's side is what practically ends a refund.
- */
 export default function LicenseKeysModal({
   open,
   onOpenChange,
@@ -57,8 +38,6 @@ export default function LicenseKeysModal({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const isStaticMode = licenseDetailsProp != null;
 
-  // The real refund window, so the dialog quotes a number that is actually
-  // enforced rather than a hardcoded guess.
   const { data: payoutSettings } = useQuery({
     queryKey: ['public-payout-settings'],
     queryFn: () => sellerAPI.getPublicPayoutSettings().then((res) => res.data.data),
@@ -80,7 +59,6 @@ export default function LicenseKeysModal({
   }, [orderId, guestEmail]);
 
   useEffect(() => {
-    // Always re-mask when the modal closes: reopening must not leak the key.
     if (!open) {
       setData(null);
       setError(null);
@@ -218,19 +196,16 @@ export default function LicenseKeysModal({
   );
 }
 
-/** One product's keys, with its platform badge and redemption route. */
 function KeyGroup({ item, idx, revealed, copiedId, onCopy }) {
   const isAccount = item.productType === 'ACCOUNT_BASED';
-  // getOrderById populates items.assignedKeyIds with keyType; the My License
-  // Keys reveal passes it through. Absent on some payloads — hence the guard.
-  const keyType = item.keyType;
-  const redemption = getRedemption(keyType);
+  const { platform } = item;
+  const redemption = item.productType === 'LICENSE_KEY' ? getRedemption(platform) : null;
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface-sunken">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
         <p className="text-sm font-medium text-fg">{item.productName}</p>
-        {isKnownPlatform(keyType) && <PlatformBadge platform={keyType} />}
+        {isKnownPlatform(platform) && <PlatformBadge platform={platform} />}
       </div>
 
       <div className="space-y-3 p-4">
@@ -279,11 +254,7 @@ function KeyGroup({ item, idx, revealed, copiedId, onCopy }) {
   );
 }
 
-/** A single key, or one account-credential block. */
 function KeyRow({ value, isAccount, productType, revealed, id, productName, copiedId, onCopy }) {
-  // The rows and their order come from @lib/accountCredentials, so the host
-  // email and the seller's notes show up here without this component knowing
-  // the field names.
   const isCredentialBlob = isAccount && typeof value === 'string' && value.trim().startsWith('{');
   const rows = isCredentialBlob ? describeAccountCredentials(value) : [];
 
@@ -331,7 +302,6 @@ function KeyRow({ value, isAccount, productType, revealed, id, productName, copi
   );
 }
 
-/** Masked-or-revealed value with a copy control. */
 function SecretField({ label, value, revealed, href, id, copiedId, onCopy }) {
   const display = revealed ? value : '•'.repeat(Math.min(String(value ?? '').length || 16, 28));
   const copied = copiedId === id;

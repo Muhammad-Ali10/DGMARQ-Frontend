@@ -7,19 +7,10 @@ import { Send, Loader2, ImagePlus, X, CheckCheck, MessageSquare } from 'lucide-r
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
 
-// M12: a refund in a FINAL state has a hard-locked chat (matches the backend
-// guard in addRefundMessage). SELLER_REJECTED stays open — buyer can escalate.
 export const isRefundChatLocked = (status) =>
   ['COMPLETED', 'ADMIN_REJECTED', 'completed', 'rejected'].includes(status);
 
-/**
- * WhatsApp-style refund chat with optimistic updates.
- * - Customer and Admin can always send.
- * - Seller can only send when admin requests input (pass canSend accordingly).
- * - Pass `locked` when the refund is in a final state: input is hidden and a
- *   "chat closed" notice is shown regardless of role.
- */
-export default function RefundChat({ refundId, canSend, locked = false }) {
+export default function RefundChat({ refundId, locked = false }) {
   const queryClient = useQueryClient();
   const { user } = useSelector((state) => state.auth);
   const currentUserId = user?._id;
@@ -48,19 +39,15 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
     refetchOnWindowFocus: false,
   });
 
-  // Memoized so the scroll effect below doesn't see a new array identity on
-  // every render (react-hooks/exhaustive-deps).
   const messages = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   const addMessageMutation = useMutation({
     mutationFn: (payload) => returnRefundAPI.addRefundMessage(refundId, payload),
     onMutate: async (payload) => {
-      // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['refund-messages', refundId] });
 
       const previousMessages = queryClient.getQueryData(['refund-messages', refundId]);
 
-      // Only add optimistic message for text-only (not FormData/images)
       if (!(payload instanceof FormData)) {
         const optimisticMessage = {
           _id: `optimistic-${Date.now()}`,
@@ -81,7 +68,6 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
       return { previousMessages };
     },
     onError: (err, _payload, context) => {
-      // Rollback on error
       if (context?.previousMessages) {
         queryClient.setQueryData(['refund-messages', refundId], context.previousMessages);
       }
@@ -92,9 +78,13 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
         toast.error(msg);
       }
     },
-    onSuccess: () => {
-      // Replace optimistic messages with real server data
-      queryClient.invalidateQueries({ queryKey: ['refund-messages', refundId] });
+    onSuccess: (res) => {
+      const saved = res?.data?.data?.message;
+      queryClient.setQueryData(['refund-messages', refundId], (old) => {
+        const settled = (Array.isArray(old) ? old : []).filter((m) => !m._optimistic);
+        if (!saved?._id || settled.some((m) => m._id === saved._id)) return settled;
+        return [...settled, saved];
+      });
       setLocalMessage('');
       setSelectedImages((prev) => {
         prev.forEach((item) => URL.revokeObjectURL(item.preview));
@@ -114,7 +104,6 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
     };
   }, []);
 
-  // Auto-scroll to bottom on new messages
   const scrollToBottom = useCallback(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -125,7 +114,6 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Real-time updates via Socket.IO — append directly instead of refetching
   useEffect(() => {
     if (!socket || !refundId) return;
 
@@ -136,18 +124,8 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
       const incoming = payload.message;
       if (!incoming) return;
 
-      // Skip if the message is from current user (already handled by optimistic update)
-      const senderId = incoming.senderId?._id || incoming.senderId;
-      if (senderId?.toString() === currentUserId?.toString()) {
-        // Still sync to replace optimistic with real data, but debounced
-        queryClient.invalidateQueries({ queryKey: ['refund-messages', refundId] });
-        return;
-      }
-
-      // Append incoming message directly to cache (no refetch needed)
       queryClient.setQueryData(['refund-messages', refundId], (old) => {
         const existing = Array.isArray(old) ? old : [];
-        // Deduplicate by _id
         if (incoming._id && existing.some((m) => m._id === incoming._id)) {
           return existing;
         }
@@ -159,7 +137,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
     return () => {
       socket.off('refund_message', handleRefundMessage);
     };
-  }, [socket, isConnected, refundId, queryClient, currentUserId]);
+  }, [socket, isConnected, refundId, queryClient]);
 
   function handleFileChange(event) {
     const incoming = Array.from(event.target.files || []);
@@ -201,7 +179,7 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
   function handleSend(e) {
     e?.preventDefault();
     const msg = (localMessage || '').trim();
-    if ((!msg && selectedImages.length === 0) || !canSend || locked) return;
+    if ((!msg && selectedImages.length === 0) || locked) return;
     if (addMessageMutation.isPending) return;
 
     if (selectedImages.length > 0) {
@@ -259,7 +237,6 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
     }
   }
 
-  // Group messages by date
   const groupedMessages = [];
   let lastDate = '';
   for (const m of messages) {
@@ -273,7 +250,6 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
 
   return (
     <div className="flex flex-col rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-      {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06] bg-white/[0.03]">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/15">
           <MessageSquare className="w-4 h-4 text-accent-on-dark" />
@@ -296,7 +272,6 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
         </div>
       </div>
 
-      {/* Messages area */}
       <div
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 min-h-[180px] max-h-[52vh] sm:max-h-[400px]"
@@ -403,14 +378,13 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
       {locked ? (
         <div className="border-t border-white/[0.06] px-4 py-3 text-center">
           <p className="text-xs text-fg-subtle">
             This refund request is closed — the chat is locked.
           </p>
         </div>
-      ) : canSend ? (
+      ) : (
         <div className="border-t border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
           {selectedImages.length > 0 && (
             <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
@@ -476,10 +450,6 @@ export default function RefundChat({ refundId, canSend, locked = false }) {
               )}
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="border-t border-white/[0.06] px-4 py-3 text-center">
-          <p className="text-xs text-fg-subtle">You can only reply when admin requests your input.</p>
         </div>
       )}
     </div>

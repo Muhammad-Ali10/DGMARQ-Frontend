@@ -1,9 +1,3 @@
-// Tiny localStorage-backed external stores for cross-component user prefs
-// (display currency, buyer country). Why not plain useState-per-hook: the
-// `storage` event only fires in OTHER tabs, so two components in the SAME tab
-// would drift apart. Subscribers here get notified synchronously on set(),
-// and cross-tab changes still arrive via the storage listener.
-
 const stores = new Map();
 
 export const getPrefStore = (key) => {

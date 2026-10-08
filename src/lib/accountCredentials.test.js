@@ -6,11 +6,6 @@ import {
   accountRowErrors,
 } from './accountCredentials';
 
-// The seller's line is:
-//   username/ID, password, email, email password, host email, notes
-// Everything but the note is required, and the host email is an ADDRESS — no
-// password is collected for it.
-
 const LINE = 'gamerTag,gamerPass,acc@example.com,accPass,host@example.com';
 
 describe("parseAccountLines — the seller's paste", () => {
@@ -34,7 +29,6 @@ describe("parseAccountLines — the seller's paste", () => {
     expect(accounts[0].notes).toBe('');
   });
 
-  // Notes are last precisely so they can contain the separator.
   it('keeps commas inside the note', () => {
     const { accounts } = parseAccountLines(`${LINE},EU region, do not change the password`);
     expect(accounts[0].notes).toBe('EU region, do not change the password');
@@ -59,8 +53,6 @@ describe("parseAccountLines — the seller's paste", () => {
     expect(errors[1]).toMatch(/is not an email address/);
   });
 
-  // A file in the previous (email-first) order fails on every field, which says
-  // nothing useful on its own — so the expected order is stated once.
   it('states the expected order when a CSV row fails', () => {
     const { errors } = parseAccountLines('acc@example.com,accPass,host@example.com,hostPass');
     expect(errors.at(-1)).toBe(
@@ -108,8 +100,6 @@ describe('describeAccountCredentials — what every surface renders', () => {
     expect(describeAccountCredentials(null)).toEqual([]);
   });
 
-  // Accounts sold before this field set must keep their correct labels, and a
-  // row that still carries a host-email password must keep showing it.
   it('still labels older accounts', () => {
     expect(describeAccountCredentials({ email: 'a@b.com', password: 'pw' }).map((r) => r.label))
       .toEqual(['Email', 'Email password']);

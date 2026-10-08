@@ -5,28 +5,12 @@ import { Input } from '@components/ui/input';
 import { Label } from '@components/ui/label';
 import { SearchableSelect } from '@components/ui/searchable-select';
 import { SearchInput } from '@components/common/SearchInput';
-import { categoryAPI, subcategoryAPI, productAPI } from '@services/api';
+import { subcategoryAPI, productAPI } from '@services/api';
+import { fetchAllPages } from '@lib/apiList';
+import { useActiveCategories } from '@features/catalog/hooks/useActiveCategories';
 import { resolveTarget } from '@lib/resolveTarget';
 import { useDebounce } from '@hooks/useDebounce';
 import { cn } from '@lib/utils';
-
-/**
- * Admin control for "where should this link go?".
- *
- * Shared by every piece of admin-authored navigation — mega-menu links,
- * homepage slider slides, and homepage heading sections — so all three write
- * the same `linkTarget` shape and render through the same `resolveTarget`.
- *
- * Picking a category/subcategory is preferred over a raw search string: the
- * product search is prefix-matched (left-anchored), so a free-text query like
- * "netflix gift card" will NOT match a product named "Gift Card — Netflix".
- * The search mode therefore shows a live result count so an admin can see a
- * dead link before saving it.
- *
- * @param {{type: string, value: string, slug?: string}|null} value
- * @param {(next: {type: string, value: string, slug: string}|null) => void} onChange
- * @param {string} [label]
- */
 
 const TYPES = [
   { id: 'category', label: 'Category', icon: FolderTree },
@@ -40,37 +24,22 @@ const TargetPicker = ({ value, onChange, label = 'Link target' }) => {
   const [searchText, setSearchText] = useState(type === 'search' ? value?.value || '' : '');
   const debouncedSearch = useDebounce(searchText, 500);
 
-  const { data: categories = [], isLoading: loadingCategories } = useQuery({
-    queryKey: ['target-picker-categories'],
-    queryFn: () =>
-      categoryAPI
-        .getCategories({ isActive: true, limit: 100 })
-        .then((r) => r.data.data?.docs || []),
+  const { data: categories = [], isLoading: loadingCategories } = useActiveCategories({
     enabled: type === 'category',
-    staleTime: 300000,
   });
 
   const { data: subcategories = [], isLoading: loadingSubcategories } = useQuery({
     queryKey: ['target-picker-subcategories'],
-    // 100 is the server's hard cap (subcategory.controller.js clamps `limit`).
-    // The dropdown filters this list client-side, which is fine at today's
-    // taxonomy size; past 100 subcategories this needs SearchableSelect's
-    // `serverSide` + `onSearchChange` mode instead of a bigger limit.
-    queryFn: () =>
-      subcategoryAPI
-        .getSubcategories({ isActive: true, limit: 100 })
-        .then((r) => r.data.data?.docs || []),
+    queryFn: () => fetchAllPages(subcategoryAPI.getSubcategories, { isActive: true }),
     enabled: type === 'subcategory',
     staleTime: 300000,
   });
 
-  // Live "does this query find anything?" check. limit:1 because only the
-  // total is needed — the rows themselves are never rendered.
   const { data: matchCount, isFetching: countingMatches } = useQuery({
     queryKey: ['target-picker-search-count', debouncedSearch],
     queryFn: () =>
       productAPI
-        .getProducts({ search: debouncedSearch, limit: 1, page: 1 })
+        .getProducts({ search: debouncedSearch, searchMode: 'prefix', limit: 1, page: 1 })
         .then((r) => r.data.data?.totalDocs ?? 0),
     enabled: type === 'search' && debouncedSearch.trim().length > 0,
     staleTime: 60000,
@@ -78,9 +47,6 @@ const TargetPicker = ({ value, onChange, label = 'Link target' }) => {
 
   const setType = (nextType) => {
     if (nextType === type) return;
-    // Values are not portable between types (an ObjectId is meaningless as a
-    // search string), so switching clears the selection rather than carrying
-    // a value that would resolve to a broken link.
     setSearchText('');
     onChange({ type: nextType, value: '', slug: '' });
   };
@@ -89,8 +55,6 @@ const TargetPicker = ({ value, onChange, label = 'Link target' }) => {
     () =>
       subcategories.map((sub) => ({
         ...sub,
-        // Shown in the dropdown so two same-named subcategories under
-        // different parents stay distinguishable.
         label: sub.parentCategory?.name ? `${sub.parentCategory.name} › ${sub.name}` : sub.name,
       })),
     [subcategories]
@@ -102,7 +66,6 @@ const TargetPicker = ({ value, onChange, label = 'Link target' }) => {
     <div className="space-y-3">
       <Label className="text-fg-muted">{label}</Label>
 
-      {/* Type selector */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {TYPES.map(({ id, label: typeLabel, icon: Icon }) => (
           <button
@@ -134,6 +97,7 @@ const TargetPicker = ({ value, onChange, label = 'Link target' }) => {
           placeholder="Select a category…"
           searchPlaceholder="Search categories…"
           emptyMessage="No categories found"
+          countNoun="categories"
         />
       )}
 
@@ -144,8 +108,6 @@ const TargetPicker = ({ value, onChange, label = 'Link target' }) => {
           value={value?.value || ''}
           onValueChange={(id) => {
             const picked = subcategoryOptions.find((s) => s._id === id);
-            // resolveTarget needs "categorySlug/subcategorySlug" for the clean
-            // SEO route; without both halves it falls back to /subcategory/:id.
             const pair =
               picked?.parentCategory?.slug && picked?.slug
                 ? `${picked.parentCategory.slug}/${picked.slug}`
@@ -155,6 +117,7 @@ const TargetPicker = ({ value, onChange, label = 'Link target' }) => {
           getOptionLabel={(option) => option.label}
           placeholder="Select a subcategory…"
           searchPlaceholder="Search subcategories…"
+          countNoun="subcategories"
           emptyMessage="No subcategories found"
         />
       )}
@@ -202,21 +165,34 @@ const TargetPicker = ({ value, onChange, label = 'Link target' }) => {
             placeholder="/dgmarq-plus"
             className="bg-secondary border-border text-fg"
           />
-          {value?.value && !value.value.startsWith('/') && (
+          {value?.value && !resolvedPath && (
             <p className="flex items-center gap-1.5 text-xs text-warning">
               <AlertTriangle className="h-3.5 w-3.5" />
-              Must start with “/” — only in-app paths are allowed here.
+              Must be an in-app path that starts with a single “/” — other links are not allowed here.
             </p>
           )}
         </div>
       )}
 
-      {/* What the buyer will actually navigate to */}
-      <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
-        <p className="text-[11px] uppercase tracking-wide text-fg-subtle">Opens</p>
-        <p className={cn('text-sm font-mono', resolvedPath ? 'text-fg' : 'text-fg-subtle')}>
-          {resolvedPath || 'Nothing selected yet'}
-        </p>
+      <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/40 px-3 py-2">
+        <div className="min-w-0">
+          <p className="text-[11px] uppercase tracking-wide text-fg-subtle">Opens</p>
+          <p className={cn('text-sm font-mono break-all', resolvedPath ? 'text-fg' : 'text-fg-subtle')}>
+            {resolvedPath || 'Nothing selected yet'}
+          </p>
+        </div>
+        {value?.value && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchText('');
+              onChange(null);
+            }}
+            className="shrink-0 text-xs font-medium text-fg-muted underline underline-offset-4 hover:text-fg"
+          >
+            Remove link
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatDate, formatDateTime, formatRelativeDate, formatExactTitle } from './datetime';
 
-// `now` is injectable precisely so these assertions do not depend on the clock.
 const NOW = new Date('2026-07-28T12:00:00Z');
 const ago = (ms) => new Date(NOW.getTime() - ms);
 const ahead = (ms) => new Date(NOW.getTime() + ms);
@@ -23,7 +22,6 @@ describe('formatRelativeDate', () => {
   });
 
   it('switches to an absolute date at the 7-day cutoff', () => {
-    // 6d 23h is still relative; 7d exactly has crossed over.
     expect(formatRelativeDate(ago(7 * DAY - HOUR), NOW)).toBe('6d ago');
     expect(formatRelativeDate(ago(7 * DAY), NOW)).toBe('Jul 21, 2026');
     expect(formatRelativeDate(ago(400 * DAY), NOW)).toMatch(/2025/);
@@ -39,8 +37,6 @@ describe('formatRelativeDate', () => {
     expect(formatRelativeDate('2026-07-28T10:00:00Z', NOW)).toBe('2h ago');
   });
 
-  // Every one of these reaches the UI from a nullable field (assignedAt,
-  // earliestReleaseDate, purchaseDate...), so an em dash beats "Invalid Date".
   it('renders an em dash for missing or unparseable values', () => {
     expect(formatRelativeDate(null, NOW)).toBe('—');
     expect(formatRelativeDate(undefined, NOW)).toBe('—');

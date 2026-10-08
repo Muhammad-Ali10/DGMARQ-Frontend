@@ -1,6 +1,3 @@
-/**
- * Glass-style card with subtle border and hover glow (brand primary).
- */
 export default function GlowCard({
   children,
   className = '',

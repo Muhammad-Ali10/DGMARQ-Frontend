@@ -1,12 +1,6 @@
 import { Wifi } from 'lucide-react';
 import { useUserPresence } from '../hooks/useUserPresence';
 
-/**
- * Thin status strip above the message list. Shows the other party's online dot
- * + an expected-response hint, and a "Reconnecting…" notice when the socket is
- * down. `userId` is the person whose presence to watch (assigned admin for the
- * customer view; the customer for the admin view).
- */
 const PresenceBar = ({
   userId,
   name = 'Support',

@@ -6,24 +6,10 @@ import ImageLightbox from './ImageLightbox';
 import TypingIndicator from './TypingIndicator';
 import { isMineForSide, isGroupedWith, sameDay, dayLabel } from '../utils/supportChat';
 
-const BOTTOM_THRESHOLD = 80; // px from bottom still counts as "at bottom"
-const TOP_THRESHOLD = 60; // px from top triggers "load older"
-const ESTIMATED_ROW_HEIGHT = 72; // rough first-paint estimate; rows self-measure
+const BOTTOM_THRESHOLD = 80;
+const TOP_THRESHOLD = 60;
+const ESTIMATED_ROW_HEIGHT = 72;
 
-/**
- * Scrollable message viewport shared by every support chat UI.
- *
- * Performance behaviours:
- *  - Rows are windowed with @tanstack/react-virtual (dynamic measurement), so a
- *    long support thread never mounts every bubble. Matches the buyer/seller
- *    chat (see chat/VirtualizedMessageList.jsx).
- *  - Infinite upward pagination (onLoadOlder) with scroll-position preservation.
- *  - Smart auto-scroll: jumps to bottom on a new message ONLY when already near
- *    the bottom (or the message is mine); otherwise shows a "New messages"
- *    pill instead of yanking the user away from history.
- *  - Scroll handler throttled with requestAnimationFrame.
- *  - Each bubble is React.memo'd; date separators + sender grouping computed here.
- */
 const MessageList = ({
   messages,
   side = 'customer',
@@ -47,7 +33,6 @@ const MessageList = ({
   const openImage = useCallback((src) => setLightbox(src), []);
   const closeImage = useCallback(() => setLightbox(null), []);
 
-  // Precompute per-message rendering flags (mine / grouped / day separator).
   const rows = useMemo(() => {
     return messages.map((msg, i) => {
       const prev = i > 0 ? messages[i - 1] : null;
@@ -87,8 +72,6 @@ const MessageList = ({
     setShowJump(false);
   }, [rows.length, rowVirtualizer]);
 
-  // rAF-throttled scroll handler: tracks bottom proximity and triggers
-  // upward pagination with scroll-anchor preservation.
   const handleScroll = useCallback(() => {
     if (rafRef.current) return;
     rafRef.current = requestAnimationFrame(() => {
@@ -118,7 +101,6 @@ const MessageList = ({
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
   }, []);
 
-  // Keep the typing indicator in view if the user is already at the bottom.
   useEffect(() => {
     if (typing && atBottomRef.current) {
       const el = containerRef.current;
@@ -126,9 +108,6 @@ const MessageList = ({
     }
   }, [typing]);
 
-  // Auto-scroll decision runs whenever the message set changes. Only an APPENDED
-  // last message (new key at the tail) triggers it — prepended history keeps its
-  // key at the tail unchanged, so it never auto-scrolls.
   useEffect(() => {
     const el = containerRef.current;
     if (!el || rows.length === 0) {
@@ -141,7 +120,6 @@ const MessageList = ({
     const appended = lastKey && lastKey !== prevLastKeyRef.current;
 
     if (wasEmpty && messages.length > 0) {
-      // initial load: land at the bottom
       requestAnimationFrame(() => {
         rowVirtualizer.scrollToIndex(rows.length - 1, { align: 'end' });
       });
@@ -153,8 +131,6 @@ const MessageList = ({
           rowVirtualizer.scrollToIndex(rows.length - 1, { align: 'end' });
         });
       }
-      // Reacting to an inbound message: stick to bottom if near it, otherwise
-      // surface the "new messages" pill.
        
       setShowJump(!stick);
     }

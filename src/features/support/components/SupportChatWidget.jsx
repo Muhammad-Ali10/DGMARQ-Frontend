@@ -2,21 +2,17 @@ import { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { MessageCircle, X } from 'lucide-react';
-// PERF FIX (FP2): the popup is the heavy part (full support-chat UI + hooks)
-// and renders only when an authenticated user opens the widget — lazy-load it
-// so the entire stack leaves the shared entry chunk. The floating icon itself
-// stays eager/instant.
+import { useSupportUnread } from '../hooks/useSupportUnread';
 const SupportChatPopup = lazy(() => import('./SupportChatPopup'));
 
 const SupportChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCount = useSupportUnread();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const navigate = useNavigate();
 
   const handleIconClick = () => {
     if (!isAuthenticated) {
-      // Redirect to login if not authenticated
       navigate('/login');
       return;
     }
@@ -25,7 +21,6 @@ const SupportChatWidget = () => {
 
   return (
     <>
-      {/* Floating Support Chat Icon */}
       <div className="fixed bottom-[7.5rem] md:bottom-6 right-6 z-50">
         <button
           onClick={handleIconClick}
@@ -45,13 +40,11 @@ const SupportChatWidget = () => {
         </button>
       </div>
 
-      {/* Support Chat Popup */}
       {isAuthenticated && isOpen && (
         <Suspense fallback={null}>
           <SupportChatPopup
             isOpen={isOpen}
             onClose={() => setIsOpen(false)}
-            onUnreadCountChange={setUnreadCount}
           />
         </Suspense>
       )}

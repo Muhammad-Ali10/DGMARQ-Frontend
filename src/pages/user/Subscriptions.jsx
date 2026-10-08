@@ -16,19 +16,37 @@ const UserSubscriptions = () => {
     queryFn: () => subscriptionAPI.getMySubscription().then(res => res.data.data),
   });
 
+  const { data: planData } = useQuery({
+    queryKey: ['subscription-plans'],
+    queryFn: () => subscriptionAPI.getSubscriptionPlans().then(res => res.data.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const plan = planData?.plan;
+  const discountLabel = plan ? `${plan.discountPercentage}%` : 'Plus';
+
   const subscribeMutation = useMutation({
     mutationFn: () => subscriptionAPI.subscribe(),
-    onSuccess: (data) => {
-      if (data.data.data.approvalUrl) {
-        window.location.href = data.data.data.approvalUrl;
+    onSuccess: (response) => {
+      const approvalUrl = response?.data?.data?.approvalUrl;
+      if (approvalUrl) {
+        window.location.href = approvalUrl;
+        return;
       }
+      toast.error('PayPal did not return a checkout link. Please try again.');
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || 'Unable to start the subscription. Please try again.');
     },
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => subscriptionAPI.cancelSubscription(),
     onSuccess: () => {
+      toast.success('Subscription cancelled. PayPal will not charge you again.');
       queryClient.invalidateQueries({ queryKey: ['my-subscription'] });
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || 'Unable to cancel the subscription. Please try again.');
     },
   });
 
@@ -45,8 +63,6 @@ const UserSubscriptions = () => {
       }
       if (action === 'no_action') {
         toast.info(message || 'Your subscription is already active.');
-      } else if (action === 'reactivated') {
-        toast.success(message || 'Subscription re-activated.');
       } else if (action === 'restored') {
         toast.success(message || 'Payment successful! Subscription restored.');
       } else if (action === 'payment_retry_required') {
@@ -73,7 +89,7 @@ const UserSubscriptions = () => {
     return (
       <ErrorState
         title="Couldn't load your subscription"
-        onRetry={() => queryClient.invalidateQueries({ queryKey: ['user-subscription'] })}
+        onRetry={() => queryClient.invalidateQueries({ queryKey: ['my-subscription'] })}
       />
     );
   }
@@ -85,17 +101,14 @@ const UserSubscriptions = () => {
   const hasBenefits = !!subscription && (!endDate || endDate >= now) && ['active', 'cancelled', 'past_due'].includes(subscription.status);
   const isCancelledButActive = hasBenefits && subscription?.status === 'cancelled';
   const isActiveFuture = subscription?.status === 'active' && isFuture;
-  const isExpiredOrPast = !subscription || subscription?.status === 'expired' || (endDate && endDate <= now);
   const isPastDue = subscription?.status === 'past_due';
 
   const handleCancelSubscription = () => {
     if (!subscription) return;
     const expiry = endDate ? endDate.toLocaleDateString() : 'end of current period';
     const confirmed = window.confirm(
-      `Are you sure? You will lose these benefits at end of current period:\n` +
-      `❌ 2% discount on all purchases\n` +
-      `❌ Discount after bundle deals\n` +
-      `❌ Coupon code stacking\n` +
+      `Are you sure? At the end of the current period you will lose:\n` +
+      `❌ ${discountLabel} discount on all purchases\n` +
       `Your subscription remains active until: ${expiry}`
     );
     if (confirmed) {
@@ -114,7 +127,11 @@ const UserSubscriptions = () => {
         <Card variant="hud">
           <CardHeader>
             <CardTitle>
-              {isCancelledButActive ? '🟡 Subscription (Cancelled)' : '🟢 Subscription Active'}
+              {isPastDue
+                ? '🟠 Payment overdue'
+                : isCancelledButActive
+                  ? '🟡 Subscription (Cancelled)'
+                  : '🟢 Subscription Active'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -155,8 +172,7 @@ const UserSubscriptions = () => {
               <div>
                 <p className="text-fg-muted">Benefits</p>
                 <div className="mt-2 space-y-1">
-                  <p className="text-fg text-sm">• 2% Instant Discount on all products</p>
-                  <p className="text-fg text-sm">• Priority Support</p>
+                  <p className="text-fg text-sm">• {discountLabel} instant discount on all products</p>
                 </div>
               </div>
 
@@ -173,16 +189,10 @@ const UserSubscriptions = () => {
                 </div>
               )}
               {isCancelledButActive && (
-                <div className="flex gap-2 pt-4 border-t border-brand-cyan/10">
-                  <Button
-                    onClick={() => renewMutation.mutate({ durationMonths: 1 })}
-                    disabled={renewMutation.isPending}
-                    className=""
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    {renewMutation.isPending ? 'Re-activating...' : 'Re-activate Subscription'}
-                  </Button>
-                </div>
+                <p className="pt-4 border-t border-brand-cyan/10 text-sm text-fg-muted">
+                  Auto-renew is off and PayPal will not charge you again. Your benefits last until{' '}
+                  {endDate ? endDate.toLocaleDateString() : 'the end of this period'}; subscribe again after that date to keep Plus.
+                </p>
               )}
               {isPastDue && (
                 <div className="flex gap-2 pt-4 border-t border-brand-cyan/10">
@@ -194,17 +204,13 @@ const UserSubscriptions = () => {
                     <RefreshCw className="w-4 h-4 mr-2" />
                     {renewMutation.isPending ? 'Retrying...' : 'Retry Payment'}
                   </Button>
-                </div>
-              )}
-              {isExpiredOrPast && (
-                <div className="flex gap-2 pt-4 border-t border-brand-cyan/10">
                   <Button
-                    onClick={() => renewMutation.mutate({})}
-                    disabled={renewMutation.isPending}
-                    className=""
+                    onClick={handleCancelSubscription}
+                    disabled={cancelMutation.isPending}
+                    variant="destructive"
                   >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    {renewMutation.isPending ? 'Processing...' : 'Renew Subscription'}
+                    <X className="w-4 h-4 mr-2" />
+                    {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Subscription'}
                   </Button>
                 </div>
               )}
@@ -226,7 +232,11 @@ const UserSubscriptions = () => {
                 className=""
               >
                 <CreditCard className="w-4 h-4 mr-2" />
-                {subscribeMutation.isPending ? 'Processing...' : 'Buy Subscription - $9.99/mo'}
+                {subscribeMutation.isPending
+                  ? 'Processing...'
+                  : plan
+                    ? `Buy Subscription - $${plan.price.toFixed(2)}/mo`
+                    : 'Buy Subscription'}
               </Button>
             </div>
           </CardContent>

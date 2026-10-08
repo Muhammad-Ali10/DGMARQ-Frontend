@@ -1,6 +1,3 @@
-// Shared test render helper — wraps a component in the providers most of the
-// app needs (router + react-query + redux). A FRESH store and query client are
-// created per render so tests stay isolated from each other.
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

@@ -10,24 +10,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@lib/utils';
 
-/**
- * Mobile bottom navigation for the dashboards.
- *
- * Deliberately NOT `MobileBottomBar` — that one is the STOREFRONT bar (product
- * search with suggestions, cart, wishlist, account menu). A seller managing
- * inventory has no use for a cart button, and a buyer checking an order does not
- * need product search pinned to the bottom of the screen. Different job,
- * different component; the storefront bar stays on PublicLayout.
- *
- * Five destinations maximum — past that the targets get too narrow to hit.
- * Each is 56px tall, comfortably over the 44px minimum.
- */
 const BUYER_ITEMS = [
   { to: '/user/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/user/orders', label: 'Orders', icon: ShoppingCart },
   { to: '/user/license-keys', label: 'Keys', icon: Key },
-  // The wishlist is a single page at /wishlist (the storefront route the header
-  // and mobile bar link to), not a dashboard-only one.
   { to: '/wishlist', label: 'Wishlist', icon: Heart },
   { to: '/user/support', label: 'Support', icon: Headphones },
 ];
@@ -40,9 +26,6 @@ const SELLER_ITEMS = [
   { to: '/seller/support', label: 'Support', icon: Headphones },
 ];
 
-/**
- * @param {"buyer"|"seller"} role
- */
 export const DashboardBottomNav = ({ role }) => {
   const items = role === 'seller' ? SELLER_ITEMS : BUYER_ITEMS;
 
@@ -51,7 +34,6 @@ export const DashboardBottomNav = ({ role }) => {
       aria-label="Dashboard sections"
       className={cn(
         'fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface-base/80 backdrop-blur-md lg:hidden',
-        // Keeps the bar clear of the iOS home indicator.
         'pb-[env(safe-area-inset-bottom)]'
       )}
     >

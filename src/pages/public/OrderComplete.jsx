@@ -13,23 +13,10 @@ import { SellerAvatar } from '@features/cart-checkout';
 import useCurrency from '@hooks/useCurrency';
 import { describeAccountCredentials } from '@lib/accountCredentials';
 import { deliveryWords, isActivationLink, isHttpUrl } from '@lib/deliveryType';
-
-// ── Order Complete / key-reveal — ported from the owner's mockup
-// `dgmarq-order-complete (20).html` (#oc-root). Tailwind v4 utilities; the
-// mockup's `--ink*/--accent/--line*/--panel/--field/--page` CSS variables are
-// resolved to their literal values inline (v4's scanner only sees literal class
-// text, so they can't be interpolated). Reference:
-//   --ink #eef4fc  --ink-2 #9fb4d8  --ink-3 #6a80a8  --accent #0e9fe2
-//   --good #22c55e  --line rgba(14,159,226,0.18)  --line-2 rgba(255,255,255,0.065)
-//   --panel rgba(10,31,71,0.72)  --field rgba(255,255,255,0.03)  --page #050d20
-// The mockup's media queries are max-width; Tailwind's are min-width, so base =
-// small-screen values and min-[861px]/min-[761px]/min-[561px] restore desktop.
-// Sections the mockup fills with demo-only data (in-game chat, buyer-detail
-// block, manual delivery, card last-4) are intentionally not ported.
+import { formatReleaseDate } from '@components/common/PreorderBadge';
 
 const MASK = '•'.repeat(12);
 
-/** Account products ship credentials as a JSON string; keys ship as plain text. */
 const parseDeliverable = (raw) => {
   if (typeof raw !== 'string') return null;
   try {
@@ -40,10 +27,8 @@ const parseDeliverable = (raw) => {
   }
 };
 
-// ── shared tokens ──
 const SECURE_PILL =
   'inline-flex items-center gap-[7px] rounded-full border border-[rgba(34,197,94,0.24)] bg-[rgba(34,197,94,0.08)] px-[12px] py-[6px] text-[11.5px] font-medium tracking-[0.01em] text-[#7ef0ab]';
-// Reveal boxes (mockup `.key-box`).
 const KEY_BOX =
   'relative mb-[13px] flex items-center gap-[13px] rounded-[14px] border border-[rgba(14,159,226,0.18)] bg-white/[0.03] px-[18px] py-[16px]';
 const KEY_FLABEL = 'mb-[4px] text-[9.5px] uppercase tracking-[0.12em] text-[#6a80a8]';
@@ -58,7 +43,6 @@ const INFO_BOX =
   'mb-[13px] rounded-[13px] border border-white/[0.065] bg-white/[0.03] px-[16px] py-[14px]';
 const INFO_TEXT = 'whitespace-pre-wrap text-[12.5px] leading-[1.6] text-[#9fb4d8]';
 
-/** Mockup `keyBox`/`passBox`: label + value, with masking for secrets. */
 const KeyBox = ({ label, value, secret = false, href, onCopied }) => {
   const [shown, setShown] = useState(!secret);
   const [copied, setCopied] = useState(false);
@@ -137,10 +121,7 @@ const ItemModal = ({ item, onClose, onToast }) => {
 
   return (
     <div className="fixed inset-0 z-[5000] flex items-center justify-center p-[20px] bg-[rgba(4,9,20,0.7)] backdrop-blur-[7px] animate-oc-fade">
-      {/* Click-outside-to-close as a real button: keeps the backdrop keyboard-
-          reachable instead of putting a click handler on a plain div. */}
       <button type="button" className="absolute inset-0 cursor-default border-0 bg-transparent p-0" onClick={onClose} aria-label="Close dialog" />
-      {/* modal shell — the 1px top hairline is the ::before gradient */}
       <div
         className="relative z-[1] max-h-[92vh] w-full max-w-[600px] overflow-y-auto rounded-[22px] border border-[rgba(14,159,226,0.18)] bg-[linear-gradient(180deg,rgba(12,22,44,0.98),rgba(8,15,32,0.98))] shadow-[0_50px_110px_-30px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] animate-oc-rise before:absolute before:left-[24px] before:right-[24px] before:top-0 before:h-px before:content-[''] before:bg-[linear-gradient(90deg,transparent,rgba(14,159,226,0.55),transparent)]"
         role="dialog"
@@ -175,14 +156,20 @@ const ItemModal = ({ item, onClose, onToast }) => {
           </div>
 
           <div className="mb-[13px] flex flex-wrap gap-[9px]">
-            <span className="inline-flex items-center gap-[7px] rounded-[10px] border border-[rgba(14,159,226,0.18)] bg-white/[0.03] px-[12px] py-[8px] text-[11.5px] font-medium text-[#9fb4d8]"><Sparkles className="h-3.5 w-3.5" />Instant delivery</span>
-            <span className="inline-flex items-center gap-[7px] rounded-[10px] border border-[rgba(14,159,226,0.18)] bg-white/[0.03] px-[12px] py-[8px] text-[11.5px] font-medium text-[#9fb4d8]"><CircleCheck className="h-3.5 w-3.5" />Delivered</span>
+            {item.keys.length > 0 ? (
+              <>
+                <span className="inline-flex items-center gap-[7px] rounded-[10px] border border-[rgba(14,159,226,0.18)] bg-white/[0.03] px-[12px] py-[8px] text-[11.5px] font-medium text-[#9fb4d8]"><Sparkles className="h-3.5 w-3.5" />Instant delivery</span>
+                <span className="inline-flex items-center gap-[7px] rounded-[10px] border border-[rgba(14,159,226,0.18)] bg-white/[0.03] px-[12px] py-[8px] text-[11.5px] font-medium text-[#9fb4d8]"><CircleCheck className="h-3.5 w-3.5" />Delivered</span>
+              </>
+            ) : item.isPreorder ? (
+              <span className="inline-flex items-center gap-[7px] rounded-[10px] border border-[rgba(14,159,226,0.18)] bg-white/[0.03] px-[12px] py-[8px] text-[11.5px] font-medium text-[#9fb4d8]"><Package className="h-3.5 w-3.5" />Pre-order{item.preorderReleaseDate ? ` · releases ${formatReleaseDate(item.preorderReleaseDate)}` : ''}</span>
+            ) : null}
           </div>
 
           {item.refunded ? (
             <div className={INFO_BOX}><div className={INFO_TEXT}>This item was refunded, so its keys are no longer available.</div></div>
           ) : item.keys.length === 0 ? (
-            <div className={INFO_BOX}><div className={INFO_TEXT}>Your keys are not available yet. They will appear here as soon as delivery completes.</div></div>
+            <div className={INFO_BOX}><div className={INFO_TEXT}>{item.isPreorder ? 'This is a pre-order. Your keys will appear here and in your email on release day.' : 'Your keys are not available yet. They will appear here as soon as delivery completes.'}</div></div>
           ) : (
             item.keys.map((raw, i) => {
               const account = isAccount ? parseDeliverable(raw) : null;
@@ -190,7 +177,6 @@ const ItemModal = ({ item, onClose, onToast }) => {
                 return (
                   <KeyBox
                     key={`k-${i}`}
-                    // Named for what it actually is: a key, a gift code or a link.
                     label={`${deliveryWords(item.productType).title}${item.keys.length > 1 ? ` ${i + 1}` : ''}`}
                     value={raw}
                     href={isActivationLink(item.productType) && isHttpUrl(raw) ? raw : undefined}
@@ -198,9 +184,6 @@ const ItemModal = ({ item, onClose, onToast }) => {
                   />
                 );
               }
-              // Field order, labels and which values are secret all come from
-              // @lib/accountCredentials — the seller's notes are prose, so they
-              // get the information box rather than a copy-and-reveal row.
               const rows = describeAccountCredentials(account);
               const credentialRows = rows.filter((row) => row.key !== 'notes');
               const notes = rows.find((row) => row.key === 'notes');
@@ -233,18 +216,14 @@ const ItemModal = ({ item, onClose, onToast }) => {
   );
 };
 
-// ── page tokens ──
 const CRUMB =
   'flex items-center gap-[8px] text-[12px] tracking-[0.01em] text-[#6a80a8] [&_a]:text-[#9fb4d8] [&_a]:no-underline [&_a:hover]:text-[#0e9fe2] [&_b]:font-medium [&_b]:text-[#eef4fc]';
-// meta label/value stack (Placed / Items / Delivery).
 const META_CELL =
   'flex flex-col gap-[3px] text-[10.5px] uppercase tracking-[0.1em] text-[#6a80a8] [&_b]:text-[13.5px] [&_b]:font-semibold [&_b]:normal-case [&_b]:tracking-normal [&_b]:text-[#eef4fc]';
-// order-step icon tile.
 const OS_IC =
   'grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px] border border-[rgba(14,159,226,0.18)] bg-white/[0.03] text-[#6a80a8] [transition:0.2s]';
 const OS_IC_DONE = 'border-[rgba(34,197,94,0.4)] bg-[rgba(34,197,94,0.12)] text-[#7ef0ab]';
 const OS_IC_ACTIVE = 'border-[rgba(14,159,226,0.5)] bg-[rgba(14,159,226,0.12)] text-[#0e9fe2] shadow-[0_0_0_4px_rgba(14,159,226,0.09)]';
-// item cells. Base (mobile): label/value row via before:content; desktop: centred block.
 const CELL =
   'text-[13px] text-[#9fb4d8] [font-variant-numeric:tabular-nums] flex items-center justify-between gap-[12px] text-left ' +
   "before:content-[attr(data-label)] before:text-[10px] before:uppercase before:tracking-[0.12em] before:text-[#6a80a8] " +
@@ -259,7 +238,6 @@ const BTN_PRIMARY =
 const FOOT_LABEL = 'mb-[9px] text-[10.5px] font-semibold uppercase tracking-[0.11em] text-[#6a80a8]';
 const SUM_ROW = 'flex items-center justify-between py-[6px] text-[13px] text-[#9fb4d8] [font-variant-numeric:tabular-nums]';
 const SUM_Q = 'inline-flex items-center gap-[6px] tracking-[0.005em] text-[#6a80a8]';
-// action buttons at the foot of the page.
 const ACT_BTN =
   'inline-flex min-w-[160px] flex-[1_1_100%] min-[561px]:flex-[1_1_0] cursor-pointer items-center justify-center gap-[9px] rounded-[14px] border border-[rgba(14,159,226,0.18)] bg-[rgba(10,31,71,0.72)] px-[18px] py-[14px] text-[13px] font-semibold tracking-[0.005em] text-[#eef4fc] no-underline backdrop-blur-[10px] [transition:transform_0.16s_ease,border-color_0.16s_ease,background_0.16s_ease,box-shadow_0.16s_ease] [&_svg]:text-[#0e9fe2] hover:-translate-y-[2px] hover:border-[rgba(14,159,226,0.5)] hover:bg-[rgba(14,159,226,0.06)] hover:shadow-[0_12px_26px_-14px_rgba(14,159,226,0.6)] active:translate-y-0';
 const ACT_BTN_PRIMARY =
@@ -298,12 +276,21 @@ const OrderComplete = () => {
   const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
   const delivered = items.some((i) => i.keys?.length > 0);
+  const awaitingRelease = !!data.awaitingRelease;
+  const releaseDate = items.find((i) => i.preorderReleaseDate)?.preorderReleaseDate;
+  const releaseLabel = releaseDate ? formatReleaseDate(releaseDate) : null;
+  const paymentDone = ['paid', 'partially_refunded'].includes(data.paymentStatus);
 
   const steps = [
     { t: 'Order placed', s: placedTime ? `${placedDate}, ${placedTime}` : placedDate, done: true },
-    { t: 'Payment confirmed', s: data.paymentMethod || 'Paid', done: data.paymentStatus === 'paid' },
-    { t: 'Items delivered', s: delivered ? 'Instant delivery' : 'Preparing', done: delivered },
-    { t: 'Order complete', s: 'Keys available below', done: data.orderStatus === 'completed', active: data.orderStatus !== 'completed' },
+    { t: 'Payment confirmed', s: data.paymentMethod || 'Paid', done: paymentDone },
+    {
+      t: 'Items delivered',
+      s: delivered ? 'Instant delivery' : awaitingRelease ? (releaseLabel ? `On release, ${releaseLabel}` : 'On release day') : 'Preparing',
+      done: delivered,
+      active: awaitingRelease,
+    },
+    { t: 'Order complete', s: awaitingRelease ? 'After release' : 'Keys available below', done: data.orderStatus === 'completed', active: !awaitingRelease && data.orderStatus !== 'completed' },
   ];
 
   return (
@@ -334,11 +321,16 @@ const OrderComplete = () => {
             <Sparkles className="absolute -bottom-[2px] right-[22px] h-3.5 w-3.5 text-[#7bc5ff] opacity-0 [filter:drop-shadow(0_0_4px_currentColor)] animate-oc-sparkle [animation-delay:1.7s] motion-reduce:animate-none" />
           </div>
           <h1 className="m-0 mb-[13px] text-[29px] font-bold leading-[1.08] tracking-[-0.025em] text-white">
-            Thank you! <span className="bg-[linear-gradient(90deg,#7bc5ff_0%,#0e9fe2_52%,#0e51e2_100%)] bg-clip-text text-transparent">Your order is complete.</span>
+            Thank you! <span className="bg-[linear-gradient(90deg,#7bc5ff_0%,#0e9fe2_52%,#0e51e2_100%)] bg-clip-text text-transparent">{awaitingRelease ? 'Your pre-order is confirmed.' : 'Your order is complete.'}</span>
           </h1>
           <p className="m-0 text-[14px] leading-[1.62] text-[#9fb4d8]">
-            Your order details are below. Reveal and copy your keys any time — we&apos;ve also emailed a copy
-            {data.deliveredToEmail ? <> to <b>{data.deliveredToEmail}</b></> : null}.
+            {awaitingRelease ? (
+              <>Your payment is confirmed. We&apos;ll deliver your keys on release day{releaseLabel ? <> (<b>{releaseLabel}</b>)</> : null} and email them
+              {data.deliveredToEmail ? <> to <b>{data.deliveredToEmail}</b></> : null}.</>
+            ) : (
+              <>Your order details are below. Reveal and copy your keys any time — we&apos;ve also emailed a copy
+              {data.deliveredToEmail ? <> to <b>{data.deliveredToEmail}</b></> : null}.</>
+            )}
           </p>
         </div>
 
@@ -350,13 +342,13 @@ const OrderComplete = () => {
                 <span className="text-[19px] font-bold normal-case tracking-[0.02em] text-white [font-variant-numeric:tabular-nums]">{data.orderNumber || `#${String(data.orderId).slice(-8).toUpperCase()}`}</span>
               </h2>
               <span className="inline-flex items-center gap-[7px] rounded-full border border-[rgba(34,197,94,0.3)] bg-[rgba(34,197,94,0.1)] px-[11px] py-[5px] text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[#7ef0ab]">
-                <span className="h-[6px] w-[6px] rounded-full bg-[#22c55e] shadow-[0_0_7px_#22c55e]" />{data.orderStatus || 'completed'}
+                <span className="h-[6px] w-[6px] rounded-full bg-[#22c55e] shadow-[0_0_7px_#22c55e]" />{awaitingRelease ? 'pre-order' : data.orderStatus}
               </span>
             </div>
             <div className="flex flex-wrap gap-[26px]">
               <span className={META_CELL}>Placed<b>{placedDate}</b></span>
               <span className={META_CELL}>Items<b>{data.itemCount ?? items.length}</b></span>
-              <span className={META_CELL}>Delivery<b>Instant</b></span>
+              <span className={META_CELL}>Delivery<b>{awaitingRelease ? 'On release' : 'Instant'}</b></span>
             </div>
           </div>
 
@@ -415,7 +407,7 @@ const OrderComplete = () => {
                 ) : (
                   <button type="button" className={BTN_PRIMARY} onClick={() => setOpenItem(it)}>
                     <KeyRound className="h-3.5 w-3.5" />
-                    {it.productType === 'ACCOUNT_BASED' ? 'View account' : 'View key'}
+                    {it.isPreorder && !it.keys?.length ? 'Details' : it.productType === 'ACCOUNT_BASED' ? 'View account' : 'View key'}
                   </button>
                 )}
               </div>
@@ -423,7 +415,6 @@ const OrderComplete = () => {
             ))}
           </div>
 
-          {/* tear divider — dashed line with two circular notches */}
           <div className="relative h-[30px] before:absolute before:left-[28px] before:right-[28px] before:top-1/2 before:border-t-[1.6px] before:border-dashed before:border-[rgba(150,170,205,0.26)] before:content-['']">
             <span className="absolute left-0 top-1/2 h-[28px] w-[28px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#050d20] shadow-[inset_0_0_0_1px_rgba(14,159,226,0.18)]" />
             <span className="absolute left-full top-1/2 h-[28px] w-[28px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#050d20] shadow-[inset_0_0_0_1px_rgba(14,159,226,0.18)]" />
@@ -445,7 +436,7 @@ const OrderComplete = () => {
               <div className="bg-[linear-gradient(180deg,rgba(14,159,226,0.035),transparent)] px-[28px] py-[22px]">
                 <div className={SUM_ROW}><span className={SUM_Q}>Subtotal</span><span>{formatPrice(summary.subtotal)}</span></div>
                 {summary.discount > 0 && (
-                  <div className={SUM_ROW}><span className={SUM_Q}>You save</span><span>-{formatPrice(summary.discount)}</span></div>
+                  <div className={SUM_ROW}><span className={SUM_Q}>Discounts</span><span>-{formatPrice(summary.discount)}</span></div>
                 )}
                 <div className={SUM_ROW}>
                   <span className={SUM_Q}>

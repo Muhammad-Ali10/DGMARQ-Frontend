@@ -36,9 +36,6 @@ import {
   Wand2,
 } from "lucide-react";
 
-// The header already ships five built-in entries (Categories, Bestsellers, Gift
-// Cards, Random Keys, Software). Admin items render after them, so this is the
-// baseline for the capacity warning below.
 const BUILT_IN_ITEM_COUNT = 5;
 const COMFORTABLE_ITEM_TOTAL = 7;
 
@@ -75,7 +72,6 @@ const SOURCES = [
 const MenuBuilder = () => {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState({});
-  // { mode: 'create' | 'edit', level, parentId, node }
   const [dialog, setDialog] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -176,7 +172,6 @@ const MenuBuilder = () => {
 
   const isAuto = (node) => node.source === "auto-categories";
 
-  // Swap a node with its neighbour and persist both orders in one request.
   const move = (siblings, index, direction) => {
     const target = index + direction;
     if (target < 0 || target >= siblings.length) return;
@@ -260,7 +255,6 @@ const MenuBuilder = () => {
 
           return (
             <div key={item._id} className="rounded-xl border border-border bg-secondary/30">
-              {/* Menu item row */}
               <div className="flex items-center gap-3 p-3">
                 <button
                   type="button"
@@ -373,8 +367,6 @@ const MenuBuilder = () => {
         })}
       </div>
     );
-    // openCreate/openEdit/move are stable enough for this render-only memo; the
-    // data they close over comes from `tree`, which is in the dep list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tree, isLoading, isError, error, expanded, reorderMutation.isPending, fillMutation.isPending]);
 
@@ -434,9 +426,7 @@ const MenuBuilder = () => {
               />
             </div>
 
-            {/* Source is fixed at creation — switching an existing item would
-                orphan or resurrect its stored rows. */}
-            {dialog?.level === "item" && dialog?.mode === "create" && (
+            {dialog?.level === "item" && (
               <div className="space-y-2">
                 <Label>What goes inside it</Label>
                 <div className="grid gap-2 sm:grid-cols-2">

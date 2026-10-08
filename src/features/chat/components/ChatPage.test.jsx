@@ -1,27 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, within, fireEvent, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../../test/render';
 
-// ChatPage pulls in a socket, notifications and an infinite message query; none of
-// that is under test here. The block/unblock control is.
 vi.mock('@services/api', () => ({
   chatAPI: {
     getConversations: vi.fn(),
     getMessages: vi.fn(),
     toggleBlock: vi.fn(),
     markAsRead: vi.fn(),
+    sendMessage: vi.fn(),
   },
 }));
-// Both return STABLE identities: ChatPage has effects keyed on these, and a fresh
-// function per render turns them into a render loop.
 const stubs = vi.hoisted(() => ({
   socket: { socket: null, isConnected: false },
-  markNotificationAsRead: vi.fn(),
 }));
 vi.mock('@hooks/useSocket', () => ({ useSocket: () => stubs.socket }));
-vi.mock('../hooks/useChatNotifications', () => ({
-  useChatNotifications: () => ({ markNotificationAsRead: stubs.markNotificationAsRead }),
-}));
 
 const { chatAPI } = await import('@services/api');
 
@@ -41,8 +34,6 @@ const conversation = (overrides = {}) => ({
   ...overrides,
 });
 
-// The module keeps a 2s per-role conversations cache, so each test gets a fresh
-// copy of the module rather than the previous test's list.
 let ChatPage;
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -63,9 +54,6 @@ const renderChat = (conv, role = 'buyer') => {
 };
 
 describe('ChatPage block controls', () => {
-  // THE CLIENT BUG: the conversations endpoint did not return `blockedBy`, so this
-  // button was hidden from everyone — including the participant who blocked the
-  // thread and is the only one allowed to lift it.
   it('offers Unblock to the participant who blocked the conversation', async () => {
     renderChat(conversation({ status: 'blocked', blockedBy: ME }));
 
@@ -81,8 +69,6 @@ describe('ChatPage block controls', () => {
     expect(screen.queryByRole('button', { name: /^block$/i })).not.toBeInTheDocument();
   });
 
-  // Only the blocker can lift a block, so without this the other party is simply
-  // stuck: no button, no explanation of what still works.
   it('shows the blocked buyer a refund and a support route', async () => {
     renderChat(conversation({ status: 'blocked', blockedBy: THEM }));
 
@@ -121,10 +107,51 @@ describe('ChatPage block controls', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Block this conversation?')).toBeInTheDocument();
-    // The dialog is the gate: nothing happens until it is confirmed.
     expect(chatAPI.toggleBlock).not.toHaveBeenCalled();
 
     fireEvent.click(within(dialog).getByRole('button', { name: /^block$/i }));
     await waitFor(() => expect(chatAPI.toggleBlock).toHaveBeenCalledWith('conv-1'));
+  });
+});
+
+describe('ChatPage send fallback', () => {
+  afterEach(() => { stubs.socket = { socket: null, isConnected: false }; });
+
+  const timedOutSocket = () => ({
+    connected: true,
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
+    timeout: () => ({ emit: (_event, _payload, cb) => cb(new Error('timeout')) }),
+  });
+
+  const sendText = async (text) => {
+    renderChat(conversation());
+    const input = await screen.findByPlaceholderText('Type your message...');
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.submit(input.closest('form'));
+  };
+
+  it('does not resend over REST when the timed-out socket message was already saved', async () => {
+    stubs.socket = { socket: timedOutSocket(), isConnected: true };
+    chatAPI.getMessages.mockImplementation((_id, params) => Promise.resolve({
+      data: { data: params?.limit === 5
+        ? { messages: [{ _id: 'srv-1', senderId: { _id: ME }, messageText: 'Is the key region free?', sentAt: new Date().toISOString() }] }
+        : { messages: [], hasMore: false } },
+    }));
+
+    await sendText('Is the key region free?');
+
+    await waitFor(() => expect(chatAPI.getMessages).toHaveBeenCalledWith('conv-1', { limit: 5 }));
+    expect(chatAPI.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('resends over REST when the timed-out socket message never reached the server', async () => {
+    stubs.socket = { socket: timedOutSocket(), isConnected: true };
+    chatAPI.sendMessage.mockImplementation(() => Promise.resolve({ data: { data: { _id: 'srv-2', senderId: { _id: ME }, messageText: 'Hello?' } } }));
+
+    await sendText('Hello?');
+
+    await waitFor(() => expect(chatAPI.sendMessage).toHaveBeenCalledWith({ conversationId: 'conv-1', messageText: 'Hello?' }));
   });
 });

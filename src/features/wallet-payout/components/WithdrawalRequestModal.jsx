@@ -5,43 +5,18 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@components/ui/button";
 import { Input } from "@components/ui/input";
 import { Label } from "@components/ui/label";
-import { Badge } from "@components/ui/badge";
 import { Loading } from "@components/ui/loading";
-import { showApiError, showSuccess, showWarning } from "@utils/toast";
+import { showApiError, showSuccess } from "@utils/toast";
 import { AlertCircle, RefreshCw, Wallet } from "lucide-react";
 import useCurrency from '@hooks/useCurrency';
-
-// ============================================================================
-// Phase 5 - Seller WithdrawalRequestModal
-// ============================================================================
-//
-// Flow:
-//   1. Pick a connected (verified) PayPal payout account.
-//   2. Enter the gross amount the seller wants to withdraw.
-//   3. Auto-fetch a quote (static fee from admin settings).
-//   4. Submit -> backend validates cap + minimum + freshness, creates a
-//      `requested` Withdrawal row.
-// ============================================================================
 
 const METHOD_LABEL = {
   paypal: "PayPal",
 };
 
-const QUOTE_REFRESH_SLACK_MS = 60 * 1000;
 const QUOTE_AUTO_DEBOUNCE_MS = 600;
 
-
-const formatTimeLeft = (ms) => {
-  if (!Number.isFinite(ms) || ms <= 0) return "expired";
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-};
-
 export function WithdrawalRequestModal({ open, onOpenChange, balance, accounts = [] }) {
-  // Inner component is keyed so opening the modal resets all local state cleanly
-  // without a setState-in-effect anti-pattern.
   const formKey = `${open ? "open" : "closed"}-${(accounts || []).map((a) => a.accountType).join(",")}`;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -80,12 +55,10 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
   const [methodType, setMethodType] = useState(initialMethod);
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
-  const [now, setNow] = useState(() => Date.now());
   const [debouncedAmount, setDebouncedAmount] = useState("");
 
   const availableBalance = Number(balance?.available || 0);
 
-  // Debounce amount changes so we don't spam quote requests on every keystroke.
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedAmount(amount), QUOTE_AUTO_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -96,7 +69,6 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
     return Number.isFinite(n) ? n : 0;
   }, [debouncedAmount]);
 
-  // Quote query: enabled only when method is selected, amount > 0, and within balance.
   const quoteQuery = useQuery({
     queryKey: ["withdrawal-quote", methodType, numericAmount],
     queryFn: () =>
@@ -112,24 +84,6 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
     staleTime: 0,
   });
 
-  // Tick once a second so the countdown re-renders.
-  useEffect(() => {
-    if (!quoteQuery.data?.expiresAt) return undefined;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [quoteQuery.data?.expiresAt]);
-
-  // Auto-refresh the quote when within the slack window.
-  useEffect(() => {
-    if (!quoteQuery.data?.expiresAt) return undefined;
-    const expiresAtMs = new Date(quoteQuery.data.expiresAt).getTime();
-    const msLeft = expiresAtMs - Date.now();
-    if (msLeft > QUOTE_REFRESH_SLACK_MS) return undefined;
-    // Force refetch once we cross the slack threshold.
-    quoteQuery.refetch();
-    return undefined;
-  }, [now, quoteQuery]);
-
   const submitMutation = useMutation({
     mutationFn: (payload) => sellerAPI.createWithdrawal(payload).then((res) => res.data?.data),
     onSuccess: () => {
@@ -140,13 +94,6 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
     },
     onError: (err) => showApiError(err, "Could not submit withdrawal request"),
   });
-
-  const expiresAtMs = quoteQuery.data?.expiresAt
-    ? new Date(quoteQuery.data.expiresAt).getTime()
-    : null;
-  const msLeft = expiresAtMs ? expiresAtMs - now : null;
-  const isQuoteExpired = msLeft !== null && msLeft <= 0;
-  const showCountdown = !!expiresAtMs && quoteQuery.data?.fallbackUsed !== true;
 
   const validationError = useMemo(() => {
     if (!methodType) return "Select a payout method.";
@@ -159,23 +106,17 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
 
   const canSubmit =
     !validationError &&
+    amount === debouncedAmount &&
     quoteQuery.data &&
     !quoteQuery.isFetching &&
-    !submitMutation.isPending &&
-    (!showCountdown || !isQuoteExpired);
+    !submitMutation.isPending;
 
   const handleSubmit = (e) => {
     e?.preventDefault?.();
     if (!canSubmit) return;
-    if (showCountdown && isQuoteExpired) {
-      showWarning("The quote expired. Refreshing...");
-      quoteQuery.refetch();
-      return;
-    }
     submitMutation.mutate({
       methodType,
       amount: numericAmount,
-      quote: quoteQuery.data,
       notes: notes || undefined,
     });
   };
@@ -251,23 +192,14 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
         />
       </div>
 
-      {/* Quote panel */}
       <div className="rounded-md border border-border bg-secondary/30 p-3 space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-fg">Live quote</p>
+          <p className="text-sm font-medium text-fg">Fees and payout</p>
           {quoteQuery.isFetching && (
             <span className="text-[11px] text-fg-muted flex items-center gap-1">
               <RefreshCw className="w-3 h-3 animate-spin" />
               Fetching...
             </span>
-          )}
-          {showCountdown && !quoteQuery.isFetching && (
-            <Badge variant={isQuoteExpired ? "destructive" : "warning"} className="text-[10px]">
-              {isQuoteExpired ? "Expired - refreshing" : `Expires in ${formatTimeLeft(msLeft)}`}
-            </Badge>
-          )}
-          {quoteQuery.data?.fallbackUsed && (
-            <Badge variant="warning" className="text-[10px]">Static fallback fee</Badge>
           )}
         </div>
         {quoteQuery.isLoading && <Loading message="Calculating fee..." size="sm" />}
@@ -278,7 +210,7 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
           </div>
         )}
         {quoteQuery.data && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             <div>
               <p className="text-fg-muted">Provider fee</p>
               <p className="text-fg font-medium">{formatSettlement(quoteQuery.data.fee)}</p>
@@ -295,13 +227,6 @@ function WithdrawalForm({ open, balance, accounts, onCancel, onSuccess }) {
             <div>
               <p className="text-fg-muted">You will receive</p>
               <p className="text-success font-semibold">{formatSettlement(quoteQuery.data.net)}</p>
-            </div>
-            <div>
-              <p className="text-fg-muted">Source</p>
-              <p className="text-fg text-xs">
-                {quoteQuery.data.feeSource === "static" && "Admin-configured static fee"}
-                {(quoteQuery.data.feeSource === "live" || quoteQuery.data.feeSource === "fallback") && "Configured fee"}
-              </p>
             </div>
           </div>
         )}

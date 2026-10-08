@@ -3,9 +3,6 @@ import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../test/render';
 import Dashboard from './Dashboard';
 
-// CLIENT REQUIREMENT: a seller must be able to read the commission rate the admin
-// has set. Only the settings query matters here; the rest of the dashboard is
-// stubbed at the API boundary.
 vi.mock('@services/api', () => ({
   sellerAPI: {
     getSellerInfo: vi.fn(),
@@ -14,7 +11,7 @@ vi.mock('@services/api', () => ({
     getPublicPayoutSettings: vi.fn(),
     getMyPayoutAccount: vi.fn(),
   },
-  offerAPI: { getMyOffers: vi.fn() },
+  offerAPI: { getMyOfferSummary: vi.fn() },
   returnRefundAPI: { getSellerRefundList: vi.fn() },
 }));
 
@@ -39,7 +36,7 @@ beforeEach(() => {
   sellerAPI.getPayoutBalance.mockResolvedValue({ data: { data: {} } });
   sellerAPI.getPerformanceMetrics.mockResolvedValue({ data: { data: { sales: {} } } });
   sellerAPI.getMyPayoutAccount.mockResolvedValue({ data: { data: null } });
-  offerAPI.getMyOffers.mockResolvedValue({ data: { data: { offers: [], pagination: { total: 0 } } } });
+  offerAPI.getMyOfferSummary.mockResolvedValue({ data: { data: { total: 0, lowStockThreshold: 3 } } });
   returnRefundAPI.getSellerRefundList.mockResolvedValue({ data: { data: { refunds: [] } } });
   sellerAPI.getPublicPayoutSettings.mockResolvedValue(settings());
 });
@@ -62,8 +59,6 @@ describe('seller dashboard commission rate', () => {
     expect(screen.queryByText('Featured surcharge')).not.toBeInTheDocument();
   });
 
-  // A wrong rate is worse than no rate: if the field ever stops arriving, the row
-  // must disappear rather than render "undefined%".
   it('renders no rate at all when the endpoint omits it', async () => {
     sellerAPI.getPublicPayoutSettings.mockResolvedValue(settings({ commissionRatePercent: undefined }));
     renderWithProviders(<Dashboard />, { route: '/seller/dashboard' });
@@ -71,5 +66,23 @@ describe('seller dashboard commission rate', () => {
     expect(await screen.findByText('Platform commission')).toBeInTheDocument();
     expect(screen.queryByText('Commission rate')).not.toBeInTheDocument();
     expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+  });
+});
+
+describe('seller dashboard action list', () => {
+  it('asks for refund requests still waiting on the seller and counts every listing from the summary', async () => {
+    offerAPI.getMyOfferSummary.mockResolvedValue({
+      data: { data: { total: 120, outOfStock: 2, lowStock: 1, lowStockThreshold: 3 } },
+    });
+    returnRefundAPI.getSellerRefundList.mockResolvedValue({
+      data: { data: { refunds: [{}], pagination: { total: 1 } } },
+    });
+    renderWithProviders(<Dashboard />, { route: '/seller/dashboard' });
+
+    expect(await screen.findByText('1 refund request waiting for your side')).toBeInTheDocument();
+    expect(returnRefundAPI.getSellerRefundList).toHaveBeenCalledWith({ awaiting: 'feedback', limit: 1 });
+    expect(screen.getByText('2 live listings out of stock')).toBeInTheDocument();
+    expect(screen.getByText('3 keys or fewer remaining. Restock before you sell out.')).toBeInTheDocument();
+    expect(screen.getByText('120 listings on the catalog')).toBeInTheDocument();
   });
 });

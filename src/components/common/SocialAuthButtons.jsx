@@ -1,22 +1,6 @@
-import { PROVIDER_LABELS, SOCIAL_PROVIDER_IDS, startSocialAuth } from '@lib/socialAuth';
+import { PROVIDER_LABELS, startSocialAuth } from '@lib/socialAuth';
+import { useSocialProviders } from '@hooks/useSocialProviders';
 import { cn } from '@lib/utils';
-
-/* ============================================================================
-   The ONE place social sign-in buttons are drawn.
-
-   Before this, `window.location.href = ${API_ORIGIN}/api/v1/user/auth/...` was
-   hand-written at seven call sites (Login, Register, SessionMenu,
-   MobileBottomBar, Profile x2) — which is exactly why Facebook shipped with a
-   working backend route and no button anywhere, and why Steam/Discord/PayPal
-   were wearing generic lucide glyphs (Gamepad2 / MessagesSquare / Wallet).
-   Adding a sixth provider is now a one-line change to SOCIAL_PROVIDER_IDS.
-
-   WHY INLINE SVG RATHER THAN react-icons: these are brand marks, and the two
-   that matter most are multi-colour — Google's mark is four colours and its
-   brand guidelines require them, PayPal's is two-tone navy/blue. react-icons
-   ships single-colour glyphs, so it physically cannot draw either one correctly.
-   Paths are the mockup's, which are the providers' official ones.
-   ========================================================================== */
 
 const GoogleMark = (props) => (
   <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -52,11 +36,6 @@ const PayPalMark = (props) => (
   </svg>
 );
 
-// Brand hover tints, straight from the mockup. These are the ONE place raw colour
-// literals are correct in this codebase rather than a theme token: they are other
-// companies' brand identities, so they must NOT drift with our palette. Written
-// as complete literal class strings because Tailwind's scanner reads source text
-// — a composed `hover:border-[${x}]` would compile to nothing.
 const PROVIDERS = {
   google: {
     Mark: GoogleMark,
@@ -80,9 +59,6 @@ const PROVIDERS = {
   },
 };
 
-// The mockup's `.dg-oauth-btn`, in tokens. min-h-11 (44px) rather than the
-// mockup's 42px: 44px is the WCAG 2.5.8 / iOS touch-target floor, and these are
-// the primary action on a phone.
 const BUTTON_BASE = [
   'flex items-center justify-center gap-2 min-h-11 w-full',
   'rounded-lg border border-accent/20 bg-surface-sunken/60',
@@ -115,53 +91,56 @@ const ProviderButton = ({ providerId, labelPrefix, className, onNavigate }) => {
   );
 };
 
-/**
- * @param {'grid'|'list'} layout   grid = the mockup's auth pages (2x2 + wide
- *                                 PayPal); list = the Register popup's stack.
- * @param {string} labelPrefix     e.g. 'Sign up with' / 'Continue with'. Omit
- *                                 for the bare brand name the grid uses.
- * @param {(id: string) => void} onNavigate  fires before the redirect — used by
- *                                 the popup to close itself first.
- */
-const SocialAuthButtons = ({ layout = 'grid', labelPrefix, onNavigate, className }) => {
+const SocialAuthButtons = ({ layout = 'grid', labelPrefix, onNavigate, className, leading = null, trailing = null }) => {
+  const providerIds = useSocialProviders();
+  if (providerIds.length === 0) return null;
+
   if (layout === 'list') {
     return (
-      <div className={cn('flex flex-col gap-2.5', className)}>
-        {SOCIAL_PROVIDER_IDS.map((id) => (
-          <ProviderButton
-            key={id}
-            providerId={id}
-            labelPrefix={labelPrefix}
-            onNavigate={onNavigate}
-          />
-        ))}
-      </div>
+      <>
+        {leading}
+        <div className={cn('flex flex-col gap-2.5', className)}>
+          {providerIds.map((id) => (
+            <ProviderButton
+              key={id}
+              providerId={id}
+              labelPrefix={labelPrefix}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+        {trailing}
+      </>
     );
   }
 
-  // The mockup pairs the first four in a 2x2 and gives the last one the full
-  // width — five in a 2-column grid would otherwise leave a lone orphan cell.
-  const paired = SOCIAL_PROVIDER_IDS.slice(0, -1);
-  const wide = SOCIAL_PROVIDER_IDS.at(-1);
+  const paired = providerIds.slice(0, -1);
+  const wide = providerIds.at(-1);
 
   return (
-    <div className={cn('space-y-2', className)}>
-      <div className="grid grid-cols-2 gap-2">
-        {paired.map((id) => (
-          <ProviderButton
-            key={id}
-            providerId={id}
-            labelPrefix={labelPrefix}
-            onNavigate={onNavigate}
-          />
-        ))}
+    <>
+      {leading}
+      <div className={cn('space-y-2', className)}>
+        {paired.length > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            {paired.map((id) => (
+              <ProviderButton
+                key={id}
+                providerId={id}
+                labelPrefix={labelPrefix}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        )}
+        <ProviderButton
+          providerId={wide}
+          labelPrefix={labelPrefix || 'Continue with'}
+          onNavigate={onNavigate}
+        />
       </div>
-      <ProviderButton
-        providerId={wide}
-        labelPrefix={labelPrefix || 'Continue with'}
-        onNavigate={onNavigate}
-      />
-    </div>
+      {trailing}
+    </>
   );
 };
 

@@ -9,10 +9,15 @@ import { StatusBadge } from '@components/common/StatusBadge';
 import { SpecList, SpecRow } from '@components/common/SpecList';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import SafeImage from '@components/ui/safe-image';
-import { ArrowLeft, Package, CreditCard, MapPin, Calendar, ExternalLink, DollarSign } from 'lucide-react';
-import { showApiError } from '@utils/toast';
+import { ArrowLeft, Package, CreditCard, Calendar, ExternalLink, DollarSign } from 'lucide-react';
 import { payoutBadgeProps } from '@features/wallet-payout';
 import useCurrency from '@hooks/useCurrency';
+
+const refKey = (value) => (value?._id ?? value ?? '').toString();
+const payoutLineKey = (productId, sellerId) => {
+  const product = refKey(productId);
+  return product ? `${product}|${refKey(sellerId)}` : '';
+};
 
 const AdminOrderDetail = () => {
   const { format: formatMoney } = useCurrency();
@@ -24,24 +29,19 @@ const AdminOrderDetail = () => {
     queryFn: () => orderAPI.getOrderById(orderId).then(res => res.data.data),
     enabled: !!orderId,
     retry: 1,
-    onError: (err) => {
-      showApiError(err, 'Failed to load order details');
-    },
   });
 
-  // Phase 2: per-item payout-line state from the unified backend source so the admin
-  // view matches the seller view and the Earnings/Dashboard pages.
   const { data: payoutLinesData } = useQuery({
     queryKey: ['admin-order-payout-lines', orderId],
     queryFn: () => adminAPI.getOrderPayoutLines(orderId).then((res) => res.data.data),
     enabled: !!orderId,
     retry: 0,
   });
-  const payoutLineByProductId = useMemo(() => {
+  const payoutLineByItem = useMemo(() => {
     const map = new Map();
     const lines = payoutLinesData?.lines || [];
     for (const line of lines) {
-      const key = (line.productId || '').toString();
+      const key = payoutLineKey(line.productId, line.sellerId);
       if (key && !map.has(key)) map.set(key, line);
     }
     return map;
@@ -112,19 +112,18 @@ const AdminOrderDetail = () => {
     let totalSeller = 0;
 
     order.items.forEach((item) => {
-      const productKey = (item.productId?._id || item.productId || '').toString();
-      const payoutLine = productKey ? payoutLineByProductId.get(productKey) : null;
+      const payoutLine = payoutLineByItem.get(payoutLineKey(item.productId, item.sellerId)) || null;
       const breakdown = getItemCommissionBreakdown(item);
       normal += breakdown.normalCommission;
       featured += breakdown.featuredExtraCommission;
       totalSeller += payoutLine ? Number(payoutLine.netAmount) || 0 : breakdown.sellerEarning;
     });
 
-    const payoutLineCommission = Array.from(payoutLineByProductId.values()).reduce(
+    const payoutLineCommission = Array.from(payoutLineByItem.values()).reduce(
       (sum, line) => sum + (Number(line.commissionAmount) || 0),
       0
     );
-    const totalCommission = payoutLineByProductId.size > 0 ? payoutLineCommission : normal + featured;
+    const totalCommission = payoutLineByItem.size > 0 ? payoutLineCommission : normal + featured;
 
     return {
       normalCommission: normal,
@@ -140,10 +139,6 @@ const AdminOrderDetail = () => {
     0
   );
 
-  // M14: what PayPal actually charged us on this capture — their own figures,
-  // never a computed percentage. Shown only for PayPal-settled orders; a
-  // wallet-paid order has no capture, so the block would be meaningless.
-  // Individual values read "—" when PayPal has not settled the capture yet.
   const hasPayPalCapture = !!(order.paypalCaptureId || order.paypalOrderId);
   const paypalCurrency = order.paypalFeeCurrency;
   const formatSettlement = (amount) => {
@@ -185,8 +180,7 @@ const AdminOrderDetail = () => {
                   const sellerName = item.sellerId?.shopName ?? (typeof item.sellerId === 'object' ? null : 'Seller');
                   const sellerLogo = item.sellerId?.shopLogo;
                   const displaySellerName = sellerName || 'Seller';
-                  const productKey = (item.productId?._id || item.productId || '').toString();
-                  const payoutLine = productKey ? payoutLineByProductId.get(productKey) : null;
+                  const payoutLine = payoutLineByItem.get(payoutLineKey(item.productId, item.sellerId)) || null;
                   const localBreakdown = getItemCommissionBreakdown(item);
                   const breakdown = payoutLine
                     ? {
@@ -195,9 +189,6 @@ const AdminOrderDetail = () => {
                         sellerEarning: Number(payoutLine.netAmount) || 0,
                       }
                     : localBreakdown;
-                  // Phase 5: highlight rows whose payout line is on dispute hold so
-                  // the operator immediately sees which item in a multi-item order is
-                  // blocked (matching the seller-side behaviour).
                   const isDisputedRow =
                     !!payoutLine &&
                     (payoutLine.status === 'blocked' || payoutLine.status === 'hold');
@@ -235,9 +226,6 @@ const AdminOrderDetail = () => {
                           </h4>
                           {item.productId?.slug && (
                             <p className="text-sm text-gray-400 mb-1">SKU: {item.productId.slug}</p>
-                          )}
-                          {item.productId?.description && (
-                            <p className="text-sm text-gray-400 mb-2">{item.productId.description}</p>
                           )}
                           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                             <span>Quantity: {item.qty}</span>
@@ -287,10 +275,7 @@ const AdminOrderDetail = () => {
                           <>
                             <SpecRow
                               label="Payout status"
-                              value={(() => {
-                                const props = payoutBadgeProps(payoutLine.displayStatus || payoutLine.status);
-                                return <Badge variant={props.variant}>{props.label}</Badge>;
-                              })()}
+                              value={<Badge {...payoutBadgeProps(payoutLine.displayStatus || payoutLine.status)} />}
                             />
                             {payoutLine.holdUntil && (
                               <SpecRow
@@ -330,31 +315,6 @@ const AdminOrderDetail = () => {
               </div>
             </CardContent>
           </Card>
-
-          {order.shippingAddress && (
-            <Card variant="hud">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
-                  Shipping Address
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-gray-300 space-y-1">
-                  <p className="font-medium text-white">{order.shippingAddress.fullName}</p>
-                  <p>{order.shippingAddress.address}</p>
-                  {order.shippingAddress.address2 && <p>{order.shippingAddress.address2}</p>}
-                  <p>
-                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}
-                  </p>
-                  <p>{order.shippingAddress.country}</p>
-                  {order.shippingAddress.phone && (
-                    <p className="mt-2">Phone: {order.shippingAddress.phone}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         <div className="space-y-6">
@@ -397,10 +357,6 @@ const AdminOrderDetail = () => {
                   label="Subtotal"
                   value={formatMoney(order.subtotal ?? order.totalAmount)}
                 />
-                {order.shippingCost > 0 && (
-                  <SpecRow label="Shipping" value={formatMoney(order.shippingCost)} />
-                )}
-                {order.tax > 0 && <SpecRow label="Tax" value={formatMoney(order.tax)} />}
                 {order.discount > 0 && (
                   <SpecRow
                     label="Discount"
@@ -408,9 +364,15 @@ const AdminOrderDetail = () => {
                     tone="success"
                   />
                 )}
-                {order.buyerHandlingFee > 0 && (
+                {order.buyerProtectionFee > 0 && (
                   <SpecRow
                     label="Buyer protection fee"
+                    value={formatMoney(order.buyerProtectionFee)}
+                  />
+                )}
+                {order.buyerHandlingFee > 0 && (
+                  <SpecRow
+                    label="Checkout fee"
                     value={formatMoney(order.buyerHandlingFee)}
                   />
                 )}

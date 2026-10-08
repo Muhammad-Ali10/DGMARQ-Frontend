@@ -1,14 +1,5 @@
-
 import { cn } from "@/lib/utils"
 
-// Input owns its own surface and border. The border is `--border-interactive`
-// (3.22–5.20 against every surface) because on a control the border IS the
-// affordance and therefore has to clear 3:1 — the old #1a2d5a managed 1.17.
-// That makes fields visibly brighter than before; that is the accessibility
-// floor, not a style preference.
-//
-// `text-base` on small screens is deliberate: anything under 16px makes iOS
-// Safari zoom on focus.
 function Input({
   className,
   type,

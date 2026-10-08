@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scorePassword } from './passwordPolicy';
 
-// The point of these: the client gate must accept EXACTLY what the server's
-// passwordValidation() accepts. The regression they guard is the one that shipped
-// — a client rule looser than the server's, so the form said "fine" and the API
-// said 400.
 describe('scorePassword', () => {
   it('scores an empty password as nothing met', () => {
     const result = scorePassword('');
@@ -21,8 +17,6 @@ describe('scorePassword', () => {
   });
 
   it('rejects the exact password the old client accepted and the server refused', () => {
-    // 6 chars, mixed case, a digit, no special character. Register.jsx used to
-    // let this through; the API answered 400.
     const result = scorePassword('Abc123');
     expect(result.isValid).toBe(false);
     expect(result.met.length).toBe(false);
@@ -56,8 +50,6 @@ describe('scorePassword', () => {
   });
 
   it('accepts a space as a special character, matching the server regex', () => {
-    // The server's group is [^A-Za-z0-9], which a space satisfies. If this client
-    // were stricter it would reject passwords the API would happily take.
     expect(scorePassword('Abcdefg1 ').isValid).toBe(true);
   });
 });

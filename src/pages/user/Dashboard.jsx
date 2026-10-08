@@ -17,29 +17,10 @@ import { useWishlist } from '@features/catalog';
 import { getOrderItemProductName } from '@utils/orderItem';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
 import useCurrency from '@hooks/useCurrency';
+import { formatOrderAmount } from '@lib/orderDisplay';
 
 const RECENT_ORDER_LIMIT = 5;
 
-/**
- * Buyer dashboard. The job this screen does is "where is my key, and is it going
- * to work?", so the order list is the hero and everything above it stays thin.
- *
- * KPI discipline — four tiles, down from eight. Three of the originals were
- * REMOVED rather than relabelled because they showed wrong numbers: Total Spent,
- * Completed Orders and Pending Orders were each derived by reducing a five-row
- * page of orders, so a buyer with 40 orders saw the lifetime spend of their most
- * recent five. Computing them correctly needs a server-side aggregate no
- * endpoint exposes, and a wrong number is worse than an absent one. Total Orders
- * survives because it reads `pagination.total`, which is a real count.
- *
- * No trend deltas and no sparklines: nothing in the API returns a prior-period
- * figure or a time series, and a fabricated trend would be worse than none.
- *
- * Every section owns its own query state. The previous version gated the whole
- * route on `ordersLoading || notifLoading || wishlistLoading || walletLoading`,
- * so the slowest of four independent requests blocked all of them behind one
- * full-page spinner.
- */
 const UserDashboard = () => {
   const { user, roles } = useSelector((state) => state.auth);
   const { format } = useCurrency();
@@ -59,8 +40,6 @@ const UserDashboard = () => {
     queryFn: () => notificationAPI.getUnreadCount().then((res) => res.data?.data?.unreadCount ?? 0),
   });
 
-  // The tile needs a NUMBER, so it reads the shared id-only membership entry
-  // rather than fetching a page of populated products to measure its length.
   const { count: wishlistCount } = useWishlist();
 
   const walletQuery = useQuery({
@@ -70,7 +49,6 @@ const UserDashboard = () => {
     refetchOnWindowFocus: true,
   });
 
-  // M20: DGMARQ Plus points. Null when the buyer is not a subscriber.
   const pointsQuery = useQuery({
     queryKey: ['plus-points'],
     queryFn: () => subscriptionAPI.getMyPoints().then((r) => r.data?.data ?? null),
@@ -82,9 +60,6 @@ const UserDashboard = () => {
 
   return (
     <div className="space-y-8">
-      {/* ── Header strip: greeting, balance, one primary action ──────────────
-          A single row, so the order list starts near the top of the viewport
-          instead of below 200px of chrome. */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-fg">
@@ -130,7 +105,6 @@ const UserDashboard = () => {
         </div>
       </header>
 
-      {/* ── KPI row ──────────────────────────────────────────────────────── */}
       {ordersQuery.isPending || notificationsQuery.isPending ? (
         <StatCardGridSkeleton count={4} />
       ) : (
@@ -161,18 +135,12 @@ const UserDashboard = () => {
             value={pointsQuery.data?.balance ?? 0}
             icon={Sparkles}
             tone="info"
-            // Every registered buyer earns points — "Join Plus to start earning"
-            // told non-members to pay for something they already had.
             description="Earned on every order · redeem for wallet credit"
             href="/dgmarq-plus"
           />
         </StatCardGrid>
       )}
 
-      {/* ── Recent orders: the hero of this screen ─────────────────────────
-          `variant="hud"` is the product page's panel chrome — corner brackets,
-          cyan rim bloom, and a micro-cap cyan heading. The page's own layout is
-          untouched; this is the same box, wearing the storefront's look. */}
       <Card variant="hud">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Recent orders</CardTitle>
@@ -205,10 +173,6 @@ const UserDashboard = () => {
               }
             />
           ) : (
-            /* Discrete rows, not a divided list: each order is its own bordered
-               box, the way the product page draws an offer row (`.of-row` at
-               11px radius, ringed 1px in cyan). A hairline divider disappeared
-               against the panel — an order is an object, so it gets edges. */
             <ul className="space-y-1.5">
               {orders.map((order) => {
                 const firstItem = order.items?.[0];
@@ -244,7 +208,7 @@ const UserDashboard = () => {
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
                         <span className="text-sm font-semibold tabular-nums text-fg">
-                          {format(order.totalAmount)}
+                          {formatOrderAmount(order.grandTotal ?? order.totalAmount, order)}
                         </span>
                         <StatusBadge domain="order" status={order.orderStatus} />
                       </div>

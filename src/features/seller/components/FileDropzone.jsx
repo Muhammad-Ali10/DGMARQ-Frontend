@@ -3,7 +3,7 @@ import { UploadCloud, X, FileText, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ACCEPT = 'image/png,image/jpeg,image/jpg,application/pdf';
-const MAX_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_BYTES = 10 * 1024 * 1024;
 
 const humanSize = (bytes) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -11,27 +11,11 @@ const humanSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-/**
- * Drag-and-drop upload zone with image preview / PDF fallback.
- *
- * Props:
- *  - file: File | null            currently selected file
- *  - previewUrl: string|null      (controlled) parent-owned object URL for the
- *                                 image preview. When provided, the component
- *                                 does NOT create/revoke its own URL.
- *  - onChange: (File|null)        called with the new file (or null on remove)
- *  - label: string                visible label above the zone
- *  - note: string                 helper text shown below the zone
- *  - error: string|undefined      validation error (red highlight + shake)
- *  - compact: boolean             smaller zone (used for side-by-side front/back)
- */
 const FileDropzone = ({ file, previewUrl, onChange, label, note, error, compact = false, id }) => {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState('');
 
-  // Controlled when the parent passes previewUrl; otherwise fall back to an
-  // internally-managed object URL (revoked on cleanup).
   const controlled = previewUrl !== undefined;
   const internalPreview = useMemo(
     () => (!controlled && file && file.type?.startsWith('image/') ? URL.createObjectURL(file) : null),
@@ -152,7 +136,10 @@ const FileDropzone = ({ file, previewUrl, onChange, label, note, error, compact 
         accept={ACCEPT}
         aria-label={label || 'Choose a file'}
         className="hidden"
-        onChange={(e) => validateAndSet(e.target.files?.[0])}
+        onChange={(e) => {
+          validateAndSet(e.target.files?.[0]);
+          e.target.value = '';
+        }}
       />
 
       {note && !shownError && <p className="text-xs text-fg-subtle">{note}</p>}

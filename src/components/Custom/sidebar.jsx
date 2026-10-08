@@ -1,14 +1,8 @@
-import { NavLink, Link, useNavigate } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { logout } from "@store/slices/authSlice";
-import { authAPI } from "@services/api";
+import { NavLink, Link } from "react-router-dom";
+import { useLogout } from "@hooks/useLogout";
 import { cn } from "@lib/utils";
 import { Button } from "@components/ui/button";
 import SafeImage from "@components/ui/safe-image";
-// TODO(structure): a shared ui primitive importing a feature hook is a ui→feature
-// coupling. Consider lifting the unread-badge wiring up to the sidebar's consumer
-// and passing the count in as a prop.
 import { useSupportUnread } from "@features/support";
 import {
   LayoutDashboard,
@@ -65,23 +59,7 @@ const SidebarLogo = () => {
 };
 
 const LogoutButton = () => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
-  const logoutMutation = useMutation({
-    mutationFn: () => authAPI.logout(),
-    onSuccess: () => {
-      dispatch(logout());
-      queryClient.clear();
-      navigate("/");
-    },
-    onError: () => {
-      dispatch(logout());
-      queryClient.clear();
-      navigate("/");
-    },
-  });
+  const logoutMutation = useLogout();
 
   return (
     <Button
@@ -103,27 +81,6 @@ const SidebarBadge = ({ count }) =>
     </span>
   ) : null;
 
-/**
- * Nav item, styled after the public header's command bar (`.fx-cmd-*` in
- * Header.css) so the dashboard reads as the same product.
- *
- * Taken from it: the accent gradient pill fading downward, the inner hairline,
- * the outer glow, the periwinkle icons that gain a drop-shadow, and the
- * blue -> violet edge bar (there a glowing underline, here rotated to a left
- * edge). Those values are matched, not approximated.
- *
- * Deliberately NOT taken:
- *   - the recessed container. That bar's look comes from being a well with
- *     items floating in it; wrapping the sidebar in one would re-block the
- *     backdrop we just made flow through it.
- *   - uppercase labels. Fine for 5 items in a row, but this list is 13-15 items
- *     stacked, and all-caps removes word-shape recognition, which is what makes
- *     a vertical list scannable. Caps stay on the section headers only.
- *   - the sliding hover spotlight. In the header it is the ONLY highlight
- *     (`onMouseEnter={moveSpot}` — it tracks the cursor, it does not show the
- *     current page). A sidebar has to show where you are, and a bar racing up
- *     and down 15 items would compete with that.
- */
 const ITEM_BASE = [
   "nav-item group/nav flex items-center rounded-md px-3 py-2.5 text-sm font-medium",
   "outline-none transition-[color,background-color,box-shadow] duration-200 ease-out",
@@ -131,41 +88,13 @@ const ITEM_BASE = [
   "pointer-coarse:min-h-11",
 ];
 
-// The pill, hairline, glow and left edge bar live in index.css under
-// `.nav-item` — see the note there on why they cannot be Tailwind arbitrary
-// values. NavLink already sets aria-current="page" on the active route, so the
-// stylesheet keys off that: the accessible attribute IS the styling hook, and
-// the two can never disagree.
 const ITEM_ACTIVE = ["text-fg"];
 
 const ITEM_IDLE = [
   "text-fg-muted hover:bg-surface-2/60 hover:text-fg",
 ];
 
-const SidebarItem = ({ to, icon: Icon, children, onClick, badge = 0 }) => {
-  const icon = Icon && (
-    <Icon
-      aria-hidden="true"
-      className={cn(
-        "mr-3 size-5 shrink-0 transition-[color,filter] duration-200 ease-out",
-        // Periwinkle at rest, full accent + glow on hover — the header's
-        // drop-shadow(0 0 6px) treatment.
-        "text-accent-on-dark/70",
-        "group-hover/nav:text-accent-on-dark group-hover/nav:[filter:drop-shadow(0_0_6px_var(--accent))]"
-      )}
-    />
-  );
-
-  if (onClick) {
-    return (
-      <button type="button" onClick={onClick} className={cn(ITEM_BASE, ITEM_IDLE, "w-full text-left")}>
-        {icon}
-        {children}
-        <SidebarBadge count={badge} />
-      </button>
-    );
-  }
-
+const SidebarItem = ({ to, icon: Icon, children, badge = 0 }) => {
   return (
     <NavLink
       to={to}
@@ -192,13 +121,8 @@ const SidebarItem = ({ to, icon: Icon, children, onClick, badge = 0 }) => {
   );
 };
 
-/**
- * Group heading. This is where the header bar's uppercase micro-type belongs —
- * a handful of headings, not every item.
- */
 const SidebarSection = ({ label, children }) => (
   <div className="pt-4">
-    {/* Hairline that fades at both ends, as between the header's nav items. */}
     <div aria-hidden="true" className="nav-divider mb-2" />
     {label && (
       <p className="px-3 pb-1 text-[11px] font-semibold tracking-[0.07em] text-fg-subtle uppercase">
@@ -212,10 +136,8 @@ const SidebarSection = ({ label, children }) => (
 export const AdminSidebar = () => {
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-transparent">
-      {/* Logo at Top */}
       <SidebarLogo />
 
-      {/* Scrollable Menu */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
         <SidebarItem to="/admin/dashboard" icon={LayoutDashboard}>
           Dashboard
@@ -309,7 +231,6 @@ export const AdminSidebar = () => {
         </SidebarItem>
       </nav>
 
-      {/* Logout Button at Bottom */}
       <div className="shrink-0 border-t border-border p-4">
         <LogoutButton />
       </div>
@@ -321,10 +242,8 @@ export const SellerSidebar = () => {
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-transparent">
-      {/* Logo at Top */}
       <SidebarLogo />
 
-      {/* Scrollable Menu */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
         <SidebarItem to="/seller/dashboard" icon={LayoutDashboard}>
           Dashboard
@@ -378,7 +297,6 @@ export const SellerSidebar = () => {
         </SidebarSection>
       </nav>
 
-      {/* Logout Button at Bottom */}
       <div className="shrink-0 border-t border-border p-4">
         <LogoutButton />
       </div>
@@ -387,21 +305,12 @@ export const SellerSidebar = () => {
 };
 
 export const UserSidebar = () => {
-  const { roles } = useSelector((state) => state.auth);
   const supportUnread = useSupportUnread();
-  const normalizedRoles = roles?.map((r) => r.toLowerCase()) || [];
-  const isSeller = normalizedRoles.includes("seller");
-  const explicitAccess = typeof window !== 'undefined' && sessionStorage.getItem('allowCustomerAccess') === 'true';
-  if (isSeller && !explicitAccess) {
-    return null;
-  }
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-transparent">
-      {/* Logo at Top */}
       <SidebarLogo />
 
-      {/* Scrollable Menu */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
         <SidebarItem to="/user/dashboard" icon={LayoutDashboard}>
           Dashboard
@@ -447,7 +356,6 @@ export const UserSidebar = () => {
         </SidebarItem>
       </nav>
 
-      {/* Logout Button at Bottom */}
       <div className="shrink-0 border-t border-border p-4">
         <LogoutButton />
       </div>

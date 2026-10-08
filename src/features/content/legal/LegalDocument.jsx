@@ -1,8 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Building2, CalendarDays, Clock3, FileText, Link2, Mail, RefreshCw, Scale } from 'lucide-react';
+import { ArrowRight, Building2, CalendarDays, CircleAlert, Clock3, FileText, Link2, Mail, RefreshCw, Scale } from 'lucide-react';
 import { useSEO } from '@/hooks/useSEO';
 import { Button } from '@components/ui/button';
+import { Skeleton } from '@components/ui/skeleton';
 import { cn } from '@lib/utils';
 import { HUD_LABEL, HUD_VALUE } from '@lib/surface';
 import { collectAnchors, estimateReadingMinutes, padNum, sectionAnchor } from './anchors';
@@ -37,7 +38,6 @@ const LegalHero = ({ doc }) => (
     <div aria-hidden="true" className="pointer-events-none absolute -top-32 -right-24 size-80 rounded-full bg-accent/20 blur-3xl" />
     <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-24 size-72 rounded-full bg-accent-2/10 blur-3xl" />
 
-    {/* `relative` lifts the copy above the absolutely-positioned glows. */}
     <div className="relative">
       <p className={cn(HUD_LABEL, 'flex items-center gap-2')}>
         <Scale className="size-3.5" aria-hidden="true" />
@@ -110,8 +110,6 @@ const LegalSection = ({ section }) => {
           <span className="sr-only">Section {section.num}: </span>
           {section.title}
         </h2>
-        {/* Permalink for sharing a clause ("see section 6.3"). Hover-revealed,
-            so it is hidden outright on touch, where hover never happens. */}
         <a
           href={`#${id}`}
           aria-label={`Link to section ${section.num}`}
@@ -176,33 +174,48 @@ const LegalFooter = ({ doc }) => {
   );
 };
 
-/**
- * One renderer for every legal page (Terms, Privacy, Refund, Fee Schedule,
- * Vendor Terms). Pages pass a document from ./documents — the copy is data, so
- * a policy update is a text edit, never a layout change.
- */
+const LegalDocumentSkeleton = () => (
+  <article aria-busy="true" className="mx-auto w-full max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
+    <span className="sr-only">Loading the current figures</span>
+    <Skeleton className="h-72 rounded-2xl" />
+    <Skeleton className="h-24 rounded-2xl" />
+    <Skeleton className="h-96 rounded-2xl" />
+  </article>
+);
+
+const FiguresUnavailableNotice = () => (
+  <p
+    role="status"
+    className="mt-6 flex items-start gap-2 rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-fg"
+  >
+    <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+    <span>
+      We could not load the current fees and time periods, so this page shows the figures it was drafted with. The
+      fees that apply to your purchase are always shown at checkout before you pay.
+    </span>
+  </p>
+);
+
 const LegalDocument = ({ doc: source }) => {
-  // The figures are admin-configurable, so the document is resolved once here and
-  // every consumer below — headings, the table of contents, the SEO description,
-  // the body — reads the same number. Resolving per component would let the
-  // summary tile and the clause under it disagree.
-  const figures = useLegalFigures();
+  const { figures, status } = useLegalFigures();
   const doc = useMemo(() => resolveDocument(source, figures), [source, figures]);
+  const ready = status !== 'loading';
 
-  useSEO({ ...doc.seo, canonical: doc.path, useDefaults: false });
+  useSEO({ ...doc.seo, canonical: doc.path });
 
-  // Deep links such as /refund-policy#section-6-3: the browser tries the jump at
-  // page load, before this lazy route has rendered, and misses. Retry once the
-  // sections exist.
   useEffect(() => {
+    if (!ready) return;
     const id = window.location.hash.slice(1);
     if (id) document.getElementById(id)?.scrollIntoView();
-  }, []);
+  }, [ready]);
+
+  if (!ready) return <LegalDocumentSkeleton />;
 
   return (
     <LegalAnchorsContext.Provider value={collectAnchors(doc.sections)}>
       <article className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
         <LegalHero doc={doc} />
+        {status === 'fallback' && <FiguresUnavailableNotice />}
         {doc.highlights && <Highlights items={doc.highlights} />}
 
         <div className="mt-8 grid gap-6 lg:mt-10 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">

@@ -28,7 +28,6 @@ const STATUS_FILTERS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-/** Seller-facing money for one order: their lines only, net of refunds. */
 const sellerTotals = (order) => {
   const items = order.items || [];
   const sum = (fn) => items.reduce((acc, item) => acc + fn(item), 0);
@@ -39,21 +38,6 @@ const sellerTotals = (order) => {
   };
 };
 
-/**
- * Seller order list.
- *
- * Money here is SETTLEMENT money — what this seller is owed, in USD — so it uses
- * `formatUSD`, not the buyer's display-currency hook. Rendering a payout in EUR
- * because the viewer once picked EUR in the header would misstate earnings.
- *
- * Nine columns do not fit a phone. Below `md` each order becomes a stacked card
- * instead of scrolling sideways.
- *
- * Deliberately NOT virtualised: this list is server-paginated at ten rows, so a
- * virtualiser would add a scroll container and break native table semantics to
- * window ten items. Virtualisation is applied where the row count is actually
- * unbounded — see the seller inventory screen.
- */
 const SellerOrders = () => {
   const { formatSettlement } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -88,8 +72,6 @@ const SellerOrders = () => {
     placeholderData: keepPreviousData,
   });
 
-  // Phase 6 / Step 12 PART C — a refund shifts this order's net total AND the
-  // seller's balance, so both caches have to go.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const onRefundExecuted = () => {
@@ -171,7 +153,6 @@ const SellerOrders = () => {
             />
           ) : (
             <>
-              {/* ── Desktop table ─────────────────────────────────────── */}
               <div className="hidden md:block">
                 <Table variant="hud">
                   <TableHeader>
@@ -234,7 +215,6 @@ const SellerOrders = () => {
                 </Table>
               </div>
 
-              {/* ── Mobile cards ──────────────────────────────────────── */}
               <div className="md:hidden">
                 {ordersQuery.isPending ? (
                   <CardListSkeleton rows={5} />

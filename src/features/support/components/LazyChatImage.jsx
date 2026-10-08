@@ -1,19 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ImageIcon } from 'lucide-react';
 
-/**
- * Lazily-loaded chat thumbnail. The real <img> src is only attached once the
- * element scrolls into view (IntersectionObserver), so a long thread with many
- * images doesn't fetch them all at once. A blurred placeholder is shown until
- * the image decodes; clicking opens the full-size lightbox.
- *
- * Optimistic previews (local blob: URLs) are treated as already in-view so the
- * user sees their upload instantly.
- */
 const LazyChatImage = ({ src, alt = 'Attachment', onOpen, className = '' }) => {
   const isLocal = typeof src === 'string' && src.startsWith('blob:');
   const ref = useRef(null);
-  // Local previews and environments without IntersectionObserver start in-view.
   const [inView, setInView] = useState(() => isLocal || typeof IntersectionObserver === 'undefined');
   const [loaded, setLoaded] = useState(false);
 
@@ -43,7 +33,6 @@ const LazyChatImage = ({ src, alt = 'Attachment', onOpen, className = '' }) => {
       style={{ minWidth: '8rem', minHeight: '6rem' }}
       title="Click to view full size"
     >
-      {/* Blur / skeleton placeholder */}
       {!loaded && (
         <span className="absolute inset-0 flex items-center justify-center animate-pulse bg-surface-2/40">
           <ImageIcon className="h-6 w-6 text-fg-muted" />
