@@ -2,13 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   keyRowErrors,
   parseImportedRows,
+  parseJsonRows,
   rowsFromMatrix,
   rowIdentity,
   sampleFileContent,
 } from './inventoryRows';
-
-// A spreadsheet arrives as rows of cells (SheetJS `header: 1`). It has to end up
-// exactly where a CSV of the same data would, header row and all.
 
 describe('rowsFromMatrix — an uploaded spreadsheet', () => {
   it('maps account columns in upload order', () => {
@@ -118,5 +116,47 @@ describe('row identity and validation', () => {
   it('names the type in a key error', () => {
     expect(keyRowErrors('ab', 'GIFT')[0]).toMatch(/Gift code is too short/);
     expect(keyRowErrors('', 'ACTIVATION_LINK')[0]).toMatch(/activation link is empty/);
+  });
+});
+
+describe('parseJsonRows — an uploaded .json file', () => {
+  it('reads a pretty-printed array of keys without quotes or commas', () => {
+    const prettyFile = ['[', '  "ABCD-EFGH-IJKL",', '  "MNOP-QRST-UVWX"', ']'].join('\n');
+    const { rows, errors } = parseJsonRows(prettyFile, 'LICENSE_KEY');
+    expect(errors).toEqual([]);
+    expect(rows).toEqual(['ABCD-EFGH-IJKL', 'MNOP-QRST-UVWX']);
+  });
+
+  it('names the items that are not keys', () => {
+    const { rows, errors } = parseJsonRows('["ABCD-EFGH-IJKL", 42, "abc"]', 'LICENSE_KEY');
+    expect(rows).toEqual(['ABCD-EFGH-IJKL']);
+    expect(errors[0]).toMatch(/^Item 2: expected a/);
+    expect(errors[1]).toMatch(/^Item 3: .*too short/);
+  });
+
+  it('refuses a key file that is not JSON instead of uploading its lines', () => {
+    const { rows, errors } = parseJsonRows(['"ABCD-EFGH-IJKL",', '"MNOP-QRST-UVWX"'].join('\n'), 'LICENSE_KEY');
+    expect(rows).toEqual([]);
+    expect(errors[0]).toMatch(/not valid JSON/);
+  });
+
+  it('reads an array of account objects', () => {
+    const account = {
+      usernameId: 'gamerTag', usernamePassword: 'p1', email: 'a@example.com',
+      emailPassword: 'p2', hostEmail: 'h@example.com',
+    };
+    const { rows, errors } = parseJsonRows(JSON.stringify([account, account], null, 2), 'ACCOUNT_BASED');
+    expect(errors).toEqual([]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject(account);
+  });
+
+  it('still accepts one account object per line', () => {
+    const line = JSON.stringify({
+      usernameId: 'u', usernamePassword: 'p', email: 'a@example.com', emailPassword: 'q', hostEmail: 'h@example.com',
+    });
+    const { rows, errors } = parseJsonRows([line, line.replace('"u"', '"v"')].join('\n'), 'ACCOUNT_BASED');
+    expect(errors).toEqual([]);
+    expect(rows.map((r) => r.usernameId)).toEqual(['u', 'v']);
   });
 });

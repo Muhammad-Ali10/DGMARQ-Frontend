@@ -1,13 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-// Callback to clear query cache on logout — set from main.jsx
-let onLogoutCallback = null;
-export const setOnLogoutCallback = (cb) => { onLogoutCallback = cb; };
-
-// SECURITY FIX (#5): tokens now live ONLY in httpOnly cookies, which JS cannot
-// read. We persist only the non-sensitive user profile for fast UI hydration.
-// Authorization is proven by the cookie on each request; the server is the
-// source of truth (verify-token / getProfile).
 const loadInitialState = () => {
   const userStr = localStorage.getItem('user');
   if (userStr) {
@@ -31,7 +23,6 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     setCredentials: (state, action) => {
-      // Accept { user } — tokens are no longer passed around the client.
       const { user } = action.payload;
       const userData = Array.isArray(user) ? user[0] : user;
 
@@ -42,16 +33,11 @@ const authSlice = createSlice({
       state.user = userData;
       state.roles = roles;
       state.isAuthenticated = true;
-      // Persistence is handled by a store subscription (see store.js) so that
-      // reducers stay pure and free of side effects. Only the profile is
-      // cached there — NEVER tokens.
     },
     logout: (state) => {
       state.user = null;
       state.roles = [];
       state.isAuthenticated = false;
-      // Clearing of the cached user is handled by the store subscription.
-      if (onLogoutCallback) onLogoutCallback();
     },
     updateUser: (state, action) => {
       const merged = { ...state.user, ...action.payload };
@@ -61,11 +47,9 @@ const authSlice = createSlice({
           ? merged.roles.map((r) => String(r).toLowerCase())
           : merged.role ? [String(merged.role).toLowerCase()] : ['customer'];
       }
-      // Persistence is handled by the store subscription.
     },
   },
 });
 
-// `setToken` removed — there is no client-side token to set anymore.
 export const { setCredentials, logout, updateUser } = authSlice.actions;
 export default authSlice.reducer;

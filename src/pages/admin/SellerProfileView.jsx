@@ -5,6 +5,7 @@ import { adminAPI } from '@services/api';
 import { Button } from '@components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Badge } from '@components/ui/badge';
+import { StatusBadge } from '@components/common/StatusBadge';
 import { Label } from '@components/ui/label';
 import { Textarea } from '@components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
@@ -16,8 +17,6 @@ import { formatDate } from '@lib/datetime';
 import { useTaxIdCatalog, taxIdLabel, SELLER_TYPE_LABELS } from '@features/seller';
 import useCurrency from '@hooks/useCurrency';
 
-// Date-only values (DOB, statement date) are stored as UTC midnight; reading
-// them in the viewer's zone would show the previous day west of Greenwich.
 const formatDateOnly = (value) =>
   value ? new Date(value).toLocaleDateString(undefined, { timeZone: 'UTC' }) : 'N/A';
 
@@ -27,8 +26,6 @@ const KYC_DECISION_MESSAGE = {
   under_review: 'KYC marked as under review',
 };
 
-// Renders a verification document tile. Image documents show a clickable
-// thumbnail; PDFs/other show an icon. Clicking opens the file full-size.
 const isImageUrl = (url = '') => /\.(png|jpe?g|gif|webp|avif|bmp|svg)(\?|$)/i.test(url);
 
 const DocumentTile = ({ url, label }) => {
@@ -80,7 +77,6 @@ const SellerProfileView = () => {
   const queryClient = useQueryClient();
   const [kycRejectOpen, setKycRejectOpen] = useState(false);
   const [kycRejectReason, setKycRejectReason] = useState('');
-  // Only used to label the stored tax-ID type code.
   const { data: taxCatalog } = useTaxIdCatalog();
 
   const kycMutation = useMutation({
@@ -101,19 +97,8 @@ const SellerProfileView = () => {
   const stats = sellerData?.stats || {};
   const isBusiness = seller?.sellerType === 'business';
   const kycStatus = seller?.kycStatus || 'not_submitted';
-  // Nothing to review without documents, and a closed account's were erased.
   const canReviewKyc = kycStatus !== 'not_submitted' && seller?.status !== 'closed';
-  // For a business, the identity fields belong to its director / beneficial owner.
   const ownerPrefix = isBusiness ? 'Director / UBO — ' : '';
-
-  const getStatusBadge = (status) => {
-    const variants = {
-      pending: 'warning',
-      active: 'success',
-      banned: 'destructive',
-    };
-    return <Badge variant={variants[status] || 'default'} className="text-sm px-3 py-1">{status.toUpperCase()}</Badge>;
-  };
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -132,10 +117,9 @@ const SellerProfileView = () => {
             <p className="text-sm sm:text-base text-gray-400 mt-1">Complete seller information and statistics</p>
           </div>
         </div>
-        {getStatusBadge(seller?.status)}
+        <StatusBadge domain="sellerAccount" status={seller?.status} className="text-sm px-3 py-1" />
       </div>
 
-      {/* Seller Header Card */}
       <Card variant="hud">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-6">
@@ -183,7 +167,6 @@ const SellerProfileView = () => {
         </CardContent>
       </Card>
 
-      {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card variant="hud">
           <CardContent className="p-6">
@@ -225,7 +208,7 @@ const SellerProfileView = () => {
               <div>
                 <p className="text-gray-400 text-sm">Dispute Rate</p>
                 <p className="text-2xl sm:text-3xl font-bold text-white mt-2">{stats.disputeRate ?? 0}%</p>
-                <p className="text-xs text-gray-400 mt-1">{stats.disputeCount ?? 0} disputes / {stats.totalOrders ?? 0} orders</p>
+                <p className="text-xs text-gray-400 mt-1">{stats.disputeCount ?? 0} disputed / {stats.totalOrders ?? 0} orders</p>
               </div>
               <AlertTriangle className="h-10 w-10 text-orange-500" />
             </div>
@@ -233,9 +216,7 @@ const SellerProfileView = () => {
         </Card>
       </div>
 
-      {/* Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Shop Information */}
         <Card variant="hud">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -266,12 +247,6 @@ const SellerProfileView = () => {
               <Label className="text-gray-400 text-sm">City</Label>
               <p className="text-white mt-1">{seller?.city || 'N/A'}</p>
             </div>
-            {/*
-              Phase 6: legacy "Min Payout Amount" tile removed. The withdrawal
-              minimum is now an admin-wide platform setting (Admin Settings ->
-              "Minimum withdrawal amount"), enforced by withdrawal.service.js.
-              Per-seller overrides are no longer supported.
-            */}
             <div>
               <Label className="text-gray-400 text-sm">Auto Release Payouts</Label>
               <p className="text-white mt-1">{seller?.payoutAutoRelease ? 'Yes' : 'No'}</p>
@@ -279,7 +254,6 @@ const SellerProfileView = () => {
           </CardContent>
         </Card>
 
-        {/* User Information */}
         <Card variant="hud">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -320,7 +294,6 @@ const SellerProfileView = () => {
         </Card>
       </div>
 
-      {/* Identity & KYC Verification */}
       <Card variant="hud">
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -436,7 +409,6 @@ const SellerProfileView = () => {
             </div>
           )}
 
-          {/* Verification documents */}
           {(() => {
             const docs = [
               { label: `${isBusiness ? 'Director ID' : 'ID'} — Front`, url: seller?.idFrontImage },
@@ -461,7 +433,6 @@ const SellerProfileView = () => {
         </CardContent>
       </Card>
 
-      {/* Shop Banner */}
       {seller?.shopBanner && (
         <Card variant="hud">
           <CardHeader>
@@ -480,7 +451,6 @@ const SellerProfileView = () => {
         </Card>
       )}
 
-      {/* KYC Documents */}
       {seller?.kycDocs && seller.kycDocs.length > 0 && (
         <Card variant="hud">
           <CardHeader>
@@ -499,7 +469,6 @@ const SellerProfileView = () => {
         </Card>
       )}
 
-      {/* KYC rejection needs a reason — the backend refuses one without it. */}
       <Dialog open={kycRejectOpen} onOpenChange={setKycRejectOpen}>
         <DialogContent size="sm">
           <DialogHeader>

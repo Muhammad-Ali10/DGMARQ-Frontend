@@ -1,10 +1,5 @@
-
 import { cn } from "@/lib/utils"
 
-// Matched to Input: same surface, same border token, same hover/focus ladder.
-// The stock version carried `dark:` variants that never applied (this app has
-// no `.dark` class on the root) and had no hover state at all — nothing
-// happened until the field took focus.
 function Textarea({
   className,
   ...props

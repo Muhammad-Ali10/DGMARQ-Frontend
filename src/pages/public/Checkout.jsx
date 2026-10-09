@@ -1,38 +1,25 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { cartAPI, checkoutAPI, couponAPI, subscriptionAPI, walletAPI } from '@services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
+import { Card, CardContent } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import {
   PaymentModal, CheckoutSteps, SellerAvatar, PaymentLogos, toCartItems,
   getGuestCart, clearGuestCart, removeFromGuestCart, updateGuestCartQuantity, useGuestCart, useGuestCartView,
-  RegionPills, ActivationLine, productTypeLabel, DEVICE_FALLBACK,
+  RegionPills, ActivationLine, productTypeLabel, DEVICE_FALLBACK, settlePayment,
 } from '@features/cart-checkout';
 import {
-  ShoppingCart, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles, CreditCard,
+  ShoppingCart, CheckCircle2, AlertCircle, Loader2, Sparkles, CreditCard,
   ChevronLeft, ChevronDown, Trash2, Check, ShieldCheck, Lock, Tag, Wallet, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import SafeImage from '@components/ui/safe-image';
+import { formatReleaseDate } from '@components/common/PreorderBadge';
 import useCurrency from '@hooks/useCurrency';
 import useBuyerCountry from '@hooks/useBuyerCountry';
 import { resolveOfferAvailability, isBuyerCompatible } from '@lib/regionCompat';
-
-// ── Checkout page — ported from the v74 mockup (`co-*`) ──────────────────────
-// The mockup is a fixed overlay; this is a real route, so the overlay chrome
-// (fixed positioning, close button) is dropped and the inner layout kept. The
-// stepper lives in <CheckoutSteps>, the payment modal in <PaymentModal>, so the
-// mockup's `co-steps`/`pm-*` rules are deliberately not ported.
-//
-// The mockup's media queries are max-width, Tailwind's are min-width, so the
-// base classes carry the SMALL-screen values and `min-[961px]:` / `min-[561px]:`
-// / `min-[521px]:` restore the desktop ones. None is a stock Tailwind
-// breakpoint — the arbitrary variants are what keep the flip points exact.
-// Keyframes (coPlusBorder 7s, coPlusDot 1.8s) live once in index.css `@theme`,
-// exposed as `animate-co-plus-border` / `animate-co-plus-dot` at their default
-// durations, so no per-element `[animation-duration]` override is needed here.
 
 const WRAP = "relative z-[1] mx-auto max-w-[1200px] px-[22px] pt-[26px] pb-[80px]";
 const BACK =
@@ -42,25 +29,18 @@ const HEAD = "mb-[20px] flex flex-wrap items-end justify-between gap-[16px]";
 const HEAD_H1 =
   "m-0 flex items-center gap-[12px] text-[30px] font-extrabold tracking-[-0.4px] text-white [&_svg]:text-[#3a9bf5]";
 
-// Panel shell — the translucent navy card the whole page is built from.
 const PANEL =
   "mb-[20px] rounded-[16px] border border-[rgba(58,116,240,0.24)] " +
   "bg-[linear-gradient(160deg,rgba(12,20,48,0.9),rgba(8,13,30,0.85))] p-[24px]";
 const PANEL_H = "m-0 mb-[20px] text-[24px] font-extrabold tracking-[-0.3px] text-white";
-// `.sm` shrinks the heading to 20px and its gap to 18px; letter-spacing inherits.
 const PANEL_H_SM = "m-0 mb-[18px] text-[20px] font-extrabold tracking-[-0.3px] text-white";
 
-// ── left: cart item cards ──
-// Rows are divided by a top hairline; the first row drops it (v74).
-// When the offer region is incompatible the row gets a red left accent bar,
-// rounded corners, and a subtle red border so the conflict stands out.
 const citemCls = (regionBad) =>
   "relative flex gap-[16px] py-[18px] first:pt-[2px] " +
   (regionBad
     ? "rounded-[12px] border border-[rgba(255,107,107,0.35)] bg-[rgba(255,50,50,0.04)] my-[6px] px-[14px] " +
       "before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:rounded-l-[12px] before:bg-[linear-gradient(180deg,#e23030,#f76060)] before:content-[''] "
     : "border-t border-white/[0.08] first:border-t-0 ");
-// Thumb is 150px wide on desktop, 104px under the mockup's 520px breakpoint.
 const CTHUMB =
   "relative flex h-[132px] w-[104px] shrink-0 items-center justify-center overflow-hidden " +
   "rounded-[12px] border border-white/[0.08] bg-[linear-gradient(135deg,#12245a,#0a1a44)] " +
@@ -72,8 +52,6 @@ const SPEC_K = "text-[12.5px] text-white/45";
 const SPEC_V = "flex flex-wrap items-center gap-[5px] text-[12.5px] font-semibold text-white";
 const CSOLD =
   "inline-flex items-center gap-[7px] text-[12.5px] text-white/55 [&_strong]:font-bold [&_strong]:text-white";
-// Seller rating — the amber glow + inset em is the mockup's signature (v74).
-// No font-size here: it inherits `.co-csold`'s 12.5px, only the `em` drops to 10.5px.
 const SELLER_RATING =
   "ml-[3px] inline-flex items-center gap-[3px] font-bold text-[#f58e2a] [text-shadow:0_0_14px_rgba(245,142,42,0.5)] " +
   "[&_svg]:shrink-0 [&_svg]:[filter:drop-shadow(0_0_4px_rgba(245,142,42,0.55))] " +
@@ -83,16 +61,12 @@ const CQTY_BTN =
   "text-[18px] text-[#7fb4ff] [transition:background_0.15s] " +
   "enabled:hover:bg-[rgba(14,81,226,0.2)] disabled:cursor-not-allowed disabled:opacity-[0.35]";
 
-// ── email field ── (border-color is set inline so the error state can swap it)
 const FIELD_INPUT =
   "h-[46px] w-full rounded-[10px] border bg-white/[0.04] px-[14px] font-inherit text-[14px] text-white " +
   "outline-none [transition:border-color_0.2s] placeholder:text-white/35 " +
   "focus:border-[rgba(58,155,245,0.65)] focus:shadow-[0_0_0_3px_rgba(14,81,226,0.15)] " +
   "disabled:cursor-default disabled:text-white/75";
 
-// ── DGMARQ Plus join panel ──
-// The 1.5px animated gradient border runs the shared 7s `coPlusBorder` sweep;
-// `group` lets the inner CTA brighten on hover of the whole card (v74).
 const CO_PLUS =
   "group relative mb-[20px] block overflow-hidden rounded-[16px] p-[1.5px] no-underline " +
   "bg-[linear-gradient(120deg,#172aa4,#650eb3,#172aa4)] [background-size:220%_220%] " +
@@ -112,7 +86,6 @@ const CO_PLUS_SPARK =
   "[&_svg]:[filter:drop-shadow(0_0_5px_rgba(255,255,255,0.7))]";
 const CO_PLUS_KICKER =
   "mb-[3px] inline-flex items-center gap-[5px] text-[9.5px] font-extrabold uppercase tracking-[0.14em] text-[#c9b0ff]";
-// The gradient-clipped `em` is the "DGMARQ Plus" wordmark (v74).
 const CO_PLUS_H =
   "m-0 text-[15.5px] font-extrabold leading-[1.25] tracking-[-0.2px] text-white " +
   "[&_em]:not-italic [&_em]:bg-[linear-gradient(90deg,#9d7bff,#5ea2ff)] [&_em]:bg-clip-text [&_em]:text-transparent";
@@ -123,7 +96,6 @@ const CO_PLUS_CTA =
   "shadow-[0_6px_18px_rgba(123,47,247,0.5),inset_0_1px_0_rgba(255,255,255,0.25)] " +
   "[transition:filter_0.18s] group-hover:brightness-[1.12]";
 
-// ── right: summary ──
 const CO_PROCEED =
   "mb-[20px] flex h-[56px] w-full cursor-pointer items-center justify-center gap-[9px] rounded-[12px] border-none " +
   "bg-[linear-gradient(120deg,#0e51e2,#7b2ff7)] font-inherit text-[17px] font-extrabold tracking-[0.3px] text-white " +
@@ -133,12 +105,9 @@ const CO_PROCEED =
   "disabled:cursor-not-allowed disabled:opacity-50 disabled:filter-none";
 const CO_LINE = "flex items-center justify-between text-[14px] text-white/60";
 const CO_LINE_V = "text-[15px] font-bold text-white";
-// Fee tooltip dot — deliberately NO margin-left: the `.lbl` flex `gap:5px`
-// already spaces it, and a margin stacked on top made it 10px, not 5px (v74 fix).
 const INFO =
   "inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-white/30 text-[9px] italic text-white/50";
 
-// ── discount accordion ──
 const PROMO_INPUT =
   "h-[44px] min-w-0 flex-1 rounded-[10px] border border-white/[0.16] bg-white/[0.04] px-[14px] " +
   "font-inherit text-[13.5px] text-white outline-none [transition:border-color_0.2s] focus:border-[rgba(58,155,245,0.6)]";
@@ -148,19 +117,10 @@ const PROMO_BTN =
   "enabled:hover:brightness-[1.12] disabled:cursor-not-allowed disabled:opacity-60";
 const PROMO_MSG = "min-h-[18px] px-[2px] py-[4px] text-[12.5px] font-semibold";
 
-// ── trust ──
 const TRUST_ROW = "flex items-center gap-[9px] text-[12px] text-white/60 [&_svg]:shrink-0";
 
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
-// REMOVED (B1): `SUBSCRIPTION_DISCOUNT_RATE = 0.02`.
-//
-// Its comment claimed to mirror a backend constant that does not exist. The
-// real rate is platformConfig.getPlusDiscountPercent() — 5 by default and
-// admin-configurable — so this page previewed a 2% discount while the server
-// charged 5%, and the total shown was never the total taken. There is no
-// replacement constant on purpose: the rate is never a client-side value now,
-// it arrives inside GET /checkout/preview.
 const SUBSCRIPTION_PRICE_LABEL = 'US$9.99/mo';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -168,13 +128,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const Checkout = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const { format: formatPrice, currency: displayCurrency } = useCurrency();
   const { country } = useBuyerCountry();
-
-  const checkoutId = searchParams.get('checkoutId');
-  const paymentStatus = searchParams.get('status');
 
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -184,6 +140,7 @@ const Checkout = () => {
   const [termsError, setTermsError] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [currentCheckoutId, setCurrentCheckoutId] = useState(null);
+  const [chargeTotal, setChargeTotal] = useState(null);
   const [guestEmail, setGuestEmail] = useState('');
   const [guestEmailError, setGuestEmailError] = useState('');
   const [useWalletPay, setUseWalletPay] = useState(false);
@@ -191,21 +148,11 @@ const Checkout = () => {
   const [guestCartItems, setGuestCartItems] = useGuestCart(isAuthenticated);
   const guestView = useGuestCartView(guestCartItems, !isAuthenticated);
 
-  // ONE shared ["cart"] query — same key/shape the Header + mini-cart use, so
-  // react-query serves all of them from a single fetch.
   const { data: cart, isLoading: cartLoading, isError: cartError } = useQuery({
     queryKey: ['cart'],
     queryFn: () => cartAPI.getCart().then(res => res.data.data),
-    enabled: isAuthenticated && !checkoutId,
+    enabled: isAuthenticated,
     staleTime: 30_000,
-    retry: false,
-  });
-
-
-  const { data: checkout, isLoading: checkoutLoading } = useQuery({
-    queryKey: ['checkout', checkoutId],
-    queryFn: () => checkoutAPI.getCheckoutStatus(checkoutId).then(res => res.data.data),
-    enabled: !!checkoutId,
     retry: false,
   });
 
@@ -216,16 +163,6 @@ const Checkout = () => {
     retry: false,
   });
 
-  // M20: Plus points, surfaced HERE rather than only on the Plus page.
-  //
-  // Points are redeemed into wallet credit, which the wallet payment on this
-  // page then spends. That is a perfectly good mechanism, but it was a two-page
-  // errand: nobody knew the points existed, and reaching them meant leaving
-  // checkout. This shows the balance where the buyer is already standing.
-  //
-  // Deliberately NOT a fourth order-level discount — that would pull points into
-  // the pricing stack, the per-line allocation and the refund paths, which is
-  // new risk on the money path for a UX win we can get without it.
   const { data: pointsData } = useQuery({
     queryKey: ['plus-points'],
     queryFn: () => subscriptionAPI.getMyPoints().then(res => res.data?.data ?? null).catch(() => null),
@@ -237,7 +174,6 @@ const Checkout = () => {
     mutationFn: (points) => subscriptionAPI.redeemPoints(points),
     onSuccess: (res) => {
       toast.success(res.data?.message || 'Points redeemed to your wallet');
-      // The wallet tile and the balance both move, so refresh each.
       queryClient.invalidateQueries({ queryKey: ['plus-points'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
     },
@@ -245,15 +181,11 @@ const Checkout = () => {
       toast.error(error?.response?.data?.message || 'Could not redeem your points'),
   });
 
-  // Whole multiples of the redemption unit only — anything else is rejected
-  // server-side, so offering it would just produce an error.
   const redeemableChunk = pointsData?.pointsPerWalletDollar ?? 100;
   const maxRedeemable = pointsData?.canRedeem
     ? Math.floor(pointsData.balance / redeemableChunk) * redeemableChunk
     : 0;
 
-  // Feeds <PaymentModal>'s wallet tile — the modal owns the wallet flow itself
-  // (it calls payWithWallet, which promotes the session to Wallet server-side).
   const { data: walletData } = useQuery({
     queryKey: ['wallet-balance'],
     queryFn: () => walletAPI.getBalance().then(res => res.data.data),
@@ -277,8 +209,15 @@ const Checkout = () => {
     onError: (error) => toast.error(error.response?.data?.message || 'Failed to update cart'),
   });
 
-  const onCheckoutCreated = (newCheckoutId) => {
-    setCurrentCheckoutId(newCheckoutId);
+  const openPaymentFor = (session) => {
+    setCurrentCheckoutId(session.checkoutId);
+    const serverTotal = Number(session.grandTotal);
+    if (Number.isFinite(serverTotal)) {
+      setChargeTotal(serverTotal);
+      if (Math.abs(serverTotal - grandTotal) >= 0.01) {
+        toast.info(`Your total was updated to $${serverTotal.toFixed(2)} USD.`);
+      }
+    }
     setPaymentModalOpen(true);
   };
 
@@ -286,16 +225,21 @@ const Checkout = () => {
     setCurrentCheckoutId(newCheckoutId);
     setWalletPaying(true);
     try {
-      const res = await checkoutAPI.payWithWallet(newCheckoutId);
-      const payload = res.data.data;
-      const order = payload?.order || payload?.data?.order;
-      const oid = order?._id || newCheckoutId;
+      const outcome = await settlePayment(() => checkoutAPI.payWithWallet(newCheckoutId), newCheckoutId);
+      if (outcome.status === 'failed') {
+        toast.error(outcome.message || 'Wallet payment failed');
+        setUseWalletPay(false);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-balance'] });
-      navigate(`/order-complete/${oid}`, { replace: true });
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Wallet payment failed');
-      setUseWalletPay(false);
+      if (outcome.status === 'pending') {
+        toast.info(outcome.message, { duration: 15000 });
+        navigate('/user/orders', { replace: true });
+        return;
+      }
+      const order = outcome.payload?.data?.order || outcome.payload?.order;
+      navigate(order?._id ? `/order-complete/${order._id}` : '/user/orders', { replace: true });
     } finally {
       setWalletPaying(false);
     }
@@ -304,12 +248,12 @@ const Checkout = () => {
   const createCheckoutMutation = useMutation({
     mutationFn: (data) => checkoutAPI.createCheckoutSession(data),
     onSuccess: (data) => {
-      const newCheckoutId = data.data.data?.checkoutId;
-      if (!newCheckoutId) return;
-      if (useWalletPay && walletBalance >= grandTotal) {
-        onWalletCheckoutCreated(newCheckoutId);
+      const session = data.data.data;
+      if (!session?.checkoutId) return;
+      if (payingByWallet) {
+        onWalletCheckoutCreated(session.checkoutId);
       } else {
-        onCheckoutCreated(newCheckoutId);
+        openPaymentFor(session);
       }
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Could not start checkout'),
@@ -318,25 +262,12 @@ const Checkout = () => {
   const createGuestCheckoutMutation = useMutation({
     mutationFn: (data) => checkoutAPI.createGuestCheckoutSession(data),
     onSuccess: (data) => {
-      const resData = data.data?.data || data.data;
-      const id = resData?.checkoutId;
-      if (id) {
-        setCurrentCheckoutId(id);
-        setPaymentModalOpen(true);
-      }
+      const session = data.data?.data || data.data;
+      if (session?.checkoutId) openPaymentFor(session);
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Could not start checkout'),
   });
 
-  const cancelCheckoutMutation = useMutation({
-    mutationFn: () => checkoutAPI.cancelCheckout(checkoutId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      navigate('/cart');
-    },
-  });
-
-  // ── one render model for both auth (server) and guest (localStorage) lines ──
   const items = isAuthenticated
     ? toCartItems(cart?.items, true)
     : guestView.items.length > 0
@@ -346,7 +277,7 @@ const Checkout = () => {
   const remove = (productId, sellerId) => {
     if (isAuthenticated) removeItemMutation.mutate({ productId, sellerId });
     else {
-      removeFromGuestCart(productId);
+      removeFromGuestCart(productId, sellerId);
       setGuestCartItems(getGuestCart().items);
       toast.success('Item removed from cart');
     }
@@ -355,42 +286,21 @@ const Checkout = () => {
     if (qty <= 0) return remove(productId, sellerId);
     if (isAuthenticated) updateCartMutation.mutate({ productId, sellerId, qty });
     else {
-      updateGuestCartQuantity(productId, qty);
+      updateGuestCartQuantity(productId, sellerId, qty);
       setGuestCartItems(getGuestCart().items);
     }
   };
 
-  // M21: a pre-order cannot share a cart with anything else, so one notice
-  // covers the order. The line chip alone said "PRE-ORDER" without saying what
-  // it costs the buyer — that they pay in full today and receive nothing until
-  // release. This is the last screen before the money moves, which makes it the
-  // one place that has to be explicit.
   const preorderItem = items.find((i) => i.isPreorder);
-  const preorderReleaseLabel = preorderItem?.preorderReleaseDate
-    ? new Date(preorderItem.preorderReleaseDate).toLocaleDateString(undefined, {
-        day: 'numeric', month: 'short', year: 'numeric',
-      })
-    : null;
+  const preorderReleaseLabel = formatReleaseDate(preorderItem?.preorderReleaseDate);
 
-  // ── summary (mirrors the mockup's recalc(): protection is a % of the amount
-  //    AFTER discounts, the processing fee is flat once per order) ──
-  const totalQty = items.reduce((s, i) => s + i.qty, 0);
+  const buyableQty = items.filter((i) => !i.unavailable).reduce((s, i) => s + i.qty, 0);
   const subtotal = isAuthenticated
-    ? cart?.subtotal ?? items.reduce((s, i) => s + i.price * i.qty, 0)
-    : guestView.subtotal || items.reduce((s, i) => s + i.price * i.qty, 0);
+    ? cart?.subtotal ?? items.filter((i) => !i.unavailable).reduce((s, i) => s + i.price * i.qty, 0)
+    : guestView.subtotal || items.filter((i) => !i.unavailable).reduce((s, i) => s + i.price * i.qty, 0);
   const youSave = round2(
     items.reduce((s, i) => s + (i.original && i.original > i.price ? (i.original - i.price) * i.qty : 0), 0)
   );
-  // ── What this order costs ────────────────────────────────────────────────
-  //
-  // AUDIT FIX (B1): for a signed-in buyer the SERVER prices the cart, using the
-  // same `resolveCartPricing` that prices the real checkout session.
-  //
-  // This page used to derive the whole summary itself — bundle, coupon, the Plus
-  // percentage, fees and points — and its Plus rate was a hardcoded 2% while the
-  // server charged 5%. So the total shown here was never the total taken. Fixing
-  // the constant alone would not hold: any future discount could drift the same
-  // way. Reading the server's answer is what removes the possibility.
   const { data: preview } = useQuery({
     queryKey: ['checkout-preview', subtotal, items.length, appliedCoupon?.code ?? null],
     queryFn: () =>
@@ -401,37 +311,41 @@ const Checkout = () => {
     retry: false,
   });
 
-  // GUESTS keep a local calculation: the preview endpoint reads the caller's own
-  // cart and subscription, neither of which a guest has. A guest can never have
-  // the Plus discount — the field this bug was about — so the only thing derived
-  // here is a coupon, which the server re-validates and recomputes at session
-  // creation anyway. Worth revisiting when guest checkout next gets attention.
   const guestCouponBase = round2(Math.max(0, subtotal));
-  const guestCouponDiscount = appliedCoupon
-    ? (appliedCoupon.discountType === 'percentage'
-      ? round2((guestCouponBase * (appliedCoupon.discountValue || 0)) / 100)
-      : Math.min(appliedCoupon.discountAmount || appliedCoupon.discountValue || 0, guestCouponBase))
-    : 0;
+  const couponLines = items
+    .filter((i) => !i.unavailable)
+    .map((i) => ({ productId: i.productId, ...(i.sellerId ? { sellerId: i.sellerId } : {}), lineTotal: round2(i.price * i.qty) }));
+  const couponLinesKey = couponLines.map((l) => `${l.productId}|${l.sellerId || ''}|${l.lineTotal}`).join(',');
+  const checkCoupon = (code, config) =>
+    couponAPI
+      .validateCoupon({ code, orderAmount: guestCouponBase, items: couponLines }, config)
+      .then((res) => res.data?.data?.coupon);
+  const { data: guestCouponCheck, error: guestCouponCheckError } = useQuery({
+    queryKey: ['guest-coupon', appliedCoupon?.code ?? null, couponLinesKey],
+    queryFn: () => checkCoupon(appliedCoupon.code, { skipErrorToast: true }),
+    enabled: !isAuthenticated && !!appliedCoupon,
+    staleTime: Infinity,
+    retry: false,
+  });
+  const guestCouponDiscount = appliedCoupon && !guestCouponCheckError ? guestCouponCheck?.discountAmount ?? 0 : 0;
+  const couponNotice = !appliedCoupon
+    ? ''
+    : isAuthenticated
+      ? preview?.couponError || ''
+      : guestCouponCheckError
+        ? guestCouponCheckError.response?.data?.message || 'This coupon no longer applies to your cart'
+        : '';
+  const couponToSend = appliedCoupon && !couponNotice ? appliedCoupon.code : undefined;
   const guestTotalBeforeFee = round2(Math.max(0, subtotal - guestCouponDiscount));
 
   const bundleDiscount = isAuthenticated ? preview?.bundleDiscount ?? 0 : 0;
   const couponDiscount = isAuthenticated ? preview?.couponDiscount ?? 0 : guestCouponDiscount;
   const subscriptionDiscount = isAuthenticated ? preview?.subscriptionDiscount ?? 0 : 0;
-  // The live, admin-configurable Plus rate — the upsell below must never quote a
-  // literal. 0 while the preview is still loading, which renders as no claim at
-  // all rather than a wrong one.
   const plusDiscountPercent = Number(preview?.plusDiscountPercent) || 0;
-  // No `totalDiscount` local: the summary renders each discount on its own line
-  // (bundle, coupon, Plus) and `totalBeforeFee` now comes from the server, so
-  // there is nothing left for a combined figure to feed. `youSave` above is a
-  // different number — the per-item saving against list price.
   const totalBeforeFee = isAuthenticated
     ? preview?.totalAmount ?? subtotal
     : guestTotalBeforeFee;
 
-  // Public endpoint — guests see the same fees as members. Signed-in buyers get
-  // their fees from the preview instead, so the fees and the discounts they are
-  // computed from always come from one answer.
   const { data: handlingFeeEstimate } = useQuery({
     queryKey: ['handling-fee-estimate', guestTotalBeforeFee],
     queryFn: () => checkoutAPI.getHandlingFeeEstimate(guestTotalBeforeFee).then(res => res.data.data),
@@ -444,26 +358,22 @@ const Checkout = () => {
   const processingFee = isAuthenticated
     ? preview?.processingFee ?? 0
     : handlingFeeEstimate?.processingFee ?? 0;
-  const protectionLabel = handlingFeeEstimate?.protectionLabel ?? null;
+  const protectionLabel = (isAuthenticated ? preview?.protectionLabel : handlingFeeEstimate?.protectionLabel) ?? null;
   const grandTotal = isAuthenticated
     ? preview?.grandTotal ?? totalBeforeFee
     : handlingFeeEstimate?.grandTotal ?? totalBeforeFee;
   const serviceFee = round2(protectionFee + processingFee);
+  const payingByWallet = useWalletPay && walletBalance >= grandTotal;
 
   const validateCouponMutation = useMutation({
-    mutationFn: ({ code, orderAmount }) => couponAPI.validateCoupon({ code, orderAmount }),
-    onSuccess: (response) => {
-      const couponData = response.data?.data?.coupon || response.data?.data;
+    mutationFn: ({ code }) => checkCoupon(code),
+    onSuccess: (couponData) => {
       if (!couponData) {
         setCouponError('Invalid coupon code');
         return;
       }
-      setAppliedCoupon({
-        code: couponData.code,
-        discountType: couponData.discountType,
-        discountValue: couponData.discountValue,
-        discountAmount: couponData.discountAmount || 0,
-      });
+      queryClient.setQueryData(['guest-coupon', couponData.code, couponLinesKey], couponData);
+      setAppliedCoupon({ code: couponData.code });
       setCouponError('');
       toast.success('Coupon applied successfully!');
     },
@@ -480,8 +390,7 @@ const Checkout = () => {
       setCouponError('Please enter a coupon code');
       return;
     }
-    // Coupon must be validated before the subscription discount is applied.
-    validateCouponMutation.mutate({ code: trimmedCode, orderAmount: guestCouponBase });
+    validateCouponMutation.mutate({ code: trimmedCode });
   };
 
   const handleRemoveCoupon = () => {
@@ -509,32 +418,28 @@ const Checkout = () => {
       setGuestEmailError('');
       createGuestCheckoutMutation.mutate({
         guestEmail: email,
-        // sellerId identifies which offer the guest picked — master products are
-        // admin-owned, so the server can't infer the seller from the product.
         items: items.map((i) => ({
           productId: i.productId,
-          productName: i.name,
           qty: i.qty,
           sellerId: i.sellerId || undefined,
         })),
-        couponCode: appliedCoupon?.code || undefined,
-        // M10: what this buyer is reading prices in. The charge stays USD; the
-        // order freezes this so its emails show the same numbers.
+        couponCode: couponToSend,
         displayCurrency,
       });
       return;
     }
 
     createCheckoutMutation.mutate({
-      couponCode: appliedCoupon?.code || undefined,
+      couponCode: couponToSend,
       displayCurrency,
     });
   };
 
   const isStarting = createCheckoutMutation.isPending || createGuestCheckoutMutation.isPending || walletPaying;
+  const unavailableNames = items.filter((i) => i.unavailable).map((i) => i.name);
+  const shortNames = items.filter((i) => i.stockShort).map((i) => i.name);
 
-
-  if ((isAuthenticated && cartLoading) || checkoutLoading) {
+  if (isAuthenticated && cartLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
         <div className="text-center">
@@ -545,7 +450,7 @@ const Checkout = () => {
     );
   }
 
-  if (cartError && !checkoutId) {
+  if (cartError) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center py-12">
         <Card className="bg-[#041536] max-w-md w-full mx-4">
@@ -565,135 +470,6 @@ const Checkout = () => {
             </Button>
           </CardContent>
         </Card>
-      </div>
-    );
-  }
-
-  if (checkoutId && paymentStatus) {
-    const isSuccess = paymentStatus === 'success' || paymentStatus === 'approved';
-
-    if (isSuccess) {
-      const oid = checkout?.orderId || checkoutId;
-      const target = isAuthenticated
-        ? `/order-complete/${oid}`
-        : `/order-complete/${oid}?guestEmail=${encodeURIComponent(guestEmail || searchParams.get('guestEmail') || '')}`;
-      navigate(target, { replace: true });
-      return null;
-    }
-
-    return (
-      <div className="min-h-[60vh] py-12">
-        <div className="max-w-2xl mx-auto px-4">
-          <Card className="bg-[#041536] ">
-            <CardContent className="py-12 px-6 text-center">
-              <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-900/20 flex items-center justify-center">
-                <XCircle className="w-10 h-10 text-red-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-3">Payment Failed</h2>
-              <p className="text-gray-400 mb-6">
-                Your payment could not be processed. Please try again.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button
-                  onClick={() => navigate('/cart')}
-                  className="bg-accent hover:bg-accent/90 text-white"
-                >
-                  Return to Cart
-                </Button>
-                <Button
-                  onClick={() => navigate('/search')}
-                  variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                >
-                  Continue Shopping
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  if (checkoutId && checkout) {
-    const isExpired = checkout.status === 'expired';
-    const isCancelled = checkout.status === 'cancelled';
-    const isPending = checkout.status === 'pending';
-
-    return (
-      <div className="min-h-[60vh] py-12">
-        <div className="max-w-2xl mx-auto px-4">
-          <Card className="bg-[#041536] ">
-            <CardHeader>
-              <CardTitle className="text-white">Checkout Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-center">
-                {isExpired && (
-                  <>
-                    <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-white mb-2">Checkout Expired</h3>
-                    <p className="text-gray-400 mb-6">
-                      This checkout session has expired. Please start a new checkout.
-                    </p>
-                  </>
-                )}
-                {isCancelled && (
-                  <>
-                    <XCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-white mb-2">Checkout Cancelled</h3>
-                    <p className="text-gray-400 mb-6">
-                      This checkout session has been cancelled.
-                    </p>
-                  </>
-                )}
-                {isPending && (
-                  <>
-                    <Loader2 className="w-12 h-12 text-yellow-400 mx-auto mb-4 animate-spin" />
-                    <h3 className="text-xl font-bold text-white mb-2">Payment Pending</h3>
-                    <p className="text-gray-400 mb-6">
-                      Please complete your payment on PayPal.
-                    </p>
-                    {checkout.paypalApprovalUrl && (
-                      <Button
-                        onClick={() => window.location.href = checkout.paypalApprovalUrl}
-                        className="bg-accent hover:bg-accent/90 text-white mb-4"
-                      >
-                        Continue to PayPal
-                      </Button>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {checkout.totalAmount && (
-                <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-400 mb-1">Total Amount</p>
-                  <p className="text-white text-2xl font-bold">{formatPrice(checkout.totalAmount)}</p>
-                </div>
-              )}
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                {isPending && (
-                  <Button
-                    onClick={() => cancelCheckoutMutation.mutate()}
-                    variant="outline"
-                    className="border-red-500 text-red-400 hover:bg-red-500/10"
-                  >
-                    Cancel Checkout
-                  </Button>
-                )}
-                <Button
-                  onClick={() => navigate('/cart')}
-                  variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                >
-                  Return to Cart
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     );
   }
@@ -736,7 +512,6 @@ const Checkout = () => {
       <CheckoutSteps current="checkout" />
 
       <div className="grid grid-cols-1 items-start gap-[24px] min-[961px]:grid-cols-[1fr_400px]">
-        {/* ── LEFT: cart items ── */}
         <div>
           <div className={PANEL}>
             <h2 className={PANEL_H}>My cart</h2>
@@ -780,11 +555,31 @@ const Checkout = () => {
                       </>
                     )}
                     <span className={SPEC_K}>Device:</span><span className={SPEC_V}>{it.device || DEVICE_FALLBACK}</span>
-                    {it.stock != null && (
+                    {it.unavailable ? (
                       <>
                         <span className={SPEC_K}>Stock:</span>
                         <span className={SPEC_V}>
-                          <span className={`inline-flex items-center gap-[4px] font-semibold ${it.stock === 0 ? 'text-[#ff8080]' : 'text-[#34d399]'}`}>
+                          <span className="inline-flex items-center gap-[4px] font-semibold text-[#ff8080]">
+                            <AlertCircle className="h-[13px] w-[13px]" />
+                            No longer available from this seller
+                          </span>
+                        </span>
+                      </>
+                    ) : it.stockShort ? (
+                      <>
+                        <span className={SPEC_K}>Stock:</span>
+                        <span className={SPEC_V}>
+                          <span className="inline-flex items-center gap-[4px] font-semibold text-[#ff8080]">
+                            <AlertCircle className="h-[13px] w-[13px]" />
+                            {it.availabilityMessage || 'Not enough stock for this quantity'}
+                          </span>
+                        </span>
+                      </>
+                    ) : it.stock != null && (
+                      <>
+                        <span className={SPEC_K}>Stock:</span>
+                        <span className={SPEC_V}>
+                          <span className="inline-flex items-center gap-[4px] font-semibold text-[#34d399]">
                             <CheckCircle2 className="h-[13px] w-[13px]" />
                             {it.stock} in stock
                           </span>
@@ -832,7 +627,7 @@ const Checkout = () => {
                       <span className="min-w-[34px] text-center text-[14px] font-bold text-white">{it.qty}</span>
                       <button type="button" className={CQTY_BTN} onClick={() => setQty(it.productId, it.sellerId, it.qty + 1)} aria-label="Increase quantity">+</button>
                     </div>
-                    <div className="whitespace-nowrap text-right text-[18px] font-extrabold text-white">
+                    <div className={`whitespace-nowrap text-right text-[18px] font-extrabold ${it.unavailable ? 'text-white/35 line-through' : 'text-white'}`}>
                       {formatPrice(it.price * it.qty)}
                       {it.hasDiscount && it.original != null && it.original > it.price && (
                         <span className="block text-[12px] font-medium text-white/40 line-through">{formatPrice(it.original * it.qty)}</span>
@@ -857,7 +652,6 @@ const Checkout = () => {
           )}
         </div>
 
-        {/* ── RIGHT: email + Plus + summary ── */}
         <div>
           {!isAuthenticated && (
             <div className={PANEL}>
@@ -895,12 +689,6 @@ const Checkout = () => {
                 </span>
                 <div className="relative min-w-0 flex-1">
                   <span className={CO_PLUS_KICKER}><span className="h-[5px] w-[5px] rounded-full bg-[#a855f7] shadow-[0_0_6px_#a855f7] animate-co-plus-dot motion-reduce:animate-none"></span>Members save more</span>
-                  {/* The rate comes from the preview, never a literal. This said
-                      "2%" while the configured rate was 5%, so the page undersold
-                      the subscription by more than half — and stayed wrong when an
-                      admin changed it. Points are NOT a Plus benefit: every
-                      registered buyer earns them, so claiming them here was
-                      selling something the shopper already had. */}
                   <h3 className={CO_PLUS_H}>
                     Join <em>DGMARQ Plus</em>
                     {plusDiscountPercent > 0 ? ` — save ${plusDiscountPercent}% on this order` : ''}
@@ -925,10 +713,30 @@ const Checkout = () => {
           <div className={`${PANEL} sticky top-[24px]`}>
             <h2 className={PANEL_H_SM}>Summary</h2>
 
-            <button type="button" className={CO_PROCEED} onClick={handleProceedToPayment} disabled={isStarting}>
+            {unavailableNames.length > 0 && (
+              <div className="mb-[12px] rounded-[12px] border border-[#ff8080]/40 bg-[#ff8080]/[0.08] px-[14px] py-[12px]" role="alert">
+                <p className="text-[13px] font-bold text-[#ffb4b4]">
+                  {unavailableNames.length === 1 ? "An item is" : `${unavailableNames.length} items are`} no longer available
+                </p>
+                <p className="mt-[4px] text-[12px] leading-[1.5] text-[#ffd0d0]/80">
+                  Remove {unavailableNames.length === 1 ? `"${unavailableNames[0]}"` : "them"} from your cart to continue. The seller has taken this listing down.
+                </p>
+              </div>
+            )}
+
+            {shortNames.length > 0 && (
+              <div className="mb-[12px] rounded-[12px] border border-[#ff8080]/40 bg-[#ff8080]/[0.08] px-[14px] py-[12px]" role="alert">
+                <p className="text-[13px] font-bold text-[#ffb4b4]">Not enough stock</p>
+                <p className="mt-[4px] text-[12px] leading-[1.5] text-[#ffd0d0]/80">
+                  Lower the quantity of {shortNames.length === 1 ? `"${shortNames[0]}"` : 'the marked items'} to continue.
+                </p>
+              </div>
+            )}
+
+            <button type="button" className={CO_PROCEED} onClick={handleProceedToPayment} disabled={isStarting || unavailableNames.length > 0 || shortNames.length > 0}>
               {isStarting ? (
                 <><Loader2 className="h-[17px] w-[17px] animate-spin" /> {walletPaying ? 'Processing wallet payment…' : 'Preparing checkout…'}</>
-              ) : useWalletPay && walletBalance >= grandTotal ? (
+              ) : payingByWallet ? (
                 <><Wallet className="h-[17px] w-[17px]" /> Pay with Balance</>
               ) : (
                 <><CreditCard className="h-[17px] w-[17px]" /> Proceed to Payment</>
@@ -937,15 +745,9 @@ const Checkout = () => {
 
             <div className="mb-[18px] flex flex-col gap-[12px]">
               <div className={CO_LINE}>
-                <span>{totalQty} {totalQty === 1 ? 'product' : 'products'}</span>
+                <span>{buyableQty} {buyableQty === 1 ? 'product' : 'products'}</span>
                 <span className={CO_LINE_V}>{formatPrice(subtotal)}</span>
               </div>
-              {youSave > 0 && (
-                <div className={`${CO_LINE} text-[#34d399]`}>
-                  <span>You save</span>
-                  <span className="text-[15px] font-bold text-[#34d399]">−{formatPrice(youSave)}</span>
-                </div>
-              )}
               {bundleDiscount > 0 && (
                 <div className={`${CO_LINE} text-[#34d399]`}>
                   <span>Bundle deal</span>
@@ -984,6 +786,11 @@ const Checkout = () => {
               <span className="text-[20px] font-extrabold text-white">Total:</span>
               <span className="text-[32px] font-extrabold text-white [text-shadow:0_0_22px_rgba(58,155,245,0.5)]">{formatPrice(grandTotal)}</span>
             </div>
+            {youSave > 0 && (
+              <div className="mb-[6px] text-[12px] font-semibold text-[#34d399]">
+                Includes {formatPrice(youSave)} off list prices
+              </div>
+            )}
             <div className="mb-[16px] text-[11.5px] leading-[1.5] text-white/40">
               {displayCurrency === 'USD'
                 ? 'Billed in USD. Taxes included where applicable.'
@@ -992,17 +799,17 @@ const Checkout = () => {
 
             {isAuthenticated && walletBalance > 0 && (
               <div className={`mb-[14px] rounded-[12px] border px-[14px] py-[12px] [transition:border-color_0.2s,background_0.2s] ${
-                useWalletPay && walletBalance >= grandTotal
+                payingByWallet
                   ? 'border-[rgba(52,211,153,0.4)] bg-[rgba(52,211,153,0.06)]'
                   : 'border-white/[0.1] bg-white/[0.02]'
               }`}>
                 <div className="flex items-center justify-between gap-[10px]">
                   <div className="flex items-center gap-[10px]">
                     <div className={`flex h-[34px] w-[34px] items-center justify-center rounded-[9px] [transition:background_0.2s] ${
-                      useWalletPay && walletBalance >= grandTotal ? 'bg-[rgba(52,211,153,0.15)]' : 'bg-white/[0.06]'
+                      payingByWallet ? 'bg-[rgba(52,211,153,0.15)]' : 'bg-white/[0.06]'
                     }`}>
                       <Wallet className={`h-[17px] w-[17px] [transition:color_0.2s] ${
-                        useWalletPay && walletBalance >= grandTotal ? 'text-[#34d399]' : 'text-white/50'
+                        payingByWallet ? 'text-[#34d399]' : 'text-white/50'
                       }`} />
                     </div>
                     <div>
@@ -1024,7 +831,7 @@ const Checkout = () => {
                     aria-label={useWalletPay ? 'Disable wallet payment' : 'Enable wallet payment'}
                   >
                     <span className={`absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.3)] [transition:left_0.2s] ${
-                      useWalletPay && walletBalance >= grandTotal ? 'left-[23px]' : 'left-[3px]'
+                      payingByWallet ? 'left-[23px]' : 'left-[3px]'
                     }`} />
                   </button>
                 </div>
@@ -1033,7 +840,7 @@ const Checkout = () => {
                     Insufficient balance — top up or use other payment methods.
                   </p>
                 )}
-                {useWalletPay && walletBalance >= grandTotal && (
+                {payingByWallet && (
                   <p className="mt-[8px] text-[11.5px] text-[#34d399]/80">
                     Remaining after purchase: ${(walletBalance - grandTotal).toFixed(2)} USD
                   </p>
@@ -1041,24 +848,20 @@ const Checkout = () => {
               </div>
             )}
 
-            {/* The server computes this on the same basis awardPointsForOrder
-                uses. It used to be `totalBeforeFee * 3` derived from the page's
-                own wrong total, so it over-promised. */}
             {preview?.pointsToEarn > 0 && (
               <div className="mb-4 flex items-center justify-between rounded-lg border border-accent/30 bg-accent/10 px-3 py-2">
                 <span className="flex items-center gap-1.5 text-sm text-accent-on-dark">
                   <Sparkles className="h-4 w-4" />
-                  DGMARQ Plus reward
+                  Reward points
                 </span>
                 <span className="text-sm font-semibold text-white">
-                  You&apos;ll earn {preview.pointsToEarn} points
+                  {payingByWallet
+                    ? 'Wallet payments don’t earn points'
+                    : `You’ll earn ${preview.pointsToEarn} points`}
                 </span>
               </div>
             )}
 
-            {/* Spend points without leaving checkout. Redeeming converts them to
-                wallet credit, which the wallet payment on this page spends —
-                the same mechanism as the Plus page, one step closer to hand. */}
             {maxRedeemable > 0 && (
               <div className="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2.5">
                 <div className="flex items-center justify-between gap-3">
@@ -1077,8 +880,6 @@ const Checkout = () => {
                       : `Redeem ${maxRedeemable} → $${(maxRedeemable / redeemableChunk).toFixed(2)}`}
                   </button>
                 </div>
-                {/* Points redeem in whole units, so a remainder is normal —
-                    saying so stops it looking like the balance was lost. */}
                 {pointsData.balance > maxRedeemable && (
                   <p className="mt-1.5 text-xs text-emerald-200/60">
                     {pointsData.balance - maxRedeemable} points stay on your balance —
@@ -1146,13 +947,20 @@ const Checkout = () => {
                     {validateCouponMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
                   </button>
                 </div>
-                {appliedCoupon && (
+                {appliedCoupon && !couponNotice && (
                   <div className={`${PROMO_MSG} flex items-center justify-between gap-[8px] text-[#34d399]`}>
                     <span>✓ Code {appliedCoupon.code} applied</span>
                     <button type="button" className="cursor-pointer border-none bg-transparent p-0 font-inherit text-[11.5px] font-semibold text-white/45 hover:text-[#ff7676]" onClick={handleRemoveCoupon}>Remove</button>
                   </div>
                 )}
-                {couponError && <div className={`${PROMO_MSG} text-[#ff7676]`}>{couponError}</div>}
+                {(couponError || couponNotice) && (
+                  <div className={`${PROMO_MSG} flex items-center justify-between gap-[8px] text-[#ff7676]`}>
+                    <span>{couponError || couponNotice}</span>
+                    {couponNotice && (
+                      <button type="button" className="cursor-pointer border-none bg-transparent p-0 font-inherit text-[11.5px] font-semibold text-white/45 hover:text-white" onClick={handleRemoveCoupon}>Remove</button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1176,17 +984,25 @@ const Checkout = () => {
       <PaymentModal
         open={paymentModalOpen}
         onOpenChange={setPaymentModalOpen}
-        checkoutId={currentCheckoutId || checkoutId}
-        totalAmount={grandTotal}
+        checkoutId={currentCheckoutId}
+        totalAmount={chargeTotal ?? grandTotal}
         currency="USD"
         walletBalance={isAuthenticated ? walletBalance : 0}
-        walletAmount={0}
-        cardAmount={grandTotal}
-        paymentMethod="PayPal"
+        guestEmail={isAuthenticated ? undefined : guestEmail}
+        onPending={() => {
+          setPaymentModalOpen(false);
+          if (!isAuthenticated) {
+            try { clearGuestCart(); } catch { /* non-fatal */ }
+            navigate('/', { replace: true });
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ['cart'] });
+          navigate('/user/orders', { replace: true });
+        }}
         onSuccess={(data) => {
           setPaymentModalOpen(false);
           const order = data?.order || data?.data?.order;
-          const oid = order?._id || data?.checkoutId || currentCheckoutId || checkoutId;
+          const oid = order?._id || data?.checkoutId || currentCheckoutId;
 
           if (!isAuthenticated) {
             try { clearGuestCart(); } catch { /* non-fatal */ }

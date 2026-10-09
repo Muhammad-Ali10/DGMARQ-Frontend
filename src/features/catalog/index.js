@@ -1,4 +1,3 @@
-// Public surface of the catalog (product) feature. Import from '@features/catalog'.
 export { default as ProductCard } from './components/ProductCard';
 export { default as MicrosoftCard } from './components/MicrosoftCard';
 export { default as CategoryProduct } from './components/CategoryProduct';

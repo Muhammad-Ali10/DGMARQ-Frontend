@@ -7,8 +7,6 @@ export const store = configureStore({
   },
 });
 
-// One-time legacy cleanup: older builds stored tokens in localStorage. Tokens
-// now live ONLY in httpOnly cookies, so strip any leftovers at startup.
 try {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
@@ -16,14 +14,16 @@ try {
   /* localStorage unavailable (private mode / SSR) — non-fatal */
 }
 
-// Persist the non-sensitive user profile via a store subscription, keeping the
-// auth reducers pure (no side effects in reducer bodies). The httpOnly auth
-// cookie is the source of truth for authorization and is untouched here.
+const PERSISTED_USER_FIELDS = ['_id', 'name', 'email', 'roles', 'profileImage', 'displayCurrency', 'emailVerified'];
+
+const persistedUser = (user) =>
+  Object.fromEntries(PERSISTED_USER_FIELDS.filter((key) => user[key] !== undefined).map((key) => [key, user[key]]));
+
 store.subscribe(() => {
   const { user, isAuthenticated } = store.getState().auth;
   try {
     if (isAuthenticated && user) {
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(persistedUser(user)));
     } else {
       localStorage.removeItem('user');
     }

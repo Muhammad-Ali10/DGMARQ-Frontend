@@ -12,16 +12,8 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import { TableEmptyRow } from '@components/common/EmptyState';
 import { Eye, XCircle } from 'lucide-react';
 import { SearchInput } from '@components/common/SearchInput';
+import { Pagination } from '@components/common/Pagination';
 import { showSuccess, showApiError } from '@utils/toast';
-
-/**
- * Phase 4 — admin payout accounts management.
- *
- * Manual verification is RETIRED in Phase 4. Verification now happens
- * automatically (PayPal OAuth). This page only
- * lets admins inspect per-method statuses and block / unblock individual
- * methods.
- */
 
 const METHOD_LABEL = {
   paypal: 'PayPal',
@@ -40,12 +32,13 @@ const PayoutAccountsManagement = () => {
   const [viewSeller, setViewSeller] = useState(null);
   const [blockReason, setBlockReason] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
   const { data: accountsData, isLoading, isError, error } = useQuery({
-    queryKey: ['payout-accounts-status', searchTerm],
+    queryKey: ['payout-accounts-status', searchTerm, page],
     queryFn: async () => {
-      const params = searchTerm.trim() ? { search: searchTerm.trim() } : undefined;
+      const params = { page, limit: 20, ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}) };
       const response = await adminAPI.getSellersPayoutStatus(params);
       return response.data.data;
     },
@@ -102,7 +95,7 @@ const PayoutAccountsManagement = () => {
           <div className="flex gap-2">
             <SearchInput
               value={searchTerm}
-              onChange={setSearchTerm}
+              onChange={(value) => { setSearchTerm(value); setPage(1); }}
               placeholder="Search sellers..."
               className="flex-1"
             />
@@ -210,6 +203,13 @@ const PayoutAccountsManagement = () => {
               </TableBody>
             </Table>
           </div>
+          <Pagination
+            page={accountsData?.pagination?.page || page}
+            totalPages={accountsData?.pagination?.pages || 1}
+            onPageChange={setPage}
+            total={accountsData?.pagination?.total}
+            totalNoun="sellers"
+          />
         </CardContent>
       </Card>
 

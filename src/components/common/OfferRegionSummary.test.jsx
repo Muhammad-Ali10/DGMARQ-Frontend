@@ -1,13 +1,8 @@
-// The client's two asks, as tests:
-//   1. one word for "sells everywhere" — "Global", never "All regions"
-//   2. an admin must be able to reach the WHOLE list, not a count of it
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TooltipProvider } from '@components/ui/tooltip';
 import OfferRegionSummary from './OfferRegionSummary';
 
-// Radix opens a tooltip on pointer/focus; focusing the trigger is the reliable
-// path in jsdom, and it is also how a keyboard admin reaches it.
 const show = (ui) => {
   render(<TooltipProvider delayDuration={0}>{ui}</TooltipProvider>);
   const trigger = screen.getByRole('button', { name: /show every region and country/i });
@@ -45,7 +40,6 @@ describe('OfferRegionSummary', () => {
     const added = await screen.findByText(/United States/);
     expect(added).toHaveTextContent(/Canada/);
     expect(added).toHaveTextContent(/Brazil/);
-    // The old display said "(+3 extra)" and stopped there.
     expect(screen.queryByText(/\+3 extra/)).not.toBeInTheDocument();
   });
 

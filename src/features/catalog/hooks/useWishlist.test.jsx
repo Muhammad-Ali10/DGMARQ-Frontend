@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../../test/render';
 
-// Mocked at the module boundary the hook actually talks to, so the test
-// exercises the real query/mutation/cache wiring rather than a stand-in for it.
 vi.mock('@services/api', () => ({
   userAPI: {
     getWishlist: vi.fn(), getWishlistIds: vi.fn(),
@@ -40,7 +38,6 @@ const product = {
 
 const signedIn = { auth: { isAuthenticated: true, user: { _id: 'u1' } } };
 
-/** Shape of GET /wishlist/ids — membership only, no product documents. */
 const wishlistResponse = (ids = []) => ({
   data: { data: { productIds: ids, count: ids.length, max: 500 } },
 });
@@ -55,10 +52,6 @@ beforeEach(() => {
 });
 
 describe('ProductCard wishlist heart', () => {
-  // THE bug: the heart seeded from `product.isWishlisted`, a field no endpoint
-  // has ever set. Every heart rendered empty, so clicking one on an
-  // already-saved product took the "add" branch, got a 400 back, reverted, and
-  // showed "Failed to update wishlist" — un-saving from a card was impossible.
   it('renders filled when the product is already on the wishlist', async () => {
     userAPI.getWishlistIds.mockResolvedValue(
       wishlistResponse([PRODUCT_ID])
@@ -107,8 +100,6 @@ describe('ProductCard wishlist heart', () => {
     expect(userAPI.removeFromWishlist).not.toHaveBeenCalled();
   });
 
-  // W2: the toggle never invalidated ['wishlist'], so the header badge, the
-  // mobile badge and the wishlist page stayed stale after a click.
   it('refetches the shared wishlist entry after a toggle, so the badges update', async () => {
     renderWithProviders(<ProductCard product={product} />, { preloadedState: signedIn });
     await waitFor(() => expect(userAPI.getWishlistIds).toHaveBeenCalledTimes(1));
@@ -127,7 +118,6 @@ describe('ProductCard wishlist heart', () => {
 
     fireEvent.click(heart());
 
-    // Still in flight — the optimistic cache write has already landed.
     await waitFor(() => expect(heart()).toHaveAttribute('aria-pressed', 'true'));
     resolveAdd({ data: {} });
   });
@@ -143,13 +133,10 @@ describe('ProductCard wishlist heart', () => {
     await waitFor(() => expect(heart()).toHaveAttribute('aria-pressed', 'false'));
   });
 
-  // The server rejects a redundant add with 400. That is not a user-facing
-  // failure: the wishlist already says what they asked for.
   it('treats a 400 "already exists" as success, not an error', async () => {
     userAPI.addToWishlist.mockRejectedValue({
       response: { status: 400, data: { message: 'Product already exists in wishlist' } },
     });
-    // What the server would report on the follow-up refetch.
     userAPI.getWishlistIds
       .mockResolvedValueOnce(wishlistResponse([]))
       .mockResolvedValue(wishlistResponse([PRODUCT_ID]));
@@ -162,8 +149,6 @@ describe('ProductCard wishlist heart', () => {
     await waitFor(() => expect(heart()).toHaveAttribute('aria-pressed', 'true'));
   });
 
-  // The size cap. Unlike a 400 (already saved, a harmless no-op) this one is
-  // actionable, so it must NOT be swallowed the way the idempotent case is.
   it('surfaces the server message when the wishlist is full', async () => {
     const message =
       'Your wishlist is full — it holds up to 500 items. Remove something you no longer want, then add this again.';
@@ -176,10 +161,7 @@ describe('ProductCard wishlist heart', () => {
 
     fireEvent.click(heart());
 
-    // The optimistic fill is rolled back — the item was NOT saved.
     await waitFor(() => expect(heart()).toHaveAttribute('aria-pressed', 'false'));
-    // And the user is told why, in the server's words: a generic "could not
-    // save" would leave them with no idea what to do.
     await waitFor(() => expect(showError).toHaveBeenCalledWith(message));
   });
 
@@ -205,14 +187,10 @@ describe('ProductCard wishlist heart', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('/login');
     expect(userAPI.addToWishlist).not.toHaveBeenCalled();
-    // The wishlist is never fetched for a guest.
     expect(userAPI.getWishlistIds).not.toHaveBeenCalled();
   });
 
   it('clicking the heart does not also open the product page', async () => {
-    // The whole card is a <Link>. Without preventDefault the toggle would
-    // navigate away mid-save. fireEvent returns false when the handler called
-    // preventDefault, which is the assertion that actually proves it.
     renderWithProviders(<ProductCard product={product} />, { preloadedState: signedIn });
     await waitFor(() => expect(userAPI.getWishlistIds).toHaveBeenCalled());
 
@@ -222,7 +200,6 @@ describe('ProductCard wishlist heart', () => {
     await waitFor(() => expect(userAPI.addToWishlist).toHaveBeenCalled());
   });
 
-  // One request for the whole grid, not one per card.
   it('N cards on a page share a single wishlist request', async () => {
     renderWithProviders(
       <>
@@ -247,10 +224,6 @@ describe('ProductCard wishlist heart', () => {
     );
     await waitFor(() => expect(userAPI.getWishlistIds).toHaveBeenCalled());
 
-    // From here the server HAS the item, so the refetch that onSettled triggers
-    // must say so too. Without this the post-mutation refetch would answer with
-    // the original empty list and roll both hearts back — the mock, not the
-    // component, would be the thing under test.
     userAPI.getWishlistIds.mockResolvedValue(
       wishlistResponse([PRODUCT_ID])
     );
@@ -264,8 +237,6 @@ describe('ProductCard wishlist heart', () => {
         expect(h).toHaveAttribute('aria-pressed', 'true');
       }
     });
-    // One click, one write — the second card followed the shared cache rather
-    // than issuing its own request.
     expect(userAPI.addToWishlist).toHaveBeenCalledTimes(1);
   });
 });

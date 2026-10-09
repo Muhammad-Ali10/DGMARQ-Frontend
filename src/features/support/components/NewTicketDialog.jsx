@@ -8,6 +8,7 @@ import { Textarea } from '@components/ui/textarea';
 import { Label } from '@components/ui/label';
 import { showSuccess, showApiError } from '@utils/toast';
 import { SUPPORT_CATEGORIES } from '../utils/supportChat';
+import { formatOrderAmount } from '@lib/orderDisplay';
 
 const ensureOrders = (data) => {
   if (Array.isArray(data)) return data;
@@ -19,23 +20,17 @@ const ensureOrders = (data) => {
 const orderLabel = (o) => {
   const id = o.orderNumber || o._id?.slice(-8)?.toUpperCase() || 'Order';
   const when = o.createdAt ? new Date(o.createdAt).toLocaleDateString() : '';
-  const total = typeof o.totalAmount === 'number' ? ` · $${o.totalAmount.toFixed(2)}` : '';
+  const amount = o.grandTotal ?? o.totalAmount;
+  const total = typeof amount === 'number' ? ` · ${formatOrderAmount(amount, o)}` : '';
   return `#${id}${total}${when ? ` · ${when}` : ''}`;
 };
 
-/**
- * Shared "create support ticket" dialog: subject (required), category, optional
- * related order (from the user's recent orders), and the first message.
- * `prefill` can pre-set { subject, category, orderId } e.g. when opened from an
- * order page.
- */
 const NewTicketDialog = ({ open, onOpenChange, onCreated, prefill = null }) => {
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState('Other');
   const [orderId, setOrderId] = useState('');
   const [message, setMessage] = useState('');
 
-  // Apply prefill whenever the dialog opens (reset/seed the form fields).
   useEffect(() => {
     if (open) {
        
@@ -58,7 +53,7 @@ const NewTicketDialog = ({ open, onOpenChange, onCreated, prefill = null }) => {
     mutationFn: (payload) => supportAPI.createSupportChat(payload),
     onSuccess: (response) => {
       const chatId = response?.data?.data?.chat?._id;
-      showSuccess('Support ticket created successfully');
+      showSuccess(response?.data?.message || 'Support ticket created successfully');
       onOpenChange(false);
       onCreated?.(chatId);
     },
@@ -91,6 +86,7 @@ const NewTicketDialog = ({ open, onOpenChange, onCreated, prefill = null }) => {
               onChange={(e) => setSubject(e.target.value)}
               placeholder="What do you need help with?"
               required
+              maxLength={200}
               className="bg-surface-2 border-border text-fg"
             />
           </div>
@@ -124,6 +120,7 @@ const NewTicketDialog = ({ open, onOpenChange, onCreated, prefill = null }) => {
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Describe your issue…"
               required
+              maxLength={2000}
               rows={5}
               className="bg-surface-2 border-border text-fg"
             />

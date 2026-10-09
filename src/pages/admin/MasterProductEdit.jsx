@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { extractList } from '@lib/apiList';
+import { fetchAllPages } from '@lib/apiList';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -31,7 +31,6 @@ import { PRODUCT_TYPE_OPTIONS } from '@features/catalog/utils/productUtils';
 const inputCls = 'bg-secondary border-gray-700 text-white focus-visible:ring-accent/40';
 const selectCls = 'w-full bg-secondary border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/50 transition';
 
-// ── Presentational helpers (module-scoped → stable identity) ──
 const Section = ({ icon: Icon, title, desc, children, className = '' }) => (
   <Card variant="hud" className={className}>
     <CardHeader className="border-b border-gray-700/70 py-4">
@@ -70,15 +69,15 @@ const TaxSelect = ({ label, value, onChange, options, placeholder, required }) =
   </Field>
 );
 
+const autoMetaTitle = (name) => `${String(name ?? '').trim()} | Buy cheap on DGMARQ`.slice(0, 120);
+const autoMetaDescription = (description) => String(description ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
+const customOnly = (stored, auto) => (stored && stored !== auto ? stored : '');
+
 const EMPTY_FORM = {
   name: '', categoryId: '', subCategoryId: '', platform: '', genre: '',
   mode: '', device: '', theme: '', productType: 'LICENSE_KEY',
   publishers: '', developers: '', releaseDate: '', activationDetails: '',
   systemRequirements: '', description: '', metaTitle: '', metaDescription: '',
-  // M21: the only place a product becomes a pre-order. The API has accepted
-  // these two fields all along, but no screen ever sent them — so pre-orders
-  // could not be created at all, and the whole release/escrow/auto-refund
-  // pipeline behind them was unreachable.
   isPreorder: false, preorderReleaseDate: '',
 };
 
@@ -88,17 +87,22 @@ const MasterProductEdit = () => {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [newImages, setNewImages] = useState([]);
-  // Replacing locked images is opt-in per visit: the flag rides with the save so
-  // the server can tell a deliberate replace from an ordinary edit.
   const [replacingImages, setReplacingImages] = useState(false);
   const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false);
   const [removedPublicIds, setRemovedPublicIds] = useState([]);
+  const [newImagePreviews, setNewImagePreviews] = useState([]);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const urls = newImages.map((file) => URL.createObjectURL(file));
+    setNewImagePreviews(urls);
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, [newImages]);
 
   const onPickImages = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length) setNewImages((prev) => [...prev, ...files]);
-    e.target.value = ''; // allow re-selecting the same file
+    e.target.value = '';
   };
 
   const { data: product, isLoading, isError, error } = useQuery({
@@ -112,12 +116,12 @@ const MasterProductEdit = () => {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const [categories, platforms, genres, modes, devices, themes] = await Promise.all([
-        categoryAPI.getCategories({ limit: 1000 }).then(extractList),
-        platformAPI.getAllPlatforms({ limit: 1000 }).then(extractList),
-        genreAPI.getGenres({ limit: 1000 }).then(extractList),
-        modeAPI.getModes({ limit: 1000 }).then(extractList),
-        deviceAPI.getDevices({ limit: 1000 }).then(extractList),
-        themeAPI.getThemes({ limit: 1000 }).then(extractList),
+        fetchAllPages(categoryAPI.getCategories),
+        fetchAllPages(platformAPI.getAllPlatforms),
+        fetchAllPages(genreAPI.getGenres),
+        fetchAllPages(modeAPI.getModes),
+        fetchAllPages(deviceAPI.getDevices),
+        fetchAllPages(themeAPI.getThemes),
       ]);
       return { categories, platforms, genres, modes, devices, themes };
     },
@@ -131,7 +135,7 @@ const MasterProductEdit = () => {
 
   const { data: subcategories = [] } = useQuery({
     queryKey: ['tax-subcategories', form.categoryId],
-    queryFn: () => subcategoryAPI.getSubcategoriesByCategoryId(form.categoryId, { limit: 1000 }).then(extractList),
+    queryFn: () => fetchAllPages((params) => subcategoryAPI.getSubcategoriesByCategoryId(form.categoryId, params)),
     enabled: !!form.categoryId,
     staleTime: 5 * 60 * 1000,
   });
@@ -154,8 +158,8 @@ const MasterProductEdit = () => {
       activationDetails: product.activationDetails || '',
       systemRequirements: product.systemRequirements || '',
       description: product.description || '',
-      metaTitle: product.metaTitle || '',
-      metaDescription: product.metaDescription || '',
+      metaTitle: customOnly(product.metaTitle, autoMetaTitle(product.name)),
+      metaDescription: customOnly(product.metaDescription, autoMetaDescription(product.description)),
       isPreorder: !!product.isPreorder,
       preorderReleaseDate: product.preorderReleaseDate
         ? String(product.preorderReleaseDate).slice(0, 10)
@@ -188,9 +192,6 @@ const MasterProductEdit = () => {
   const submit = () => {
     if (!form.name.trim()) { toast.warning('Product name is required'); return; }
     if (!form.categoryId) { toast.warning('Category is required'); return; }
-    // Mirrors the server guard (utils/preorderInput.js). A pre-order without a
-    // release date can never release and never auto-refund, so buyers' escrowed
-    // money would sit held indefinitely.
     if (form.isPreorder && !form.preorderReleaseDate) {
       toast.warning('A pre-order needs a release date — that is what triggers delivery.');
       return;
@@ -209,8 +210,8 @@ const MasterProductEdit = () => {
     return !(pid && removedPublicIds.includes(pid));
   }).length + newImages.length;
 
-  const metaTitlePreview = form.metaTitle || `${form.name || 'Product'} | Buy cheap on DGMARQ`;
-  const metaDescPreview = form.metaDescription || (form.description || '').replace(/\s+/g, ' ').trim().slice(0, 160) || 'Product description for search engines…';
+  const metaTitlePreview = form.metaTitle || autoMetaTitle(form.name || 'Product');
+  const metaDescPreview = form.metaDescription || autoMetaDescription(form.description) || 'Product description for search engines…';
 
   const SaveButtons = ({ size }) => (
     <>
@@ -223,7 +224,6 @@ const MasterProductEdit = () => {
 
   return (
     <div className="pb-24">
-      {/* Header */}
       <div className="flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3 min-w-0">
           <Button variant="outline" size="icon" className="border-gray-700 shrink-0" onClick={() => navigate('/admin/catalog')}>
@@ -240,12 +240,8 @@ const MasterProductEdit = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left — main content */}
         <div className="lg:col-span-2 space-y-6">
           <Section icon={Package} title="Basic information" desc="Shared across every seller offer for this product.">
-            {/* Imported masters are refreshed by the next import for every field
-                the JSON carries, so an edit here is not necessarily permanent.
-                Fields the JSON never carries (and the images below) are safe. */}
             {product?.externalId && (
               <p className="rounded-lg border border-white/10 bg-surface-sunken/60 px-3 py-2 text-xs text-fg-muted">
                 Imported from the catalog file. Re-importing this product refreshes the fields it
@@ -273,11 +269,6 @@ const MasterProductEdit = () => {
               <Textarea value={form.systemRequirements} onChange={setField('systemRequirements')} className={`${inputCls} min-h-[80px]`} />
             </Field>
 
-            {/* M21 — PRE-ORDER.
-                Sits in Details next to the catalogue "Release date" on purpose:
-                the two are easy to confuse, and putting them apart is how an
-                admin ends up setting one thinking they set the other. The
-                catalogue date is descriptive; THIS one drives delivery. */}
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/6 p-4">
               <div className="flex items-start gap-3">
                 <input
@@ -297,6 +288,7 @@ const MasterProductEdit = () => {
                     release date below. On that date the system delivers automatically and
                     the product becomes a standard listing. If no seller has stock within
                     24 hours of release, every buyer is refunded to their wallet.
+                    Turning this off on a live pre-order releases it immediately.
                   </p>
                 </div>
               </div>
@@ -321,7 +313,6 @@ const MasterProductEdit = () => {
           </Section>
 
           <Section icon={Globe} title="Search & SEO" desc="Leave blank to auto-generate from name & description.">
-            {/* Google-style preview */}
             <div className="rounded-lg border border-gray-700 bg-secondary/40 p-3.5">
               <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1.5">Search preview</p>
               <p className="text-[#8ab4f8] text-[15px] leading-snug truncate">{metaTitlePreview}</p>
@@ -337,12 +328,8 @@ const MasterProductEdit = () => {
           </Section>
         </div>
 
-        {/* Right — media + classification */}
         <div className="space-y-6 lg:sticky lg:top-2">
           <Section icon={ImageIcon} title="Media" desc={`${visibleCount} of 5 images`}>
-            {/* Catalog images are shared by every seller's offer on this product,
-                so they are final once uploaded. Replacing them is a separate,
-                audited action rather than something a stray click can do. */}
             {imagesLocked && !replacingImages && (
               <div className="flex items-start gap-2 rounded-lg border border-white/10 bg-surface-sunken/60 px-3 py-2.5 text-xs text-fg-muted">
                 <Lock aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
@@ -387,7 +374,7 @@ const MasterProductEdit = () => {
               })}
               {newImages.map((file, i) => (
                 <div key={`new-${i}`} className="relative aspect-square">
-                  <img src={URL.createObjectURL(file)} alt={`new ${i + 1}`} className="w-full h-full object-cover rounded-lg border-2 border-accent/70" />
+                  <img src={newImagePreviews[i]} alt={`new ${i + 1}`} className="w-full h-full object-cover rounded-lg border-2 border-accent/70" />
                   <span className="absolute bottom-1 left-1 text-[9px] px-1 rounded bg-accent/80 text-white">new</span>
                   <button type="button" onClick={() => setNewImages((prev) => prev.filter((_, idx) => idx !== i))} className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full w-5 h-5 flex items-center justify-center shadow" title="Remove">
                     <X className="w-3 h-3" />
@@ -401,7 +388,6 @@ const MasterProductEdit = () => {
                 </button>
               )}
             </div>
-            {/* Single ref-driven input — always mounted so the ref is valid. */}
             <input ref={fileInputRef} type="file" aria-label="Add product images" accept="image/*" multiple className="hidden" onChange={onPickImages} />
             {imagesEditable && (
               <p className="text-xs text-gray-500">
@@ -430,7 +416,6 @@ const MasterProductEdit = () => {
         </div>
       </div>
 
-      {/* Sticky action bar */}
       <div className="fixed bottom-0 left-0 lg:left-64 right-0 z-30 bg-primary/90 backdrop-blur border-t border-gray-700 px-4 md:px-8 py-3">
         <div className="flex items-center justify-between gap-4">
           <p className="text-xs text-gray-500 hidden sm:block truncate">Editing <span className="text-gray-300">{form.name || 'master product'}</span></p>

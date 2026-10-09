@@ -1,6 +1,5 @@
 export const SITE_URL = 'https://www.dgmarq.com';
 
-/** Strip HTML tags and collapse whitespace for meta tags. */
 export function stripHtml(value) {
   if (value == null || typeof value !== 'string') return '';
   return value
@@ -15,7 +14,6 @@ export function stripHtml(value) {
     .trim();
 }
 
-/** Trim to recommended meta description length (Google ~155–160 chars). */
 export function truncateMetaDescription(text, maxLength = 160) {
   const cleaned = stripHtml(text);
   if (!cleaned) return '';

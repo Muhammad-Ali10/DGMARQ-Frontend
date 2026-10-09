@@ -20,22 +20,6 @@ import { rowIdentity } from '../utils/inventoryRows';
 import { deliveryWords } from '@lib/deliveryType';
 import { useDebounce } from '@hooks/useDebounce';
 
-/**
- * Upload inventory for one listing, in three steps: pick the listing, add the
- * items, review and submit.
- *
- * Rows are STAGED first — typed one at a time, or read from an uploaded file —
- * and both land in the same list, where they can be edited or removed. Nothing
- * reaches the server until Submit, which sends the whole list in one request
- * (the API chunks it and reports progress from a background job).
- *
- * The picker lists the seller's OWN listings — never the whole catalog — and
- * searches them on the server, because a page holds at most 50 and a seller may
- * have more. Uploads go to /offer/:id/keys; the product-level upload route it
- * used to fall back to is gone (it was the one place that refused gift codes
- * and activation links outright).
- */
-
 const STEPS = [
   { id: 1, title: 'Listing' },
   { id: 2, title: 'Add items' },
@@ -83,12 +67,12 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
   const [step, setStep] = useState(1);
   const [listingSearch, setListingSearch] = useState('');
-  const [selected, setSelected] = useState(null); // the chosen listing itself
+  const [selected, setSelected] = useState(null);
   const [tab, setTab] = useState('add');
   const [rows, setRows] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(null); // { processed, total, inserted }
+  const [progress, setProgress] = useState(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const search = useDebounce(listingSearch.trim(), 300);
@@ -102,7 +86,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
   const products = useMemo(() => {
     const list = (listingsQuery.data?.offers ?? []).map((o) => ({
-      _id: o._id, // the offer id — what an upload is addressed to
+      _id: o._id,
       name: o.productId?.name || 'Product',
       slug: o.productId?.slug,
       images: o.productId?.images || [],
@@ -110,8 +94,6 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
       availableKeysCount: o.availableKeysCount || 0,
       totalKeysCount: o.totalKeysCount || 0,
     }));
-    // Keep the chosen listing in the list even after a search that excludes it,
-    // or the picker would forget what is already selected.
     return selected && !list.some((p) => p._id === selected._id) ? [selected, ...list] : list;
   }, [listingsQuery.data, selected]);
 
@@ -138,13 +120,10 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
   useEffect(() => {
     if (!open) resetAll();
-    // resetAll only touches state setters and a ref, so it needs no dependency.
   }, [open]);
 
-  // Cancel polling if the component unmounts.
   useEffect(() => () => { pollCancelRef.current = true; }, []);
 
-  // ── staged rows ────────────────────────────────────────────────────────────
   const addRow = (data) => {
     const identity = rowIdentity(data, productType);
     if (rows.some((row) => rowIdentity(row.data, productType) === identity)) {
@@ -191,8 +170,6 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
   };
 
   const changeProduct = (nextId) => {
-    // A staged list belongs to the listing it was typed for, and the two kinds
-    // of row do not even have the same shape.
     if (rows.length && nextId !== selectedProductId) {
       setRows([]);
       setEditingId(null);
@@ -201,22 +178,21 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
     setSelected(products.find((p) => p._id === nextId) || null);
   };
 
-  // ── upload ─────────────────────────────────────────────────────────────────
   const finishSuccess = (uploaded) => {
     toast.success(`${uploaded} ${uploaded === 1 ? words.one : words.many} uploaded successfully`);
     queryClient.invalidateQueries({ queryKey: ['seller-products'] });
-    queryClient.invalidateQueries({ queryKey: ['seller-products-for-upload'] });
-    queryClient.invalidateQueries({ queryKey: ['product-keys'] });
+    queryClient.invalidateQueries({ queryKey: ['upload-listings'] });
     queryClient.invalidateQueries({ queryKey: ['my-offers'] });
     queryClient.invalidateQueries({ queryKey: ['license-offers'] });
+    queryClient.invalidateQueries({ queryKey: ['seller-offer'] });
+    queryClient.invalidateQueries({ queryKey: ['seller-offers-overview'] });
     queryClient.invalidateQueries({ queryKey: ['offer-keys'] });
     onOpenChange(false);
   };
 
-  // Poll the background upload job until it completes/fails.
   async function pollUploadStatus(productId, jobId) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const MAX_ATTEMPTS = 600; // ~15 min at 1.5s intervals
+    const MAX_ATTEMPTS = 600;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       if (pollCancelRef.current) return;
       await sleep(1500);
@@ -227,7 +203,7 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
         const res = await productAPI.getUploadKeysStatus(productId, jobId);
         job = res.data.data;
       } catch {
-        continue; // transient error — keep polling
+        continue;
       }
 
       if (job?.progress) setProgress(job.progress);
@@ -251,11 +227,9 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
   }
 
   const uploadMutation = useMutation({
-    // `productId` is the OFFER id — that is what the picker holds.
     mutationFn: ({ productId, keys }) => offerAPI.uploadOfferKeys(productId, keys),
     onSuccess: (data, variables) => {
       const result = data.data.data;
-      // Background job (202) → poll for progress/completion.
       if (result?.jobId) {
         pollCancelRef.current = false;
         setProgress({ processed: 0, total: result.total || 0, inserted: 0 });
@@ -263,9 +237,15 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
         pollUploadStatus(variables.productId, result.jobId);
         return;
       }
-      finishSuccess(result.uploaded); // inline result (Redis unavailable)
+      finishSuccess(result.uploaded);
     },
-    onError: (err) => toast.error(err.response?.data?.message || `Failed to upload ${words.many}`),
+    onError: (err) => {
+      const problems = err.response?.data?.errors;
+      const shown = Array.isArray(problems) ? problems.filter((p) => typeof p === 'string').slice(0, 5) : [];
+      toast.error(err.response?.data?.message || `Failed to upload ${words.many}`, {
+        description: shown.length ? shown.join('\n') : undefined,
+      });
+    },
   });
 
   const submit = () => {
@@ -309,7 +289,6 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
           <StepBar step={step} />
 
-          {/* The chosen listing stays visible from step 2 on, as one line. */}
           {step > 1 && selectedProduct && (
             <div className="mx-6 mb-3 flex items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/[0.04] px-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
@@ -333,20 +312,18 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
           )}
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4 space-y-5">
-            {/* ── 1. which listing ── */}
             {step === 1 && (
               <>
                 <SearchableSelect
                   options={products}
                   value={selectedProductId}
                   onValueChange={changeProduct}
-                  // The server does the matching, across ALL of this seller's
-                  // listings — not just the page already fetched.
                   serverSide
                   onSearchChange={setListingSearch}
                   loading={listingsQuery.isFetching}
                   placeholder="Search and select a listing..."
                   searchPlaceholder="Type to search listings..."
+                  countNoun="listings"
                   emptyMessage={listingsQuery.isFetching ? 'Searching…' : 'No listings found'}
                   label="Listing"
                   description="Search and select the listing you want to upload inventory for"
@@ -421,7 +398,6 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
               </>
             )}
 
-            {/* ── 2. add the items ── */}
             {step === 2 && productType && (
               <>
                 <Tabs value={tab} onValueChange={setTab} className="w-full">
@@ -438,8 +414,6 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
                 {tab === 'add' ? (
                   isAccount ? (
                     <AccountEntryForm
-                      // Remounts when switching between adding and editing a row,
-                      // so the fields load without syncing props into state.
                       key={editingId || 'new-account'}
                       initialValue={editingRow?.data}
                       editing={!!editingRow}
@@ -471,7 +445,6 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
               </>
             )}
 
-            {/* ── 3. review and submit ── */}
             {step === 3 && productType && (
               <>
                 <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
@@ -524,7 +497,6 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
             )}
           </div>
 
-          {/* Footer stays put: the way forward is always in the same place. */}
           <div className="flex items-center justify-between gap-4 border-t border-white/[0.06] px-6 py-4">
             <p className="text-xs text-fg-muted">{rows.length > 0 ? `${countLabel} ready` : ''}</p>
             <div className="flex gap-3">

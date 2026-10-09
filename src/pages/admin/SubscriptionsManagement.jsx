@@ -85,10 +85,17 @@ const SubscriptionsManagement = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">Total Revenue</p>
+                  <p className="text-gray-400 text-sm">Monthly recurring (active)</p>
                   <p className="text-2xl font-bold text-white mt-1">
-                    {formatMoney(stats.totalRevenue || 0)}
+                    {formatMoney(stats.monthlyRecurringUsd || 0)}
                   </p>
+                  {(stats.recurringByCurrency || [])
+                    .filter((row) => row.currency !== 'USD')
+                    .map((row) => (
+                      <p key={row.currency} className="text-xs text-gray-400 mt-1">
+                        + {row.total.toFixed(2)} {row.currency}
+                      </p>
+                    ))}
                 </div>
                 <DollarSign className="w-8 h-8 text-yellow-500" />
               </div>
@@ -130,7 +137,9 @@ const SubscriptionsManagement = () => {
                         {subscription.endDate ? new Date(subscription.endDate).toLocaleDateString() : '-'}
                       </TableCell>
                       <TableCell className="text-white font-semibold">
-                        {formatMoney(subscription.amount || 0)}
+                        {subscription.currency && subscription.currency !== 'USD'
+                          ? `${Number(subscription.amount || 0).toFixed(2)} ${subscription.currency}`
+                          : formatMoney(subscription.amount || 0)}
                       </TableCell>
                     </TableRow>
                   ))

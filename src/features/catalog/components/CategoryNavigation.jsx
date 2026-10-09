@@ -1,25 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@lib/utils';
 
-// Jump targets, in the order the sections appear on the homepage. Each id MUST
-// match a section id in Home.jsx — two of these were previously typos
-// ('Featured-products' vs featured-products, 'game-accounts' vs
-// gaming-accounts) so those two links silently did nothing.
+const DEFERRED_SECTIONS_ANCHOR = 'home-deferred-sections';
+
 const menuItems = [
   { id: 'featured-products', label: 'Featured Products' },
   { id: 'bestsellers', label: 'Bestsellers' },
   { id: 'top-viewed', label: 'Top Viewed' },
   { id: 'gift-cards', label: 'Gift Cards' },
-  { id: 'upcoming-games', label: 'Upcoming Games' },
-  { id: 'microsoft', label: 'Microsoft' },
+  { id: 'upcoming-games', label: 'Upcoming Games', deferred: true },
+  { id: 'microsoft', label: 'Microsoft', deferred: true },
 ];
+
+const DEFERRED_RETRY_MS = 150;
+const DEFERRED_RETRIES = 12;
 
 const CategoryNavigation = ({ scrollOffset = 140 }) => {
   const [activeItem, setActiveItem] = useState('');
-  const [isScrolling, setIsScrolling] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(140);
   const navRef = useRef(null);
-  const observerRef = useRef(null);
+  const isScrollingRef = useRef(false);
 
   useEffect(() => {
     const calculateHeaderHeight = () => {
@@ -27,11 +27,7 @@ const CategoryNavigation = ({ scrollOffset = 140 }) => {
         document.querySelector('[class*="sticky"][class*="z-50"]') ||
         document.querySelector('header') ||
         document.querySelector('[style*="sticky"]');
-      if (header) {
-        setHeaderHeight(header.offsetHeight);
-      } else {
-        setHeaderHeight(scrollOffset);
-      }
+      setHeaderHeight(header ? header.offsetHeight : scrollOffset);
     };
 
     const timer = setTimeout(calculateHeaderHeight, 100);
@@ -43,135 +39,123 @@ const CategoryNavigation = ({ scrollOffset = 140 }) => {
     };
   }, [scrollOffset]);
 
-  const scrollToSection = (sectionId) => {
-    setIsScrolling(true);
-    const element = document.getElementById(sectionId);
+  const scrollToElement = (element) => {
+    const top = element.getBoundingClientRect().top + window.pageYOffset - (headerHeight + 60);
+    window.scrollTo({ top, behavior: 'smooth' });
+  };
+
+  const scrollToSection = (item) => {
+    isScrollingRef.current = true;
+    const settle = () => {
+      setActiveItem(item.id);
+      setTimeout(() => { isScrollingRef.current = false; }, 500);
+    };
+
+    const element = document.getElementById(item.id);
     if (element) {
-      const totalOffset = headerHeight + 60;
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth',
-      });
-
-      setTimeout(() => {
-        setActiveItem(sectionId);
-        setIsScrolling(false);
-      }, 500);
-    } else {
-      setIsScrolling(false);
+      scrollToElement(element);
+      settle();
+      return;
     }
+
+    const anchor = item.deferred && document.getElementById(DEFERRED_SECTIONS_ANCHOR);
+    if (!anchor) {
+      isScrollingRef.current = false;
+      return;
+    }
+    scrollToElement(anchor);
+    let attempts = 0;
+    const retry = () => {
+      const target = document.getElementById(item.id);
+      if (target) {
+        scrollToElement(target);
+        settle();
+      } else if (++attempts < DEFERRED_RETRIES) {
+        setTimeout(retry, DEFERRED_RETRY_MS);
+      } else {
+        isScrollingRef.current = false;
+      }
+    };
+    setTimeout(retry, DEFERRED_RETRY_MS);
   };
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (isScrolling) return;
-
-      const totalOffset = headerHeight + 60;
-      const scrollPosition = window.scrollY + totalOffset + 50;
-
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      if (isScrollingRef.current) return;
+      const line = headerHeight + 110;
       for (let i = menuItems.length - 1; i >= 0; i--) {
-        const element = document.getElementById(menuItems[i].id);
-        if (element) {
-          const elementTop = element.offsetTop;
-          const elementBottom = elementTop + element.offsetHeight;
-
-          if (scrollPosition >= elementTop && scrollPosition < elementBottom) {
-            setActiveItem(menuItems[i].id);
-            break;
-          }
+        const rect = document.getElementById(menuItems[i].id)?.getBoundingClientRect();
+        if (rect && rect.top <= line && rect.bottom > line) {
+          setActiveItem(menuItems[i].id);
+          return;
         }
       }
     };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
     };
-  }, [headerHeight, isScrolling]);
 
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        if (isScrolling) return;
-
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveItem(entry.target.id);
-          }
-        });
-      },
-      {
-        rootMargin: `-${headerHeight + 60}px 0px -50% 0px`,
-        threshold: 0.1,
-      }
-    );
-
-    menuItems.forEach((item) => {
-      const element = document.getElementById(item.id);
-      if (element) {
-        observerRef.current.observe(element);
-      }
-    });
-
+    window.addEventListener('scroll', onScroll, { passive: true });
+    update();
     return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
+      window.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
     };
-  }, [headerHeight, isScrolling]);
+  }, [headerHeight]);
 
-  // M15: gentle auto-scroll (marquee) of the subcategory bar when it overflows.
-  // Ping-pongs left↔right, pauses on hover/touch/focus so the user can read and
-  // click, and respects prefers-reduced-motion.
   useEffect(() => {
     const nav = navRef.current;
     if (!nav) return undefined;
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return undefined;
 
-    let raf;
+    let raf = 0;
     let dir = 1;
     let paused = false;
-    const SPEED = 0.4; // px per frame ≈ 24px/s at 60fps
+    const SPEED = 0.4;
+    const overflow = () => nav.scrollWidth - nav.clientWidth;
 
     const tick = () => {
-      if (!paused) {
-        const max = nav.scrollWidth - nav.clientWidth;
-        if (max > 4) {
-          nav.scrollLeft += dir * SPEED;
-          if (nav.scrollLeft >= max - 1) dir = -1;
-          else if (nav.scrollLeft <= 1) dir = 1;
-        }
-      }
+      raf = 0;
+      const max = overflow();
+      if (paused || max <= 4) return;
+      nav.scrollLeft += dir * SPEED;
+      if (nav.scrollLeft >= max - 1) dir = -1;
+      else if (nav.scrollLeft <= 1) dir = 1;
       raf = requestAnimationFrame(tick);
     };
+    const start = () => {
+      if (!raf && !paused && overflow() > 4) raf = requestAnimationFrame(tick);
+    };
+    const pause = () => {
+      paused = true;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    const resume = () => {
+      paused = false;
+      start();
+    };
 
-    const pause = () => { paused = true; };
-    const resume = () => { paused = false; };
     nav.addEventListener('mouseenter', pause);
     nav.addEventListener('mouseleave', resume);
     nav.addEventListener('touchstart', pause, { passive: true });
     nav.addEventListener('touchend', resume, { passive: true });
     nav.addEventListener('focusin', pause);
     nav.addEventListener('focusout', resume);
-    raf = requestAnimationFrame(tick);
+    window.addEventListener('resize', start);
+    start();
 
     return () => {
-      cancelAnimationFrame(raf);
+      if (raf) cancelAnimationFrame(raf);
       nav.removeEventListener('mouseenter', pause);
       nav.removeEventListener('mouseleave', resume);
       nav.removeEventListener('touchstart', pause);
       nav.removeEventListener('touchend', resume);
       nav.removeEventListener('focusin', pause);
       nav.removeEventListener('focusout', resume);
+      window.removeEventListener('resize', start);
     };
   }, []);
 
@@ -192,7 +176,7 @@ const CategoryNavigation = ({ scrollOffset = 140 }) => {
                 <div key={item.id} className="flex items-center">
                   <button
                     type="button"
-                    onClick={() => scrollToSection(item.id)}
+                    onClick={() => scrollToSection(item)}
                     className={cn(
                       'px-2 sm:px-2.5 py-1.5 sm:py-2 text-sm sm:text-base capitalize font-medium tracking-tight whitespace-nowrap transition-all duration-200',
                       'hover:text-accent-on-dark focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2 focus:ring-offset-[#07142E] rounded',

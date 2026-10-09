@@ -25,30 +25,17 @@ import {
 } from '@features/catalog/utils/productUtils';
 import { ArrowLeft, CalendarClock, Lock, Package, RefreshCw } from 'lucide-react';
 
-// A single read-only "spec" row for the locked product panel. Renders nothing
-// without a value, which is why it wraps SpecRow rather than being replaced by
-// it outright — this panel lists optional attributes.
 const Spec = ({ label, value }) =>
   value ? <SpecRow label={label} value={<span className="max-w-[60%]">{value}</span>} /> : null;
 
 const nameOf = (v) => (typeof v === 'string' ? v : v?.name || '');
-const listNames = (arr) =>
-  Array.isArray(arr) ? arr.map(nameOf).filter(Boolean).join(', ') : '';
 
-/**
- * Full-page seller offer form (replaces the old create/edit modals). The left
- * panel shows the master product's information — entirely READ-ONLY, since the
- * catalog is admin-owned — while the right panel holds the only things a seller
- * controls: price, discount, region availability, featured, account info.
- *
- * Routes: /seller/catalog/:productId/list (create) · /seller/offers/:offerId/edit (edit)
- */
 const SellerOfferPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { productId: productIdParam, offerId } = useParams();
   const mode = offerId ? 'edit' : 'create';
-  const { rates } = useCurrency(); // for the live "≈ USD" preview of the seller's price
+  const { rates } = useCurrency();
 
   const [form, setForm] = useState({
     price: '',
@@ -57,21 +44,16 @@ const SellerOfferPage = () => {
     regionCodes: [],
     countries: [],
     excludedCountries: [],
-    accountEmail: '',
-    accountWebsite: '',
   });
   const [seeded, setSeeded] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
-  // M21 (req 8): a pre-order listing is an obligation, so a new one is gated on
-  // the seller ticking that they understand it. Edits are not — they agreed when
-  // they created the listing, and re-asking on a price change is noise.
   const [preorderAck, setPreorderAck] = useState(false);
 
-  // Edit mode: load the seller's own offer to seed the form + resolve the product.
   const offerQuery = useQuery({
     queryKey: ['seller-offer', offerId],
     queryFn: () => offerAPI.getOffer(offerId).then((r) => r.data.data),
     enabled: mode === 'edit',
+    refetchOnMount: 'always',
   });
   const offer = offerQuery.data;
 
@@ -84,26 +66,20 @@ const SellerOfferPage = () => {
   });
   const product = productQuery.data;
 
-  // Seed the form once from the loaded offer (edit mode).
   useEffect(() => {
-    if (mode === 'edit' && offer && !seeded) {
+    if (mode === 'edit' && offer && offerQuery.isFetchedAfterMount && !seeded) {
       setForm({
-        // Show the seller their ORIGINAL input currency/amount when present, so
-        // an edit round-trips (the USD `offer.price` is the frozen conversion).
         price: offer.sellerInputPrice ?? offer.price ?? '',
         priceCurrency: offer.sellerInputCurrency || 'USD',
         discount: offer.discount ?? '',
         regionCodes: offer.regionCodes || [],
         countries: offer.countries || [],
         excludedCountries: offer.excludedCountries || [],
-        accountEmail: offer.accountEmail || '',
-        accountWebsite: offer.accountWebsite || '',
       });
       setSeeded(true);
     }
-  }, [mode, offer, seeded]);
+  }, [mode, offer, offerQuery.isFetchedAfterMount, seeded]);
 
-  const isAccount = product?.productType === 'ACCOUNT_BASED';
   const isPreorder = isActivePreorder(product);
   const releaseDateLabel = formatReleaseDate(product?.preorderReleaseDate);
   const images = useMemo(
@@ -114,10 +90,12 @@ const SellerOfferPage = () => {
   const saveMutation = useMutation({
     mutationFn: (payload) =>
       mode === 'edit' ? offerAPI.updateOffer(offerId, payload) : offerAPI.createOffer(payload),
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['my-offers'] });
       queryClient.invalidateQueries({ queryKey: ['seller-catalog'] });
-      toast.success(mode === 'edit' ? 'Offer updated' : 'Offer submitted for approval');
+      queryClient.invalidateQueries({ queryKey: ['seller-offers-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-offer', offerId] });
+      toast.success(res?.data?.message || (mode === 'edit' ? 'Offer updated' : 'Offer submitted for approval'));
       navigate('/seller/offers');
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Save failed'),
@@ -139,15 +117,11 @@ const SellerOfferPage = () => {
       regionCodes: form.regionCodes,
       countries: form.countries,
       excludedCountries: form.excludedCountries,
-      ...(isAccount
-        ? { accountEmail: form.accountEmail || undefined, accountWebsite: form.accountWebsite || undefined }
-        : {}),
     };
     if (mode === 'create') payload.productId = productId;
     saveMutation.mutate(payload);
   };
 
-  if (mode === 'edit' && offerQuery.isLoading) return <FormSkeleton fields={4} />;
   if (mode === 'edit' && offerQuery.isError) {
     return (
       <ErrorState
@@ -157,6 +131,7 @@ const SellerOfferPage = () => {
       />
     );
   }
+  if (mode === 'edit' && !seeded) return <FormSkeleton fields={4} />;
   if (productQuery.isLoading) return <FormSkeleton fields={4} />;
   if (productQuery.isError || !product) {
     return (
@@ -171,7 +146,6 @@ const SellerOfferPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="sm" className="border-border" onClick={() => navigate('/seller/offers')}>
           <ArrowLeft className="h-4 w-4" />
@@ -184,10 +158,6 @@ const SellerOfferPage = () => {
         </div>
       </div>
 
-      {/* ── M21 (req 8): what listing a pre-order commits the seller to ────
-          Full width and above the form on purpose. A badge next to the type
-          chip told a seller the product was a pre-order; it told them nothing
-          about the obligation, which is where their money is at stake. */}
       {isPreorder && (
         <div className="rounded-xl border border-warning/40 bg-warning-soft p-5">
           <div className="flex items-start gap-3">
@@ -241,7 +211,6 @@ const SellerOfferPage = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* ── Locked product info ─────────────────────────────────────────── */}
         <Card variant="hud">
           <CardHeader className="border-b border-info/15 flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
@@ -252,7 +221,6 @@ const SellerOfferPage = () => {
             </span>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Image gallery */}
             <div className="space-y-2">
               <SafeImage
                 src={images[activeImg]}
@@ -283,16 +251,14 @@ const SellerOfferPage = () => {
               <PreorderBadge product={product} className="text-xs" />
             </div>
 
-            {/* Specs */}
             <div>
               <Spec label="Platform" value={getPlatformName(product)} />
-              <Spec label="Type" value={nameOf(product.type)} />
-              <Spec label="Genre" value={nameOf(product.genre) || listNames(product.genres)} />
+              <Spec label="Genre" value={nameOf(product.genre)} />
               <Spec label="Region (catalog)" value={getRegionName(product)} />
-              <Spec label="Category" value={nameOf(product.categoryId) || nameOf(product.category)} />
-              <Spec label="Sub-category" value={nameOf(product.subCategoryId) || nameOf(product.subCategory)} />
-              <Spec label="Publisher" value={listNames(product.publishers)} />
-              <Spec label="Device" value={nameOf(product.device) || listNames(product.devices)} />
+              <Spec label="Category" value={nameOf(product.categoryId)} />
+              <Spec label="Sub-category" value={nameOf(product.subCategoryId)} />
+              <Spec label="Publisher" value={nameOf(product.publishers)} />
+              <Spec label="Device" value={nameOf(product.device)} />
             </div>
 
             {product.description && (
@@ -306,7 +272,6 @@ const SellerOfferPage = () => {
           </CardContent>
         </Card>
 
-        {/* ── Editable seller fields ──────────────────────────────────────── */}
         <Card variant="hud">
           <CardHeader className="border-b border-info/15">
             <CardTitle>Your offer</CardTitle>
@@ -364,30 +329,9 @@ const SellerOfferPage = () => {
               />
             </div>
 
-            {isAccount && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-sm text-fg-muted">Account Email</Label>
-                  <Input
-                    value={form.accountEmail}
-                    onChange={(e) => setForm((f) => ({ ...f, accountEmail: e.target.value }))}
-                    className="border-border bg-secondary text-fg"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm text-fg-muted">Website</Label>
-                  <Input
-                    value={form.accountWebsite}
-                    onChange={(e) => setForm((f) => ({ ...f, accountWebsite: e.target.value }))}
-                    className="border-border bg-secondary text-fg"
-                  />
-                </div>
-              </div>
-            )}
-
             <p className="text-xs text-fg-subtle">
               {mode === 'create'
-                ? 'After approval you can add inventory (keys/accounts) from “My Offers”. Stock comes from your uploaded inventory.'
+                ? 'You can upload inventory (keys/accounts) on the Inventory page straight away. Stock comes from your uploaded inventory, and the listing goes on sale once an admin approves it.'
                 : 'Manage inventory (keys/accounts) from the License Keys page.'}
             </p>
 

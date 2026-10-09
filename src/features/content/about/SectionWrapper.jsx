@@ -1,8 +1,5 @@
 import { useInView } from '@hooks/useInView';
 
-/**
- * Wraps a section with optional in-view animation and consistent spacing.
- */
 export default function SectionWrapper({
   children,
   className = '',

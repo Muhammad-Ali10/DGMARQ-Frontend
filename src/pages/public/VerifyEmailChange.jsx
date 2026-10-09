@@ -7,19 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@comp
 import { Loading } from '@components/ui/loading';
 import { MailCheck, MailX, ArrowLeft } from 'lucide-react';
 
-/**
- * AUDIT FIX (DEAD-8): the landing page for the email-change verification link.
- *
- * The backend has always mailed `${FRONTEND_URL}/verify-email-change?token=...`,
- * but this route did not exist — the link dropped the user on the SPA's
- * not-found page, so nobody could ever complete an email change. The endpoint
- * and the authAPI.verifyEmailChange wrapper were both already there; only the
- * page was missing.
- *
- * The token is single-use and consumed by the POST, so this fires exactly once
- * on mount (StrictMode double-invokes effects in dev, hence the ref guard) and
- * reports the outcome rather than asking the user to press anything.
- */
 const VerifyEmailChange = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');

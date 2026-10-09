@@ -1,5 +1,2 @@
-// Shared image placeholders. Lives in the framework-neutral `lib` layer so that
-// both the generic `ui/SafeImage` primitive and catalog code can use it without
-// a ui→feature dependency.
 export const PRODUCT_IMAGE_PLACEHOLDER =
   'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22300%22 viewBox=%220 0 300 300%22%3E%3Crect width=%22300%22 height=%22300%22 fill=%22%231f2937%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 fill=%22%239ca3af%22 font-family=%22Arial,sans-serif%22 font-size=%2224%22 text-anchor=%22middle%22 dy=%22.35em%22%3ENo Image%3C/text%3E%3C/svg%3E';

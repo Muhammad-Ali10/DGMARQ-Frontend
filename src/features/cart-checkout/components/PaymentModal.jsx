@@ -7,32 +7,21 @@ import { getPayPalSDK } from '@utils/paypalSDK';
 import { getGooglePaySDK, getGooglePayEnvironment } from '@utils/googlePaySDK';
 import { paypalAPI, checkoutAPI } from '@services/api';
 import { toast } from 'sonner';
+import { settlePayment } from '../utils/settlePayment';
 
-// ─── Design tokens, ported 1:1 from the v74 mockup's `pm-*` block ────────────
-// Payment-method tile. The idle border/background and the hover colours are
-// applied only when the tile is NOT selected: in the old stylesheet `.pm-tile.sel`
-// came after the hover rule and therefore won, and utility source-order gives no
-// such guarantee. The hover lift stays on the base, since `.sel` never set
-// `transform` and selected tiles did rise on hover.
 const TILE_BASE =
   'flex min-h-[104px] cursor-pointer flex-col items-center justify-center gap-[10px] rounded-[14px] border-[1.5px] px-[12px] py-[16px] text-fg [font-family:inherit] [transition:border-color_0.2s,background_0.2s,transform_0.15s] enabled:hover:[transform:translateY(-2px)] disabled:cursor-not-allowed disabled:opacity-[0.45]';
 const TILE_IDLE =
   'border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] enabled:hover:border-[rgba(58,155,245,0.65)] enabled:hover:bg-[rgba(14,81,226,0.1)]';
 const TILE_SEL =
   'border-[rgba(58,155,245,0.9)] bg-[rgba(14,81,226,0.15)] shadow-[0_0_0_1px_rgba(58,155,245,0.4),0_8px_22px_rgba(14,81,226,0.3)]';
-// `.pm-tile .tl` — the caption under each tile's mark.
 const TILE_LABEL = 'text-center text-[13px] font-bold leading-[1.2] tracking-[0.1px]';
-// `.pm-grid` column counts, keyed by how many tiles are rendered. The 4-tile case
-// was a `max-width` query in CSS, so it inverts: 2 columns base, 4 from 520px up.
 const GRID_COLS = {
   2: 'grid-cols-2',
   3: 'grid-cols-3',
   4: 'grid-cols-2 min-[520px]:grid-cols-4',
 };
 
-/**
- * Payment modal using PayPal CardFields and Buttons. No card data in React state.
- */
 const PaymentModal = ({ 
   open, 
   onOpenChange, 
@@ -40,11 +29,11 @@ const PaymentModal = ({
   totalAmount, 
   currency = 'USD', 
   onSuccess,
+  onPending,
+  guestEmail,
   walletBalance = 0,
   paymentMethod = 'PayPal',
 }) => {
-  // PayPal always captures in USD, so the modal states the charge currency
-  // explicitly rather than in the buyer's display currency.
   const formatAmount = (n) => `${currency} ${Number(n || 0).toFixed(2)}`;
   const [selectedMethod, setSelectedMethod] = useState(
     paymentMethod === 'Wallet' ? 'wallet' : 
@@ -58,12 +47,12 @@ const PaymentModal = ({
   const [isCardFieldsEligible, setIsCardFieldsEligible] = useState(false);
   const paymentAttemptRef = useRef({ id: 0, isHandled: false });
   const pendingCardErrorTimerRef = useRef(null);
-  // Google Pay (fulfilled through PayPal's `googlepay` component). The tile only
-  // appears once the device + merchant are confirmed eligible.
   const [isGooglePayEligible, setIsGooglePayEligible] = useState(false);
   const googlePayContainerRef = useRef(null);
   const googlePayRef = useRef({ client: null, config: null });
   const googlePayHandlerRef = useRef(null);
+  const callbacksRef = useRef({ onSuccess, onPending, onOpenChange });
+  callbacksRef.current = { onSuccess, onPending, onOpenChange };
 
   const clearPaymentToasts = () => {
     toast.dismiss();
@@ -95,10 +84,8 @@ const PaymentModal = ({
 
     if (success) {
       toast.success('Payment successful!');
-      if (onSuccess) {
-        onSuccess(payload);
-      }
-      setTimeout(() => onOpenChange(false), 100);
+      callbacksRef.current.onSuccess?.(payload);
+      setTimeout(() => callbacksRef.current.onOpenChange(false), 100);
     } else {
       toast.error(errorMessage);
     }
@@ -107,8 +94,27 @@ const PaymentModal = ({
     return true;
   };
 
-  // Google Pay authorization → PayPal order → confirm → capture. Google calls
-  // this from its payment sheet and expects a transactionState back.
+  const finishAttempt = (attemptId, outcome) => {
+    if (outcome.status === 'paid') {
+      return resolvePaymentAttempt({ attemptId, success: true, payload: outcome.payload });
+    }
+    if (outcome.status !== 'pending') {
+      return resolvePaymentAttempt({ attemptId, success: false, errorMessage: outcome.message });
+    }
+    const activeAttempt = paymentAttemptRef.current;
+    if (!activeAttempt.id || activeAttempt.id !== attemptId || activeAttempt.isHandled) return false;
+    paymentAttemptRef.current = { ...activeAttempt, isHandled: true };
+    clearPaymentToasts();
+    toast.info(outcome.message, { duration: 15000 });
+    setIsLoading(false);
+    callbacksRef.current.onPending?.();
+    setTimeout(() => callbacksRef.current.onOpenChange(false), 100);
+    return true;
+  };
+
+  const settleCapture = (paypalOrderId) =>
+    settlePayment(() => paypalAPI.captureOrder(paypalOrderId, checkoutId), checkoutId, { guestEmail });
+
   const handleGooglePayAuthorized = async (paymentData) => {
     const attemptId = beginPaymentAttempt();
     try {
@@ -131,14 +137,10 @@ const PaymentModal = ({
         );
       }
 
-      const captureResponse = await paypalAPI.captureOrder(orderId, checkoutId);
-      const responseData = captureResponse.data || captureResponse;
-      const captureStatus = responseData?.status || responseData?.data?.status;
-      if (responseData?.ok === false || (captureStatus && captureStatus !== 'COMPLETED')) {
-        throw new Error(responseData?.message || `Payment capture failed. Status: ${captureStatus || 'unknown'}`);
-      }
+      const outcome = await settleCapture(orderId);
+      if (outcome.status === 'failed') throw new Error(outcome.message);
 
-      resolvePaymentAttempt({ attemptId, success: true, payload: responseData });
+      finishAttempt(attemptId, outcome);
       return { transactionState: 'SUCCESS' };
     } catch (error) {
       const errorMessage =
@@ -150,12 +152,8 @@ const PaymentModal = ({
       };
     }
   };
-  // Keep the callback the Google client holds pointing at the latest closure
-  // (checkoutId/totalAmount change between renders; the client is built once).
   googlePayHandlerRef.current = handleGooglePayAuthorized;
 
-  // Eligibility: merchant onboarded (PayPal config) AND device can pay (Google).
-  // Any failure just leaves the tile hidden — never blocks the other methods.
   useEffect(() => {
     if (!open || !paypalSDK) return undefined;
     let cancelled = false;
@@ -181,14 +179,12 @@ const PaymentModal = ({
           setIsGooglePayEligible(true);
         }
       } catch {
-        // Not eligible, blocked, or Google Pay not enabled on the PayPal account.
         if (!cancelled) setIsGooglePayEligible(false);
       }
     })();
     return () => { cancelled = true; };
   }, [open, paypalSDK]);
 
-  // Render Google's own branded button (their API owns the markup).
   useEffect(() => {
     if (!open || selectedMethod !== 'googlepay' || !isGooglePayEligible) return undefined;
     const container = googlePayContainerRef.current;
@@ -281,19 +277,7 @@ const PaymentModal = ({
                 try {
                   setIsLoading(true);
                   await new Promise(resolve => setTimeout(resolve, 500));
-                  const captureResponse = await paypalAPI.captureOrder(data.orderID, checkoutId);
-                  const responseData = captureResponse.data || captureResponse;
-                  const captureStatus = responseData?.status || responseData?.data?.status;
-                  const isOk = responseData?.ok !== false; // Default to true if not explicitly false
-                  
-                  if (!isOk || (captureStatus && captureStatus !== 'COMPLETED')) {
-                    const errorMessage = responseData?.message || 
-                                      responseData?.data?.message || 
-                                      `Payment capture failed. Status: ${captureStatus || 'unknown'}`;
-                    resolvePaymentAttempt({ attemptId, success: false, errorMessage });
-                    return;
-                  }
-                  resolvePaymentAttempt({ attemptId, success: true, payload: responseData });
+                  finishAttempt(attemptId, await settleCapture(data.orderID));
                 } catch (error) {
                   let errorMessage = 'Payment capture failed';
                   if (error.response?.data?.message) {
@@ -322,7 +306,7 @@ const PaymentModal = ({
             const eligible = fields.isEligible();
             setIsCardFieldsEligible(eligible);
             setCardFields(fields);
-            cardFieldsRef.current = fields; // Store in ref for submit()
+            cardFieldsRef.current = fields;
           } catch {
             setIsCardFieldsEligible(false);
             setCardFields(null);
@@ -337,10 +321,8 @@ const PaymentModal = ({
     };
 
     loadPayPalSDK();
-    // resolvePaymentAttempt is recreated every render; adding it would re-run
-    // the whole PayPal SDK load on every render. Intentionally excluded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, checkoutId, onSuccess, onOpenChange]);
+  }, [open, checkoutId]);
 
   useEffect(() => {
     if (open) {
@@ -384,13 +366,11 @@ const PaymentModal = ({
         
         if (!cardNumberEl || !cardExpiryEl || !cardCvvEl || !cardNameEl) return;
 
-        // Ensure containers are empty before rendering
         cardNumberEl.innerHTML = '';
         cardExpiryEl.innerHTML = '';
         cardCvvEl.innerHTML = '';
         cardNameEl.innerHTML = '';
         
-        // Render fields with responsive styles
         cardFields.NumberField({
           placeholder: 'Card Number',
         }).render('#card-number');
@@ -408,12 +388,7 @@ const PaymentModal = ({
         }).render('#card-name');
 
       } catch (renderError) {
-        // FIX (FQ2): was `logger.error` but no logger exists in this file — the
-        // line itself threw a ReferenceError, masking the real PayPal error.
-        // console.* is stripped from production builds by vite config.
         console.error('Failed to render card fields', renderError);
-        // Don't show toast here as it might be noisy during re-renders,
-        // instead just allow the user to retry or switch methods.
       }
     };
     checkContainersAndRender(false);
@@ -482,18 +457,7 @@ const PaymentModal = ({
             try {
               setIsLoading(true);
               await new Promise(resolve => setTimeout(resolve, 500));
-              const captureResponse = await paypalAPI.captureOrder(data.orderID, checkoutId);
-              const responseData = captureResponse.data || captureResponse;
-              const captureStatus = responseData?.status || responseData?.data?.status;
-              const isOk = responseData?.ok !== false;
-              if (!isOk || (captureStatus && captureStatus !== 'COMPLETED')) {
-                const errorMessage = responseData?.message || 
-                                    responseData?.data?.message || 
-                                    `Payment capture failed. Status: ${captureStatus || 'unknown'}`;
-                resolvePaymentAttempt({ attemptId, success: false, errorMessage });
-                return;
-              }
-              resolvePaymentAttempt({ attemptId, success: true, payload: responseData });
+              finishAttempt(attemptId, await settleCapture(data.orderID));
             } catch (error) {
               let errorMessage = 'Payment capture failed';
               if (error.response?.data?.message) {
@@ -517,6 +481,9 @@ const PaymentModal = ({
             
             resolvePaymentAttempt({ attemptId, success: false, errorMessage });
           },
+          onCancel: () => {
+            toast.info('PayPal window closed. You can pick another payment method.');
+          },
           disableFunding: 'paylater',
           style: {
             layout: 'vertical',
@@ -538,10 +505,8 @@ const PaymentModal = ({
         container.innerHTML = '';
       }
     };
-    // resolvePaymentAttempt/beginPaymentAttempt are recreated every render;
-    // adding them would re-render the PayPal buttons on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paypalSDK, open, selectedMethod, checkoutId, onSuccess, onOpenChange]);
+  }, [paypalSDK, open, selectedMethod, checkoutId]);
 
   const handleCardSubmit = async (e) => {
     e.preventDefault();
@@ -557,8 +522,6 @@ const PaymentModal = ({
       setIsLoading(true);
       await fields.submit();
     } catch (error) {
-      // Card submit can throw intermediate/non-fatal SDK errors before onApprove resolves.
-      // Delay showing an error to avoid conflicting success + error toasts.
       pendingCardErrorTimerRef.current = setTimeout(() => {
         resolvePaymentAttempt({
           attemptId,
@@ -572,15 +535,10 @@ const PaymentModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Layout (fixed + centring) stays OWNED BY DialogContent — only the
-          design's visual values are layered on. An earlier attempt set these in
-          a `.pm-shell` CSS class whose `position:relative` silently beat the
-          component's `fixed`, and the modal stopped rendering on screen. */}
       <DialogContent
         size="sm"
         className="max-h-[92vh] max-w-[460px] overflow-y-auto rounded-[20px] border border-[rgba(58,116,240,0.35)] bg-[linear-gradient(180deg,#0d1730,#080d1e)] p-0 shadow-[0_30px_80px_rgba(0,0,0,0.6),0_0_0_1px_rgba(58,155,245,0.15)] before:absolute before:inset-x-0 before:top-0 before:z-[2] before:h-[2px] before:bg-[linear-gradient(90deg,transparent,#0e51e2,#3a9bf5,#7b2ff7,transparent)] before:bg-[length:200%_100%] before:content-[''] before:animate-rail-slide"
       >
-        {/* Global styles to override PayPal CardFields default styling */}
         <style>{`
           .paypal-card-field-container {
             position: relative;
@@ -611,10 +569,6 @@ const PaymentModal = ({
           }
         `}</style>
         <DialogHeader className="px-[22px] pt-[22px] pb-0 text-left">
-          {/* Design puts the amount in the header, not at the foot of the modal.
-              The overrides sit on <DialogTitle> rather than the <h3> so `cn`'s
-              tailwind-merge resolves them against the component's own defaults —
-              Radix's `asChild` just concatenates class strings. */}
           <DialogTitle asChild className="m-0 text-[19px] font-extrabold text-fg">
             <h3>Complete your payment</h3>
           </DialogTitle>
@@ -631,7 +585,6 @@ const PaymentModal = ({
           <div className="mt-[6px] mb-[10px] text-[11px] font-bold tracking-[0.8px] text-fg/[0.4] uppercase">
             Choose payment method
           </div>
-          {/* Tile count varies with wallet balance and Google Pay eligibility. */}
           <div className={`mb-[12px] grid gap-[12px] ${
             GRID_COLS[
               2 + (walletBalance >= totalAmount ? 1 : 0) + (isGooglePayEligible ? 1 : 0)
@@ -672,8 +625,6 @@ const PaymentModal = ({
               className={`${TILE_BASE} ${selectedMethod === 'paypal' ? TILE_SEL : TILE_IDLE}`}
               disabled={isLoading}
             >
-              {/* Wordmark drawn locally — the old remote paypalobjects JPEG was
-                  a third-party request on every modal open. */}
               <span className="text-[19px] font-extrabold leading-none">
                 <span style={{ color: '#003087' }}>Pay</span><span style={{ color: '#009cde' }}>Pal</span>
               </span>
@@ -686,7 +637,6 @@ const PaymentModal = ({
               className={`${TILE_BASE} ${selectedMethod === 'card' ? TILE_SEL : TILE_IDLE}`}
               disabled={isLoading}
             >
-              {/* Design's bespoke card mark (v74 6971), not a generic glyph. */}
               <svg width="36" height="26" viewBox="0 0 36 26" aria-hidden="true">
                 <rect x="0.75" y="0.75" width="34.5" height="24.5" rx="3.5" fill="#1a2b4a" stroke="rgba(127,180,255,.4)" strokeWidth="1.5" />
                 <rect x="0.75" y="6" width="34.5" height="4.5" fill="#0e51e2" />
@@ -697,7 +647,6 @@ const PaymentModal = ({
             </button>
           </div>
 
-          {/* Google Pay — Google renders its own branded button into this slot. */}
           {selectedMethod === 'googlepay' && isGooglePayEligible && (
             <div className="space-y-3">
               <div ref={googlePayContainerRef} className="min-h-[48px]" />
@@ -707,7 +656,6 @@ const PaymentModal = ({
             </div>
           )}
 
-          {/* Wallet Payment Option */}
           {selectedMethod === 'wallet' && walletBalance >= totalAmount && (
             <div className="space-y-4">
               <Card className="bg-surface-2/50 ">
@@ -741,18 +689,8 @@ const PaymentModal = ({
                         }
                         setIsLoading(true);
                         try {
-                          const response = await checkoutAPI.payWithWallet(checkoutId);
-                          resolvePaymentAttempt({
-                            attemptId,
-                            success: true,
-                            payload: response.data.data,
-                          });
-                        } catch (error) {
-                          resolvePaymentAttempt({
-                            attemptId,
-                            success: false,
-                            errorMessage: error.response?.data?.message || 'Wallet payment failed',
-                          });
+                          const outcome = await settlePayment(() => checkoutAPI.payWithWallet(checkoutId), checkoutId);
+                          finishAttempt(attemptId, outcome.status === 'paid' && outcome.payload?.data ? { ...outcome, payload: outcome.payload.data } : outcome);
                         } finally {
                           setIsLoading(false);
                         }
@@ -779,7 +717,6 @@ const PaymentModal = ({
             </div>
           )}
 
-          {/* Divider */}
           {selectedMethod !== 'wallet' && (
             <div className="relative py-2">
               <div className="absolute inset-0 flex items-center">
@@ -791,7 +728,6 @@ const PaymentModal = ({
             </div>
           )}
 
-          {/* PayPal Payment Option */}
           {selectedMethod === 'paypal' && (
             <div className="space-y-4">
               <Card className="bg-surface-2/50 ">
@@ -814,7 +750,6 @@ const PaymentModal = ({
             </div>
           )}
 
-          {/* Card Payment Form */}
           {selectedMethod === 'card' && (
             <div className="space-y-4">
               {!isCardFieldsEligible ? (
@@ -892,7 +827,6 @@ const PaymentModal = ({
                       </>
                     ) : (
                       <>
-                        {/* Design puts the lock BEFORE the label. */}
                         <Lock className="h-4 w-4" />
                         Pay {formatAmount(totalAmount)}
                       </>
@@ -903,9 +837,6 @@ const PaymentModal = ({
             </div>
           )}
 
-          {/* Design's modal-level legal line — shown for every method, not just
-              the card form (v74 line 6989). The old total row is gone: the
-              amount now lives in the header, as the design has it. */}
           <div className="mt-[14px] text-center text-[11px] leading-[1.5] text-fg/[0.4]">
             By paying you agree to DGMARQ&apos;s Terms. Your card details are encrypted and never stored on our servers.
           </div>

@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { returnRefundAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
+import { Pagination } from '@components/common/Pagination';
 import { refundBadgeProps } from '@features/wallet-payout';
 import useCurrency from '@hooks/useCurrency';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
@@ -16,32 +17,20 @@ import { Eye, ShieldCheck } from 'lucide-react';
 import { getDisplayOrderId } from '@lib/orderDisplay';
 import { useSocket } from '@hooks/useSocket';
 
-/**
- * Refund requests raised against this seller's products.
- *
- * This file used to carry its own `STATUS_BADGES` table — a fifth copy of the
- * refund vocabulary, alongside the four removed in the token phase. It now reads
- * the canonical taxonomy in features/wallet-payout, so a status added there
- * shows up here with the same label and colour automatically.
- *
- * Money is settlement money (what the seller stands to lose), so `formatUSD`
- * rather than the buyer's display-currency hook.
- */
+const PAGE_SIZE = 10;
+
 const SellerReturnRefunds = () => {
   const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
+  const [page, setPage] = useState(1);
 
   const refundsQuery = useQuery({
-    queryKey: ['seller-refunds'],
-    queryFn: () => returnRefundAPI.getSellerRefundList().then((res) => res.data.data),
+    queryKey: ['seller-refunds', page],
+    queryFn: () => returnRefundAPI.getSellerRefundList({ page, limit: PAGE_SIZE }).then((res) => res.data.data),
+    placeholderData: keepPreviousData,
   });
 
-  // AUDIT FIX (DEAD-3): this list had NO refund_executed subscription, so a
-  // seller watching it never saw a refund flip — they had to reload. Both
-  // sibling lists (user/ReturnRefunds, admin/ReturnRefundManagement) have the
-  // effect, and so does the seller DETAIL page, which makes this a missed copy
-  // rather than a decision.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const onRefundExecuted = () => {
@@ -52,6 +41,8 @@ const SellerReturnRefunds = () => {
   }, [socket, isConnected, queryClient]);
 
   const refunds = refundsQuery.data?.refunds ?? [];
+  const pagination = refundsQuery.data?.pagination;
+  const total = pagination?.total ?? refunds.length;
 
   const emptyState = (
     <EmptyState
@@ -74,7 +65,7 @@ const SellerReturnRefunds = () => {
 
       <Card variant="hud">
         <CardHeader>
-          <CardTitle>{refunds.length > 0 ? `${refunds.length} requests` : 'Requests'}</CardTitle>
+          <CardTitle>{total > 0 ? `${total} request${total === 1 ? '' : 's'}` : 'Requests'}</CardTitle>
         </CardHeader>
         <CardContent>
           {refundsQuery.isError ? (
@@ -114,7 +105,7 @@ const SellerReturnRefunds = () => {
                           </TableCell>
                           <TableCell>{refund.userId?.name || '—'}</TableCell>
                           <TableCell numeric className="font-semibold">
-                            {formatSettlement(refund.refundAmount ?? refund.productId?.price)}
+                            {formatSettlement(refund.refundAmount ?? 0)}
                           </TableCell>
                           <TableCell>
                             <Badge {...refundBadgeProps(refund.status)} />
@@ -159,7 +150,7 @@ const SellerReturnRefunds = () => {
                           <Badge {...refundBadgeProps(refund.status)} />
                         </div>
                         <p className="mt-2 text-sm font-semibold tabular-nums text-fg">
-                          {formatSettlement(refund.refundAmount ?? refund.productId?.price)}
+                          {formatSettlement(refund.refundAmount ?? 0)}
                         </p>
                         <p className="mt-1 text-xs text-fg-subtle">
                           {getDisplayOrderId(refund.orderId, '—')} · {refund.userId?.name || 'Buyer'} ·{' '}
@@ -176,6 +167,13 @@ const SellerReturnRefunds = () => {
                   </ul>
                 )}
               </div>
+              <Pagination
+                page={page}
+                totalPages={pagination?.pages}
+                onPageChange={setPage}
+                total={pagination?.total}
+                totalNoun="requests"
+              />
             </>
           )}
         </CardContent>

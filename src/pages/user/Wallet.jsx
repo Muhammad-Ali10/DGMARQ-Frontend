@@ -17,19 +17,6 @@ import { Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, Receipt, ShoppingCar
 
 const PAGE_SIZE = 15;
 
-/**
- * Buyer wallet and transaction history.
- *
- * This screen is new. `walletAPI.getTransactions` has existed the whole time
- * with nothing consuming it — the dashboard's wallet tile literally linked to
- * `'#'` with a "wallet page can be added later" comment. No backend change was
- * needed to build it.
- *
- * Top-up is NOT offered here. Wallet credit on this platform arrives from
- * refunds and Plus point redemptions; there is no deposit endpoint, so a
- * "Top up" button would lead nowhere. The empty state explains where the money
- * actually comes from instead.
- */
 const UserWallet = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { format } = useCurrency();
@@ -84,7 +71,6 @@ const UserWallet = () => {
     />
   );
 
-  /** Credit vs debit, with the direction shown by icon AND sign, not colour alone. */
   const TxDirection = ({ type }) =>
     type === 'credit' ? (
       <Badge variant="success">
@@ -108,7 +94,6 @@ const UserWallet = () => {
         <p className="mt-1 text-sm text-fg-muted">Your balance and everything that moved it.</p>
       </header>
 
-      {/* ── Balance ──────────────────────────────────────────────────────── */}
       <Card variant="hud">
         <CardContent className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -134,7 +119,6 @@ const UserWallet = () => {
         </CardContent>
       </Card>
 
-      {/* ── History ──────────────────────────────────────────────────────── */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle>
@@ -151,9 +135,6 @@ const UserWallet = () => {
           ) : (
             <>
               <div className="hidden md:block">
-                {/* Cyan micro-cap header + cyan row hairlines/hover, matching
-                    the product page's spec table. Look-check surface for the
-                    HUD table before it goes to the other nine tables. */}
                 <Table variant="hud">
                   <TableHeader>
                     <TableRow>

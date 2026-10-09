@@ -1,8 +1,6 @@
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { logout } from '@store/slices/authSlice';
-import { authAPI } from '@services/api';
+import { useLogout } from '@hooks/useLogout';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +20,6 @@ const initialsOf = (name) => {
   return name.slice(0, 2).toUpperCase();
 };
 
-/** Highest-privilege role wins, so a dual account lands on the right dashboard. */
 const routesFor = (user) => {
   const roles = Array.isArray(user?.roles) ? user.roles.map((r) => String(r).toLowerCase()) : [];
   if (roles.includes('admin')) return { dashboard: '/admin/dashboard', profile: '/admin/settings' };
@@ -30,29 +27,9 @@ const routesFor = (user) => {
   return { dashboard: '/user/dashboard', profile: '/user/profile' };
 };
 
-/**
- * Dashboard top bar.
- *
- * The account menu is now a Radix DropdownMenu. It used to be a hand-rolled
- * `useState` + `useRef` + document `mousedown` listener, which meant no keyboard
- * navigation, no Escape, no focus return and no `aria-expanded`. Radix was
- * already a dependency — the primitive simply had no wrapper until now.
- */
 const AccountMenu = ({ user }) => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const queryClient = useQueryClient();
-
-  const logoutMutation = useMutation({
-    mutationFn: () => authAPI.logout(),
-    // Clear client state either way — a failed server logout must not strand
-    // the user in a half-authenticated UI.
-    onSettled: () => {
-      dispatch(logout());
-      queryClient.clear();
-      navigate('/');
-    },
-  });
+  const logoutMutation = useLogout();
 
   const name = user?.name || user?.username || 'User';
   const avatar = user?.profileImage || user?.avatar || null;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { extractList } from '@lib/apiList';
+import { fetchAllPages } from '@lib/apiList';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -33,31 +33,19 @@ import { Pagination } from '@components/common/Pagination';
 import { PRODUCT_TYPE_OPTIONS } from '@features/catalog/utils/productUtils';
 import useCurrency from '@hooks/useCurrency';
 
-// Products are imported in small batches so each request finishes well under the
-// server's 15s request timeout — this lets a catalog of any size import without
-// ERR_CONNECTION_RESET, and gives a live progress bar. Re-running is safe
-// (idempotent dedup by kinguinId). Kept small so even on a high-latency / shared
-// DB tier a single batch stays comfortably under the 15s timeout.
 const BATCH_SIZE = 50;
-
-// Robustly pull a list out of any of the taxonomy/list response shapes the
-// backend uses ({ docs }, { genres }, { categories }, a bare array, …).
+const MAX_IMAGES = 5;
 
 const EMPTY_FORM = {
   name: '', categoryId: '', subCategoryId: '', platform: '', genre: '',
   mode: '', device: '', theme: '', productType: 'LICENSE_KEY',
   publishers: '', developers: '', releaseDate: '', activationDetails: '',
   systemRequirements: '', description: '',
-  // M21: a product can only become a pre-order here or on the edit screen.
-  // The API has accepted both fields all along, but no screen ever sent them —
-  // so no pre-order could be created, and the whole release / escrow /
-  // auto-refund pipeline behind them was unreachable.
   isPreorder: false, preorderReleaseDate: '',
 };
 
 const selectCls = 'w-full bg-secondary border border-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent';
 
-// Module-scoped so it isn't redefined every render (avoids subtree remount).
 const TaxSelect = ({ label, value, onChange, options, placeholder }) => (
   <div className="space-y-1.5">
     <Label className="text-gray-300 text-sm">{label}</Label>
@@ -85,19 +73,16 @@ const MasterCatalogManagement = () => {
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [images, setImages] = useState([]);
 
   const [toDelete, setToDelete] = useState(null);
 
-  // Debounce the search box (avoid firing on every keystroke).
   useEffect(() => {
     const t = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 400);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // ── Master catalog list ────────────────────────────────────────────────
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['master-catalog', page, search],
     queryFn: () =>
@@ -115,19 +100,18 @@ const MasterCatalogManagement = () => {
     limit: data?.limit || 10,
   };
 
-  // ── Taxonomy dropdowns (one parallel fetch, only while the form is open) ─
   const { data: tax = {} } = useQuery({
     queryKey: ['catalog-taxonomy'],
     enabled: formOpen,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const [categories, platforms, genres, modes, devices, themes] = await Promise.all([
-        categoryAPI.getCategories({ limit: 1000 }).then(extractList),
-        platformAPI.getAllPlatforms({ limit: 1000 }).then(extractList),
-        genreAPI.getGenres({ limit: 1000 }).then(extractList),
-        modeAPI.getModes({ limit: 1000 }).then(extractList),
-        deviceAPI.getDevices({ limit: 1000 }).then(extractList),
-        themeAPI.getThemes({ limit: 1000 }).then(extractList),
+        fetchAllPages(categoryAPI.getCategories),
+        fetchAllPages(platformAPI.getAllPlatforms),
+        fetchAllPages(genreAPI.getGenres),
+        fetchAllPages(modeAPI.getModes),
+        fetchAllPages(deviceAPI.getDevices),
+        fetchAllPages(themeAPI.getThemes),
       ]);
       return { categories, platforms, genres, modes, devices, themes };
     },
@@ -141,19 +125,13 @@ const MasterCatalogManagement = () => {
 
   const { data: subcategories = [] } = useQuery({
     queryKey: ['tax', 'subcategories', form.categoryId],
-    queryFn: () => subcategoryAPI.getSubcategoriesByCategoryId(form.categoryId, { limit: 1000 }).then(extractList),
+    queryFn: () => fetchAllPages((params) => subcategoryAPI.getSubcategoriesByCategoryId(form.categoryId, params)),
     enabled: formOpen && !!form.categoryId,
     staleTime: 5 * 60 * 1000,
   });
 
-  // ── Mutations ──────────────────────────────────────────────────────────
   const saveMutation = useMutation({
     mutationFn: () => {
-      if (editingId) {
-        // Edit = text fields only (images managed separately).
-        const payload = { ...form };
-        return masterCatalogAPI.updateProduct(editingId, payload);
-      }
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => { if (v !== '' && v != null) fd.append(k, v); });
       images.forEach((file) => fd.append('images', file));
@@ -161,7 +139,7 @@ const MasterCatalogManagement = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['master-catalog'] });
-      toast.success(editingId ? 'Master product updated' : 'Master product created');
+      toast.success('Master product created');
       closeForm();
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Save failed'),
@@ -178,10 +156,17 @@ const MasterCatalogManagement = () => {
     onError: (err) => toast.error(err?.response?.data?.message || 'Delete failed'),
   });
 
-  // ── Handlers ───────────────────────────────────────────────────────────
-  const openCreate = () => { setEditingId(null); setForm(EMPTY_FORM); setImages([]); setFormOpen(true); };
+  const openCreate = () => { setForm(EMPTY_FORM); setImages([]); setFormOpen(true); };
 
-  const closeForm = () => { setFormOpen(false); setEditingId(null); setForm(EMPTY_FORM); setImages([]); };
+  const closeForm = () => { setFormOpen(false); setForm(EMPTY_FORM); setImages([]); };
+
+  const pickImages = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > MAX_IMAGES) {
+      toast.warning(`Only the first ${MAX_IMAGES} images will be uploaded`);
+    }
+    setImages(files.slice(0, MAX_IMAGES));
+  };
 
   const runImport = async () => {
     if (!importFile) { toast.warning('Choose a .json file first'); return; }
@@ -214,7 +199,6 @@ const MasterCatalogManagement = () => {
         totals.updated += s.updated || 0;
         totals.skipped += s.skipped || 0;
         if (Array.isArray(s.errors)) {
-          // Re-base each batch-local index onto the whole-file position.
           s.errors.forEach((er) => totals.errors.push({ ...er, index: processed + (er.index ?? 0) }));
         }
         processed += batch.length;
@@ -234,9 +218,6 @@ const MasterCatalogManagement = () => {
   const submitForm = () => {
     if (!form.name.trim()) { toast.warning('Product name is required'); return; }
     if (!form.categoryId) { toast.warning('Category is required'); return; }
-    // A pre-order with no release date can never release and never auto-refund,
-    // so buyers' escrowed payments would sit held indefinitely. The API rejects
-    // it too; this just says so before the round trip.
     if (form.isPreorder && !form.preorderReleaseDate) {
       toast.warning('A pre-order needs a release date');
       return;
@@ -251,7 +232,6 @@ const MasterCatalogManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-info/40 bg-info-soft text-info"><Package className="w-6 h-6" /></div>
@@ -334,7 +314,7 @@ const MasterCatalogManagement = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-white font-medium">
-                          {p.lowestPrice != null ? formatMoney(p.lowestPrice) : '—'}
+                          {p.lowestEffectivePrice != null ? formatMoney(p.lowestEffectivePrice) : '—'}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 justify-end">
@@ -361,7 +341,6 @@ const MasterCatalogManagement = () => {
         </CardContent>
       </Card>
 
-      {/* ── Import modal ── */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -421,13 +400,12 @@ const MasterCatalogManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ── Create / Edit modal ── */}
       <Dialog open={formOpen} onOpenChange={(o) => (o ? setFormOpen(true) : closeForm())}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white text-xl font-semibold">{editingId ? 'Edit Master Product' : 'Add Master Product'}</DialogTitle>
+            <DialogTitle className="text-white text-xl font-semibold">Add Master Product</DialogTitle>
             <DialogDescription className="text-gray-400">
-              Meta title & description are auto-generated from name & description. {editingId ? 'Images are managed separately.' : ''}
+              Meta title & description are auto-generated from name & description.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
@@ -477,10 +455,6 @@ const MasterCatalogManagement = () => {
               <Textarea value={form.systemRequirements} onChange={setField('systemRequirements')} className="bg-secondary border-gray-700 text-white min-h-[70px]" />
             </div>
 
-            {/* M21 — PRE-ORDER. Deliberately separated from the "Release Date"
-                field above: that one is catalogue metadata, this one drives
-                delivery, escrow and auto-refund. Confusing the two is exactly
-                how a product ships without the pipeline behind it. */}
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/6 p-4">
               <div className="flex items-start gap-3">
                 <input
@@ -518,25 +492,22 @@ const MasterCatalogManagement = () => {
               )}
             </div>
 
-            {!editingId && (
-              <div className="space-y-1.5">
-                <Label className="text-gray-300 text-sm">Images</Label>
-                <Input type="file" accept="image/*" multiple onChange={(e) => setImages(Array.from(e.target.files || []))} className="bg-secondary border-gray-700 text-white file:text-gray-300" />
-                {images.length > 0 && <p className="text-xs text-gray-400">{images.length} image(s) selected</p>}
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <Label className="text-gray-300 text-sm">Images (up to {MAX_IMAGES}, 5 MB each)</Label>
+              <Input type="file" accept="image/*" multiple onChange={pickImages} className="bg-secondary border-gray-700 text-white file:text-gray-300" />
+              {images.length > 0 && <p className="text-xs text-gray-400">{images.length} image(s) selected</p>}
+            </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="outline" className="border-gray-700" onClick={closeForm}>Cancel</Button>
               <Button className="bg-accent hover:bg-blue-700" disabled={saveMutation.isPending} onClick={submitForm}>
-                {saveMutation.isPending ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Saving…</> : (editingId ? 'Update' : 'Create')}
+                {saveMutation.isPending ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Saving…</> : 'Create'}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete confirm modal ── */}
       <Dialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>

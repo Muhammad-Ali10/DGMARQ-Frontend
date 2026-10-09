@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  canBuyQuantity,
   calculateProductPrice,
   getProductImage,
   getProductName,
@@ -12,6 +13,7 @@ import {
   selectFeaturedOffer,
   effectiveOfferPrice,
   isAllOutOfStock,
+  getCardRegionOffer,
   PRODUCT_IMAGE_PLACEHOLDER,
 } from './productUtils';
 
@@ -42,7 +44,6 @@ describe('calculateProductPrice', () => {
   it('prefers an explicit API discountedPrice below original', () => {
     const r = calculateProductPrice({ price: 100, discountedPrice: 60 });
     expect(r.discountPrice).toBe(60);
-    // derived percentage when only an absolute discounted price is given
     expect(r.discountPercentage).toBe(40);
   });
 
@@ -54,7 +55,6 @@ describe('calculateProductPrice', () => {
 
   it('never returns a negative or above-original discount price', () => {
     const over = calculateProductPrice({ price: 100, discountPercentage: 150 });
-    // out-of-range percent (>100) is ignored, price stays original
     expect(over.discountPrice).toBe(100);
     const full = calculateProductPrice({ price: 100, discountPercentage: 100 });
     expect(full.discountPrice).toBe(0);
@@ -101,7 +101,6 @@ describe('entity-name getters', () => {
   it('reads platform from object/string and rejects raw ObjectIds', () => {
     expect(getPlatformName({ platform: { name: 'Steam' } })).toBe('Steam');
     expect(getPlatformName({ platform: 'PC' })).toBe('PC');
-    // a raw mongo id is not a display name
     expect(getPlatformName({ platform: '507f1f77bcf86cd799439011' })).toBe('Unknown Platform');
     expect(getPlatformName({})).toBe('Unknown Platform');
   });
@@ -111,7 +110,6 @@ describe('entity-name getters', () => {
     expect(getTypeName({ productType: 'ACCOUNT_BASED' })).toBe('Account');
     expect(getTypeName({ productType: 'GIFT' })).toBe('Gift');
     expect(getTypeName({ productType: 'ACTIVATION_LINK' })).toBe('Activation Link');
-    // the Type taxonomy is gone: a leftover `type` ref is not a label
     expect(getTypeName({ type: 'ACCOUNT_BASED' })).toBe('Unknown Type');
     expect(getTypeName({})).toBe('Unknown Type');
   });
@@ -123,15 +121,6 @@ describe('entity-name getters', () => {
     expect(getDeviceName({})).toBe('Unknown Device');
   });
 });
-
-// CLIENT REQ — out-of-stock automation, requirements 3 and 4.
-//
-// 3. "Next cheapest seller auto-shown if cheapest is out of stock"
-// 4. "'Out of Stock' only if ALL sellers under master product are out of stock"
-//
-// Both used to be inline in ProductDetail with no coverage, while the page
-// 404'd whenever every seller ran dry — so requirement 4's state could never
-// actually be reached. These pin the rules independently of the page.
 
 const offer = (price, inStock, extra = {}) => ({ _id: `o${price}`, price, inStock, ...extra });
 const anyRegion = () => true;
@@ -158,8 +147,6 @@ describe('selectFeaturedOffer (requirement 3)', () => {
   });
 
   it('prefers the cheapest seller the buyer can actually activate', () => {
-    // The buy box must not default to a key that cannot work in the buyer's
-    // country when a slightly pricier seller can serve them.
     const offers = [offer(10, true, { blocked: true }), offer(12, true)];
     const isCompatible = (o) => (o.blocked ? false : true);
     expect(selectFeaturedOffer(offers, null, isCompatible).price).toBe(12);
@@ -177,14 +164,6 @@ describe('selectFeaturedOffer (requirement 3)', () => {
   });
 
   it('prices the cheapest offer when every seller is out of stock', () => {
-    // CHANGED deliberately. This used to return the server's `bestOffer`
-    // whenever nothing was in stock. But the CARD prices an all-sold-out
-    // product from the master's `lowestEffectivePrice`, whose rollup falls back
-    // to ALL approved offers when none are in stock
-    // (`pricePool = inStock.length ? inStock : offers`). Mirroring that here is
-    // what keeps the out-of-stock detail page and the card showing the same
-    // number. `bestOffer` now applies only when there are no offers to pick
-    // from at all — see the next test.
     const offers = [offer(30, false), offer(12, false)];
     expect(selectFeaturedOffer(offers, offer(99, false), anyRegion).price).toBe(12);
   });
@@ -201,11 +180,6 @@ describe('selectFeaturedOffer (requirement 3)', () => {
   });
 });
 
-// The fix: "cheapest" means cheapest EFFECTIVE price, after each seller's own
-// discount — not cheapest base price.
-//
-// Every test above uses undiscounted offers, where the two are identical, which
-// is exactly why the bug survived. These are the cases where they diverge.
 describe('selectFeaturedOffer — cheapest EFFECTIVE, not cheapest base', () => {
   const discounted = (price, discount, inStock = true, extra = {}) => ({
     _id: `o${price}-${discount}`,
@@ -216,9 +190,6 @@ describe('selectFeaturedOffer — cheapest EFFECTIVE, not cheapest base', () => 
   });
 
   it('picks the discounted pricier listing over a cheaper undiscounted one', () => {
-    // THE bug. A $12 offer at 50% off costs $6; a $10 offer at full price costs
-    // $10. Sorting on base price put the $10 offer in the buy box — the more
-    // expensive of the two — while the card advertised $6 from the rollup.
     const offers = [discounted(10, 0), discounted(12, 50)];
     const picked = selectFeaturedOffer(offers, null, anyRegion);
 
@@ -228,9 +199,6 @@ describe('selectFeaturedOffer — cheapest EFFECTIVE, not cheapest base', () => 
   });
 
   it('agrees with the master rollup the card reads', () => {
-    // The card renders `lowestEffectivePrice`, which the backend computes as
-    // min(effectiveOfferPrice) across live offers. The buy box must land on the
-    // same number or the two pages contradict each other.
     const offers = [discounted(10, 0), discounted(12, 50), discounted(30, 10)];
     const lowestEffectivePrice = Math.min(...offers.map(effectiveOfferPrice));
 
@@ -240,8 +208,6 @@ describe('selectFeaturedOffer — cheapest EFFECTIVE, not cheapest base', () => 
   });
 
   it('still prefers a region-compatible seller over a cheaper blocked one', () => {
-    // The region rule outranks price, and must keep doing so now that price is
-    // computed differently. The blocked offer is the cheapest EFFECTIVE one.
     const offers = [discounted(20, 75, true, { blocked: true }), discounted(12, 50)];
     const isCompatible = (o) => (o.blocked ? false : true);
 
@@ -256,8 +222,6 @@ describe('selectFeaturedOffer — cheapest EFFECTIVE, not cheapest base', () => 
   });
 
   it('a discount that ties two offers is resolved without crashing', () => {
-    // $20 at 50% and $10 at 0% both cost $10. Either is a correct answer; what
-    // matters is that a stable pick comes back rather than undefined.
     const offers = [discounted(20, 50), discounted(10, 0)];
     expect(effectiveOfferPrice(selectFeaturedOffer(offers, null, anyRegion))).toBe(10);
   });
@@ -274,8 +238,6 @@ describe('effectiveOfferPrice', () => {
   });
 
   it('rounds to 2dp the same way the backend does', () => {
-    // Backend: Math.round(b * (1 - d/100) * 100) / 100. 20% off 9.99 is 7.992,
-    // which must land on 7.99 — not 7.99200000001, and not 8.
     expect(effectiveOfferPrice({ price: 9.99, discount: 20 })).toBe(7.99);
   });
 
@@ -293,8 +255,6 @@ describe('effectiveOfferPrice', () => {
 
 describe('isAllOutOfStock (requirement 4)', () => {
   it('is FALSE when one seller is out but another still has stock', () => {
-    // The whole point of the requirement: one dry seller is not an out-of-stock
-    // product.
     const product = { offers: [offer(10, false), offer(20, true)] };
     expect(isAllOutOfStock(product, false)).toBe(false);
   });
@@ -317,5 +277,34 @@ describe('isAllOutOfStock (requirement 4)', () => {
   it('a product with no offers is unlisted, not out of stock', () => {
     expect(isAllOutOfStock({ offers: [] }, false)).toBe(false);
     expect(isAllOutOfStock({}, false)).toBe(false);
+  });
+});
+
+describe('canBuyQuantity', () => {
+  it('needs enough stock for a released product', () => {
+    expect(canBuyQuantity(3, 2, false)).toBe(true);
+    expect(canBuyQuantity(1, 2, false)).toBe(false);
+    expect(canBuyQuantity(0, 1, false)).toBe(false);
+    expect(canBuyQuantity(undefined, 1, false)).toBe(false);
+  });
+
+  it('lets a pre-order be bought before any keys are uploaded', () => {
+    expect(canBuyQuantity(0, 1, true)).toBe(true);
+    expect(canBuyQuantity(undefined, 3, true)).toBe(true);
+  });
+});
+
+describe('getCardRegionOffer', () => {
+  it('keeps the country lists so a country-only offer is not shown as unrestricted', () => {
+    expect(getCardRegionOffer({ offerRegionCodes: [], bestOfferCountries: ['US'], bestOfferExcludedCountries: [] })).toEqual({
+      regionCodes: [],
+      countries: ['US'],
+      excludedCountries: [],
+    });
+    expect(getCardRegionOffer({ offerRegionCodes: ['GLOBAL'], bestOfferExcludedCountries: ['RU'] }).excludedCountries).toEqual(['RU']);
+  });
+
+  it('returns null when the listing carries no region data', () => {
+    expect(getCardRegionOffer({ name: 'x' })).toBeNull();
   });
 });

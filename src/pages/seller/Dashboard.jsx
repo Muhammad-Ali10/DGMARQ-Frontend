@@ -28,34 +28,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-/** Offers below this are worth flagging before they sell out. */
-const LOW_STOCK_THRESHOLD = 3;
-/** One request covers the queue; anything beyond this is disclosed, not hidden. */
-const OFFER_SCAN_LIMIT = 100;
-
-/**
- * Seller dashboard — "what am I earning, and what needs me right now?".
- *
- * The action queue is the hero, not the KPI row. A number tells a seller how
- * they did; the queue tells them what to do, which is the reason they opened
- * the page.
- *
- * KPI discipline — four tiles, down from nine, and they are the four the brief
- * names: Revenue, Keys Sold, Available Balance, Dispute Rate. Removed:
- *  - "Total Products", which resolved to `Product.countDocuments({ sellerId })`.
- *    Since the master-catalog rearchitecture sellers own OFFERS, not Products,
- *    so this read 0 for every seller onboarded after that change. Deleted
- *    rather than relabelled.
- *  - Total Revenue and Net Earnings appeared BOTH as tiles and again in the
- *    "Sales Performance" card directly below. The card is gone; the earnings
- *    breakdown below now carries only figures the tiles do not.
- *
- * No trend deltas and no sparklines: nothing returns a prior-period figure or a
- * time series, so any trend here would be invented.
- *
- * Query cost: the queue adds three requests. Offers are fetched ONCE (not one
- * request per alert type) and the counts are derived from that single payload.
- */
 const SellerDashboard = () => {
   const { formatSettlement } = useCurrency();
   const sellerQuery = useQuery({
@@ -83,60 +55,38 @@ const SellerDashboard = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // ── Action queue sources ────────────────────────────────────────────────
   const offersQuery = useQuery({
     queryKey: ['seller-offers-overview'],
-    queryFn: () => offerAPI.getMyOffers({ limit: OFFER_SCAN_LIMIT }).then((r) => r.data.data),
+    queryFn: () => offerAPI.getMyOfferSummary().then((r) => r.data.data),
     staleTime: 60_000,
   });
 
-  // Only SELLER_REVIEW actually waits on the seller. limit:1 because we want
-  // pagination.total, not the rows.
   const disputesQuery = useQuery({
     queryKey: ['seller-disputes-awaiting'],
     queryFn: () =>
       returnRefundAPI
-        .getSellerRefundList({ status: 'SELLER_REVIEW', limit: 1 })
+        .getSellerRefundList({ awaiting: 'feedback', limit: 1 })
         .then((r) => r.data.data),
     staleTime: 60_000,
   });
 
   const payoutAccountQuery = useQuery({
-    queryKey: ['seller-payout-account'],
+    queryKey: ['payout-account'],
     queryFn: () => sellerAPI.getMyPayoutAccount().then((r) => r.data.data),
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30_000,
     retry: 1,
   });
 
   const holdDays =
     typeof settingsQuery.data?.payoutHoldDays === 'number' ? settingsQuery.data.payoutHoldDays : 15;
-  // No fallback number for either rate: a wrong commission figure is worse than
-  // none, so the rows below simply do not render until the real value arrives.
   const { commissionRatePercent, featuredCommissionPercent } = settingsQuery.data ?? {};
 
   const balance = balanceQuery.data;
   const metrics = metricsQuery.data;
-  const offers = offersQuery.data?.offers ?? [];
-  const offersTotal = offersQuery.data?.pagination?.total ?? offers.length;
-
-  const counts = {
-    pending: offers.filter((o) => o.status === 'pending').length,
-    rejected: offers.filter((o) => o.status === 'rejected').length,
-    delisted: offers.filter((o) => o.status === 'delisted').length,
-    outOfStock: offers.filter(
-      (o) => ['approved', 'active'].includes(o.status) && (o.availableKeysCount ?? 0) === 0
-    ).length,
-    lowStock: offers.filter(
-      (o) =>
-        ['approved', 'active'].includes(o.status) &&
-        (o.availableKeysCount ?? 0) > 0 &&
-        (o.availableKeysCount ?? 0) <= LOW_STOCK_THRESHOLD
-    ).length,
-  };
+  const counts = offersQuery.data ?? {};
+  const offersTotal = counts.total ?? 0;
   const disputesAwaiting = disputesQuery.data?.pagination?.total ?? 0;
-  const accounts = Array.isArray(payoutAccountQuery.data)
-    ? payoutAccountQuery.data
-    : payoutAccountQuery.data?.accounts ?? [];
+  const accounts = payoutAccountQuery.data?.accounts ?? [];
   const hasVerifiedPayout = accounts.some((a) => a?.status === 'verified');
 
   const actions = [
@@ -144,10 +94,10 @@ const SellerDashboard = () => {
       key: 'disputes',
       icon: MessageSquareWarning,
       tone: 'danger',
-      title: `${disputesAwaiting} dispute${disputesAwaiting === 1 ? '' : 's'} waiting on you`,
-      body: 'A buyer has opened a refund request. Respond before it escalates to admin review.',
+      title: `${disputesAwaiting} refund request${disputesAwaiting === 1 ? '' : 's'} waiting for your side`,
+      body: 'A buyer has asked for a refund and an admin will decide it. Add your feedback so the decision hears both sides.',
       to: '/seller/return-refunds',
-      cta: 'Review disputes',
+      cta: 'Review requests',
     },
     counts.outOfStock > 0 && {
       key: 'oos',
@@ -172,7 +122,7 @@ const SellerDashboard = () => {
       icon: Package,
       tone: 'warning',
       title: `${counts.lowStock} listing${counts.lowStock === 1 ? '' : 's'} low on stock`,
-      body: `${LOW_STOCK_THRESHOLD} keys or fewer remaining. Restock before you sell out.`,
+      body: `${counts.lowStockThreshold} keys or fewer remaining. Restock before you sell out.`,
       to: '/seller/license-keys',
       cta: 'Add inventory',
     },
@@ -211,7 +161,6 @@ const SellerDashboard = () => {
 
   return (
     <div className="space-y-8">
-      {/* ── Header ───────────────────────────────────────────────────────── */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -247,7 +196,6 @@ const SellerDashboard = () => {
         </div>
       </header>
 
-      {/* ── KPI row ──────────────────────────────────────────────────────── */}
       {metricsQuery.isPending || balanceQuery.isPending ? (
         <StatCardGridSkeleton count={4} />
       ) : metricsQuery.isError && balanceQuery.isError ? (
@@ -300,7 +248,6 @@ const SellerDashboard = () => {
         </StatCardGrid>
       )}
 
-      {/* ── Action queue: the reason this page exists ────────────────────── */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle>Needs your attention</CardTitle>
@@ -362,18 +309,9 @@ const SellerDashboard = () => {
             </ul>
           )}
 
-          {offersTotal > OFFER_SCAN_LIMIT && (
-            <p className="mt-4 text-xs text-fg-subtle">
-              Stock checks cover your {OFFER_SCAN_LIMIT} most recent listings of {offersTotal}.{' '}
-              <Link to="/seller/offers" className="text-accent-on-dark underline-offset-4 hover:underline">
-                See all offers
-              </Link>
-            </p>
-          )}
         </CardContent>
       </Card>
 
-      {/* ── Earnings breakdown: only figures the tiles do NOT show ───────── */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle>Earnings breakdown</CardTitle>
@@ -401,9 +339,6 @@ const SellerDashboard = () => {
                   tone="info"
                 />
               )}
-              {/* The rate itself was visible nowhere in the seller UI — only the
-                  money it produced. It is an admin setting, so it rides along with
-                  the payout settings this page already loads. */}
               {typeof commissionRatePercent === 'number' && (
                 <SpecRow
                   label="Commission rate"

@@ -20,13 +20,8 @@ import { isRemovedByAdmin, offerStatusKey } from '@lib/offerModeration';
 import { Store, Package, Edit, Trash2, Boxes, Star } from 'lucide-react';
 
 const PAGE_SIZE = 10;
+const LIVE_OFFER_STATUSES = ['approved', 'active'];
 
-/**
- * Featured promotion control for one listing.
- *
- * Featuring is opt-in because the seller pays for it — an extra commission
- * percentage on every sale of this offer. The seller requests, an admin decides.
- */
 const FeaturedCell = ({ offer, rate, onToggle, pending }) => {
   const status = offer.featuredStatus || 'none';
 
@@ -52,6 +47,10 @@ const FeaturedCell = ({ offer, rate, onToggle, pending }) => {
     );
   }
 
+  if (!LIVE_OFFER_STATUSES.includes(offer.status)) {
+    return <span className="text-xs text-fg-subtle">Featuring opens once live</span>;
+  }
+
   return (
     <div className="space-y-1">
       <Button size="sm" variant="outline" disabled={pending} onClick={() => onToggle(true)}>
@@ -67,16 +66,6 @@ const FeaturedCell = ({ offer, rate, onToggle, pending }) => {
   );
 };
 
-/**
- * The seller's listings against catalog products.
- *
- * Price is what the seller SET, stored in USD, so it renders with `formatUSD`
- * rather than the buyer's display-currency hook.
- *
- * The brief's inventory columns for competitor price, margin and rank are not
- * here: `getMyOffers` populates `productId` with `name slug images productType`
- * only, so there is nothing to compute them from. Cut rather than stubbed.
- */
 const SellerOffers = () => {
   const { formatSettlement } = useCurrency();
   const queryClient = useQueryClient();
@@ -84,6 +73,7 @@ const SellerOffers = () => {
   const [toDelete, setToDelete] = useState(null);
 
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
+  const focusProductId = searchParams.get('productId');
 
   const updateParams = useCallback(
     (next) => {
@@ -103,15 +93,16 @@ const SellerOffers = () => {
   );
 
   const offersQuery = useQuery({
-    queryKey: ['my-offers', page],
-    queryFn: () => offerAPI.getMyOffers({ page, limit: PAGE_SIZE }).then((r) => r.data.data),
+    queryKey: ['my-offers', page, focusProductId],
+    queryFn: () =>
+      offerAPI
+        .getMyOffers(focusProductId ? { productId: focusProductId } : { page, limit: PAGE_SIZE })
+        .then((r) => r.data.data),
     placeholderData: keepPreviousData,
   });
 
   const offers = offersQuery.data?.offers ?? [];
   const pagination = offersQuery.data?.pagination ?? { page: 1, pages: 1, total: 0 };
-  // Admin-set surcharge for featuring — shown so the seller knows the cost
-  // before opting in.
   const featuredCommissionPercent = offersQuery.data?.featuredCommissionPercent ?? 10;
 
   const featuredMutation = useMutation({
@@ -123,15 +114,7 @@ const SellerOffers = () => {
     onError: (err) => toast.error(err?.response?.data?.message || 'Could not update featuring'),
   });
 
-  // Deep-link focus: notifications and emails link here as ?productId=<id> so
-  // the seller lands on the relevant offer. Filter to it when it is on this
-  // page; otherwise show everything, since it may be on another page.
-  const focusProductId = searchParams.get('productId');
-  const focusMatches = focusProductId
-    ? offers.filter((o) => String(o.productId?._id || o.productId) === String(focusProductId))
-    : [];
-  const displayOffers = focusMatches.length > 0 ? focusMatches : offers;
-  const focusName = focusMatches[0]?.productId?.name;
+  const focusName = focusProductId ? offers[0]?.productId?.name : null;
 
   const deleteMutation = useMutation({
     mutationFn: (id) => offerAPI.deleteOffer(id),
@@ -139,6 +122,7 @@ const SellerOffers = () => {
       queryClient.invalidateQueries({ queryKey: ['my-offers'] });
       queryClient.invalidateQueries({ queryKey: ['seller-offers-overview'] });
       queryClient.invalidateQueries({ queryKey: ['license-offers'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-catalog'] });
       toast.success('Listing removed');
       setToDelete(null);
     },
@@ -183,10 +167,16 @@ const SellerOffers = () => {
         </Button>
       </header>
 
-      {focusProductId && focusMatches.length > 0 && (
+      {focusProductId && !offersQuery.isPending && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent-on-dark/35 bg-accent-soft px-4 py-2.5">
           <span className="text-sm text-fg">
-            Showing your listing for <strong>{focusName || 'the selected product'}</strong>
+            {offers.length > 0 ? (
+              <>
+                Showing your listing for <strong>{focusName || 'the selected product'}</strong>
+              </>
+            ) : (
+              'You no longer have a listing for that product.'
+            )}
           </span>
           <Button size="sm" variant="outline" onClick={() => updateParams({ productId: null })}>
             Show all
@@ -222,10 +212,10 @@ const SellerOffers = () => {
                   <TableBody>
                     {offersQuery.isPending ? (
                       <TableRowsSkeleton rows={PAGE_SIZE} cols={5} />
-                    ) : displayOffers.length === 0 ? (
+                    ) : offers.length === 0 ? (
                       <TableEmptyRow colSpan={6}>{emptyState}</TableEmptyRow>
                     ) : (
-                      displayOffers.map((o) => (
+                      offers.map((o) => (
                         <TableRow key={o._id}>
                           <TableCell>
                             <div className="flex items-center gap-3">
@@ -251,7 +241,7 @@ const SellerOffers = () => {
                                     className="max-w-xs truncate text-xs text-danger"
                                     title={o.rejectionReason}
                                   >
-                                    Reason: {o.rejectionReason}
+                                    Reason: {o.rejectionReason} · Edit and save to resubmit.
                                   </div>
                                 )}
                                 {isRemovedByAdmin(o) && o.delistNote && (
@@ -314,11 +304,11 @@ const SellerOffers = () => {
               <div className="md:hidden">
                 {offersQuery.isPending ? (
                   <CardListSkeleton rows={4} />
-                ) : displayOffers.length === 0 ? (
+                ) : offers.length === 0 ? (
                   emptyState
                 ) : (
                   <ul className="space-y-3">
-                    {displayOffers.map((o) => (
+                    {offers.map((o) => (
                       <li
                         key={o._id}
                         className="rounded-xl border border-brand-cyan/12 bg-brand-cyan/3 p-4"
@@ -343,8 +333,16 @@ const SellerOffers = () => {
                             </div>
                           </div>
                         </div>
+                        <div className="mt-3">
+                          <FeaturedCell
+                            offer={o}
+                            rate={featuredCommissionPercent}
+                            onToggle={(featured) => featuredMutation.mutate({ id: o._id, featured })}
+                            pending={featuredMutation.isPending}
+                          />
+                        </div>
                         {o.rejectionReason && o.status === 'rejected' && (
-                          <p className="mt-2 text-xs text-danger">Reason: {o.rejectionReason}</p>
+                          <p className="mt-2 text-xs text-danger">Reason: {o.rejectionReason} · Edit and save to resubmit.</p>
                         )}
                         {isRemovedByAdmin(o) && o.delistNote && (
                           <p className="mt-2 text-xs text-danger">Removed by admin: {o.delistNote}</p>
@@ -378,13 +376,15 @@ const SellerOffers = () => {
                 )}
               </div>
 
-              <Pagination
-                page={page}
-                totalPages={pagination.pages}
-                onPageChange={(next) => updateParams({ page: next === 1 ? null : next })}
-                total={pagination.total}
-                totalNoun="listings"
-              />
+              {!focusProductId && (
+                <Pagination
+                  page={page}
+                  totalPages={pagination.pages}
+                  onPageChange={(next) => updateParams({ page: next === 1 ? null : next })}
+                  total={pagination.total}
+                  totalNoun="listings"
+                />
+              )}
             </>
           )}
         </CardContent>

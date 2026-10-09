@@ -1,11 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { getPrefStore } from "@lib/prefStore";
 
-// Display LANGUAGE selector (Module 10 — Localization).
-// COSMETIC ONLY (owner-locked): the site copy stays English; picking a language
-// only changes the selector label. The full 15-language list + persistence give
-// a real i18n layer a foundation to build on later without touching callers.
-// Ported from the v74 mockup's LANGS list.
 export const LANGUAGES = [
   "English EU", "English US", "Deutsch", "Français", "Español", "Italiano",
   "Polski", "Português", "Nederlands", "Türkçe", "Русский", "日本語", "中文",

@@ -24,7 +24,6 @@ export const chatAPI = {
     skipErrorToast: true,
     timeout: 5000,
   }),
-  getUnreadCount: () => api.get('/chat/unread-count', { skipErrorToast: true }),
   toggleBlock: (conversationId) => api.post(`/chat/conversation/${conversationId}/block`),
 };
 
@@ -42,10 +41,9 @@ export const reviewAPI = {
   createReview: (data) => api.post('/review/create-review', data),
   updateReview: (id, data) => api.patch(`/review/update-review/${id}`, data),
   deleteReview: (id) => api.delete(`/review/delete-review/${id}`),
-  voteOnReview: (reviewId, data) => api.post(`/review/${reviewId}/vote`, data),
   replyToReview: (reviewId, data) => api.post(`/review/${reviewId}/reply`, data),
-  getReviewReplies: (reviewId) => api.get(`/review/${reviewId}/replies`),
   addReviewPhoto: (reviewId, formData) => api.post(`/review/${reviewId}/photos`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
+  deleteReviewPhoto: (reviewId, photoId) => api.delete(`/review/${reviewId}/photos/${photoId}`),
 };

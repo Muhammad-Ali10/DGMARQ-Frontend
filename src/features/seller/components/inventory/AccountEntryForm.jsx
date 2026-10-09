@@ -7,18 +7,6 @@ import { AlertCircle, Check, Plus, X } from 'lucide-react';
 import { accountRowErrors, normalizeAccountCredentials } from '@lib/accountCredentials';
 import { ACCOUNT_INPUT_FIELDS, EMPTY_ACCOUNT } from '../../utils/inventoryRows';
 
-/**
- * One account, typed field by field, added to the staging list.
- *
- * The same rules the paste path uses (@lib/accountCredentials) validate it here,
- * so a typed row and an imported row can never disagree about what is required.
- *
- * Passwords are shown in plain text on purpose: the seller is typing their own
- * inventory, and a masked field hides the typo that would reach the buyer.
- *
- * The parent remounts this with a `key` when it switches between adding and
- * editing, so the fields load without an effect syncing props into state.
- */
 export const AccountEntryForm = ({ initialValue, editing = false, onAdd, onCancelEdit }) => {
   const [values, setValues] = useState(() => ({ ...EMPTY_ACCOUNT, ...(initialValue || {}) }));
   const [errors, setErrors] = useState([]);
@@ -35,7 +23,7 @@ export const AccountEntryForm = ({ initialValue, editing = false, onAdd, onCance
     }
     setErrors([]);
     onAdd(credentials);
-    if (!editing) setValues({ ...EMPTY_ACCOUNT }); // ready for the next one
+    if (!editing) setValues({ ...EMPTY_ACCOUNT });
   };
 
   return (

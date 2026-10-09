@@ -1,10 +1,6 @@
 import { useState } from "react";
 import GlowCard from "./GlowCard";
 
-/**
- * FAQ Accordion - supports items as {q, a} or {question, answer}
- * For string-only items, shows generic support message when expanded
- */
 export default function FAQAccordion({ items, className = "" }) {
   const [openIndex, setOpenIndex] = useState(null);
 

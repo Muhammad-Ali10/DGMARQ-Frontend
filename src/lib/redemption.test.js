@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getRedemption } from './redemption';
 
-// These are the exact values LicenseKey.keyType can hold (see the enum on the
-// server model). If that enum grows, this test is where the gap shows up.
 const KEY_TYPES = ['steam', 'epic', 'origin', 'xbox', 'playstation', 'nintendo', 'account', 'other'];
 
 describe('getRedemption', () => {
@@ -13,8 +11,6 @@ describe('getRedemption', () => {
     }
   });
 
-  // 'account' and 'other' have no single redemption flow to send someone to.
-  // Returning null is the contract; callers branch on it rather than guessing.
   it('returns null where there is genuinely no redemption route', () => {
     expect(getRedemption('account')).toBeNull();
     expect(getRedemption('other')).toBeNull();
@@ -26,8 +22,13 @@ describe('getRedemption', () => {
 
   it('is case-insensitive', () => {
     expect(getRedemption('Steam')).toEqual(getRedemption('steam'));
-    // Trims too, so it agrees with PlatformBadge.normalize() on the same input.
     expect(getRedemption('  XBOX  ')).toEqual(getRedemption('xbox'));
+  });
+
+  it('resolves catalog platform names through their aliases', () => {
+    expect(getRedemption('Epic Games')).toEqual(getRedemption('epic'));
+    expect(getRedemption('Nintendo Switch')).toEqual(getRedemption('nintendo'));
+    expect(getRedemption('EA App')).toEqual(getRedemption('origin'));
   });
 
   it('every entry has a label, an https url and at least one step', () => {

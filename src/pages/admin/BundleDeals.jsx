@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminAPI, productAPI } from '@services/api';
 import { useState } from 'react';
 import { Button } from '@components/ui/button';
@@ -14,6 +14,7 @@ import { Plus, Edit, Trash2, ChevronLeft, ChevronRight, XCircle } from 'lucide-r
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import { EmptyState } from '@components/common/EmptyState';
 import { showSuccess, showApiError, showError, showWarning } from '@utils/toast';
+import { useDebounce } from '@hooks/useDebounce';
 
 const BundleDeals = () => {
   const [page, setPage] = useState(1);
@@ -23,10 +24,12 @@ const BundleDeals = () => {
   const [title, setTitle] = useState('');
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productSearch, setProductSearch] = useState('');
+  const debouncedProductSearch = useDebounce(productSearch.trim(), 350);
   const [discountType, setDiscountType] = useState('percentage');
   const [discountValue, setDiscountValue] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [bannerFile, setBannerFile] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const queryClient = useQueryClient();
@@ -37,31 +40,28 @@ const BundleDeals = () => {
       const response = await adminAPI.getAllBundleDeals({ page, limit: 10 });
       return response.data.data;
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const { data: products, isLoading: productsLoading } = useQuery({
-    queryKey: ['products-search', productSearch],
+    queryKey: ['bundle-products-search', debouncedProductSearch],
     queryFn: async () => {
       try {
-        // No adminView: only buyer-purchasable products (approved offer with
-        // stock / live pre-order) can go into a bundle.
-        const response = await productAPI.getProducts({ search: productSearch, limit: 10, status: 'approved' });
-        return response.data.data;
+        const response = await productAPI.getProducts({ search: debouncedProductSearch, limit: 10 });
+        return { products: response.data.data?.docs || [] };
       } catch {
         return { products: [] };
       }
     },
-    enabled: productSearch.length > 2 || isCreateDialogOpen || isEditDialogOpen,
+    enabled: debouncedProductSearch.length > 2 && (isCreateDialogOpen || isEditDialogOpen),
     retry: 1,
   });
 
-  const bundles = bundlesData?.docs || bundlesData?.products || bundlesData || [];
-  const pagination = bundlesData?.pagination || {
-    page: 1,
-    limit: 10,
-    totalPages: 1,
-    totalDocs: bundles.length,
+  const bundles = bundlesData?.docs || [];
+  const pagination = {
+    page: bundlesData?.page || 1,
+    totalPages: bundlesData?.totalPages || 1,
+    totalDocs: bundlesData?.totalDocs || 0,
   };
 
   const createMutation = useMutation({
@@ -123,6 +123,7 @@ const BundleDeals = () => {
     setDiscountValue('');
     setStartDate('');
     setEndDate('');
+    setBannerFile(null);
   };
 
   const handleProductSelect = (product) => {
@@ -167,6 +168,7 @@ const BundleDeals = () => {
     formData.append('discountValue', discountNum);
     formData.append('startDate', startDate);
     formData.append('endDate', endDate);
+    if (bannerFile) formData.append('bannerImage', bannerFile);
 
     createMutation.mutate(formData);
   };
@@ -201,6 +203,7 @@ const BundleDeals = () => {
     formData.append('discountValue', discountNum);
     formData.append('startDate', startDate);
     formData.append('endDate', endDate);
+    if (bannerFile) formData.append('bannerImage', bannerFile);
 
     updateMutation.mutate({ id: selectedBundle._id, formData });
   };
@@ -383,7 +386,6 @@ const BundleDeals = () => {
         </CardContent>
       </Card>
 
-      {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent size="lg" className="">
           <DialogHeader>
@@ -408,7 +410,7 @@ const BundleDeals = () => {
                 onChange={(e) => setProductSearch(e.target.value)}
                 className="bg-secondary border-gray-700 text-white"
               />
-              {productSearch.length > 2 && (
+              {debouncedProductSearch.length > 2 && (
                 <div className="border border-gray-700 rounded-md max-h-48 overflow-y-auto bg-secondary">
                   {productsLoading ? (
                     <div className="p-4 text-center text-gray-400">Loading...</div>
@@ -492,7 +494,16 @@ const BundleDeals = () => {
                 />
               </div>
             </div>
-
+              <div className="grid gap-2">
+                <Label className="text-gray-300" htmlFor="create-bundle-banner">Banner image (optional)</Label>
+                <Input
+                  id="create-bundle-banner"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setBannerFile(e.target.files?.[0] || null)}
+                  className="bg-secondary border-gray-700 text-white"
+                />
+              </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsCreateDialogOpen(false); resetForm(); }}>
@@ -505,14 +516,12 @@ const BundleDeals = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent size="lg" className="">
           <DialogHeader>
             <DialogTitle className="text-white">Edit Bundle Deal</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {/* Same form fields as create */}
             <div className="grid gap-2">
               <Label className="text-gray-300">Title</Label>
               <Input
@@ -530,7 +539,7 @@ const BundleDeals = () => {
                 onChange={(e) => setProductSearch(e.target.value)}
                 className="bg-secondary border-gray-700 text-white"
               />
-              {productSearch.length > 2 && (
+              {debouncedProductSearch.length > 2 && (
                 <div className="border border-gray-700 rounded-md max-h-48 overflow-y-auto bg-secondary">
                   {productsLoading ? (
                     <div className="p-4 text-center text-gray-400">Loading...</div>
@@ -614,6 +623,16 @@ const BundleDeals = () => {
                 />
               </div>
             </div>
+              <div className="grid gap-2">
+                <Label className="text-gray-300" htmlFor="edit-bundle-banner">Replace banner (optional)</Label>
+                <Input
+                  id="edit-bundle-banner"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setBannerFile(e.target.files?.[0] || null)}
+                  className="bg-secondary border-gray-700 text-white"
+                />
+              </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsEditDialogOpen(false); resetForm(); setSelectedBundle(null); }}>

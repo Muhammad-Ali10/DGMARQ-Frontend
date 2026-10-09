@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Heart, Package } from 'lucide-react';
-import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getRegionName, getTypeName, getDeviceName, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productUtils';
+import { calculateProductPrice, getProductImage, getProductName, getPlatformName, getTypeName, getDeviceName, getCardRegionOffer, PRODUCT_IMAGE_PLACEHOLDER } from '../utils/productUtils';
 import SafeImage from '@components/ui/safe-image';
 import useCurrency from '@hooks/useCurrency';
 import RegionBadges from './RegionBadges';
@@ -8,38 +8,19 @@ import { PreorderBadge, isActivePreorder as isUnreleasedPreorder } from '@compon
 import useWishlist from '../hooks/useWishlist';
 
 const CategoryProduct = ({ product }) => {
-  // Get product data using utilities
   const { discountPrice, discountPercentage, originalPrice } = calculateProductPrice(product);
   const image = getProductImage(product);
   const title = getProductName(product);
   const platformName = getPlatformName(product);
   const typeName = getTypeName(product);
   const deviceName = getDeviceName(product);
-  const regionName = getRegionName(product);
-  const regionText = regionName === 'Global' ? 'Global' : `For ${regionName} Currency only`;
   const stock = product.stock ?? product.availableKeysCount ?? 0;
   const inStock = stock > 0;
-  // M21: an unreleased pre-order has no keys yet BY DESIGN. Reading the raw
-  // count made this row say "Out of stock" in red on a title that is perfectly
-  // buyable — the one line a buyer checks before deciding.
   const preorder = isUnreleasedPreorder(product);
   const { format: formatPrice } = useCurrency();
   const offersCount = product.offersCount ?? 0;
-  // M9: real region compatibility from the best-offer snapshot (when the
-  // endpoint projects it) — replaces the old hardcoded "Can activate" line.
-  // Union of all offers' region codes → "can activate" if ANY seller covers the
-  // buyer's region (not just the cheapest offer). Price stays the lowest.
-  const regionOffer = (product.offerRegionCodes !== undefined || product.bestOfferRegionCodes !== undefined)
-    ? {
-        regionCodes: product.offerRegionCodes || product.bestOfferRegionCodes || [],
-        countries: [],
-        excludedCountries: [],
-      }
-    : null;
+  const regionOffer = getCardRegionOffer(product);
   
-  // Shared with ProductCard, ProductDetail and the wishlist page. This used to
-  // be its own query + two mutations + a loading flag, duplicating the same
-  // logic a third time; the hook keeps every heart for a product in agreement.
   const { isWishlisted, toggle } = useWishlist();
   const isInWishlist = isWishlisted(product._id);
 
@@ -52,12 +33,6 @@ const CategoryProduct = ({ product }) => {
   return (
     <div className="flex flex-col gap-6">
       <div className="relative flex flex-col md:flex-row items-center justify-center gap-2.5 p-4 bg-surface-base rounded-2xl max-w-[875px] w-full">
-        {/* CLIENT REQ 1 — top-RIGHT of the card. This used to sit in a row of
-            its own beneath the region badges, which put the same control in a
-            different place depending on whether the listing rendered as a grid
-            card or a list row. No dark pill here (unlike the other cards): this
-            one sits on a solid surface, not over cover art, so the icon already
-            has contrast. */}
         <button
           type="button"
           onClick={handleWishlistClick}
@@ -78,7 +53,6 @@ const CategoryProduct = ({ product }) => {
           />
         </div>
         <div className="flex flex-col flex-1">
-          {/* pr-10 keeps the price clear of the absolute heart above it. */}
           <h2 className="text-xl md:text-3xl font-semibold text-fg flex flex-wrap items-center justify-between w-full mb-4 gap-2 pr-10">
             <Link 
               to={`/product/${product.slug || product._id}`}
@@ -103,8 +77,6 @@ const CategoryProduct = ({ product }) => {
             </div>
           </h2>
 
-          {/* M21: with the release date, because a list row has the width for
-              it and the date is what decides whether the buyer waits. */}
           <PreorderBadge product={product} className="mb-4 w-fit" />
 
           <div className="flex flex-col gap-4">
@@ -118,10 +90,6 @@ const CategoryProduct = ({ product }) => {
               <p className="text-fg">{typeName}</p>
             </div>
 
-            <div className="flex">
-              <p className="w-24 text-fg">Region</p>
-              <p className="text-fg">{regionText}</p>
-            </div>
             <div className="flex">
               <p className="w-24 text-fg">Device</p>
               <p className="text-fg">{deviceName}</p>
@@ -140,8 +108,6 @@ const CategoryProduct = ({ product }) => {
               </div>
             </div>
 
-            {/* M9: real blue/red region compatibility (replaces the old
-                hardcoded "Can activate in …" line) */}
             {regionOffer && (
               <div className="flex">
                 <RegionBadges offer={regionOffer} showWarning />

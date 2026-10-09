@@ -1,12 +1,3 @@
-/**
- * Generate self-signed SSL certificates for local HTTPS development
- * 
- * This is required for PayPal CardFields to work properly, as it requires
- * a secure connection (HTTPS) to enable automatic payment method filling.
- * 
- * Usage: npm run generate-certs
- */
-
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -19,7 +10,6 @@ const projectRoot = path.resolve(__dirname, '..');
 const keyPath = path.join(projectRoot, 'localhost-key.pem');
 const certPath = path.join(projectRoot, 'localhost.pem');
 
-// Check if OpenSSL is available
 try {
   execSync('openssl version', { stdio: 'ignore' });
 } catch {
@@ -31,7 +21,6 @@ try {
   process.exit(1);
 }
 
-// Check if certificates already exist
 if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
   console.log('⚠️  Certificates already exist.');
   console.log(`   Key: ${keyPath}`);
@@ -44,14 +33,12 @@ console.log('🔐 Generating self-signed SSL certificates for local HTTPS...');
 console.log('   This is required for PayPal CardFields to work properly.\n');
 
 try {
-  // Generate private key
   console.log('📝 Generating private key...');
   execSync(
     `openssl genrsa -out "${keyPath}" 2048`,
     { stdio: 'inherit', cwd: projectRoot }
   );
 
-  // Generate certificate
   console.log('📝 Generating certificate...');
   execSync(
     `openssl req -new -x509 -key "${keyPath}" -out "${certPath}" -days 365 -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"`,

@@ -1,4 +1,3 @@
-import { Skeleton } from './skeleton';
 import { Spinner } from './spinner';
 import { Alert, AlertDescription } from './alert';
 
@@ -20,5 +19,3 @@ export const ErrorMessage = ({ message = 'An error occurred', className = '' }) 
     </div>
   );
 };
-
-export { Skeleton, Spinner };

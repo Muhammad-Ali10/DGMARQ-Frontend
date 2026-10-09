@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { regionAPI } from "@services/api";
 import { EmptyState, TableEmptyRow } from "@components/common/EmptyState";
@@ -33,17 +33,15 @@ import {
   Plus,
   Edit,
   Trash2,
-  Search,
   RefreshCw,
 } from "lucide-react";
 import { SearchInput } from "@components/common/SearchInput";
 import { Pagination } from "@components/common/Pagination";
+import ConfirmationModal from "@components/common/ConfirmationModal";
+import { useDebounce } from "@hooks/useDebounce";
 
 const EMPTY_FORM = { name: "" };
 
-// ── Create / Edit form body (shared) ─────────────────────────────────────────
-// A Region is a name-only product taxonomy tag (like Platform/Type/Genre). The
-// seller ACTIVATION region system is separate and uses fixed presets.
 const RegionForm = ({ formData, setFormData, onSubmit, onCancel, submitting, submitLabel, submitIcon }) => (
   <form onSubmit={onSubmit} className="space-y-4 mt-4">
     <div className="space-y-2">
@@ -86,17 +84,19 @@ const RegionsManagement = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebounce(searchInput.trim(), 350);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: itemsData, isLoading, isError, error } = useQuery({
     queryKey: ["regions", page, search],
     queryFn: () => {
       const params = { page, limit: 10 };
-      if (search.trim()) params.search = search.trim();
+      if (search) params.search = search;
       return regionAPI.getRegions(params).then((res) => res.data.data);
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const regions = itemsData?.docs || [];
@@ -216,19 +216,13 @@ const RegionsManagement = () => {
             </div>
           </div>
 
-          <form onSubmit={(e) => { e.preventDefault(); setPage(1); }} className="flex gap-2 mt-6">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              onClear={() => { setSearch(''); setPage(1); }}
-              placeholder="Search by name..."
-              className="flex-1"
-            />
-            <Button type="submit" variant="outline" size="sm" className="border-gray-700">
-              <Search className="w-4 h-4 mr-2" />
-              Search
-            </Button>
-          </form>
+          <SearchInput
+            value={searchInput}
+            onChange={(value) => { setSearchInput(value); setPage(1); }}
+            onClear={() => { setSearchInput(""); setPage(1); }}
+            placeholder="Search by name..."
+            className="mt-6"
+          />
         </CardHeader>
 
         <CardContent className="p-0">
@@ -263,7 +257,7 @@ const RegionsManagement = () => {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => deleteMutation.mutate(item._id)}
+                            onClick={() => setPendingDelete(item)}
                             className="hover:bg-red-700"
                             title="Delete Region"
                           >
@@ -277,7 +271,7 @@ const RegionsManagement = () => {
                   <TableEmptyRow colSpan={3}>
                     <EmptyState
                       title="No regions found"
-                      description={search ? "Try adjusting your search" : "Get started by creating your first region"}
+                      description={searchInput ? "Try adjusting your search" : "Get started by creating your first region"}
                       className="py-0"
                     />
                   </TableEmptyRow>
@@ -309,6 +303,16 @@ const RegionsManagement = () => {
           />
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title="Delete region?"
+        description={`"${pendingDelete?.name || ""}" will be permanently deleted. This cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => deleteMutation.mutate(pendingDelete._id)}
+      />
     </div>
   );
 };

@@ -1,7 +1,3 @@
-// M16 placeholder copy, moved here from lib/data.js unchanged. NOTE FOR OWNER:
-// bracketed values are placeholders written to match platform behaviour at the
-// time; section 10 of the new Terms and Conditions now also covers Vendors, so
-// this page should be reconciled with (or replaced by) the client's final text.
 export const vendorTerms = {
   path: '/vendor-terms',
   seo: {

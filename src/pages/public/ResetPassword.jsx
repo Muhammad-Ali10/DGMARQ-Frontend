@@ -17,17 +17,16 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   const token = searchParams.get('token');
-  const email = searchParams.get('email');
 
   useEffect(() => {
-    if (!token || !email) {
+    if (!token) {
       showApiError(
         { response: { data: { message: 'Invalid reset link. Please request a new password reset.' } } },
         'Invalid Reset Link'
       );
       navigate('/forgot-password', { replace: true });
     }
-  }, [token, email, navigate]);
+  }, [token, navigate]);
 
   const strength = useMemo(() => scorePassword(password), [password]);
   const confirmState = confirmPassword ? (confirmPassword === password ? 'ok' : 'error') : null;
@@ -48,10 +47,6 @@ const ResetPassword = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // The server's resetPassword runs isStrongPassword() — min 8, mixed case, a
-    // digit and a symbol. This gate is that same rule via scorePassword, so the
-    // form can no longer accept a password the API will reject: it used to check
-    // only `length < 8`, which let "abcdefgh" through to a 400.
     if (!strength.isValid) {
       showApiError(
         { response: { data: { message: `Password still needs: ${strength.firstUnmet.label.toLowerCase()}` } } },
@@ -68,7 +63,7 @@ const ResetPassword = () => {
       return;
     }
 
-    if (!token || !email) {
+    if (!token) {
       showApiError(
         { response: { data: { message: 'Invalid reset link' } } },
         'Validation Error'
@@ -82,8 +77,8 @@ const ResetPassword = () => {
     });
   };
 
-  if (!token || !email) {
-    return null; // Will redirect in useEffect
+  if (!token) {
+    return null;
   }
 
   return (

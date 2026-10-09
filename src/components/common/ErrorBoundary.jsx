@@ -1,5 +1,7 @@
 import { Component } from 'react';
+import { useLocation } from 'react-router-dom';
 import { captureError } from '@lib/errorReporter';
+import { ErrorState } from './ErrorState';
 
 const CHUNK_RELOAD_KEY = 'eb_chunk_reloaded';
 
@@ -13,8 +15,6 @@ function isChunkLoadError(error) {
   );
 }
 
-// Attempt a one-time reload when a stale/missing chunk fails to load (typically
-// after a new deploy). Guarded by sessionStorage so it never loops.
 export function maybeReloadOnChunkError(error) {
   if (!isChunkLoadError(error)) return false;
   try {
@@ -38,23 +38,13 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Stale-chunk recovery: reload once instead of showing the fallback.
     if (maybeReloadOnChunkError(error)) return;
 
-    // AUDIT FIX (REL-3): report UNCONDITIONALLY.
-    //
-    // This used to be console.error gated behind import.meta.env.DEV, which
-    // Vite statically replaces with `false` at build time — so the whole block
-    // was dead-code-eliminated from the production bundle and a render crash in
-    // Checkout or PaymentModal reported absolutely nothing. The user saw
-    // "Something went wrong" and the operator learned nothing.
     captureError(error, {
       componentStack: errorInfo?.componentStack,
       url: typeof window !== 'undefined' ? window.location.pathname : null,
     });
 
-    // FIX (FQ2): `process` doesn't exist in a Vite browser bundle — use
-    // import.meta.env.DEV, which Vite statically replaces at build time.
     if (import.meta.env.DEV) {
       console.error('[ErrorBoundary]', error, errorInfo);
     }
@@ -96,5 +86,25 @@ class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
+
+const reloadPage = () => window.location.reload();
+
+export const RouteErrorBoundary = ({ children }) => {
+  const { pathname } = useLocation();
+  return (
+    <ErrorBoundary
+      key={pathname}
+      fallback={
+        <ErrorState
+          title="This page ran into a problem"
+          description="Something on this page failed to load. Reload to try again, or use the menu to go somewhere else."
+          onRetry={reloadPage}
+        />
+      }
+    >
+      {children}
+    </ErrorBoundary>
+  );
+};
 
 export default ErrorBoundary;

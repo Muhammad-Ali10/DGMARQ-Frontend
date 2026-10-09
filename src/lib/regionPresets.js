@@ -36,13 +36,10 @@ const EMEA = [...new Set([...EUROPE, ...MIDDLE_EAST, ...AFRICA])];
 const MENA = [...new Set([...MIDDLE_EAST, "DZ", "EG", "LY", "MA", "TN"])];
 const RU_CIS = ["RU", "UA", "BY", "KZ", "UZ", "AM", "AZ", "GE", "KG", "MD", "TJ", "TM"];
 
-// Every ISO code we know about — the pool for the "Individual countries" tab.
 export const ALL_COUNTRY_CODES = [
   ...new Set([...EUROPE, ...ASIA, ...NORTH_AMERICA, ...SOUTH_AMERICA, ...AFRICA, ...OCEANIA]),
 ].sort();
 
-// The GLOBAL preset is exclusive (covers everyone). Its empty `countries` is
-// intentional — the resolver treats isGlobal as "all countries allowed".
 export const REGION_PRESETS = [
   { code: "EUROPE", name: "Europe", countries: EUROPE },
   { code: "NORTH_AMERICA", name: "North America", countries: NORTH_AMERICA },

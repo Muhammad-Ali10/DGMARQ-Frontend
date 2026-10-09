@@ -1,8 +1,3 @@
-// M16 copy, moved here from lib/data.js. Wording unchanged; only layout fixes:
-// whitespace, sub-headings that had run into the following sentence ("Fee
-// Transparency dgmarq.com is…") set as bold lead-ins, and the worked example as
-// a callout. The page title was "Introduction" (the source's first heading);
-// that introduction is now the hero summary.
 export const feeSchedule = {
   path: '/fee-schedule',
   seo: {

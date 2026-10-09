@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { GetCountries } from "react-country-state-city";
 import { Ban, Check, CircleX, Globe, Info, X } from "lucide-react";
 import useBuyerCountry from "@hooks/useBuyerCountry";
 import {
@@ -8,6 +7,7 @@ import {
   describeOfferAvailability,
   countryName,
   countryFlag,
+  listCountryOptions,
 } from "@lib/regionCompat";
 
 
@@ -20,7 +20,6 @@ const toneClass = {
 const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = false, interactive = true, showLabel = true }) => {
   const { country, setCountry } = useBuyerCountry();
   const [open, setOpen] = useState(false);
-  const [allCountries, setAllCountries] = useState([]);
   const wrapRef = useRef(null);
 
   const availability = useMemo(
@@ -32,11 +31,7 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
     () => describeOfferAvailability(offer),
     [offer]
   );
-  // Chip labels: Global OR region names + individual countries.
   const chips = useMemo(() => {
-    // An offer the seller left unrestricted reaches exactly the buyers a GLOBAL
-    // one does, so it says the same word. It used to read "All regions", which
-    // sounded like a third, narrower thing.
     if (availability.unrestricted || availability.global) {
       return [{ key: "global", label: "Global", tone: "global", global: true }];
     }
@@ -53,19 +48,6 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
-
-  // Lazy-load the country list only when the popup is first opened.
-  useEffect(() => {
-    if (!open || allCountries.length) return;
-    GetCountries()
-      .then((list) =>
-        setAllCountries(
-          (list || []).filter((c) => c.iso2).map((c) => ({ iso2: c.iso2.toUpperCase(), name: c.name }))
-        )
-      )
-      .catch(() => setAllCountries([]));
-  }, [open, allCountries.length]);
-
 
   const buyerChip =
     country && verdict === true && !availability.unrestricted && !availability.global
@@ -103,8 +85,6 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
           </button>
         )
       ) : (
-        // Static mode (e.g. inside a clickable row / search suggestion): no popup
-        // button so we never nest a <button> inside a <button>.
         extra > 0 && (
           <span className={`inline-flex items-center gap-0.5 rounded-md border border-white/20 bg-black/20 ${sz} font-semibold text-fg/70`}>+{extra}</span>
         )
@@ -190,7 +170,7 @@ const RegionBadges = ({ offer, maxChips = 2, compact = false, showWarning = fals
               className="w-full rounded-md border border-border bg-secondary px-2 py-1.5 text-xs text-fg outline-none"
             >
               <option value="">Change country…</option>
-              {allCountries.map((c) => (
+              {listCountryOptions(country).map((c) => (
                 <option key={c.iso2} value={c.iso2}>
                   {c.name}
                 </option>

@@ -27,19 +27,10 @@ import {
   getPlatformName,
   PRODUCT_IMAGE_PLACEHOLDER,
   getTypeName,
+  getCardRegionOffer,
 } from "../utils/productUtils";
 import { Badge } from "@/components/ui/badge";
 
-/**
- * @param {object}  props.product
- * @param {boolean} [props.showStock=false]  render the out-of-stock treatment.
- *   OFF by default, and deliberately so: browse, search and the home sections
- *   filter out-of-stock products out server-side (the `hasStock` gate in
- *   product.service), so a card there is buyable by definition and the extra
- *   chip would be dead weight on the hottest lists on the site. The WISHLIST is
- *   the one surface that keeps sold-out items on purpose — watching a sold-out
- *   game until it comes back is the reason to save it — so it opts in.
- */
 const ProductCard = memo(({ product, showStock = false }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -51,38 +42,17 @@ const ProductCard = memo(({ product, showStock = false }) => {
   const typeName = getTypeName(product);
   const hasDiscount = discountPercentage > 0;
   const offersCount = product.offersCount ?? 0;
-  // Region badge uses the UNION of every offer's region codes (offerRegionCodes)
-  // so the card reads "can activate" when ANY seller covers the buyer's region —
-  // not just the cheapest offer (which may be region-locked). Price stays lowest.
-  // Falls back to the best-offer snapshot if the union isn't projected yet.
-  const hasRegionData = product.offerRegionCodes !== undefined || product.bestOfferRegionCodes !== undefined;
-  const regionOffer = hasRegionData
-    ? {
-      regionCodes: product.offerRegionCodes || product.bestOfferRegionCodes || [],
-      countries: [],
-      excludedCountries: [],
-    }
-    : null;
+  const regionOffer = getCardRegionOffer(product);
 
-  // Buyer-region compatibility for THIS listing's best offer. false ⇒ the buyer
-  // can't activate it ⇒ the whole card gets a red border (screenshot behaviour).
   const { verdict } = useOfferVerdict(regionOffer);
 
   const isAuthenticated = useSelector((s) => s.auth?.isAuthenticated);
   const { format: formatPrice } = useCurrency();
   const [cartBusy, setCartBusy] = useState(false);
 
-  // Derived from the shared ['wishlist'] cache, NOT local state. The previous
-  // `useState(!!product.isWishlisted)` seeded from a field no endpoint sets, so
-  // the heart was always empty and always took the "add" branch — clicking it
-  // on a saved product 400'd and un-saving from a card was impossible.
   const { isWishlisted, toggle: toggleWishlist } = useWishlist();
   const wishlisted = isWishlisted(product._id);
 
-  // `hasStock` is the master rollup (inStockOffersCount > 0) — the same field
-  // browse gates on. Only treat the product as sold out when the server
-  // actually said so; an endpoint that does not project the field must not make
-  // every card read "Out of stock".
   const soldOut = showStock && product.hasStock === false;
 
   const handleToggleWishlist = (e) => {
@@ -96,9 +66,6 @@ const ProductCard = memo(({ product, showStock = false }) => {
     e.stopPropagation();
     if (cartBusy) return;
     const sellerId = product.bestOffer?.sellerId || product.sellerId;
-    // M21 login gate — the card is a second door into the guest cart, and the
-    // server refuses a guest pre-order at checkout. Stopping it here is what
-    // lets the buyer read WHY instead of a bare auth error three screens later.
     if (!isAuthenticated && isUnreleasedPreorder(product)) {
       toast.error("Pre-orders need an account — please log in to pre-order this.");
       navigate("/login");
@@ -124,8 +91,6 @@ const ProductCard = memo(({ product, showStock = false }) => {
     setCartBusy(true);
     try {
       await cartAPI.addItem({ productId: product._id, qty: 1, sellerId });
-      // Refresh the shared ['cart'] cache so the header badge + mini-cart
-      // reflect the new item immediately (this was missing → stale badge).
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       toast.success("Added to cart");
     } catch (err) {
@@ -140,8 +105,6 @@ const ProductCard = memo(({ product, showStock = false }) => {
       <Card
         className={cn(
           "group w-full max-w-[196px] mx-auto h-full flex flex-col bg-[#041536] p-3 md:p-4 rounded-2xl text-fg font-poppins gap-2.5 box-border transition duration-200 border",
-          // Hover glow matches the border colour: red when the buyer can't
-          // activate (red border), blue otherwise.
           verdict === false
             ? "border-red-500 hover:shadow-[0_0_22px_rgba(239,68,68,0.55)]"
             : "border-blue-600 hover:shadow-[0_0_22px_rgba(37,99,235,0.55)]"
@@ -157,8 +120,6 @@ const ProductCard = memo(({ product, showStock = false }) => {
               height={300}
               className={cn(
                 "w-full aspect-square object-cover rounded-2xl",
-                // Dim the art so a sold-out card reads as unavailable at a
-                // glance, before the chip is read.
                 soldOut && "opacity-40"
               )}
               fallbackSrc={PRODUCT_IMAGE_PLACEHOLDER}
@@ -168,15 +129,12 @@ const ProductCard = memo(({ product, showStock = false }) => {
               <ShoppingCart className="h-8 w-8 md:h-12 md:w-12 text-fg-muted" />
             </div>
           )}
-          {/* Featuring is now a seller-purchased promotion on an offer; the
-              master carries a denormalized rollup of it. */}
           {product.hasFeaturedOffer && (
             <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-yellow-500 text-[10px] md:text-xs font-semibold text-black shadow-sm">
               Featured
             </span>
           )}
 
-          {/* Wishlist toggle — top-right */}
           <button
             type="button"
             onClick={handleToggleWishlist}
@@ -192,10 +150,6 @@ const ProductCard = memo(({ product, showStock = false }) => {
             />
           </button>
 
-          {/* M21: a buyer scanning the grid has to be able to tell which titles
-              are not out yet. It takes the sold-out slot because the two can
-              never both be right — an unreleased pre-order has no keys BY
-              DESIGN, which is not the same as having run out. */}
           {isUnreleasedPreorder(product) ? (
             <PreorderBadge
               product={product}
@@ -208,9 +162,6 @@ const ProductCard = memo(({ product, showStock = false }) => {
             </span>
           ) : null}
 
-          {/* Add to cart — bottom-right, revealed on card hover. Hidden outright
-              when sold out: there is nothing to add, and a disabled-looking
-              button that appears on hover reads as a broken control. */}
           {!soldOut && (
             <button
               type="button"
@@ -284,15 +235,6 @@ const ProductCard = memo(({ product, showStock = false }) => {
       </Card>
     </Link>
   );
-}, (prev, next) =>
-  prev.product._id === next.product._id &&
-  prev.product.price === next.product.price &&
-  prev.product.discount === next.product.discount &&
-  prev.product.offersCount === next.product.offersCount &&
-  // Both inputs to the sold-out treatment, or a card that goes out of stock
-  // between refetches keeps rendering as buyable.
-  prev.showStock === next.showStock &&
-  prev.product.hasStock === next.product.hasStock
-);
+});
 
 export default ProductCard;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { userAPI, chatAPI } from '@services/api';
+import { orderAPI, chatAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Skeleton } from '@components/ui/skeleton';
@@ -14,8 +14,8 @@ import { SpecList, SpecRow } from '@components/common/SpecList';
 import { LicenseKeysModal } from '@features/seller';
 import { getOrderItemProductName } from '@utils/orderItem';
 import { getRedemption } from '@lib/redemption';
+import { formatOrderAmount } from '@lib/orderDisplay';
 import { formatDateTime, formatRelativeDate, formatExactTitle } from '@lib/datetime';
-import useCurrency from '@hooks/useCurrency';
 import { useSocket } from '@hooks/useSocket';
 import {
   ArrowLeft,
@@ -31,47 +31,21 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-/** The keyTypes assigned to one order item, deduped. */
-const keyTypesFor = (item) => {
-  const types = (item.assignedKeyIds || [])
-    .map((k) => (typeof k === 'object' ? k?.keyType : null))
-    .filter(Boolean);
-  return [...new Set(types)];
-};
-
-/**
- * Buyer order detail — "did my key arrive, and how do I use it?".
- *
- * `getOrderById` populates `items.assignedKeyIds` with `keyType`, which is the
- * one place in this system that carries a real platform identity. That is why
- * this screen can show genuine brand marks and per-platform redemption steps
- * while the order LIST cannot (its endpoint only returns `productType`).
- *
- * Not built, because no endpoint supports it:
- *  - Seller rating / delivery-time stats. `items.sellerId` is populated with
- *    `shopName shopLogo` only. `Seller.rating` exists on the model but is not
- *    selected, so a rating here would be invented. The seller's public profile
- *    (which does carry ratings) is one click away instead.
- *  - Invoice download. There is no invoice endpoint anywhere in the API.
- */
 const OrderDetail = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useSelector((state) => state.auth);
-  const { format } = useCurrency();
   const { socket, isConnected } = useSocket();
   const [keysOpen, setKeysOpen] = useState(false);
 
   const orderQuery = useQuery({
     queryKey: ['order-detail', orderId],
-    queryFn: () => userAPI.getOrderById(orderId).then((res) => res.data.data),
+    queryFn: () => orderAPI.getOrderById(orderId).then((res) => res.data.data),
     enabled: Boolean(orderId),
     retry: 1,
   });
 
-  // Same pattern the list uses: `refund_executed` is the only order-related
-  // event this platform emits, so it is the only live signal available here.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const onRefundExecuted = () => {
@@ -88,7 +62,6 @@ const OrderDetail = () => {
       navigate(`/user/chat?conversation=${conversation._id}`);
     },
     onError: (err) => {
-      // A 200-shaped error means the conversation already existed.
       if (err.response?.status === 200 && err.response?.data?.data) {
         navigate(`/user/chat?conversation=${err.response.data.data._id}`);
       } else {
@@ -145,12 +118,13 @@ const OrderDetail = () => {
   }
 
   const order = orderQuery.data;
+  const format = (usdAmount) => formatOrderAmount(usdAmount, order);
   const totalRefunded = (order.items || []).reduce(
     (sum, item) => sum + (Number(item.refundedAmount) || 0),
     0
   );
   const keysAvailable =
-    ['completed', 'partially_completed', 'PARTIALLY_REFUNDED'].includes(order.orderStatus) &&
+    ['completed', 'PARTIALLY_REFUNDED'].includes(order.orderStatus) &&
     order.paymentStatus === 'paid' &&
     !(order.items || []).every((item) => item.refunded);
 
@@ -169,7 +143,6 @@ const OrderDetail = () => {
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* ── Items ───────────────────────────────────────────────────────── */}
         <div className="space-y-6 lg:col-span-2">
           <Card variant="hud">
             <CardHeader>
@@ -183,8 +156,9 @@ const OrderDetail = () => {
                 const sellerId = item.sellerId?._id ?? item.sellerId;
                 const sellerName = item.sellerId?.shopName || 'Seller';
                 const sellerLogo = item.sellerId?.shopLogo;
-                const types = keyTypesFor(item);
-                const redemption = types.length === 1 ? getRedemption(types[0]) : null;
+                const platform = item.productId?.platform;
+                const redemption =
+                  item.productId?.productType === 'LICENSE_KEY' ? getRedemption(platform) : null;
 
                 return (
                   <div
@@ -203,9 +177,7 @@ const OrderDetail = () => {
                           {getOrderItemProductName(item)}
                         </h3>
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                          {types.filter(isKnownPlatform).map((t) => (
-                            <PlatformBadge key={t} platform={t} />
-                          ))}
+                          {isKnownPlatform(platform) && <PlatformBadge platform={platform} />}
                         </div>
                         <p className="mt-2 text-xs text-fg-muted">
                           Qty {item.qty} · {format(item.unitPrice)} each
@@ -224,8 +196,6 @@ const OrderDetail = () => {
                       </div>
                     </div>
 
-                    {/* Per-platform redemption steps, shown only when every key
-                        on this line is the same known platform. */}
                     {redemption && (
                       <div className="mt-4 rounded-lg border border-brand-cyan/12 bg-brand-cyan/3 p-3">
                         <p className="mb-2 text-xs font-semibold tracking-wide text-fg-subtle uppercase">
@@ -313,7 +283,6 @@ const OrderDetail = () => {
           )}
         </div>
 
-        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
         <div className="space-y-6">
           {keysAvailable && (
             <Card variant="hud">
@@ -347,8 +316,6 @@ const OrderDetail = () => {
               <SpecList>
                 <SpecRow
                   label="Order status"
-                  /* announce: a socket-driven refetch can change this while the
-                     buyer is looking at it. One order = one live region. */
                   value={<StatusBadge domain="order" status={order.orderStatus} announce />}
                 />
                 <SpecRow
@@ -360,8 +327,11 @@ const OrderDetail = () => {
                 {order.discount > 0 && (
                   <SpecRow label="Discount" value={`−${format(order.discount)}`} tone="success" />
                 )}
+                {order.buyerProtectionFee > 0 && (
+                  <SpecRow label="Buyer protection" value={format(order.buyerProtectionFee)} />
+                )}
                 {order.buyerHandlingFee > 0 && (
-                  <SpecRow label="Buyer protection" value={format(order.buyerHandlingFee)} />
+                  <SpecRow label="Checkout fee" value={format(order.buyerHandlingFee)} />
                 )}
                 {totalRefunded > 0 && (
                   <SpecRow label="Refunded" value={`−${format(totalRefunded)}`} tone="warning" />
@@ -386,9 +356,6 @@ const OrderDetail = () => {
                   label="Total"
                   value={format(order.grandTotal ?? order.totalAmount)}
                 />
-                {/* CLIENT REQ (M20): points earned, shown per order. The order
-                    LIST already had this; the detail page — the screen a buyer
-                    opens to understand one order — did not. */}
                 {order.plusPointsEarned > 0 && (
                   <SpecRow
                     label="Points earned"

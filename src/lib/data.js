@@ -15,7 +15,6 @@ export const MarketplaceCategories = [
     label: "PC Games",
     description:
       "AAA releases, competitive titles, and indie projects delivered as verified digital keys for major PC launchers.",
-    productCount: 14820,
     icon: "HiCpuChip",
   },
   {
@@ -23,7 +22,6 @@ export const MarketplaceCategories = [
     label: "Console Keys",
     description:
       "Region-aware console activations with automated entitlement checks for next-gen and legacy ecosystems.",
-    productCount: 6320,
     icon: "HiDevicePhoneMobile",
   },
   {
@@ -31,7 +29,6 @@ export const MarketplaceCategories = [
     label: "Software & Tools",
     description:
       "Productivity, security, and creative suites designed to support gaming, streaming, and professional workflows.",
-    productCount: 2890,
     icon: "HiWrenchScrewdriver",
   },
   {
@@ -39,7 +36,6 @@ export const MarketplaceCategories = [
     label: "Game Subscriptions",
     description:
       "Ongoing access passes, content vaults, and cloud gaming plans delivered as subscription-ready digital products.",
-    productCount: 1570,
     icon: "HiArrowsRightLeft",
   },
   {
@@ -47,7 +43,6 @@ export const MarketplaceCategories = [
     label: "Gift Cards & Credit",
     description:
       "Storefront, wallet, and platform gift cards with instant redemption and multi-currency support.",
-    productCount: 4210,
     icon: "HiGiftTop",
   },
   {
@@ -55,7 +50,6 @@ export const MarketplaceCategories = [
     label: "Developer & Ops",
     description:
       "Licenses, SDKs, and infrastructure utilities tailored for game studios and digital product vendors.",
-    productCount: 940,
     icon: "HiCommandLine",
   },
 ];
@@ -66,7 +60,7 @@ export const MarketplaceBenefits = {
     title: "For Buyers",
     items: [
       "Fast access to verified digital products, with every key and license passing automated integrity checks before delivery.",
-      "Escrow-protected checkout ensures funds are only released when products are successfully delivered and validated.",
+      "Escrow-protected checkout: the seller's share is held for a set period after delivery, so a faulty key can be refunded before the seller is paid.",
       "Global reach with local payments, supporting multi-currency pricing and region-aware tax handling.",
     ],
   },
@@ -92,7 +86,7 @@ export const MarketplaceChallenges = [
   {
     title: "Instant Products vs. Trust",
     description:
-      "Digital products are delivered in seconds, but trust cannot be rushed. Our escrow engine validates every transaction before funds move, aligning speed with security.",
+      "Digital products are delivered in seconds, but trust cannot be rushed. Seller proceeds are held in escrow for a set period after delivery, aligning speed with security.",
   },
   {
     title: "Global Buyers vs. Local Payments",
@@ -122,7 +116,7 @@ export const MarketplaceTechnology = [
     id: "escrow-logic",
     title: "Escrow Logic",
     description:
-      "Funds are held in a programmable escrow layer, released only when delivery and integrity checks succeed, creating a predictable trust model for both sides of the trade.",
+      "Seller proceeds are held for a fixed escrow period after delivery before they can be withdrawn, creating a predictable trust model for both sides of the trade.",
   },
   {
     id: "automated-key-fulfillment",
@@ -148,13 +142,6 @@ export const MarketplaceTechnology = [
     description:
       "Our monitoring layer ingests behavioral and transactional signals in real time, flagging anomalies and enforcing mitigations before losses propagate.",
   },
-];
-
-export const MarketplaceMetrics = [
-  { id: "users", value: 35, suffix: "M+", label: "Users" },
-  { id: "sellers", value: 2000, suffix: "+", label: "Active Sellers" },
-  { id: "countries", value: 120, suffix: "+", label: "Countries" },
-  { id: "uptime", value: 99.9, suffix: "%", label: "Platform Uptime" },
 ];
 
 export const MarketplaceRoadmap = [
@@ -205,28 +192,28 @@ export const MarketplaceFinalCta = {
 export const SecurityPageData = {
   hero: {
     headline: "Enterprise-Grade Security for Every Transaction",
-    subtext: "At DGMarq, security isn't a feature — it's our foundation. Every buyer, seller, and transaction is protected by escrow systems, fraud detection, and secure payment infrastructure.",
+    subtext: "At DGMarq, security isn't a feature — it's our foundation. Every buyer, seller, and transaction is protected by an escrow hold on seller payouts, fraud checks, and secure payment infrastructure.",
     ctaPrimary: "Learn How We Protect You",
     ctaSecondary: "Start Secure Buying",
     ctaPrimaryUrl: "#escrow",
     ctaSecondaryUrl: "/search",
   },
   escrow: {
-    intro: "DGMarq operates on a secure escrow model to eliminate marketplace risk.",
+    intro: "DGMarq holds every seller's proceeds in escrow to reduce marketplace risk.",
     howItWorks: [
-      "Buyer submits payment securely.",
-      "Funds are held safely in escrow.",
-      "Seller delivers the product/service.",
-      "Buyer approves delivery.",
-      "Funds are released to seller.",
+      "Buyer pays securely at checkout.",
+      "The key or product is delivered to the buyer's account.",
+      "The seller's share is held in escrow for a set period.",
+      "Problems reported within the refund window are reviewed before the seller is paid.",
+      "After the escrow period, the funds become available to the seller.",
     ],
     benefits: [
-      "No upfront payment risk",
-      "No fake delivery scams",
+      "Seller payouts held during the refund window",
+      "Refund requests reviewed by our team",
       "Full dispute intervention support",
       "Transparent transaction tracking",
     ],
-    microcopy: "Your money is never released without your confirmation.",
+    microcopy: "Report a faulty key within the refund window and we review it before the seller is paid.",
   },
   fraudDetection: {
     intro: "We use intelligent monitoring systems to detect suspicious activity.",
@@ -280,17 +267,17 @@ export const SecurityPageData = {
     microcopy: "We comply with global privacy standards.",
   },
   accountTools: {
-    intro: "Users can activate:",
+    intro: "Users can:",
     items: [
-      "Two-Factor Authentication (2FA)",
-      "Login activity alerts",
-      "Suspicious login notifications",
-      "Account recovery protection",
+      "See every device signed in to the account",
+      "Sign out a single device, or all devices at once",
+      "Reset a forgotten password by email",
+      "Change the account email with a verification code",
     ],
   },
   faq: [
-    { q: "Is my money safe before delivery?", a: "Yes. All payments remain in escrow until you confirm delivery." },
-    { q: "What happens if a seller fails to deliver?", a: "You can open a dispute. Funds remain protected." },
+    { q: "Is my money safe after I pay?", a: "Yes. The seller's share is held in escrow for a set period after delivery, so a refund can still be issued if something is wrong." },
+    { q: "What happens if a seller fails to deliver?", a: "Request a refund from your order page within the refund window. The seller's payout stays on hold while we review it." },
     { q: "Does DGMarq store credit card details?", a: "No. We use secure tokenized gateways." },
     { q: "How are sellers verified?", a: "Through identity and account verification checks." },
     { q: "Can DGMarq reverse a fraudulent transaction?", a: "Yes, within platform policies and review guidelines." },
@@ -382,22 +369,22 @@ export const BuyerSupportPageData = {
     },
     {
       title: "Order Management",
-      items: ["Track active orders", "Approve delivery", "Request revisions", "Cancel eligible transactions"],
+      items: ["Track active orders", "View delivered keys", "Request a refund", "Contact the seller"],
     },
     {
       title: "Dispute & Refund Support",
       intro: "If something goes wrong:",
       process: [
-        "Open dispute before order completion",
+        "Request a refund within the refund window",
         "Submit supporting evidence",
-        "Participate in mediation",
-        "Receive resolution decision",
+        "Our team reviews it with the seller",
+        "Receive the resolution decision",
       ],
     },
     {
       title: "Buyer Protection Policy",
       intro: "DGMarq guarantees:",
-      items: ["Delivery confirmation control", "Escrow-based fund safety", "Fraud monitoring", "Verified seller listings"],
+      items: ["Refund window on eligible purchases", "Escrow hold on seller payouts", "Fraud monitoring", "Verified seller listings"],
     },
     {
       title: "DGMarq Plus Support",
@@ -406,14 +393,14 @@ export const BuyerSupportPageData = {
     },
     {
       title: "Account & Security Help",
-      items: ["Change password", "Enable 2FA", "Report suspicious activity", "Deactivate account"],
+      items: ["Change password", "Sign out other devices", "Report suspicious activity", "Delete account"],
     },
   ],
   faq: [
-    { q: "When is payment released to seller?", a: "Payment is released only after you approve delivery. Until then, funds stay in escrow." },
+    { q: "When is payment released to seller?", a: "The seller's share is held in escrow for a set period after delivery. A refund requested within the refund window is reviewed before the seller is paid." },
     { q: "How do I cancel an order?", a: "Cancel eligible orders from your dashboard before delivery. Contact support if the seller hasn't delivered." },
-    { q: "Can I request refund after approval?", a: "After approval, refunds are handled through our dispute policy. Open a dispute with evidence." },
-    { q: "What if seller is unresponsive?", a: "Open a dispute. Our mediation team will review and assist. Funds remain protected in escrow." },
+    { q: "Can I request a refund after delivery?", a: "Yes, within the refund window. Request it from your order page with evidence of the problem." },
+    { q: "What if seller is unresponsive?", a: "Request a refund or open a support ticket. Our team will review and assist while the seller's payout stays on hold." },
     { q: "Is buyer identity protected?", a: "Yes. We protect your data and do not share personal information with sellers beyond what's needed for delivery." },
   ],
   finalCta: {
@@ -426,7 +413,7 @@ export const BuyerSupportPageData = {
 export const HowToBuyPageData = {
   hero: {
     headline: "How to Buy Safely on DGMarq",
-    subtext: "Purchase digital products and services with escrow protection, verified sellers, and secure payments — all in just a few steps.",
+    subtext: "Purchase digital products with escrow protection, verified sellers, and secure payments — all in just a few steps.",
     ctaPrimary: "Browse Marketplace",
     ctaSecondary: "Create Buyer Account",
     ctaPrimaryUrl: "/marketplace",
@@ -435,26 +422,26 @@ export const HowToBuyPageData = {
   createAccount: {
     intro: "Before purchasing, set up your secure DGMarq account.",
     steps: [
-      "Register with email",
-      "Verify your identity",
-      "Enable Two-Factor Authentication (2FA)",
-      "Add secure payment method",
+      "Register with email or a social account",
+      "Verify your email address",
+      "Use a strong, unique password",
+      "Pay securely at checkout",
     ],
-    microcopy: "Verified buyers receive enhanced protection coverage.",
+    microcopy: "You can also check out as a guest and receive your keys by email.",
   },
   browseListings: {
-    intro: "Explore curated digital products and services.",
+    intro: "Explore curated digital products.",
     features: [
       "Seller verification badge",
       "Transparent pricing",
-      "Delivery timelines",
+      "Region and platform details",
       "Seller ratings & reviews",
       "Detailed product descriptions",
     ],
     filters: [
       "Price range",
-      "Delivery speed",
-      "Seller level",
+      "Platform",
+      "Region",
       "DGMarq Plus eligible listings",
     ],
     filtersLabel: "Use filters to compare:",
@@ -465,43 +452,43 @@ export const HowToBuyPageData = {
       'Click "Buy Now"',
       "Confirm order details",
       "Complete secure payment",
-      "Funds move to DGMarq escrow",
+      "Receive your key in your account",
     ],
-    microcopy: "Your payment is NOT sent directly to the seller.",
+    microcopy: "Your payment is NOT sent directly to the seller — their share is held in escrow first.",
   },
   trackOrder: {
     intro: "Inside your dashboard, you can:",
     items: [
-      "Monitor delivery timeline",
+      "See order status and delivered keys",
       "Communicate with seller",
-      "Request updates",
-      "Upload additional requirements",
+      "Download your invoice",
+      "Request a refund if something is wrong",
     ],
     microcopy: "All communication stays within DGMarq for security.",
   },
   reviewDelivery: {
     intro: "After delivery:",
     steps: [
-      "Review submitted files/service",
-      "Request revision (if included)",
-      "Approve order when satisfied",
+      "Reveal your key from the order page",
+      "Redeem it on the stated platform and region",
+      "Report a problem within the refund window",
     ],
-    microcopy: "Funds are only released after approval.",
+    microcopy: "The seller's share stays in escrow until the hold period ends.",
   },
   dispute: {
     intro: "If delivery does not match expectations:",
     steps: [
-      "Open dispute before approval",
+      "Request a refund within the refund window",
       "Provide evidence",
-      "DGMarq mediation team reviews",
+      "DGMarq team reviews it with the seller",
       "Final resolution issued",
     ],
-    microcopy: "Escrow protects your payment throughout the process.",
+    microcopy: "The seller's payout stays on hold while your request is reviewed.",
   },
   buyerProtection: {
     title: "DGMarq Buyer Protection Includes:",
     items: [
-      "Escrow-based payments",
+      "Escrow hold on seller payouts",
       "Fraud monitoring",
       "Verified seller system",
       "Dispute mediation",
@@ -509,8 +496,8 @@ export const HowToBuyPageData = {
     ],
   },
   faq: [
-    { q: "When is payment released?", a: "Payment is released to the seller only after you approve delivery. Funds stay in escrow until then." },
-    { q: "What if the seller misses deadline?", a: "Open a dispute. You can request a refund or extension. DGMarq mediation will assist." },
+    { q: "When is payment released?", a: "The seller's share is held in escrow for a set period after delivery, then becomes available to the seller." },
+    { q: "What if my key does not work?", a: "Request a refund from your order page within the refund window. DGMarq will review it with the seller." },
     { q: "Can I cancel an order?", a: "Yes, for eligible transactions before delivery. Use your dashboard or contact support." },
     { q: "Is my identity visible to sellers?", a: "Sellers see only necessary order details. Your full identity is protected by our privacy policy." },
     { q: "How long does dispute resolution take?", a: "Typical resolution is 3–7 business days. Complex cases may take longer with full review." },
@@ -551,10 +538,10 @@ export const SellerSupportPageData = {
   payouts: {
     intro: "Seller payout process:",
     steps: [
-      "Buyer approves delivery",
-      "Escrow releases funds",
-      "Processing window applies",
-      "Funds transferred to your account",
+      "Order is delivered to the buyer",
+      "Your share is held for the escrow period",
+      "Funds become available to withdraw",
+      "Funds transferred to your payout account",
     ],
     microcopy: "Security checks may apply to large transactions.",
   },
@@ -588,8 +575,8 @@ export const SellerSupportPageData = {
     ],
   },
   faq: [
-    { q: "When do I receive payment?", a: "After buyer approval, funds are released from escrow. Standard payout processing is 3–7 business days." },
-    { q: "Can buyers cancel after delivery?", a: "No. Once delivery is approved, the sale is complete. Disputes before approval are handled case-by-case." },
+    { q: "When do I receive payment?", a: "Your share is held for the escrow period after delivery, then becomes available to withdraw to your payout account." },
+    { q: "Can buyers cancel after delivery?", a: "Buyers can request a refund within the refund window. Each request is reviewed, and you can respond with evidence." },
     { q: "What lowers seller ranking?", a: "Low completion rate, slow response time, poor ratings, and high dispute ratio can affect visibility." },
     { q: "How to avoid disputes?", a: "Deliver on time, communicate clearly, provide proof of delivery, and set accurate expectations in listings." },
     { q: "Can DGMarq suspend accounts?", a: "Yes, for policy violations, fraud, or repeated complaints. We follow fair review procedures." },
@@ -604,7 +591,7 @@ export const SellerSupportPageData = {
 export const HowToSellPageData = {
   hero: {
     headline: "How to Sell on DGMarq — Secure, Simple & Scalable",
-    subtext: "Start selling digital products and services with escrow-backed payments, verified buyer protection, and transparent dispute handling.",
+    subtext: "Start selling digital products with escrow-backed payments, verified buyer protection, and transparent dispute handling.",
     ctaPrimary: "Become a Seller",
     ctaSecondary: "View Seller Requirements",
     ctaPrimaryUrl: "/user/become-seller",
@@ -635,40 +622,39 @@ export const HowToSellPageData = {
     intro: "A successful listing should include:",
     items: [
       "Clear title & category placement",
-      "Detailed service/product description",
+      "The correct master product, platform and region",
       "Transparent pricing",
-      "Delivery timeline",
-      "Revision policy",
-      "Portfolio samples (if applicable)",
+      "Enough stock to cover demand",
+      "Accurate activation regions",
     ],
     bestPractices: {
       title: "Best Practice Tips:",
       items: [
         "Avoid exaggerated claims",
-        "Clearly define scope of work",
-        "Specify what is NOT included",
+        "Only list keys you are authorised to sell",
+        "Keep stock and regions accurate",
       ],
     },
   },
   acceptOrders: {
     intro: "When a buyer places an order:",
     steps: [
-      "Payment is secured in escrow",
-      "You receive order notification",
-      "Begin work within stated timeline",
-      "Deliver through platform dashboard",
+      "Payment is secured at checkout",
+      "You receive an order notification",
+      "Your uploaded key is delivered automatically",
+      "Track the order in your dashboard",
     ],
-    microcopy: "Funds remain protected until buyer approval.",
+    microcopy: "Your share is held in escrow for a set period after delivery.",
   },
   deliverGetPaid: {
     intro: "After delivery:",
     steps: [
-      "Buyer reviews submission",
-      "Buyer approves order",
-      "Escrow releases funds",
+      "The buyer receives the key",
+      "Your share is held for the escrow period",
+      "The funds become available to withdraw",
       "Payout processing begins",
     ],
-    microcopy: "Standard processing timeline applies (e.g., 3–7 business days).",
+    microcopy: "The escrow period and fees are listed in the Fee Schedule and Vendor Terms.",
   },
   revisionsDisputes: {
     intro: "If issues arise:",
@@ -699,7 +685,7 @@ export const HowToSellPageData = {
   },
   faq: [
     { q: "How long does verification take?", a: "Verification typically takes 1–3 business days. You'll receive an email once approved." },
-    { q: "When do I receive payouts?", a: "After buyer approval, funds are released from escrow. Payouts process within 3–7 business days." },
+    { q: "When do I receive payouts?", a: "Your share is held for the escrow period after delivery, then becomes available to withdraw to your payout account." },
     { q: "What happens if a buyer opens dispute?", a: "Provide evidence and delivery proof. DGMarq mediation reviews fairly. Funds stay in escrow during review." },
     { q: "Can DGMarq suspend my account?", a: "Accounts may be suspended for policy violations or fraud. We follow transparent review procedures." },
     { q: "How can I increase sales?", a: "Optimize listings, maintain high ratings, respond quickly, and consider DGMarq Plus for increased visibility." },
@@ -754,7 +740,7 @@ export const AboutTechCards = [
   },
   {
     title: "Escrow Logic System",
-    description: "Funds are held securely until delivery is verified, ensuring complete trust.",
+    description: "Seller proceeds are held for a set escrow period after delivery, so faulty keys can be refunded first.",
     icon: "HiShieldCheck",
   },
   {
@@ -777,13 +763,6 @@ export const AboutTechCards = [
     description: "AI-driven detection prevents unauthorized access and reduces financial risk.",
     icon: "HiShieldExclamation",
   },
-]
-
-export const AboutMetrics = [
-  { value: 35, suffix: "M+", label: "Users" },
-  { value: 2000, suffix: "+", label: "Sellers" },
-  { value: 120, suffix: "+", label: "Countries" },
-  { value: 99.9, suffix: "%", label: "Platform Uptime" },
 ]
 
 export const AboutRoadmapDetailed = [

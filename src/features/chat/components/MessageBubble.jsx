@@ -8,9 +8,6 @@ const getThumbnailUrl = (url) => {
   return url.replace('/upload/', '/upload/w_300,c_limit,q_auto/');
 };
 
-// Hoisted to module scope so they are not recreated on every render. The bubble
-// itself is memo()'d, so for a long message list these run only when an
-// individual bubble actually re-renders.
 const getInitials = (name) => {
   if (!name) return 'U';
   const parts = name.trim().split(' ');
@@ -45,7 +42,6 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
       'flex gap-3 mb-4',
       isOwn ? 'justify-end' : 'justify-start'
     )}>
-      {/* Avatar - Always show on left for received messages */}
       {!isOwn && (
         <div className="shrink-0">
           {senderAvatar ? (
@@ -64,19 +60,16 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
         </div>
       )}
 
-      {/* Message Content */}
       <div className={cn(
         'flex flex-col',
         isOwn ? 'items-end max-w-[75%]' : 'items-start max-w-[75%]'
       )}>
-        {/* Sender Name (only for received messages) */}
         {!isOwn && senderName && (
           <span className="text-fg-muted text-xs mb-1 px-1">
             {senderName}
           </span>
         )}
 
-        {/* Message Bubble */}
         <div
           className={cn(
             'rounded-lg px-4 py-2.5 shadow-sm',
@@ -157,7 +150,6 @@ const MessageBubble = memo(({ message, isOwn, senderName, senderAvatar }) => {
           </div>
         )}
 
-        {/* Timestamp */}
         <span className="text-fg-subtle text-xs mt-1 px-1">
           {formatTime(message.sentAt || message.createdAt)}
         </span>

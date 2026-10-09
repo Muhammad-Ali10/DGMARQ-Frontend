@@ -29,9 +29,6 @@ import useCurrency from '@hooks/useCurrency';
 import { HUD_LABEL } from '@lib/surface';
 import { cn } from '@lib/utils';
 
-// Catalog status of the MASTER itself. Buyer visibility is a SEPARATE thing
-// (an approved offer with stock) and gets its own badge beside this one —
-// a master can be "Active" in the catalog and still invisible to buyers.
 const CATALOG_STATUS = {
   pending: { variant: 'warning', label: 'Pending approval' },
   approved: { variant: 'success', label: 'Active in catalog' },
@@ -59,14 +56,12 @@ const ProductDetailView = () => {
     retry: 1,
   });
 
-  // Seller offers listed against this (master) product.
   const { data: offers = [], isLoading: offersLoading } = useQuery({
     queryKey: ['admin-product-offers', productId],
     queryFn: () => masterCatalogAPI.getProductOffers(productId).then((res) => res.data.data),
     enabled: !!productId,
   });
 
-  // Per-offer moderation: approve/reject new offers, remove/restore live ones.
   const [rejecting, setRejecting] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [restoring, setRestoring] = useState(null);
@@ -94,8 +89,6 @@ const ProductDetailView = () => {
     mutationFn: ({ offerId, approve }) => offerAPI.adminDecideFeatured(offerId, { approve }),
     onSuccess: (res) => {
       refreshOffers();
-      // Approving flips Product.hasFeaturedOffer through the offer rollup, so
-      // the product header needs refreshing too.
       queryClient.invalidateQueries({ queryKey: ['admin-product-details', productId] });
       toast.success(res?.data?.message || 'Updated');
     },
@@ -106,7 +99,6 @@ const ProductDetailView = () => {
   if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Error loading product details'} />;
 
   const status = CATALOG_STATUS[product?.status] || { variant: 'default', label: product?.status };
-  // A pre-order is live on offers alone — it has nothing to stock yet.
   const livePreorder = product?.isPreorder && !product?.preorderReleasedAt && product?.offersCount > 0;
   const isBuyerVisible = Boolean(product?.hasStock || livePreorder);
 
@@ -117,8 +109,6 @@ const ProductDetailView = () => {
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
-      {/* Identity first: which product is this, is it live, and what can I do
-          about it. All three used to be buried in label/value rows below. */}
       <Card variant="hud">
         <CardContent className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start">
           {cover ? (
@@ -165,8 +155,6 @@ const ProductDetailView = () => {
                 Edit
               </Link>
             </Button>
-            {/* Only when a buyer could actually open it — the storefront hides a
-                master with no in-stock offer, so the link would dead-end. */}
             {isBuyerVisible && product?.slug && (
               <Button variant="outline" asChild>
                 <a href={`/product/${product.slug}`} target="_blank" rel="noreferrer">
@@ -186,8 +174,6 @@ const ProductDetailView = () => {
         </div>
       )}
 
-      {/* The four numbers an admin acts on. Offer-derived tiles read "—" until
-          that query lands rather than flashing a zero that is not yet true. */}
       <StatCardGrid>
         <StatCard
           title="Lowest offer"
@@ -295,8 +281,6 @@ const ProductDetailView = () => {
           )}
         </div>
 
-        {/* Sellers appear per-offer below; masters are admin-owned, so there is
-            no product-level "Seller Information" card. */}
         <div className="space-y-6">
           <Card variant="hud">
             <CardHeader className="border-b">
@@ -315,7 +299,6 @@ const ProductDetailView = () => {
                 {product?.platform?.name && <SpecRow label="Platform" value={product.platform.name} />}
                 {product?.region?.name && <SpecRow label="Region" value={product.region.name} />}
                 {product?.genre?.name && <SpecRow label="Genre" value={product.genre.name} />}
-                {/* Populated by the endpoint but never shown before this page. */}
                 {product?.mode?.name && <SpecRow label="Mode" value={product.mode.name} />}
                 {product?.device?.name && <SpecRow label="Device" value={product.device.name} />}
                 {product?.theme?.name && <SpecRow label="Theme" value={product.theme.name} />}
@@ -351,7 +334,6 @@ const ProductDetailView = () => {
         </div>
       </div>
 
-      {/* Sellers & Offers listed against this master product */}
       <Card variant="hud">
         <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2">
@@ -433,8 +415,6 @@ const ProductDetailView = () => {
                             <p className="mt-1 text-xs text-fg-subtle">Out of stock — relists when restocked</p>
                           )}
                         </TableCell>
-                        {/* Featuring is a separate, seller-purchased promotion —
-                            its own request/decision cycle alongside listing approval. */}
                         <TableCell>
                           {o.featuredStatus === 'approved' ? (
                             <Badge variant="success">Featured</Badge>

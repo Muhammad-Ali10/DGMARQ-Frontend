@@ -3,24 +3,16 @@ import api from '@lib/axios';
 export const orderAPI = {
   getAllOrders: (params) => api.get('/order/my-orders', { params }),
   getOrderById: (orderId) => api.get(`/order/${orderId}`),
-  // M21: cancel an undelivered pre-order (before release) → wallet refund.
   cancelPreorder: (orderId) => api.post(`/order/${orderId}/cancel-preorder`),
 };
 
 export const checkoutAPI = {
   createCheckoutSession: (data) => api.post('/checkout/create', data),
   createGuestCheckoutSession: (data) => api.post('/checkout/guest/create', data),
-  // SECURITY FIX (S3): unauthenticated guest reads/cancels now require the
-  // guest email used at session creation (backend enforces ownership proof).
   getCheckoutStatus: (checkoutId, guestEmail) =>
     api.get(`/checkout/${checkoutId}`, { params: guestEmail ? { guestEmail } : {} }),
   getHandlingFeeEstimate: (amount) => api.get('/checkout/handling-fee-estimate', { params: { amount } }),
-  // The signed-in buyer's cart priced by the server — discounts, fees and
-  // points in one answer, from the same function that prices the real session.
-  // Read-only, so it is safe to call on every cart or coupon change.
   getCheckoutPreview: (params) => api.get('/checkout/preview', { params: params || {} }),
-  cancelCheckout: (checkoutId, guestEmail) =>
-    api.post(`/checkout/${checkoutId}/cancel`, guestEmail ? { guestEmail } : {}),
   payWithWallet: (checkoutId) => api.post(`/checkout/${checkoutId}/pay-with-wallet`),
 };
 
@@ -32,6 +24,7 @@ export const paypalAPI = {
 export const cartAPI = {
   addItem: (data) => api.post('/cart/add-item', data),
   getCart: () => api.get('/cart/get-cart'),
+  getCount: () => api.get('/cart/count'),
   removeItem: (data) => api.patch('/cart/remove-item', data),
   updateCart: (data) => api.patch('/cart/update-cart', data),
   clearCart: () => api.patch('/cart/clear-cart'),
@@ -39,9 +32,9 @@ export const cartAPI = {
 };
 
 export const couponAPI = {
-  validateCoupon: (data) => api.post('/coupon/validate', data),
+  validateCoupon: (data, config) => api.post('/coupon/validate', data, config),
   createCoupon: (data) => api.post('/coupon', data),
-  getAllCoupons: () => api.get('/coupon'),
+  getAllCoupons: (params) => api.get('/coupon', { params }),
   updateCoupon: (couponId, data) => api.patch(`/coupon/${couponId}`, data),
   deleteCoupon: (couponId) => api.delete(`/coupon/${couponId}`),
 };
@@ -52,10 +45,10 @@ export const returnRefundAPI = {
   getMyRefunds: (params) => api.get('/return-refund/my-refunds', { params }),
   getRefundById: (refundId) => api.get(`/return-refund/${refundId}`),
   getCompletedOrders: () => api.get('/return-refund/completed-orders'),
-  getOrderItemLicenseKeys: (orderId, productId) =>
-    api.get('/return-refund/order-item-keys', { params: { orderId, productId } }),
-  previewSplit: (orderId, productId, licenseKeyIds, refundDestination) => {
-    const params = { orderId, productId };
+  getOrderItemLicenseKeys: (orderId, productId, sellerId) =>
+    api.get('/return-refund/order-item-keys', { params: { orderId, productId, ...(sellerId ? { sellerId } : {}) } }),
+  previewSplit: (orderId, productId, licenseKeyIds, refundDestination, sellerId) => {
+    const params = { orderId, productId, ...(sellerId ? { sellerId } : {}) };
     if (Array.isArray(licenseKeyIds) && licenseKeyIds.length > 0) {
       params.licenseKeyIds = licenseKeyIds.join(',');
     }
@@ -76,7 +69,6 @@ export const returnRefundAPI = {
     return api.post(`/return-refund/${refundId}/messages`, payload);
   },
   getSellerRefundList: (params) => api.get('/return-refund/seller/list', { params }),
-  // Sellers can only leave advisory feedback — no approve/reject (admin-only).
   sellerSubmitFeedback: (refundId, feedback) => api.patch(`/return-refund/seller/${refundId}/feedback`, { feedback }),
   getAllRefunds: (params) => api.get('/return-refund/admin/all', { params }),
   updateRefundStatus: (refundId, data) => api.patch(`/return-refund/admin/${refundId}`, data),
@@ -97,7 +89,6 @@ export const subscriptionAPI = {
   renewSubscription: (data) => api.post('/subscription/renew', data),
   getAllSubscriptions: (params) => api.get('/subscription', { params }),
   getSubscriptionStats: () => api.get('/subscription/stats'),
-  // M20: DGMARQ Plus points (balance/ledger + wallet redemption).
   getMyPoints: () => api.get('/subscription/points'),
   redeemPoints: (points) => api.post('/subscription/points/redeem', { points }),
 };

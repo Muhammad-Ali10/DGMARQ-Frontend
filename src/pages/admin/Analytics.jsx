@@ -21,7 +21,7 @@ const Analytics = () => {
   const { data: topProducts, isLoading: isLoadingTop, isError: isErrorTop, error: topProductsError } = useQuery({
     queryKey: ['top-products'],
     queryFn: async () => {
-      const response = await analyticsAPI.getTopProducts({ limit: 10 });
+      const response = await analyticsAPI.getTopProducts();
       return response.data.data;
     },
     retry: 2,
@@ -36,7 +36,7 @@ const Analytics = () => {
     },
     retry: 2,
     refetchOnWindowFocus: true,
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    refetchInterval: 30000,
   });
 
   const isLoading = isLoadingDashboard || isLoadingTop || isLoadingRealtime;
@@ -62,14 +62,14 @@ const Analytics = () => {
       value: realtime?.products?.total || 0, 
       icon: Package, 
       color: 'text-indigo-500',
-      description: 'Active products'
+      description: 'Live catalog products'
     },
     { 
-      title: 'Total Revenue', 
+      title: 'Gross Sales', 
       value: formatMoney(realtime?.revenue?.total || 0), 
       icon: DollarSign, 
       color: 'text-yellow-500',
-      description: 'Platform revenue'
+      description: 'Product sales on paid orders, net of refunds'
     },
   ];
 
@@ -121,7 +121,6 @@ const Analytics = () => {
         <p className="text-sm sm:text-base text-gray-400 mt-1">Platform-wide analytics and insights</p>
       </div>
 
-      {/* Real-time Statistics */}
       {realtime && (
         <div>
           <h2 className="text-lg font-semibold text-white mb-4">Real-Time Statistics</h2>
@@ -147,7 +146,6 @@ const Analytics = () => {
         </div>
       )}
 
-      {/* Analytics Totals */}
       {dashboard?.totals && (
         <div>
           <h2 className="text-lg font-semibold text-white mb-4">Analytics Overview</h2>
@@ -173,7 +171,6 @@ const Analytics = () => {
         </div>
       )}
 
-      {/* Top Products */}
       {topProducts && Array.isArray(topProducts) && topProducts.length > 0 && (
         <Card variant="hud">
           <CardHeader>

@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { keepPreviousData, useQuery, useMutation } from '@tanstack/react-query';
 import { sellerAPI, chatAPI } from '@services/api';
 import { Button } from '@components/ui/button';
@@ -31,7 +31,6 @@ const PublicSellerProfile = () => {
   const [productSearch, setProductSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Debounce the seller-product search; reset to page 1 on a new query.
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedSearch(productSearch.trim());
@@ -45,14 +44,14 @@ const PublicSellerProfile = () => {
     queryFn: () => sellerAPI.getPublicSellerProfile(sellerId).then(res => res.data.data),
   });
 
-  const { data: productsData, isLoading: productsLoading, isFetching: productsFetching } = useQuery({
+  const { data: productsData, isLoading: productsLoading, isFetching: productsFetching, isError: productsError } = useQuery({
     queryKey: ['seller-products', sellerId, productsPage, debouncedSearch],
     queryFn: () => sellerAPI.getSellerProducts(sellerId, { page: productsPage, limit: 10, search: debouncedSearch || undefined }).then(res => res.data.data),
     enabled: !!sellerId,
     placeholderData: keepPreviousData,
   });
 
-  const { data: reviewsData, isLoading: reviewsLoading } = useQuery({
+  const { data: reviewsData, isLoading: reviewsLoading, isError: reviewsError } = useQuery({
     queryKey: ['seller-reviews', sellerId],
     queryFn: () => sellerAPI.getSellerReviews(sellerId).then(res => res.data.data),
     enabled: !!sellerId,
@@ -66,12 +65,7 @@ const PublicSellerProfile = () => {
       navigate(`/user/chat?conversation=${conversation._id}`);
     },
     onError: (error) => {
-      if (error.response?.status === 200) {
-        const conversation = error.response.data.data;
-        navigate(`/user/chat?conversation=${conversation._id}`);
-      } else {
-        toast.error(error.response?.data?.message || 'Failed to start conversation');
-      }
+      toast.error(error.response?.data?.message || 'Failed to start conversation');
     },
   });
 
@@ -100,7 +94,6 @@ const PublicSellerProfile = () => {
       ? `View listings by ${sellerProfile.shopName} on DGMARQ marketplace.`
       : undefined,
     canonical: sellerId ? `/seller/${sellerId}` : undefined,
-    useDefaults: true,
   });
 
   if (profileLoading) {
@@ -112,10 +105,6 @@ const PublicSellerProfile = () => {
   }
 
   const products = productsData?.docs || [];
-  // FIX: getSellerProducts returns the flat mongoose-aggregate-paginate result
-  // (docs + page/totalPages/hasNextPage at top level), NOT nested under
-  // `pagination` — so the pagination controls below never rendered. Map the
-  // flat fields into the shape this page already consumes.
   const pagination = {
     page: productsData?.page,
     totalPages: productsData?.totalPages,
@@ -123,12 +112,11 @@ const PublicSellerProfile = () => {
   };
   const reviews = reviewsData?.recentReviews || [];
   const reviewSummary = reviewsData?.summary || { averageRating: 0, totalReviews: 0 };
+  const location = [sellerProfile.city, sellerProfile.state, sellerProfile.country].filter(Boolean).join(', ');
 
   return (
     <div className="min-h-screen container mx-auto  text-white">
-      {/* Seller Header */}
       <div className="relative">
-        {/* Banner */}
         {sellerProfile.shopBanner && (
           <div className="h-64 w-full overflow-hidden">
             <SafeImage 
@@ -143,7 +131,6 @@ const PublicSellerProfile = () => {
           <Card className="bg-[#0a1f3d] ">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
-                {/* Seller Avatar */}
                 <div className="flex-shrink-0">
                   <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary">
                     {sellerProfile.shopLogo ? (
@@ -160,7 +147,6 @@ const PublicSellerProfile = () => {
                   </div>
                 </div>
 
-                {/* Seller Info */}
                 <div className="flex-1">
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
@@ -170,11 +156,10 @@ const PublicSellerProfile = () => {
                       )}
                       
                       <div className="flex flex-wrap gap-4 text-sm text-gray-400">
-                        {sellerProfile.city && sellerProfile.state && (
+                        {location && (
                           <div className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
-                            <span>{sellerProfile.city}, {sellerProfile.state}</span>
-                            {sellerProfile.country && <span>, {sellerProfile.country}</span>}
+                            <span>{location}</span>
                           </div>
                         )}
                         {sellerProfile.user?.joinedDate && (
@@ -186,7 +171,6 @@ const PublicSellerProfile = () => {
                       </div>
                     </div>
 
-                    {/* Chat Button */}
                     <Button
                       onClick={handleChatWithSeller}
                       disabled={createConversationMutation.isPending}
@@ -197,14 +181,6 @@ const PublicSellerProfile = () => {
                     </Button>
                   </div>
 
-                  {/* Stats – single row.
-                      AUDIT FIX (AZ-3): the "Orders Completed" and "Total Revenue"
-                      tiles are REMOVED. This page is fully unauthenticated and
-                      sellerIds are enumerable from any product-detail response,
-                      so those two exposed a named seller's private commercial
-                      figures to any visitor or competitor. The backend no longer
-                      returns them (seller.controller.js getPublicSellerProfile).
-                      Social proof is carried by Products Sold / rating / reviews. */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6 pt-6 border-t border-gray-700">
                     <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">
@@ -223,14 +199,14 @@ const PublicSellerProfile = () => {
                     <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <Star className="h-5 w-5 text-yellow-400" />
-                        <span className="text-xl sm:text-2xl font-bold">{reviewSummary.averageRating.toFixed(1)}</span>
+                        <span className="text-xl sm:text-2xl font-bold">{reviewsError ? '—' : reviewSummary.averageRating.toFixed(1)}</span>
                       </div>
                       <p className="text-xs sm:text-sm text-gray-400">Average Rating</p>
                     </div>
                     <div className="bg-gray-800/50 rounded-lg p-3 sm:p-4 text-center border border-gray-700/50">
                       <div className="flex items-center justify-center gap-2 mb-1">
                         <User className="h-5 w-5 text-blue-400" />
-                        <span className="text-xl sm:text-2xl font-bold">{reviewSummary.totalReviews}</span>
+                        <span className="text-xl sm:text-2xl font-bold">{reviewsError ? '—' : reviewSummary.totalReviews}</span>
                       </div>
                       <p className="text-xs sm:text-sm text-gray-400">Reviews</p>
                     </div>
@@ -244,7 +220,6 @@ const PublicSellerProfile = () => {
 
       <div className="container mx-auto px-4 pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Products Section */}
           <div className="lg:col-span-2">
             <Card className="bg-[#0a1f3d] mb-6">
               <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -264,6 +239,8 @@ const PublicSellerProfile = () => {
               <CardContent>
                 {productsLoading ? (
                   <Loading message="Loading products..." />
+                ) : productsError ? (
+                  <ErrorMessage className="h-auto py-6" message="Couldn't load this seller's products. Please try again." />
                 ) : products.length === 0 ? (
                   <div className="text-center py-8 text-gray-400">
                     <ShoppingCart className="h-12 w-12 mx-auto mb-4 text-gray-600" />
@@ -280,7 +257,6 @@ const PublicSellerProfile = () => {
                       ))}
                     </div>
 
-                    {/* Pagination */}
                     <Pagination page={productsPage} totalPages={pagination.totalPages} onPageChange={handlePageChange} />
                   </>
                 )}
@@ -288,7 +264,6 @@ const PublicSellerProfile = () => {
             </Card>
           </div>
 
-          {/* Reviews Section */}
           <div className="lg:col-span-1">
             <Card className="bg-[#0a1f3d] ">
               <CardHeader>
@@ -300,9 +275,10 @@ const PublicSellerProfile = () => {
               <CardContent>
                 {reviewsLoading ? (
                   <Loading message="Loading reviews..." />
+                ) : reviewsError ? (
+                  <ErrorMessage className="h-auto py-6" message="Couldn't load this seller's reviews. Please try again." />
                 ) : (
                   <>
-                    {/* Review Summary */}
                     <div className="mb-6 pb-6 border-b border-gray-700">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-2xl sm:text-3xl font-bold">
@@ -326,7 +302,6 @@ const PublicSellerProfile = () => {
                       </p>
                     </div>
 
-                    {/* Recent Reviews */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold mb-4">Recent Reviews</h3>
                       {reviews.length === 0 ? (
@@ -367,8 +342,21 @@ const PublicSellerProfile = () => {
                                 {review.comment && (
                                   <p className="text-sm text-gray-300 mb-2">{review.comment}</p>
                                 )}
+                                {review.replies?.[0]?.replyText && (
+                                  <div className="mb-2 border-l-2 border-gray-600 pl-3">
+                                    <p className="text-xs font-medium text-gray-400">Seller reply</p>
+                                    <p className="text-sm text-gray-300">{review.replies[0].replyText}</p>
+                                  </div>
+                                )}
                                 {review.product?.name && (
-                                  <p className="text-xs text-gray-500">Product: {review.product.name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    Product:{' '}
+                                    {review.product.slug ? (
+                                      <Link to={`/product/${review.product.slug}`} className="hover:underline">{review.product.name}</Link>
+                                    ) : (
+                                      review.product.name
+                                    )}
+                                  </p>
                                 )}
                                 <p className="text-xs text-gray-500 mt-1">
                                   {new Date(review.createdAt).toLocaleDateString()}

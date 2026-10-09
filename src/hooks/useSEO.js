@@ -3,9 +3,6 @@ import { truncateMetaDescription } from '@utils/meta';
 
 export { DEFAULT_SEO, useSEO };
 
-/**
- * Generates product SEO title and description.
- */
 export const generateProductSEO = (product) => {
   if (!product) {
     return {
@@ -19,7 +16,7 @@ export const generateProductSEO = (product) => {
 
   let title = '';
   if (product.metaTitle && typeof product.metaTitle === 'string') {
-    title = `${product.metaTitle.trim()} | DG Marq`;
+    title = product.metaTitle.trim();
   } else if (productName) {
     title = `${productName}${categoryName ? ` - ${categoryName}` : ''} | DG Marq`;
   } else {

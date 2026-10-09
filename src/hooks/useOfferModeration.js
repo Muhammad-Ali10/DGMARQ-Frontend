@@ -2,9 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { offerAPI } from '@services/api';
 
-// Every admin screen that shows offers. Refreshed together, so a takedown on the
-// Seller Offers list shows on the product page (and the product's public
-// rollups) without a reload, and the other way round.
 const ADMIN_OFFER_QUERY_KEYS = [
   ['admin-offers'],
   ['admin-offers-count'],
@@ -12,11 +9,6 @@ const ADMIN_OFFER_QUERY_KEYS = [
   ['admin-product-details'],
 ];
 
-/**
- * Admin takedown and restore of a seller's offer. Both pages that list offers
- * use this, so the requests, the toasts and the cache refresh cannot drift.
- * `onRemoved` / `onRestored` let the caller close its dialog on success only.
- */
 export const useOfferModeration = ({ onRemoved, onRestored } = {}) => {
   const queryClient = useQueryClient();
   const refresh = () =>
@@ -36,8 +28,6 @@ export const useOfferModeration = ({ onRemoved, onRestored } = {}) => {
     mutationFn: (offerId) => offerAPI.adminRestoreOffer(offerId),
     onSuccess: (res) => {
       refresh();
-      // The server says whether it is actually live: a restore while the seller is on
-      // hold undoes the admin takedown but the listing stays hidden.
       toast.success(res?.data?.message || 'Offer restored');
       onRestored?.();
     },

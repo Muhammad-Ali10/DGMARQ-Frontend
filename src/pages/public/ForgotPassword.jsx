@@ -16,7 +16,6 @@ const ForgotPassword = () => {
     mutationFn: (data) => authAPI.forgotPassword(data),
     onSuccess: () => {
       showSuccess('Password reset email sent! Please check your inbox.');
-      // Optionally navigate to a confirmation page or back to login
       setTimeout(() => {
         navigate('/login');
       }, 2000);

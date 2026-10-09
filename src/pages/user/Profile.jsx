@@ -1,9 +1,11 @@
-import { useRef, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useEffect, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authAPI, subscriptionAPI } from '@services/api';
-import { updateUser, logout } from '@store/slices/authSlice';
-import { useNavigate, Link } from 'react-router-dom';
+import { endSession } from '@lib/session';
+import { useMe, ME_QUERY_KEY } from '@hooks/useMe';
+import { useSocialProviders } from '@hooks/useSocialProviders';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@components/ui/card';
 import { Button } from '@components/ui/button';
 import { Input } from '@components/ui/input';
@@ -12,47 +14,68 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs';
 import { FormSkeleton, CardListSkeleton } from '@components/common/Skeletons';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
-import { User, Lock, Mail, Camera, Shield, Link2, Unlink, Trash2, LogOut, CheckCircle, XCircle, Smartphone } from 'lucide-react';
+import { User, Lock, Mail, Camera, Shield, Link2, Unlink, Trash2, LogOut, CheckCircle, XCircle, Smartphone, Download } from 'lucide-react';
 import ConfirmationModal from '@components/common/ConfirmationModal';
 import SafeImage from '@components/ui/safe-image';
-import { showSuccess, showError, showApiError } from '@utils/toast';
+import { showSuccess, showError } from '@utils/toast';
 import { toast } from 'sonner';
-import { PROVIDER_LABELS, SOCIAL_PROVIDER_IDS, startSocialAuth } from '@lib/socialAuth';
+import { PROVIDER_LABELS, SOCIAL_PROVIDER_IDS, describeLinkResult, startSocialAuth } from '@lib/socialAuth';
 
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [initialTab] = useState(() => (describeLinkResult(searchParams) ? 'security' : 'profile'));
   const [name, setName] = useState(user?.name || '');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [profileImage, setProfileImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(user?.profileImage || '');
+  const previewUrlRef = useRef(null);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [deleteValue, setDeleteValue] = useState('');
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [otp, setOtp] = useState('');
   const otpInputRef = useRef(null);
-  // Which provider the unlink confirmation is asking about (null = closed). One
-  // piece of state for all five, instead of a boolean per provider.
   const [unlinkTarget, setUnlinkTarget] = useState(null);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [showRevokeAllSessionsModal, setShowRevokeAllSessionsModal] = useState(false);
   const [showRevokeSessionModal, setShowRevokeSessionModal] = useState(false);
   const [revokeSessionId, setRevokeSessionId] = useState(null);
+  const enabledProviders = useSocialProviders();
 
-  const { data: profileData, isLoading } = useQuery({
-    queryKey: ['user-profile'],
-    queryFn: () => authAPI.getProfile().then(res => res.data.data),
-    enabled: !!user,
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+  }, []);
+
+  const mergeMe = (patch) =>
+    queryClient.setQueryData(ME_QUERY_KEY, (prev) => (prev ? { ...prev, ...patch } : prev));
+
+  useEffect(() => {
+    const result = describeLinkResult(searchParams);
+    if (!result) return;
+    if (result.ok) {
+      toast.success(result.message, { id: 'oauth-link' });
+      queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
+    } else {
+      toast.error(result.message, { id: 'oauth-link' });
+    }
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams, queryClient]);
+
+  const linkProviderMutation = useMutation({
+    mutationFn: (providerId) => authAPI.startOAuthLink(providerId),
+    onSuccess: (_, providerId) => startSocialAuth(providerId),
   });
 
-  // Shares the ['plus-points'] key with the dashboard tile, the Plus page and
-  // the checkout redeem control, so all four read one cached answer.
-  // `.catch(null)` because a non-subscriber has no points to show and that is
-  // not an error worth surfacing on the profile screen.
+  const { data: profileData, isLoading } = useMe({ enabled: !!user });
+
   const { data: plusPoints } = useQuery({
     queryKey: ['plus-points'],
-    queryFn: () => subscriptionAPI.getMyPoints().then(res => res.data?.data ?? null).catch(() => null),
+    queryFn: () => subscriptionAPI.getMyPoints().then((r) => r.data?.data ?? null),
     enabled: !!user,
     staleTime: 60_000,
   });
@@ -60,55 +83,82 @@ const UserProfile = () => {
   const updateProfileMutation = useMutation({
     mutationFn: (formData) => authAPI.updateProfile(null, formData),
     onSuccess: (data) => {
-      dispatch(updateUser(data.data.data));
+      mergeMe(data.data.data);
       showSuccess('Profile updated successfully');
       setProfileImage(null);
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to update profile');
     },
   });
 
   const updatePasswordMutation = useMutation({
     mutationFn: (data) => authAPI.updatePassword(data),
     onSuccess: () => {
-      toast.success('Password updated successfully');
+      showSuccess('Password updated successfully');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
     },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || 'Failed to update password');
-    },
   });
 
-  const queryClient = useQueryClient();
+  const setPasswordLinkMutation = useMutation({
+    mutationFn: (email) => authAPI.forgotPassword({ email }),
+    onSuccess: () => showSuccess('Check your inbox for a link to set your password.'),
+  });
 
   const sendOTPMutation = useMutation({
     mutationFn: () => authAPI.sendEmailVerification(),
     onSuccess: () => {
-      toast.success('Verification OTP sent successfully! Check your email.');
+      showSuccess('Verification OTP sent successfully! Check your email.');
       setOtpDialogOpen(true);
       setOtp('');
-    },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || 'Failed to send verification OTP');
     },
   });
 
   const verifyOTPMutation = useMutation({
     mutationFn: (data) => authAPI.verifyEmail(data),
-    onSuccess: (data) => {
-      toast.success('Email verified successfully!');
+    onSuccess: () => {
+      showSuccess('Email verified successfully!');
       setOtpDialogOpen(false);
       setOtp('');
-      if (data?.data?.data) {
-        dispatch(updateUser({ ...currentUser, emailVerified: true }));
-      }
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      mergeMe({ emailVerified: true });
     },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || 'Invalid or expired OTP');
+  });
+
+  const changeEmailMutation = useMutation({
+    mutationFn: (data) => authAPI.changeEmail(data),
+    onSuccess: () => {
+      showSuccess('Verification email sent to new address');
+      setNewEmail('');
+      setEmailPassword('');
+    },
+  });
+
+  const unlinkMutation = useMutation({
+    mutationFn: (provider) => authAPI.unlinkOAuth({ provider }),
+    onSuccess: (data, provider) => {
+      mergeMe(data.data.data);
+      showSuccess(`${PROVIDER_LABELS[provider] || provider} account unlinked`);
+    },
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: (data) => authAPI.deleteAccount(data),
+    onSuccess: () => {
+      endSession();
+      navigate('/login');
+      showSuccess('Account deleted successfully');
+    },
+  });
+
+  const exportDataMutation = useMutation({
+    mutationFn: () => authAPI.exportMyData(),
+    onSuccess: (res) => {
+      const blob = new Blob([JSON.stringify(res.data.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'dgmarq-my-data.json';
+      link.click();
+      URL.revokeObjectURL(url);
     },
   });
 
@@ -132,23 +182,23 @@ const UserProfile = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = URL.createObjectURL(file);
       setProfileImage(file);
-      setPreviewImage(URL.createObjectURL(file));
+      setPreviewImage(previewUrlRef.current);
     }
   };
 
   if (isLoading) return <FormSkeleton fields={5} />;
 
   const currentUser = profileData || user;
-  // AUDIT FIX (INT-14): a provider-only account has no password to confirm with.
-  // `oauthProvider` is part of the profile payload (SAFE_USER_SELECT keeps it);
-  // 'local' — or its absence on legacy rows — means a password is set.
-  const hasPassword = !currentUser?.oauthProvider || currentUser.oauthProvider === 'local';
-  // 'local' is "no social account linked", so it must not match a provider row.
+  const hasPassword = currentUser?.hasPassword ?? (!currentUser?.oauthProvider || currentUser.oauthProvider === 'local');
   const linkedProvider =
     currentUser?.oauthProvider && currentUser.oauthProvider !== 'local'
       ? currentUser.oauthProvider
       : null;
+  const providerRows = SOCIAL_PROVIDER_IDS.filter((id) => enabledProviders.includes(id) || id === linkedProvider);
+  const hasRealEmail = Boolean(currentUser?.email) && !/\.temp$/i.test(currentUser.email);
 
   return (
     <div className="space-y-6">
@@ -157,7 +207,7 @@ const UserProfile = () => {
         <p className="text-fg-muted mt-1">Manage your account information and preferences</p>
       </div>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs defaultValue={initialTab} className="w-full">
         <TabsList className="grid w-full grid-cols-5 bg-surface-sunken border-border">
           <TabsTrigger value="profile" className="">
             <User className="w-4 h-4 mr-2" />
@@ -182,8 +232,6 @@ const UserProfile = () => {
         </TabsList>
 
         <TabsContent value="profile">
-          {/* CLIENT REQ (M20): "Points balance in user profile/dashboard".
-              The dashboard had a tile; the profile had nothing. */}
           {plusPoints && (
             <Card variant="hud" className="mb-6">
               <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-6">
@@ -193,9 +241,6 @@ const UserProfile = () => {
                     {plusPoints.balance}
                     <span className="ml-2 text-base font-medium text-fg-muted">pts</span>
                   </p>
-                  {/* A negative balance is correct (it is what stops
-                      earn → redeem → cancel being free money) but it needs
-                      explaining, not just displaying. */}
                   <p className={`mt-1 text-sm ${plusPoints.inDebt ? 'text-warning' : 'text-fg-subtle'}`}>
                     {plusPoints.inDebt
                       ? `Adjusted after a refund — earn ${plusPoints.pointsUntilRedeemable} more to redeem again.`
@@ -269,7 +314,7 @@ const UserProfile = () => {
               disabled
                       className="bg-secondary border-border text-fg-muted"
             />
-                    <p className="text-xs text-fg-subtle">Email cannot be changed</p>
+                    <p className="text-xs text-fg-subtle">To change your email, use the Security tab</p>
                   </div>
           </div>
 
@@ -286,6 +331,7 @@ const UserProfile = () => {
         </TabsContent>
 
         <TabsContent value="password">
+          {hasPassword ? (
           <Card variant="hud">
             <CardHeader>
               <CardTitle>Change Password</CardTitle>
@@ -344,6 +390,33 @@ const UserProfile = () => {
           </form>
             </CardContent>
           </Card>
+          ) : (
+            <Card variant="hud">
+              <CardHeader>
+                <CardTitle>Set a Password</CardTitle>
+                <CardDescription className="text-fg-muted">
+                  You sign in with {PROVIDER_LABELS[linkedProvider] || 'a social provider'}. Set a password to also sign in
+                  with your email, change your email, or unlink the provider.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {hasRealEmail ? (
+                  <Button
+                    onClick={() => setPasswordLinkMutation.mutate(currentUser.email)}
+                    disabled={setPasswordLinkMutation.isPending}
+                    className="w-full"
+                  >
+                    {setPasswordLinkMutation.isPending ? 'Sending...' : 'Email me a link to set a password'}
+                  </Button>
+                ) : (
+                  <p className="text-sm text-fg-muted">
+                    Your sign-in provider did not share an email address, so a password can&apos;t be set yet.
+                    Please contact support.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="security">
@@ -355,7 +428,6 @@ const UserProfile = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Email Verification */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -386,7 +458,6 @@ const UserProfile = () => {
                       {sendOTPMutation.isPending ? 'Sending...' : 'Send Email Verification OTP'}
                     </Button>
                     
-                    {/* OTP Verification Dialog */}
                     <Dialog open={otpDialogOpen} onOpenChange={setOtpDialogOpen}>
                       <DialogContent
                         size="sm"
@@ -413,7 +484,7 @@ const UserProfile = () => {
                               maxLength={6}
                               value={otp}
                               onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, ''); // Only numbers
+                                const value = e.target.value.replace(/\D/g, '');
                                 if (value.length <= 6) {
                                   setOtp(value);
                                 }
@@ -470,24 +541,14 @@ const UserProfile = () => {
                 )}
               </div>
 
-              {/* Connected Accounts.
-                  Driven by `oauthProvider` from the profile. This block used to
-                  test `currentUser?.googleId` / `.facebookId`, fields that exist
-                  nowhere in the backend — the User schema stores the link as
-                  `oauthProvider` + `oauthId` — so the check was always falsy and a
-                  Google-linked account permanently showed "Link", never
-                  "Connected". */}
               <div className="space-y-4 border-t border-brand-cyan/10 pt-4">
                 <h3 className="text-fg font-medium">Connected Accounts</h3>
-                {/* Stated plainly because the schema really does allow only one:
-                    `oauthProvider` is a single field, and the backend's
-                    upsertOAuthUser overwrites it on the next social login. */}
                 <p className="text-sm text-fg-subtle">
                   Your account can be linked to one provider at a time. Linking a new one
                   replaces the current link.
                 </p>
                 <div className="space-y-2">
-                  {SOCIAL_PROVIDER_IDS.map((providerId) => {
+                  {providerRows.map((providerId) => {
                     const isLinked = linkedProvider === providerId;
                     return (
                       <div
@@ -504,6 +565,7 @@ const UserProfile = () => {
                             <Button
                               size="sm"
                               variant="destructive"
+                              disabled={unlinkMutation.isPending}
                               onClick={() => setUnlinkTarget(providerId)}
                             >
                               <Unlink className="w-3 h-3 mr-1" />
@@ -511,7 +573,11 @@ const UserProfile = () => {
                             </Button>
                           </div>
                         ) : (
-                          <Button size="sm" onClick={() => startSocialAuth(providerId)}>
+                          <Button
+                            size="sm"
+                            disabled={linkProviderMutation.isPending}
+                            onClick={() => linkProviderMutation.mutate(providerId)}
+                          >
                             <Link2 className="w-3 h-3 mr-1" />
                             Link
                           </Button>
@@ -522,24 +588,14 @@ const UserProfile = () => {
                 </div>
               </div>
 
-              {/* Change Email */}
               <div className="space-y-4 border-t border-brand-cyan/10 pt-4">
                 <h3 className="text-fg font-medium">Change Email</h3>
+                {hasPassword ? (
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    const formData = new FormData(e.target);
-                    const newEmail = formData.get('newEmail');
-                    const password = formData.get('password');
-                    if (newEmail && password) {
-                      authAPI.changeEmail({ newEmail, password })
-                        .then(() => {
-                          showSuccess('Verification email sent to new address');
-                          e.target.reset();
-                        })
-                        .catch((error) => {
-                          showApiError(error, 'Failed to send verification email');
-                        });
+                    if (newEmail && emailPassword) {
+                      changeEmailMutation.mutate({ newEmail: newEmail.trim(), password: emailPassword });
                     }
                   }}
                   className="space-y-4"
@@ -550,6 +606,8 @@ const UserProfile = () => {
                       id="newEmail"
                       name="newEmail"
                       type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
                       className="bg-secondary border-border text-fg"
                       placeholder="Enter new email"
                       required
@@ -561,15 +619,22 @@ const UserProfile = () => {
                       id="password"
                       name="password"
                       type="password"
+                      value={emailPassword}
+                      onChange={(e) => setEmailPassword(e.target.value)}
                       className="bg-secondary border-border text-fg"
                       placeholder="Enter password to confirm"
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full">
-                    Request Email Change
+                  <Button type="submit" className="w-full" disabled={changeEmailMutation.isPending}>
+                    {changeEmailMutation.isPending ? 'Sending...' : 'Request Email Change'}
                   </Button>
                 </form>
+                ) : (
+                  <p className="text-sm text-fg-muted">
+                    Set a password on the Password tab first, then you can change your email here.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -606,12 +671,28 @@ const UserProfile = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-secondary p-4">
+                  <div>
+                    <h3 className="text-fg font-medium">Download my data</h3>
+                    <p className="text-sm text-fg-muted">
+                      A copy of your profile, orders, reviews, support tickets and wallet balance as a JSON file.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => exportDataMutation.mutate()}
+                    disabled={exportDataMutation.isPending}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    {exportDataMutation.isPending ? 'Preparing...' : 'Download'}
+                  </Button>
+                </div>
                 <div className="p-4 bg-danger-soft border border-danger/35 rounded-lg">
                   <h3 className="text-danger font-medium mb-2">Danger Zone</h3>
                   <p className="text-sm text-fg-muted mb-4">
                     Once you delete your account, there is no going back. Please be certain.
                   </p>
-                  <Dialog>
+                  <Dialog onOpenChange={(open) => { if (!open) setDeleteValue(''); }}>
                     <DialogTrigger asChild>
                       <Button variant="destructive">
                         <Trash2 className="w-4 h-4 mr-2" />
@@ -622,9 +703,6 @@ const UserProfile = () => {
                       <DialogHeader>
                         <DialogTitle className="text-fg">Delete Account</DialogTitle>
                         <DialogDescription className="text-fg-muted">
-                          {/* AUDIT FIX (INT-14): an account that signs in with a
-                              social provider has no password, so demanding one
-                              made deletion impossible for those users. */}
                           {hasPassword
                             ? 'This action cannot be undone. Please enter your password to confirm.'
                             : 'This action cannot be undone. Your account signs in with a social provider, so type DELETE to confirm.'}
@@ -633,9 +711,7 @@ const UserProfile = () => {
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
-                          const formData = new FormData(e.target);
-                          const value = formData.get(hasPassword ? 'password' : 'confirm');
-                          if (value) {
+                          if (deleteValue) {
                             setShowDeleteAccountModal(true);
                           }
                         }}
@@ -649,13 +725,15 @@ const UserProfile = () => {
                             id="deletePassword"
                             name={hasPassword ? 'password' : 'confirm'}
                             type={hasPassword ? 'password' : 'text'}
+                            value={deleteValue}
+                            onChange={(e) => setDeleteValue(e.target.value)}
                             className="bg-secondary border-border text-fg"
                             placeholder={hasPassword ? 'Enter your password' : 'DELETE'}
                             required
                           />
                         </div>
-                        <Button type="submit" variant="destructive" className="w-full">
-                          Delete My Account
+                        <Button type="submit" variant="destructive" className="w-full" disabled={deleteAccountMutation.isPending}>
+                          {deleteAccountMutation.isPending ? 'Deleting...' : 'Delete My Account'}
                         </Button>
                       </form>
                     </DialogContent>
@@ -667,10 +745,6 @@ const UserProfile = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Confirmation Modals */}
-      {/* One unlink confirmation for all five providers — the target provider is
-          the state. Two copies of this existed (Google and Facebook), which is
-          also why Steam, Discord and PayPal had no unlink path at all. */}
       <ConfirmationModal
         open={unlinkTarget !== null}
         onOpenChange={(open) => {
@@ -681,18 +755,7 @@ const UserProfile = () => {
         confirmText="Unlink"
         cancelText="Cancel"
         variant="default"
-        onConfirm={() => {
-          const provider = unlinkTarget;
-          const label = PROVIDER_LABELS[provider] || provider;
-          authAPI.unlinkOAuth({ provider })
-            .then(() => {
-              showSuccess(`${label} account unlinked`);
-              window.location.reload();
-            })
-            .catch((error) => {
-              showApiError(error, `Failed to unlink ${label} account`);
-            });
-        }}
+        onConfirm={() => unlinkMutation.mutate(unlinkTarget)}
       />
 
       <ConfirmationModal
@@ -704,21 +767,8 @@ const UserProfile = () => {
         cancelText="Cancel"
         variant="destructive"
         onConfirm={() => {
-          const input = document.getElementById('deletePassword');
-          const value = input?.value;
-          if (value) {
-            // AUDIT FIX (INT-14): password for local accounts, a typed
-            // confirmation for provider-only ones. The backend picks the check
-            // that matches the account rather than assuming a password exists.
-            authAPI.deleteAccount(hasPassword ? { password: value } : { confirm: value })
-              .then(() => {
-                dispatch(logout());
-                navigate('/login');
-                showSuccess('Account deleted successfully');
-              })
-              .catch((error) => {
-                showApiError(error, 'Failed to delete account');
-              });
+          if (deleteValue) {
+            deleteAccountMutation.mutate(hasPassword ? { password: deleteValue } : { confirm: deleteValue });
           }
         }}
       />
@@ -741,9 +791,6 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
       setRevokeSessionId(null);
       showSuccess('Session revoked successfully');
     },
-    onError: (error) => {
-      showApiError(error, 'Failed to revoke session');
-    },
   });
 
   const revokeAllMutation = useMutation({
@@ -752,9 +799,6 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
       queryClient.invalidateQueries({ queryKey: ['user-sessions'] });
       setShowRevokeAllSessionsModal(false);
       showSuccess('All other sessions revoked');
-    },
-    onError: (error) => {
-      showApiError(error, 'Failed to revoke sessions');
     },
   });
 
@@ -790,7 +834,7 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
               <div>
                 <p className="text-fg text-sm font-medium">{session.device || 'Unknown Device'}</p>
                 <p className="text-xs text-fg-muted">
-                  {session.ipAddress} • {new Date(session.lastActivity).toLocaleString()}
+                  {[session.ipAddress, session.lastActivity && new Date(session.lastActivity).toLocaleString()].filter(Boolean).join(' • ')}
                 </p>
               </div>
             </div>
@@ -814,7 +858,6 @@ const SessionsTab = ({ showRevokeAllSessionsModal, setShowRevokeAllSessionsModal
         ))}
       </div>
 
-      {/* Session Confirmation Modals */}
       <ConfirmationModal
         open={showRevokeAllSessionsModal}
         onOpenChange={setShowRevokeAllSessionsModal}

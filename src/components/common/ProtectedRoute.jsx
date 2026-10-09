@@ -1,57 +1,60 @@
 import { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { useQuery } from '@tanstack/react-query';
-import api from '@lib/axios';
 import { updateUser } from '@store/slices/authSlice';
 import { Loading } from '@components/ui/loading';
+import { ErrorState } from '@components/common/ErrorState';
+import { useMe } from '@hooks/useMe';
+import { endSession } from '@lib/session';
+import { showApiError } from '@utils/toast';
+
+const SESSION_REJECTED = [401, 403];
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  // SECURITY FIX (#5): there is no client-readable token anymore. Auth is the
-  // httpOnly cookie; the SERVER is the source of truth. We gate on the cached
-  // isAuthenticated flag for UX, then confirm the session by calling the API
-  // (the cookie authenticates it). A failed verification forces logout.
   const { isAuthenticated, roles } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
+  const location = useLocation();
 
-  const { data, isPending: isVerifyingToken, isError } = useQuery({
-    queryKey: ['verify-token'],
-    queryFn: () => api.get('/user/profile'),
-    enabled: isAuthenticated,
-    staleTime: 300000, // 5 minutes
-    retry: false,
-    meta: { skipErrorToast: true },
-  });
+  const { data, isPending: isVerifyingToken, isError, error, refetch, isFetching } = useMe({ enabled: isAuthenticated });
 
-  // F31: the cached profile (and therefore `roles`) is hydrated from
-  // localStorage, which the user can edit. This request already proves the
-  // session — reconcile the cached profile with what the SERVER says rather
-  // than throwing the response away, so every consumer of `state.auth.roles`
-  // sees the authoritative value.
-  const serverUser = data?.data?.data ?? null;
+  const serverUser = data ?? null;
+  const sessionRejected = isError && !serverUser && SESSION_REJECTED.includes(error?.response?.status);
 
   useEffect(() => {
     if (serverUser) dispatch(updateUser(serverUser));
   }, [serverUser, dispatch]);
 
+  useEffect(() => {
+    if (!sessionRejected) return;
+    if (error?.response?.status === 403) showApiError(error, 'Your account has been suspended.');
+    endSession();
+  }, [sessionRejected, error]);
+
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
 
-  // Prevent UI flicker while the session is being validated server-side.
   if (isVerifyingToken) {
     return <Loading message="Checking session..." />;
   }
 
-  // Server rejected the cookie (expired/invalid) → send to login.
-  if (isError) {
+  if (sessionRejected) {
     return <Navigate to="/login" replace />;
   }
 
+  if (isError && !serverUser) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center px-4">
+        <ErrorState
+          error={error}
+          title="We couldn't confirm your session"
+          onRetry={isFetching ? undefined : () => refetch()}
+        />
+      </div>
+    );
+  }
+
   if (allowedRoles.length > 0) {
-    // Gate on the server's roles. `roles` (localStorage-backed) is only a
-    // fallback for the theoretical case of a resolved query with no body — by
-    // this line the verification has already succeeded.
     const authoritativeRoles = Array.isArray(serverUser?.roles)
       ? serverUser.roles
       : serverUser?.role
@@ -68,9 +71,6 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     } else if (normalizedRoles.includes('seller')) {
       const explicitAccess = sessionStorage.getItem('allowCustomerAccess') === 'true';
       if (normalizedAllowedRoles.includes('customer') && !normalizedAllowedRoles.includes('seller') && !explicitAccess) {
-        return <Navigate to="/seller/dashboard" replace />;
-      }
-      if (normalizedAllowedRoles.includes('seller') && !normalizedRoles.includes('seller')) {
         return <Navigate to="/seller/dashboard" replace />;
       }
     }

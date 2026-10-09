@@ -25,12 +25,10 @@ const HowToSell = () => {
     description:
       "Start selling on DGMARQ marketplace today. List your products and reach thousands of buyers.",
     canonical: "/how-to-sell",
-    useDefaults: false,
   });
 
   return (
     <main className="flex min-h-screen flex-col text-white">
-      {/* Hero */}
       <SectionWrapper id="hero" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />
         <div className="relative flex flex-col gap-8 max-w-4xl mx-auto text-center">
@@ -57,7 +55,6 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 1: Create Your Seller Account */}
       <SectionWrapper id="create-account">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
@@ -81,7 +78,6 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 2: Complete Seller Verification */}
       <SectionWrapper id="verification">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
@@ -103,7 +99,6 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 3: Create High-Quality Listings */}
       <SectionWrapper id="listings">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -135,7 +130,6 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 4: Accept Orders Through Escrow */}
       <SectionWrapper id="accept-orders">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
@@ -159,7 +153,6 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 5: Deliver & Get Paid */}
       <SectionWrapper id="deliver-get-paid">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
@@ -183,12 +176,11 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 6: Handle Revisions & Disputes */}
       <SectionWrapper id="revisions-disputes">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading
             eyebrow="Resolution"
-            title="Handle Revisions & Disputes Professionally"
+            title="Handle Refund Requests Professionally"
             description={revisionsDisputes.intro}
           />
           <GlowCard>
@@ -207,7 +199,6 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* Section 7: Grow Your Seller Reputation */}
       <SectionWrapper id="grow-reputation">
         <div className="flex flex-col gap-8 max-w-5xl mx-auto">
           <AnimatedHeading
@@ -239,7 +230,6 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* FAQ */}
       <SectionWrapper id="faq" className="bg-gradient-to-b from-transparent via-accent/5 to-transparent">
         <div className="flex flex-col gap-8 max-w-3xl mx-auto">
           <AnimatedHeading eyebrow="FAQ" title="Frequently Asked Questions" description="Click on a question to expand the answer." />
@@ -247,7 +237,6 @@ const HowToSell = () => {
         </div>
       </SectionWrapper>
 
-      {/* Final CTA */}
       <SectionWrapper id="final-cta">
         <div className="flex flex-col items-center gap-6 text-center max-w-2xl mx-auto">
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">

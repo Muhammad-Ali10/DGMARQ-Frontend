@@ -5,8 +5,6 @@ import { padNum, sectionAnchor } from './anchors';
 import { PANEL } from './styles';
 import { useActiveSection } from './useActiveSection';
 
-// Plain fragment links: the browser does the jump, honours each section's
-// scroll-margin, moves focus to the target and puts a shareable hash in the URL.
 const TocLinks = ({ sections, activeId }) => (
   <ol className="space-y-0.5">
     {sections.map((section) => {
@@ -40,7 +38,6 @@ const TocLinks = ({ sections, activeId }) => (
   </ol>
 );
 
-/** Sticky sidebar with scroll-spy (lg and up). */
 export const LegalTocDesktop = ({ sections }) => {
   const activeId = useActiveSection(sections);
   return (
@@ -54,8 +51,6 @@ export const LegalTocDesktop = ({ sections }) => {
   );
 };
 
-/** Collapsed "On this page" disclosure (below lg). Native <details>: keyboard
- *  and screen-reader support for free, and no state to keep. */
 export const LegalTocMobile = ({ sections, className }) => (
   <details className={cn(PANEL, 'group', className)}>
     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-5 py-4 outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">

@@ -1,9 +1,5 @@
 import { Skeleton } from '@components/ui/skeleton';
 
-/**
- * Skeleton placeholder for a loading message thread — alternating left/right
- * bubbles so the layout doesn't jump when real messages arrive.
- */
 export const MessageListSkeleton = () => {
   const rows = [
     { mine: false, w: 'w-40' },
@@ -23,9 +19,6 @@ export const MessageListSkeleton = () => {
   );
 };
 
-/**
- * Skeleton placeholder for the ticket list sidebar.
- */
 export const TicketListSkeleton = ({ count = 5 }) => (
   <div className="space-y-2">
     {Array.from({ length: count }).map((_, i) => (

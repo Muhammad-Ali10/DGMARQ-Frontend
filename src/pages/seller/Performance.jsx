@@ -9,27 +9,6 @@ import { ErrorState } from '@components/common/ErrorState';
 import useCurrency from '@hooks/useCurrency';
 import { Star, ScaleIcon, DollarSign, ShoppingCart, MessageSquare } from 'lucide-react';
 
-/**
- * Seller reputation.
- *
- * This screen used to be nine KPI tiles that restated the dashboard's figures
- * from the same `getPerformanceMetrics` call. It is now the reputation view the
- * brief describes, built from data that actually exists:
- *   - rating breakdown, from `getSellerReviews().summary.ratingBreakdown`,
- *     which the server already shapes as [{rating, count}] sorted 5 → 1
- *   - dispute rate, from `getPerformanceMetrics().disputes`
- *
- * NOT built, because no endpoint supports it and the numbers would be invented:
- *   - delivery-speed percentile (no timing aggregate anywhere)
- *   - dispute ratio vs the platform average (no platform-wide figure is exposed
- *     to a seller, and rightly so)
- *   - tier ladder / "how to reach the next tier" (no tier concept exists in the
- *     data model at all)
- * A qualitative read of the seller's own dispute rate is given instead, which is
- * honest and still actionable.
- */
-
-/** Plain-language read of a seller's own dispute rate. No peer comparison. */
 const disputeVerdict = (rate) => {
   if (rate == null) return null;
   if (rate === 0) return { tone: 'success', text: 'No disputes have been opened against you.' };
@@ -68,7 +47,6 @@ const SellerPerformance = () => {
 
   const metrics = metricsQuery.data;
   const summary = reviewsQuery.data?.summary;
-  // The endpoint names this `ratingBreakdown` and pre-sorts it 5 → 1.
   const breakdown = summary?.ratingBreakdown ?? [];
   const totalReviews = summary?.totalReviews ?? metrics?.reviews?.totalReviews ?? 0;
   const averageRating = summary?.averageRating ?? metrics?.reviews?.averageRating ?? 0;
@@ -130,7 +108,6 @@ const SellerPerformance = () => {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* ── Rating breakdown ──────────────────────────────────────────── */}
         <Card variant="hud">
           <CardHeader>
             <CardTitle>Rating breakdown</CardTitle>
@@ -186,7 +163,6 @@ const SellerPerformance = () => {
           </CardContent>
         </Card>
 
-        {/* ── Dispute health ────────────────────────────────────────────── */}
         <Card variant="hud">
           <CardHeader>
             <CardTitle>Dispute health</CardTitle>

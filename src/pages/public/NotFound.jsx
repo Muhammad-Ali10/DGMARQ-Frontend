@@ -3,13 +3,6 @@ import { Home, LifeBuoy, Search } from "lucide-react";
 import { Button } from "@components/ui/button";
 import { useSEO } from "@components/common/SEOProvider";
 
-/**
- * Catch-all for unmatched URLs. Without this the router matched nothing and
- * rendered an empty document — a typo'd link, a stale bookmark or a renamed
- * route all produced a blank page with no way back.
- *
- * noindex: a 404 must never enter the search index.
- */
 const NotFound = () => {
   const { pathname } = useLocation();
 
@@ -34,7 +27,6 @@ const NotFound = () => {
         with your account and no order was affected.
       </p>
 
-      {/* The attempted path, so a mistyped URL is self-evident. */}
       <p className="text-fg-subtle bg-surface-1 border-border mt-6 max-w-full truncate rounded-md border px-3 py-2 font-mono text-sm">
         {pathname}
       </p>

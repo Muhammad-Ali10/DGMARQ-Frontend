@@ -10,16 +10,12 @@ import AuthDivider from '@components/common/AuthDivider';
 import SocialAuthButtons from '@components/common/SocialAuthButtons';
 import PasswordStrengthMeter from '@components/common/PasswordStrengthMeter';
 import { authAPI } from '@services/api';
-import { showSuccess, showApiError } from '@utils/toast';
+import { showSuccess } from '@utils/toast';
 import { describeAuthError } from '@lib/socialAuth';
 import { scorePassword } from '@lib/passwordPolicy';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// The backend takes a single `name` (2-50 chars); the mockup asks for first and
-// last separately. Joining here keeps the design without touching the API
-// contract — and trimming first means "  Ali  " + "" cannot produce a name that
-// is whitespace or 51 characters long.
 const joinName = (first, last) => [first.trim(), last.trim()].filter(Boolean).join(' ');
 
 const Register = () => {
@@ -81,7 +77,6 @@ const Register = () => {
       }
 
       setError(errorMessage);
-      showApiError(err, 'Registration failed');
     },
   });
 
@@ -89,8 +84,6 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
-    // Ordered so the message names the FIRST thing wrong going down the form,
-    // rather than whichever check happens to be written first.
     if (name.length < 2 || name.length > 50) {
       setError('Please enter your name (between 2 and 50 characters in total).');
       return;
@@ -228,9 +221,10 @@ const Register = () => {
         </Button>
       </form>
 
-      <AuthDivider className="my-5">Or sign up with</AuthDivider>
-
-      <SocialAuthButtons layout="grid" />
+      <SocialAuthButtons
+        layout="grid"
+        leading={<AuthDivider className="my-5">Or sign up with</AuthDivider>}
+      />
 
       <p className="mt-6 border-t border-accent/10 pt-4.5 text-center text-[13px] text-fg-subtle">
         Already have an account?{' '}

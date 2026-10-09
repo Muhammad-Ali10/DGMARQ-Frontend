@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { categoryAPI } from '@services/api';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -11,8 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
-import { Plus, Edit, Trash2, Image as ImageIcon, Power, ChevronLeft, ChevronRight, Search, FolderTree, Filter, RefreshCw } from 'lucide-react';
+import { Plus, Edit, Trash2, Image as ImageIcon, Power, ChevronLeft, ChevronRight, FolderTree, Filter, RefreshCw } from 'lucide-react';
 import { SearchInput } from '@components/common/SearchInput';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { useDebounce } from '@hooks/useDebounce';
 import SafeImage from '@components/ui/safe-image';
 
 const CategoriesManagement = () => {
@@ -24,7 +26,9 @@ const CategoriesManagement = () => {
   const [formData, setFormData] = useState({ name: '', slug: '', description: '', image: null });
   const [statusData, setStatusData] = useState({ status: true });
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput.trim(), 350);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [isActiveFilter, setIsActiveFilter] = useState('');
   const queryClient = useQueryClient();
 
@@ -32,15 +36,13 @@ const CategoriesManagement = () => {
     queryKey: ['categories', page, search, isActiveFilter],
     queryFn: () => {
       const params = { page, limit: 10 };
-      if (search.trim()) params.search = search.trim();
+      if (search) params.search = search;
       if (isActiveFilter !== '') params.isActive = isActiveFilter;
       return categoryAPI.getCategories(params).then(res => res.data.data);
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
-  // Extract categories array and pagination info from paginated response
-  // mongoose-aggregate-paginate-v2 returns { docs, totalDocs, page, totalPages, ... }
   const categories = categoriesData?.docs || categoriesData?.categories || [];
   const pagination = {
     page: categoriesData?.page || 1,
@@ -51,10 +53,16 @@ const CategoriesManagement = () => {
     hasPrevPage: categoriesData?.hasPrevPage || false,
   };
 
+  const invalidateCategoryLists = () => {
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
+    queryClient.invalidateQueries({ queryKey: ['categories-for-dropdown'] });
+    queryClient.invalidateQueries({ queryKey: ['catalog-taxonomy'] });
+  };
+
   const createMutation = useMutation({
     mutationFn: (formData) => categoryAPI.createCategory(formData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      invalidateCategoryLists();
       setIsCreateOpen(false);
       setFormData({ name: '', slug: '', description: '', image: null });
       setPage(1);
@@ -68,7 +76,7 @@ const CategoriesManagement = () => {
   const updateMutation = useMutation({
     mutationFn: ({ categoryId, data }) => categoryAPI.updateCategory(categoryId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      invalidateCategoryLists();
       setIsEditOpen(false);
       setSelectedCategory(null);
       toast.success('Category updated successfully');
@@ -81,7 +89,7 @@ const CategoriesManagement = () => {
   const updateImageMutation = useMutation({
     mutationFn: ({ categoryId, formData }) => categoryAPI.updateCategoryImage(categoryId, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      invalidateCategoryLists();
       setIsImageOpen(false);
       setSelectedCategory(null);
       toast.success('Category image updated successfully');
@@ -94,7 +102,7 @@ const CategoriesManagement = () => {
   const updateStatusMutation = useMutation({
     mutationFn: ({ categoryId, data }) => categoryAPI.updateCategoryStatus(categoryId, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      invalidateCategoryLists();
       setIsStatusOpen(false);
       setSelectedCategory(null);
       const status = variables.data.status ? 'activated' : 'deactivated';
@@ -108,7 +116,7 @@ const CategoriesManagement = () => {
   const deleteMutation = useMutation({
     mutationFn: (categoryId) => categoryAPI.deleteCategory(categoryId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      invalidateCategoryLists();
       if (categories.length === 1 && page > 1) {
         setPage(page - 1);
       }
@@ -163,23 +171,13 @@ const CategoriesManagement = () => {
     });
   };
 
-  const handleDelete = (categoryId) => {
-      deleteMutation.mutate(categoryId);
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPage(1); // Reset to first page on search
-  };
-
   const handleFilterChange = (value) => {
     setIsActiveFilter(value);
-    setPage(1); // Reset to first page on filter change
+    setPage(1);
   };
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
-    // Scroll to top of table
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -214,7 +212,6 @@ const CategoriesManagement = () => {
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
-      {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-3">
@@ -349,21 +346,14 @@ const CategoriesManagement = () => {
             </div>
           </div>
           
-          {/* Search and Filter Section */}
           <div className="flex flex-col sm:flex-row gap-3 mt-6">
-            <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                onClear={() => { setSearch(''); setPage(1); }}
-                placeholder="Search by name or slug..."
-                className="flex-1"
-              />
-              <Button type="submit" variant="outline" size="sm" className="border-gray-700 hover:bg-secondary">
-                <Search className="w-4 h-4 mr-2" />
-                Search
-              </Button>
-            </form>
+            <SearchInput
+              value={searchInput}
+              onChange={(value) => { setSearchInput(value); setPage(1); }}
+              onClear={() => { setSearchInput(''); setPage(1); }}
+              placeholder="Search by name or slug..."
+              className="flex-1"
+            />
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
               <select
@@ -376,12 +366,12 @@ const CategoriesManagement = () => {
                 <option value="false">Inactive Only</option>
               </select>
             </div>
-            {(search || isActiveFilter) && (
+            {(searchInput || isActiveFilter) && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSearch('');
+                  setSearchInput('');
                   setIsActiveFilter('');
                   setPage(1);
                 }}
@@ -500,7 +490,7 @@ const CategoriesManagement = () => {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleDelete(category._id)}
+                            onClick={() => setPendingDelete(category)}
                             className="hover:bg-red-700 transition-all"
                             title="Delete Category"
                           >
@@ -524,7 +514,6 @@ const CategoriesManagement = () => {
             </Table>
           </div>
           
-          {/* Pagination Controls */}
           {(pagination.totalDocs ?? 0) > 0 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-gray-700 px-6 pb-6">
               <div className="flex items-center gap-2">
@@ -557,7 +546,6 @@ const CategoriesManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>
@@ -628,7 +616,6 @@ const CategoriesManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Image Update Dialog */}
       <Dialog open={isImageOpen} onOpenChange={setIsImageOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>
@@ -686,7 +673,6 @@ const CategoriesManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Status Update Dialog */}
       <Dialog open={isStatusOpen} onOpenChange={setIsStatusOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>
@@ -742,6 +728,16 @@ const CategoriesManagement = () => {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title="Delete category?"
+        description={`"${pendingDelete?.name || ''}" will be permanently deleted. This cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => deleteMutation.mutate(pendingDelete._id)}
+      />
     </div>
   );
 };

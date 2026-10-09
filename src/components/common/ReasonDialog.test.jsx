@@ -3,9 +3,6 @@ import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ReasonDialog } from './ReasonDialog';
 
-// A moderation reason is sent to the seller, so the dialog must refuse an empty
-// one, hand over a trimmed one, and never carry one over to the next offer.
-
 const Harness = ({ onConfirm, pending = false }) => {
   const [open, setOpen] = useState(false);
   return (

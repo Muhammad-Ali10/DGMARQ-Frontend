@@ -1,21 +1,8 @@
-import { AlertTriangle, RefreshCw, WifiOff, LockKeyhole, SearchX, Timer, ServerCrash } from 'lucide-react';
+import { AlertTriangle, RefreshCw, WifiOff, LockKeyhole, ShieldX, SearchX, Timer, ServerCrash } from 'lucide-react';
 import { Button } from '@components/ui/button';
 import { cn } from '@lib/utils';
 
-/**
- * The error surface for every data view.
- *
- * The rule this exists to enforce: never show a bare code or a bare string like
- * "Error loading seller dashboard". Say what failed, why if we know it, and give
- * the user a next step. A raw status number may appear as secondary detail, but
- * it is never the message.
- *
- * `describeError` maps an axios error onto plain language. It is exported so
- * inline surfaces (a failed cell, a toast) can reuse the same wording rather
- * than inventing their own.
- */
 export const describeError = (error, fallbackTitle = 'Something went wrong') => {
-  // No response at all — the request never reached the server.
   if (error && !error.response) {
     return {
       title: "Can't reach DGMARQ",
@@ -29,11 +16,19 @@ export const describeError = (error, fallbackTitle = 'Something went wrong') => 
   const status = error?.response?.status;
   const serverMessage = error?.response?.data?.message;
 
-  if (status === 401 || status === 403) {
+  if (status === 401) {
     return {
       title: 'Your session has expired',
       description: 'Sign in again to continue where you left off.',
       Icon: LockKeyhole,
+      canRetry: false,
+    };
+  }
+  if (status === 403) {
+    return {
+      title: "You don't have access to this",
+      description: serverMessage || 'Your account is not allowed to view or change this.',
+      Icon: ShieldX,
       canRetry: false,
     };
   }
@@ -73,13 +68,6 @@ export const describeError = (error, fallbackTitle = 'Something went wrong') => 
   };
 };
 
-/**
- * @param {Error} [error] - the axios/query error; drives the plain-language copy
- * @param {string} [title] - override the derived title
- * @param {string} [description] - override the derived body
- * @param {() => void} [onRetry] - renders a retry button when provided
- * @param {boolean} [compact] - tighter padding for in-card use
- */
 export const ErrorState = ({
   error,
   title,

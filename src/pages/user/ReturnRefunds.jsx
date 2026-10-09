@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { returnRefundAPI } from '@services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -9,42 +9,33 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EmptyState, TableEmptyRow } from '@components/common/EmptyState';
 import { ErrorState } from '@components/common/ErrorState';
 import { TableRowsSkeleton, CardListSkeleton } from '@components/common/Skeletons';
+import { Pagination } from '@components/common/Pagination';
 import { RefundRequestModal, refundBadgeProps } from '@features/wallet-payout';
 import { useSocket } from '@hooks/useSocket';
 import useCurrency from '@hooks/useCurrency';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
 import { Plus, Eye, ShieldQuestion } from 'lucide-react';
 
-// `sellerId` is populated with `shopName` by the refund endpoints; fall back to
-// a generic label if a populate is ever missed (mirrors OrderDetail's read).
 const getSellerName = (refund) => refund?.sellerId?.shopName || 'Seller';
 
 const amountOf = (refund) =>
-  Number(refund?.refundAmount ?? refund?.productId?.price ?? 0);
+  Number(refund?.refundAmount ?? 0);
 
-/**
- * Buyer refund requests.
- *
- * The brief asks for an SLA countdown on open tickets. NOT BUILT: the
- * ReturnRefund model carries no `dueAt`, `respondBy` or `slaHours` field and
- * there is no escalation timer anywhere in the controller, so there is no
- * deadline to count down to. Counting down to an invented deadline would set an
- * expectation the platform does not keep. What is shown instead is real elapsed
- * time — how long ago it was opened, and when it last moved — which is the
- * genuinely useful triage signal.
- */
+const PAGE_SIZE = 10;
+
 const UserReturnRefunds = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
-  const { format } = useCurrency();
+  const { formatSettlement } = useCurrency();
 
   const refundsQuery = useQuery({
-    queryKey: ['user-refunds'],
-    queryFn: () => returnRefundAPI.getMyRefunds().then((res) => res.data.data),
+    queryKey: ['user-refunds', page],
+    queryFn: () => returnRefundAPI.getMyRefunds({ page, limit: PAGE_SIZE }).then((res) => res.data.data),
+    placeholderData: keepPreviousData,
   });
 
-  // Phase 6 / Step 12 PART C — refund_executed fan-out updates this list.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const onRefundExecuted = () => {
@@ -56,6 +47,8 @@ const UserReturnRefunds = () => {
   }, [socket, isConnected, queryClient]);
 
   const refunds = refundsQuery.data?.refunds ?? [];
+  const pagination = refundsQuery.data?.pagination;
+  const total = pagination?.total ?? refunds.length;
 
   const emptyState = (
     <EmptyState
@@ -89,7 +82,7 @@ const UserReturnRefunds = () => {
 
       <Card variant="hud">
         <CardHeader>
-          <CardTitle>{refunds.length > 0 ? `${refunds.length} requests` : 'Requests'}</CardTitle>
+          <CardTitle>{total > 0 ? `${total} request${total === 1 ? '' : 's'}` : 'Requests'}</CardTitle>
         </CardHeader>
         <CardContent>
           {refundsQuery.isError ? (
@@ -125,7 +118,7 @@ const UserReturnRefunds = () => {
                           </TableCell>
                           <TableCell>{getSellerName(refund)}</TableCell>
                           <TableCell numeric className="font-semibold">
-                            {format(amountOf(refund))}
+                            {formatSettlement(amountOf(refund))}
                           </TableCell>
                           <TableCell>
                             <Badge {...refundBadgeProps(refund.status)} />
@@ -170,7 +163,7 @@ const UserReturnRefunds = () => {
                           <Badge {...refundBadgeProps(refund.status)} />
                         </div>
                         <p className="mt-2 text-sm font-semibold tabular-nums text-fg">
-                          {format(amountOf(refund))}
+                          {formatSettlement(amountOf(refund))}
                         </p>
                         <p className="mt-1 text-xs text-fg-subtle">
                           {getSellerName(refund)} · opened {formatRelativeDate(refund.createdAt)}
@@ -186,6 +179,13 @@ const UserReturnRefunds = () => {
                   </ul>
                 )}
               </div>
+              <Pagination
+                page={page}
+                totalPages={pagination?.pages}
+                onPageChange={setPage}
+                total={pagination?.total}
+                totalNoun="requests"
+              />
             </>
           )}
         </CardContent>

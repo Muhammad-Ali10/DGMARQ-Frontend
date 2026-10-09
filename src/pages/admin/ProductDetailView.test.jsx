@@ -1,10 +1,3 @@
-// The admin master-product page. These assert BEHAVIOUR, not layout, so they
-// survive the look-check the owner still has to do on this redesign.
-//
-// The "View on site" case is the one that earns its keep: the storefront hides
-// a master with no in-stock offer (getProductById 404s for a buyer), so linking
-// there unconditionally hands an admin a dead end — the exact trap that showed
-// up as "admin gets a 404 on a product with no offer".
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';

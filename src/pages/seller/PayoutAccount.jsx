@@ -76,6 +76,7 @@ const PayoutAccount = () => {
       const msg = paypalReason === 'invalid_state' ? 'Link expired or invalid. Please try connecting again.'
         : paypalReason === 'oauth_failed' ? 'PayPal sign-in failed. Try again.'
         : paypalReason === 'userinfo_failed' ? 'Could not load your PayPal account details. Try again.'
+        : paypalReason === 'blocked' ? 'Your payout account is blocked by admin. Contact support.'
         : 'Could not connect PayPal. Try again.';
       showError(msg);
       window.history.replaceState({}, '', window.location.pathname);
@@ -143,7 +144,7 @@ const PayoutAccount = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-fg">Payout Account</h1>
         <p className="text-fg-muted mt-1">
-          Connect your PayPal account. Once connected, your earnings release automatically every {holdDays} day{holdDays === 1 ? '' : 's'} after order completion.
+          Connect your PayPal account. Each sale becomes available to withdraw {holdDays} day{holdDays === 1 ? '' : 's'} after the order completes; you request withdrawals from Earnings and an admin approves them.
         </p>
       </div>
 
@@ -206,14 +207,16 @@ const PayoutAccount = () => {
                 ) : null}
 
                 <div className="flex flex-wrap gap-2 pt-1">
-                  <Button
-                    onClick={handleConnectPayPal}
-                    className="bg-accent hover:bg-accent/90 inline-flex items-center gap-2"
-                    size="sm"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    {isConnected ? 'Reconnect' : 'Connect PayPal'}
-                  </Button>
+                  {!isBlocked && !accountBlocked ? (
+                    <Button
+                      onClick={handleConnectPayPal}
+                      className="bg-accent hover:bg-accent/90 inline-flex items-center gap-2"
+                      size="sm"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      {isConnected ? 'Reconnect' : 'Connect PayPal'}
+                    </Button>
+                  ) : null}
                   {isConnected ? (
                     <Button
                       onClick={() => handleUnlink(m.key)}

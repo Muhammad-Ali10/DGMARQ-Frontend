@@ -1,9 +1,5 @@
 import { KeyRound, UserSquare2, Gift, Link2, HelpCircle } from "lucide-react";
 
-// M17: per-product-type buyer notice + badge. Every master product carries a
-// productType (delivery model) — the buyer must clearly see WHAT they will
-// receive before purchasing. Matches the backend enum:
-// LICENSE_KEY | ACCOUNT_BASED | GIFT | ACTIVATION_LINK.
 const TYPE_CONFIG = {
   LICENSE_KEY: {
     label: "CD-KEY / License Key",
@@ -45,7 +41,6 @@ const TYPE_CONFIG = {
 
 const configFor = (type) => TYPE_CONFIG[type] || TYPE_CONFIG.LICENSE_KEY;
 
-/** Small, prominent pill for the price/buy area ("what am I buying?"). */
 export const ProductTypeBadge = ({ type }) => {
   const { label, Icon, accent, text } = configFor(type);
   return (
@@ -59,7 +54,6 @@ export const ProductTypeBadge = ({ type }) => {
   );
 };
 
-/** Prominent notice box under the buy buttons — per-type delivery explanation. */
 const ProductTypeNotice = ({ type }) => {
   const { label, accent, text, glow, notice } = configFor(type);
   return (

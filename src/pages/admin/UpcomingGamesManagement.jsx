@@ -8,40 +8,31 @@ import { Label } from '@components/ui/label';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Badge } from '@components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Check, X, Plus, Trash2, ArrowUp, ArrowDown, Save } from 'lucide-react';
+import { Search, Check, X, Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import SafeImage from '@components/ui/safe-image';
+import { formatReleaseDate } from '@components/common/PreorderBadge';
+import useCurrency from '@hooks/useCurrency';
+import { useDebounce } from '@hooks/useDebounce';
 
 const UpcomingGamesManagement = () => {
   const queryClient = useQueryClient();
+  const { format: formatMoney } = useCurrency();
   const [productSearch, setProductSearch] = useState('');
   const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
   const [tempSelectedProducts, setTempSelectedProducts] = useState([]);
   const productDropdownRef = useRef(null);
 
-  // Debounce product search
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(productSearch);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [productSearch]);
+  const debouncedSearch = useDebounce(productSearch, 400);
+  const priceLabel = (product) =>
+    product.lowestEffectivePrice != null ? formatMoney(product.lowestEffectivePrice) : 'No offers yet';
 
-  // Fetch config
   const { data: configData, isLoading, isError, error } = useQuery({
     queryKey: ['upcoming-games-config'],
     queryFn: () => upcomingGamesAPI.getUpcomingGamesConfig().then(res => res.data.data),
   });
 
-  // Fetch products for dropdown
   const { data: productsData, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products-search-upcoming', debouncedSearch],
-    // No adminView: only buyer-purchasable products. M21 (req 13): the section
-    // renders unreleased PRE-ORDERS only, so the picker offers exactly that —
-    // `isPreorder=true` already means "and not yet released" server-side
-    // (product.service.js:219). Offering anything else lets an admin curate a
-    // row the homepage will silently drop.
     queryFn: () => productAPI.getProducts({
       search: debouncedSearch,
       limit: 10,
@@ -51,7 +42,6 @@ const UpcomingGamesManagement = () => {
     enabled: isProductDropdownOpen || debouncedSearch.length > 0,
   });
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (productDropdownRef.current && !productDropdownRef.current.contains(event.target)) {
@@ -70,7 +60,7 @@ const UpcomingGamesManagement = () => {
       toast.success('Products added successfully');
       setProductSearch('');
       setIsProductDropdownOpen(false);
-      setTempSelectedProducts([]); // Clear temp selected products after successful add
+      setTempSelectedProducts([]);
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || 'Failed to add products');
@@ -101,20 +91,7 @@ const UpcomingGamesManagement = () => {
     },
   });
 
-  const updateUpcomingGamesMutation = useMutation({
-    mutationFn: (data) => upcomingGamesAPI.updateUpcomingGames(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['upcoming-games-config'] });
-      queryClient.invalidateQueries({ queryKey: ['upcoming-games'] });
-      toast.success('Upcoming games updated successfully');
-    },
-    onError: (error) => {
-      toast.error(error?.response?.data?.message || 'Failed to update upcoming games');
-    },
-  });
-
   const handleProductSelect = (product) => {
-    // Check if product is already in config or temp selection
     const isSelected = tempSelectedProducts.some(
       item => item.productId === product._id || item.productId.toString() === product._id.toString()
     ) || configData?.products?.some(
@@ -126,7 +103,6 @@ const UpcomingGamesManagement = () => {
       return;
     }
 
-    // Add to temp selected products
     setTempSelectedProducts(prev => [...prev, {
       productId: product._id,
       product: product,
@@ -141,17 +117,13 @@ const UpcomingGamesManagement = () => {
     ));
   };
 
-
-  const handleSaveAll = () => {
-    // Save current order of products from configData
-    if (!configData?.products || configData.products.length === 0) {
-      toast.info('No products to save');
-      return;
-    }
-    const productIds = configData.products
-      .sort((a, b) => a.order - b.order)
-      .map(item => item.productId);
-    updateUpcomingGamesMutation.mutate({ productIds });
+  const moveItem = (index, direction) => {
+    const target = index + direction;
+    const items = configData?.products || [];
+    if (target < 0 || target >= items.length) return;
+    const productIds = items.map((item) => item.productId);
+    [productIds[index], productIds[target]] = [productIds[target], productIds[index]];
+    reorderProductsMutation.mutate({ productIds });
   };
 
   const handleAddSelected = () => {
@@ -175,22 +147,11 @@ const UpcomingGamesManagement = () => {
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Upcoming Games</h1>
-          <p className="text-sm sm:text-base text-gray-400 mt-1">Manage upcoming games displayed on the homepage (6 products shown)</p>
-        </div>
-        <Button
-          onClick={handleSaveAll}
-          disabled={updateUpcomingGamesMutation.isPending || !configData?.products || configData.products.length === 0}
-          className="bg-accent hover:bg-blue-700"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          {updateUpcomingGamesMutation.isPending ? 'Saving...' : 'Save All Changes'}
-        </Button>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Upcoming Games</h1>
+        <p className="text-sm sm:text-base text-gray-400 mt-1">Manage upcoming games displayed on the homepage (6 products shown). Changes save immediately.</p>
       </div>
 
-      {/* Add Products Section */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle>Add Products</CardTitle>
@@ -244,7 +205,7 @@ const UpcomingGamesManagement = () => {
                             <div>
                               <p className="text-white text-sm font-medium">{product.name}</p>
                               <p className="text-gray-400 text-xs">
-                                ${product.price} • {product.platform?.name || 'Digital Product'} • {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
+                                {priceLabel(product)} • {product.platform?.name || 'Digital Product'} • {product.offersCount ?? 0} {(product.offersCount ?? 0) === 1 ? 'offer' : 'offers'}
                               </p>
                             </div>
                           </div>
@@ -294,7 +255,6 @@ const UpcomingGamesManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Current Products List */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle>
@@ -310,7 +270,26 @@ const UpcomingGamesManagement = () => {
             <div className="space-y-3">
               {configData.products.map((item, index) => {
                 const product = item.product;
-                if (!product) return null;
+                if (!product) {
+                  return (
+                    <div
+                      key={item.productId}
+                      className="flex items-center gap-4 p-4 bg-secondary rounded border border-red-700/60"
+                    >
+                      <span className="text-gray-400 text-sm font-medium w-8">#{index + 1}</span>
+                      <p className="flex-1 text-sm text-red-300">This product no longer exists.</p>
+                      <Button
+                        onClick={() => handleRemoveSelected([item.productId])}
+                        disabled={removeProductsMutation.isPending}
+                        variant="outline"
+                        size="sm"
+                        className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  );
+                }
 
                 return (
                   <div
@@ -329,17 +308,13 @@ const UpcomingGamesManagement = () => {
                       <div className="flex-1">
                         <p className="text-white font-medium">{product.name}</p>
                         <p className="text-gray-400 text-sm">
-                          ${product.price} • {product.platform?.name || 'Digital Product'} •{' '}
+                          {priceLabel(product)} • {product.platform?.name || 'Digital Product'} •{' '}
                           {product.region?.name || 'GLOBAL'}
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           {product.status !== 'active' && product.status !== 'approved' && (
                             <Badge variant="destructive">Status: {product.status}</Badge>
                           )}
-                          {/* M21: the homepage renders unreleased pre-orders only.
-                              A row that no longer qualifies still sits in this list
-                              but has vanished from the site — say so, rather than
-                              leaving the admin to wonder. */}
                           {!product.isPreorder ? (
                             <Badge variant="destructive">Not a pre-order — hidden on the homepage</Badge>
                           ) : product.preorderReleasedAt ? (
@@ -348,9 +323,7 @@ const UpcomingGamesManagement = () => {
                             <Badge variant="destructive">No live offers — hidden on the homepage</Badge>
                           ) : (
                             <Badge variant="outline" className="border-amber-500/40 text-amber-300">
-                              Releases {product.preorderReleaseDate
-                                ? new Date(product.preorderReleaseDate).toLocaleDateString()
-                                : '—'}
+                              Releases {formatReleaseDate(product.preorderReleaseDate) || '—'}
                             </Badge>
                           )}
                         </div>
@@ -358,19 +331,7 @@ const UpcomingGamesManagement = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
-                        onClick={() => {
-                          if (index === 0) return;
-                          // Reorder in configData
-                          const newProducts = [...configData.products];
-                          [newProducts[index - 1], newProducts[index]] = [newProducts[index], newProducts[index - 1]];
-                          // Update orders
-                          newProducts.forEach((item, idx) => {
-                            item.order = idx;
-                          });
-                          // Save reorder
-                          const productIds = newProducts.map(item => item.productId);
-                          reorderProductsMutation.mutate({ productIds });
-                        }}
+                        onClick={() => moveItem(index, -1)}
                         disabled={index === 0 || reorderProductsMutation.isPending}
                         variant="outline"
                         size="sm"
@@ -379,19 +340,7 @@ const UpcomingGamesManagement = () => {
                         <ArrowUp className="w-4 h-4" />
                       </Button>
                       <Button
-                        onClick={() => {
-                          if (index === configData.products.length - 1) return;
-                          // Reorder in configData
-                          const newProducts = [...configData.products];
-                          [newProducts[index], newProducts[index + 1]] = [newProducts[index + 1], newProducts[index]];
-                          // Update orders
-                          newProducts.forEach((item, idx) => {
-                            item.order = idx;
-                          });
-                          // Save reorder
-                          const productIds = newProducts.map(item => item.productId);
-                          reorderProductsMutation.mutate({ productIds });
-                        }}
+                        onClick={() => moveItem(index, 1)}
                         disabled={index === configData.products.length - 1 || reorderProductsMutation.isPending}
                         variant="outline"
                         size="sm"
@@ -417,7 +366,6 @@ const UpcomingGamesManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Info Note */}
       <Card variant="hud" className="bg-blue-900/20 border-blue-700">
         <CardContent className="pt-6">
           <p className="text-blue-300 text-sm">

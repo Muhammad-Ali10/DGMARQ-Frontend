@@ -2,12 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { homepageSectionAPI, productAPI } from "@services/api";
 import ProductRowSection from "./ProductRowSection";
 
-// M15: renders every ACTIVE admin-defined homepage section in order.
-//
-// Each section is just a ProductRowSection fed by its own search query, so it
-// inherits the same progressive reveal (1 row → +2 rows → +2 rows → See All)
-// as the built-in homepage rows. Absent sections cost nothing — one cached list
-// call, and each section's products are cached independently.
 const CustomHomepageSections = () => {
   const { data: sections = [] } = useQuery({
     queryKey: ["homepage-sections"],
@@ -28,7 +22,7 @@ const CustomHomepageSections = () => {
           pageSize={section.productLimit || 6}
           fetchPage={(page, limit) =>
             productAPI
-              .getProducts({ search: section.searchQuery, page, limit })
+              .getProducts({ search: section.searchQuery, searchMode: "prefix", page, limit })
               .then((r) => r.data.data)
           }
           seeAllTo={`/search?q=${encodeURIComponent(section.searchQuery)}`}

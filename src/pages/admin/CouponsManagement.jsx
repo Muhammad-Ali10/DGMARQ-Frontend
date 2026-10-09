@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { couponAPI } from '@services/api';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/card';
@@ -10,63 +10,146 @@ import { TableEmptyRow } from '@components/common/EmptyState';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@components/ui/dialog';
 import { Badge } from '@components/ui/badge';
 import { Loading, ErrorMessage } from '@components/ui/loading';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Pagination } from '@components/common/Pagination';
+import ConfirmationModal from '@components/common/ConfirmationModal';
+import { showSuccess, showApiError } from '@utils/toast';
+import { Plus, Edit, Trash2, Power } from 'lucide-react';
+
+const PAGE_SIZE = 20;
+
+const EMPTY_FORM = {
+  code: '',
+  discountType: 'percentage',
+  discountValue: '',
+  minOrderAmount: '',
+  maxDiscountAmount: '',
+  startDate: '',
+  endDate: '',
+  usageLimit: '',
+  isActive: true,
+};
+
+const toDateInput = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
+
+const CouponFields = ({ formData, setFormData, idPrefix, codeReadOnly = false }) => {
+  const field = (key) => ({
+    id: `${idPrefix}${key}`,
+    value: formData[key],
+    onChange: (e) => setFormData((prev) => ({ ...prev, [key]: e.target.value })),
+    className: 'bg-secondary border-gray-700 text-white',
+  });
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}code`} className="text-gray-300">Coupon Code *</Label>
+        <Input
+          {...field('code')}
+          onChange={(e) => setFormData((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
+          readOnly={codeReadOnly}
+          disabled={codeReadOnly}
+          required
+        />
+        {codeReadOnly && <p className="text-xs text-gray-500">The code can&apos;t be changed after creation.</p>}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}discountType`} className="text-gray-300">Discount Type *</Label>
+          <select
+            {...field('discountType')}
+            className="w-full px-3 py-2 bg-secondary border border-gray-700 rounded-md text-white"
+            required
+          >
+            <option value="percentage">Percentage</option>
+            <option value="fixed">Fixed Amount</option>
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}discountValue`} className="text-gray-300">Discount Value *</Label>
+          <Input {...field('discountValue')} type="number" required />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}minOrderAmount`} className="text-gray-300">Min order ($)</Label>
+          <Input {...field('minOrderAmount')} type="number" min="0" step="0.01" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}maxDiscountAmount`} className="text-gray-300">Max discount ($)</Label>
+          <Input {...field('maxDiscountAmount')} type="number" min="0" step="0.01" placeholder="No cap" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}startDate`} className="text-gray-300">Valid from</Label>
+          <Input {...field('startDate')} type="date" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${idPrefix}endDate`} className="text-gray-300">Valid until</Label>
+          <Input {...field('endDate')} type="date" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}usageLimit`} className="text-gray-300">Usage Limit</Label>
+        <Input {...field('usageLimit')} type="number" />
+      </div>
+    </>
+  );
+};
 
 const CouponsManagement = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState(null);
-  const [formData, setFormData] = useState({
-    code: '',
-    discountType: 'percentage',
-    discountValue: '',
-    minPurchase: '',
-    maxDiscount: '',
-    validFrom: '',
-    validUntil: '',
-    usageLimit: '',
-    isActive: true,
-  });
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
-  const { data: coupons, isLoading, isError } = useQuery({
-    queryKey: ['coupons'],
-    queryFn: () => couponAPI.getAllCoupons().then(res => res.data.data),
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['coupons', page],
+    queryFn: () => couponAPI.getAllCoupons({ page, limit: PAGE_SIZE }).then((res) => res.data.data),
+    placeholderData: keepPreviousData,
   });
 
+  const coupons = data?.coupons || [];
+  const totalPages = data?.pagination?.pages || 1;
+
   const createMutation = useMutation({
-    mutationFn: (data) => couponAPI.createCoupon(data),
+    mutationFn: (payload) => couponAPI.createCoupon(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coupons'] });
       setIsCreateOpen(false);
-      setFormData({
-        code: '',
-        discountType: 'percentage',
-        discountValue: '',
-        minPurchase: '',
-        maxDiscount: '',
-        validFrom: '',
-        validUntil: '',
-        usageLimit: '',
-        isActive: true,
-      });
+      setFormData(EMPTY_FORM);
+      setPage(1);
+      showSuccess('Coupon created');
     },
+    onError: (err) => showApiError(err, 'Failed to create coupon'),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ couponId, data }) => couponAPI.updateCoupon(couponId, data),
-    onSuccess: () => {
+    mutationFn: ({ couponId, data: payload }) => couponAPI.updateCoupon(couponId, payload),
+    onSuccess: (_, { data: payload }) => {
       queryClient.invalidateQueries({ queryKey: ['coupons'] });
       setIsEditOpen(false);
       setSelectedCoupon(null);
+      if (Object.keys(payload).length === 1 && 'isActive' in payload) {
+        showSuccess(payload.isActive ? 'Coupon activated' : 'Coupon deactivated');
+        return;
+      }
+      showSuccess('Coupon updated');
     },
+    onError: (err) => showApiError(err, 'Failed to update coupon'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (couponId) => couponAPI.deleteCoupon(couponId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['coupons'] });
+      if (coupons.length === 1 && page > 1) setPage(page - 1);
+      showSuccess('Coupon deleted');
     },
+    onError: (err) => showApiError(err, 'Failed to delete coupon'),
   });
 
   const handleCreate = (e) => {
@@ -76,14 +159,28 @@ const CouponsManagement = () => {
 
   const handleUpdate = (e) => {
     e.preventDefault();
-    updateMutation.mutate({
-      couponId: selectedCoupon._id,
-      data: formData,
-    });
+    const { code: _code, ...rest } = formData;
+    updateMutation.mutate({ couponId: selectedCoupon._id, data: rest });
   };
 
-  if (isLoading) return <Loading message="Loading coupons..." />;
-  if (isError) return <ErrorMessage message="Error loading coupons" />;
+  const openEdit = (coupon) => {
+    setSelectedCoupon(coupon);
+    setFormData({
+      code: coupon.code,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      minOrderAmount: coupon.minOrderAmount || '',
+      maxDiscountAmount: coupon.maxDiscountAmount || '',
+      startDate: toDateInput(coupon.startDate),
+      endDate: toDateInput(coupon.endDate),
+      usageLimit: coupon.usageLimit || '',
+      isActive: coupon.isActive,
+    });
+    setIsEditOpen(true);
+  };
+
+  if (isLoading && !data) return <Loading message="Loading coupons..." />;
+  if (isError) return <ErrorMessage message={error?.response?.data?.message || 'Error loading coupons'} />;
 
   return (
     <div className="space-y-6 px-4 sm:px-0">
@@ -92,7 +189,13 @@ const CouponsManagement = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Coupons Management</h1>
           <p className="text-sm sm:text-base text-gray-400 mt-1">Manage discount coupons</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <Dialog
+          open={isCreateOpen}
+          onOpenChange={(open) => {
+            setIsCreateOpen(open);
+            if (open) setFormData(EMPTY_FORM);
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="bg-accent hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
@@ -104,96 +207,7 @@ const CouponsManagement = () => {
               <DialogTitle className="text-white">Create Coupon</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="code" className="text-gray-300">Coupon Code *</Label>
-                <Input
-                  id="code"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                  className="bg-secondary border-gray-700 text-white"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="discountType" className="text-gray-300">Discount Type *</Label>
-                  <select
-                    id="discountType"
-                    value={formData.discountType}
-                    onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
-                    className="w-full px-3 py-2 bg-secondary border border-gray-700 rounded-md text-white"
-                    required
-                  >
-                    <option value="percentage">Percentage</option>
-                    <option value="fixed">Fixed Amount</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="discountValue" className="text-gray-300">Discount Value *</Label>
-                  <Input
-                    id="discountValue"
-                    type="number"
-                    value={formData.discountValue}
-                    onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
-                    className="bg-secondary border-gray-700 text-white"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="minPurchase" className="text-gray-300">Min Purchase</Label>
-                  <Input
-                    id="minPurchase"
-                    type="number"
-                    value={formData.minPurchase}
-                    onChange={(e) => setFormData({ ...formData, minPurchase: e.target.value })}
-                    className="bg-secondary border-gray-700 text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="maxDiscount" className="text-gray-300">Max Discount</Label>
-                  <Input
-                    id="maxDiscount"
-                    type="number"
-                    value={formData.maxDiscount}
-                    onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
-                    className="bg-secondary border-gray-700 text-white"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="validFrom" className="text-gray-300">Valid From</Label>
-                  <Input
-                    id="validFrom"
-                    type="datetime-local"
-                    value={formData.validFrom}
-                    onChange={(e) => setFormData({ ...formData, validFrom: e.target.value })}
-                    className="bg-secondary border-gray-700 text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="validUntil" className="text-gray-300">Valid Until</Label>
-                  <Input
-                    id="validUntil"
-                    type="datetime-local"
-                    value={formData.validUntil}
-                    onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                    className="bg-secondary border-gray-700 text-white"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="usageLimit" className="text-gray-300">Usage Limit</Label>
-                <Input
-                  id="usageLimit"
-                  type="number"
-                  value={formData.usageLimit}
-                  onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
-                  className="bg-secondary border-gray-700 text-white"
-                />
-              </div>
+              <CouponFields formData={formData} setFormData={setFormData} idPrefix="" />
               <Button type="submit" disabled={createMutation.isPending} className="w-full bg-accent hover:bg-blue-700">
                 {createMutation.isPending ? 'Creating...' : 'Create Coupon'}
               </Button>
@@ -221,20 +235,20 @@ const CouponsManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {coupons?.coupons?.length > 0 ? (
-                  coupons.coupons.map((coupon) => (
+                {coupons.length > 0 ? (
+                  coupons.map((coupon) => (
                     <TableRow key={coupon._id} className="border-gray-700">
                       <TableCell className="text-white font-mono font-semibold">{coupon.code}</TableCell>
                       <TableCell className="text-white">
-                        {coupon.discountType === 'percentage' 
-                          ? `${coupon.discountValue}%` 
+                        {coupon.discountType === 'percentage'
+                          ? `${coupon.discountValue}%`
                           : `$${coupon.discountValue}`}
                       </TableCell>
                       <TableCell className="text-gray-400">
-                        {coupon.minPurchase ? `$${coupon.minPurchase}` : '-'}
+                        {coupon.minOrderAmount ? `$${coupon.minOrderAmount}` : '-'}
                       </TableCell>
                       <TableCell className="text-gray-400">
-                        {coupon.validUntil ? new Date(coupon.validUntil).toLocaleDateString() : '-'}
+                        {coupon.endDate ? new Date(coupon.endDate).toLocaleDateString(undefined, { timeZone: 'UTC' }) : '-'}
                       </TableCell>
                       <TableCell className="text-gray-400">
                         {coupon.usedCount || 0} / {coupon.usageLimit || '∞'}
@@ -246,34 +260,19 @@ const CouponsManagement = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedCoupon(coupon);
-                              setFormData({
-                                code: coupon.code,
-                                discountType: coupon.discountType,
-                                discountValue: coupon.discountValue,
-                                minPurchase: coupon.minPurchase || '',
-                                maxDiscount: coupon.maxDiscount || '',
-                                validFrom: coupon.validFrom ? new Date(coupon.validFrom).toISOString().slice(0, 16) : '',
-                                validUntil: coupon.validUntil ? new Date(coupon.validUntil).toISOString().slice(0, 16) : '',
-                                usageLimit: coupon.usageLimit || '',
-                                isActive: coupon.isActive,
-                              });
-                              setIsEditOpen(true);
-                            }}
-                          >
+                          <Button size="sm" variant="outline" title="Edit coupon" onClick={() => openEdit(coupon)}>
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
                             size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                                deleteMutation.mutate(coupon._id);
-                            }}
+                            variant="outline"
+                            title={coupon.isActive ? 'Deactivate' : 'Activate'}
+                            disabled={updateMutation.isPending}
+                            onClick={() => updateMutation.mutate({ couponId: coupon._id, data: { isActive: !coupon.isActive } })}
                           >
+                            <Power className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="destructive" title="Delete coupon" onClick={() => setPendingDelete(coupon)}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -286,6 +285,7 @@ const CouponsManagement = () => {
               </TableBody>
             </Table>
           </div>
+          <Pagination variant="numbered" page={page} totalPages={totalPages} onPageChange={setPage} />
         </CardContent>
       </Card>
 
@@ -295,51 +295,25 @@ const CouponsManagement = () => {
             <DialogTitle className="text-white">Edit Coupon</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdate} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-code" className="text-gray-300">Coupon Code *</Label>
-              <Input
-                id="edit-code"
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                className="bg-secondary border-gray-700 text-white"
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-discountType" className="text-gray-300">Discount Type *</Label>
-                <select
-                  id="edit-discountType"
-                  value={formData.discountType}
-                  onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
-                  className="w-full px-3 py-2 bg-secondary border border-gray-700 rounded-md text-white"
-                  required
-                >
-                  <option value="percentage">Percentage</option>
-                  <option value="fixed">Fixed Amount</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-discountValue" className="text-gray-300">Discount Value *</Label>
-                <Input
-                  id="edit-discountValue"
-                  type="number"
-                  value={formData.discountValue}
-                  onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
-                  className="bg-secondary border-gray-700 text-white"
-                  required
-                />
-              </div>
-            </div>
+            <CouponFields formData={formData} setFormData={setFormData} idPrefix="edit-" codeReadOnly />
             <Button type="submit" disabled={updateMutation.isPending} className="w-full bg-accent hover:bg-blue-700">
               {updateMutation.isPending ? 'Updating...' : 'Update Coupon'}
             </Button>
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationModal
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title="Delete coupon?"
+        description={`Coupon ${pendingDelete?.code || ''} will be permanently deleted. This cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => deleteMutation.mutate(pendingDelete._id)}
+      />
     </div>
   );
 };
 
 export default CouponsManagement;
-

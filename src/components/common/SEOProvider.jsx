@@ -6,20 +6,19 @@ import { buildCanonicalUrl, truncateMetaDescription } from '@utils/meta';
 export const DEFAULT_SEO = {
   title: 'DGMARQ Digital Marketplace For Gaming Products Keys/Accounts',
   description:
-    'DG Marq is a digital marketplace for games, software, and digital accounts with instant delivery, secure payments, and 24/7 support.',
+    'DG Marq is a digital marketplace for games, software, and digital accounts with instant delivery, secure payments, and buyer protection.',
 };
 
 const SEOContext = createContext(null);
 
 function resolveSeo(pageSeo) {
-  const useDefaults = pageSeo?.useDefaults !== false;
   const title =
     (typeof pageSeo?.title === 'string' && pageSeo.title.trim()) ||
-    (useDefaults ? DEFAULT_SEO.title : DEFAULT_SEO.title);
+    DEFAULT_SEO.title;
 
   const rawDescription =
     (typeof pageSeo?.description === 'string' && pageSeo.description.trim()) ||
-    (useDefaults ? DEFAULT_SEO.description : DEFAULT_SEO.description);
+    DEFAULT_SEO.description;
 
   return {
     title: title.trim(),
@@ -66,17 +65,12 @@ export function SEOProvider({ children }) {
   );
 }
 
-/**
- * Sets document title + meta description (via SEOProvider + Helmet).
- * Prefer this over per-page Helmet blocks to avoid duplicate/conflicting tags.
- */
 export function useSEO({
   title,
   description,
   image,
   canonical,
   noindex = false,
-  useDefaults = true,
 } = {}) {
   const setPageSeo = useContext(SEOContext);
   const location = useLocation();
@@ -90,7 +84,6 @@ export function useSEO({
       image,
       canonical,
       noindex,
-      useDefaults,
     });
 
     return () => setPageSeo(null);
@@ -101,7 +94,6 @@ export function useSEO({
     image,
     canonical,
     noindex,
-    useDefaults,
     location.pathname,
     location.search,
   ]);

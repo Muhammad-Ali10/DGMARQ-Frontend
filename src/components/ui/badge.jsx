@@ -3,15 +3,6 @@ import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils"
 
-// Semantic fills are OPAQUE `*-soft` tokens rather than an alpha tint over
-// whatever happens to be behind them: an alpha chip drifts with its backdrop
-// and dropped below AA on the dialog surface. Opaque cannot drift.
-//
-// `tone="soft"` (default) is the tinted chip — the right default on dark UI.
-// `tone="solid"` is the filled treatment, kept for high-emphasis moments.
-//
-// Colour is never the sole signal: StatusBadge always renders an icon plus a
-// text label alongside these.
 const badgeVariants = cva(
   [
     "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden",
@@ -23,7 +14,6 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        // Kept for call-site compatibility — `default` is the accent chip.
         default: "",
         accent: "",
         secondary: "",
@@ -38,7 +28,6 @@ const badgeVariants = cva(
       tone: { soft: "", solid: "" },
     },
     compoundVariants: [
-      // ── soft (default): opaque tinted chip, semantic text ──────────────────
       { variant: "default", tone: "soft", class: "bg-accent-soft text-accent-on-dark border-accent-on-dark/35" },
       { variant: "accent", tone: "soft", class: "bg-accent-soft text-accent-on-dark border-accent-on-dark/35" },
       { variant: "success", tone: "soft", class: "bg-success-soft text-success border-success/35" },
@@ -49,7 +38,6 @@ const badgeVariants = cva(
       { variant: "secondary", tone: "soft", class: "bg-surface-sunken text-fg-muted border-border" },
       { variant: "neutral", tone: "soft", class: "bg-surface-sunken text-fg-muted border-border" },
 
-      // ── solid: filled, white text (>= 5.02 on every fill) ─────────────────
       { variant: "default", tone: "solid", class: "bg-accent text-accent-foreground border-transparent" },
       { variant: "accent", tone: "solid", class: "bg-accent text-accent-foreground border-transparent" },
       { variant: "success", tone: "solid", class: "bg-success-solid text-on-solid border-transparent" },

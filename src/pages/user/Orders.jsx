@@ -16,10 +16,10 @@ import ConfirmationModal from '@components/common/ConfirmationModal';
 import { Pagination } from '@components/common/Pagination';
 import { RefundRequestModal } from '@features/wallet-payout';
 import { ShoppingCart, RotateCcw, Eye, RefreshCw, KeyRound } from 'lucide-react';
-import { showSuccess, showApiError } from '@utils/toast';
+import { showSuccess, showWarning, showApiError } from '@utils/toast';
 import { useSocket } from '@hooks/useSocket';
-import useCurrency from '@hooks/useCurrency';
 import { getOrderItemProductName } from '@utils/orderItem';
+import { formatOrderAmount } from '@lib/orderDisplay';
 import { formatRelativeDate, formatExactTitle } from '@lib/datetime';
 
 const PAGE_SIZE = 10;
@@ -30,36 +30,25 @@ const STATUS_FILTERS = [
   { value: 'processing', label: 'Processing' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
-  { value: 'returned', label: 'Returned' },
-  { value: 'partially_completed', label: 'Partially completed' },
+  { value: 'PARTIALLY_REFUNDED', label: 'Partially refunded' },
+  { value: 'REFUNDED', label: 'Refunded' },
 ];
 
-/** An order whose keys are actually retrievable. */
+const PURCHASED_STATUSES = ['completed', 'PARTIALLY_REFUNDED'];
+
 const hasRetrievableKeys = (order) =>
-  ['completed', 'partially_completed', 'PARTIALLY_REFUNDED'].includes(order.orderStatus) &&
+  PURCHASED_STATUSES.includes(order.orderStatus) &&
   order.paymentStatus === 'paid' &&
   !(order.items || []).every((item) => item.refunded);
 
-/**
- * Buyer order history.
- *
- * Filter and page now live in the URL (`?status=&page=`) so the view survives a
- * refresh, a back-button press, and being pasted to someone else. Both were
- * `useState` before and were lost on every reload.
- *
- * Rows are a list rather than a table: this data is image-led and reads the same
- * on a phone as on a desktop, so there is no second mobile layout to drift out
- * of sync.
- */
 const UserOrders = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showReorderModal, setShowReorderModal] = useState(false);
   const [reorderOrderId, setReorderOrderId] = useState(null);
-  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundOrderId, setRefundOrderId] = useState(null);
   const [liveMessage, setLiveMessage] = useState('');
   const queryClient = useQueryClient();
   const { socket, isConnected } = useSocket();
-  const { format } = useCurrency();
 
   const status = searchParams.get('status') || '';
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
@@ -88,17 +77,12 @@ const UserOrders = () => {
     placeholderData: keepPreviousData,
   });
 
-  // Phase 6 / Step 12 PART C — an admin executing a refund fans out to
-  // user:<buyerId>. There is no `order_status_changed` event on this platform,
-  // so this invalidation is the only real-time signal an order row has.
   useEffect(() => {
     if (!socket || !isConnected) return undefined;
     const onRefundExecuted = () => {
       queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       queryClient.invalidateQueries({ queryKey: ['user-refunds'] });
       queryClient.invalidateQueries({ queryKey: ['order-detail'] });
-      // One polite announcement for the list as a whole. A live region on each
-      // row would announce all ten of them on an ordinary page change.
       setLiveMessage('An order was updated. The list has been refreshed.');
     };
     socket.on('refund_executed', onRefundExecuted);
@@ -107,15 +91,21 @@ const UserOrders = () => {
 
   const reorderMutation = useMutation({
     mutationFn: (orderId) => userAPI.reorder(orderId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      showSuccess('Items added to cart for reorder');
+    onSuccess: (res) => {
+      const { added = [], skipped = [] } = res.data?.data || {};
+      const skippedNote = skipped.map((s) => `${s.name}: ${s.reason}`).join(' ');
+      if (added.length) {
+        queryClient.invalidateQueries({ queryKey: ['cart'] });
+        if (skipped.length) showWarning('Some items were added to your cart', skippedNote);
+        else showSuccess('Items added to cart for reorder');
+      } else {
+        showWarning(res.data?.message || 'None of these items can be bought again right now', skippedNote || null);
+      }
       setShowReorderModal(false);
     },
     onError: (error) => showApiError(error, 'Failed to add items to cart'),
   });
 
-  // M21: cancel an undelivered pre-order (before release) → wallet refund.
   const cancelPreorderMutation = useMutation({
     mutationFn: (orderId) => orderAPI.cancelPreorder(orderId),
     onSuccess: (res) => {
@@ -200,18 +190,15 @@ const UserOrders = () => {
                 const firstItem = order.items?.[0];
                 const image = firstItem?.productId?.images?.[0];
                 const extraCount = (order.items?.length ?? 0) - 1;
-                const canRefund = order.orderStatus === 'completed' && order.paymentStatus === 'paid';
+                const canRefund = hasRetrievableKeys(order);
                 const canReorder =
-                  order.orderStatus !== 'cancelled' &&
-                  order.orderStatus !== 'completed' &&
+                  PURCHASED_STATUSES.includes(order.orderStatus) &&
                   order.paymentStatus === 'paid' &&
                   !order.hasPreorder;
                 const canCancelPreorder =
                   order.hasPreorder &&
                   order.orderStatus === 'processing' &&
                   order.paymentStatus === 'paid';
-                // The soonest release across the pre-order lines — in practice
-                // one, since a pre-order cannot share an order with anything.
                 const preorderReleaseLabel = formatReleaseDate(
                   order.items
                     ?.filter((i) => i.isPreorder && i.preorderReleaseDate)
@@ -251,16 +238,12 @@ const UserOrders = () => {
                           </div>
                           <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
                             <span className="text-sm font-semibold tabular-nums text-fg">
-                              {format(order.totalAmount)}
+                              {formatOrderAmount(order.grandTotal ?? order.totalAmount, order)}
                             </span>
                             <StatusBadge domain="order" status={order.orderStatus} />
                           </div>
                         </div>
 
-                        {/* CLIENT REQ (M21 #10): the escrow state reads
-                            "Processing / Pre-ordered". A pre-order sits in
-                            `processing` for weeks — a bare amber "Processing"
-                            gives the buyer no reason for the wait. */}
                         {canCancelPreorder && (
                           <p className="mt-1.5 text-xs text-warning">
                             Pre-ordered — {preorderReleaseLabel
@@ -296,7 +279,7 @@ const UserOrders = () => {
                             </Button>
                           )}
                           {canRefund && (
-                            <Button variant="outline" size="sm" onClick={() => setShowRefundModal(true)}>
+                            <Button variant="outline" size="sm" onClick={() => setRefundOrderId(order._id)}>
                               <RefreshCw aria-hidden="true" />
                               Request refund
                             </Button>
@@ -361,7 +344,13 @@ const UserOrders = () => {
         }}
       />
 
-      <RefundRequestModal open={showRefundModal} onOpenChange={setShowRefundModal} />
+      <RefundRequestModal
+        open={Boolean(refundOrderId)}
+        onOpenChange={(open) => {
+          if (!open) setRefundOrderId(null);
+        }}
+        orderId={refundOrderId}
+      />
     </div>
   );
 };

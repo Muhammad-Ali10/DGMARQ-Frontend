@@ -9,29 +9,26 @@ import { Badge } from '@components/ui/badge';
 import { Loading } from '@components/ui/loading';
 import { Bell, Check, Trash2, CheckCheck, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
-import { getNotificationPagination, resolveNotificationActionUrl } from '../utils/notificationActionUrl';
+import { getNotificationPagination, resolveNotificationActionUrl, enterBuyerViewForUrl } from '../utils/notificationActionUrl';
 import { invalidateAllNotificationQueries } from '../utils/notificationQueries';
 import NotificationFilterTabs from './NotificationFilterTabs';
 
-/**
- * Shared notifications page used by the user, seller, and admin routes.
- * Role differences are passed as props:
- * - `queryKeyBase`: React Query cache key for the list. Must stay role-specific —
- *   invalidateAllNotificationQueries targets each role's key individually.
- * - `showRefundBadge`: seller-only amber "Refund" badge for refund notifications.
- * - `showActionHint`: seller-only "View details" hint on actionable notifications.
- */
 const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHint = false }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { roles } = useSelector((state) => state.auth);
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState('all'); // 'all' | 'unread' | 'read'
+  const [filter, setFilter] = useState('all');
 
   const { data: notificationsData, isLoading, isFetching } = useQuery({
     queryKey: [queryKeyBase, page, filter],
     queryFn: () => notificationAPI
-      .getNotifications({ page, limit: 10, ...(filter === 'unread' ? { unreadOnly: true } : {}) })
+      .getNotifications({
+        page,
+        limit: 10,
+        ...(filter === 'unread' ? { unreadOnly: true } : {}),
+        ...(filter === 'read' ? { readOnly: true } : {}),
+      })
       .then(res => res.data.data),
     placeholderData: keepPreviousData,
   });
@@ -75,11 +72,7 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
     },
   });
 
-  const rawNotifications = notificationsData?.notifications || [];
-  // 'unread' is filtered server-side; 'read' is filtered client-side on the page.
-  const notifications = filter === 'read'
-    ? rawNotifications.filter((n) => n.isRead)
-    : rawNotifications;
+  const notifications = notificationsData?.notifications || [];
   const pagination = getNotificationPagination(notificationsData?.pagination, page);
 
   useEffect(() => {
@@ -87,6 +80,12 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
       setPage(pagination.totalPages);
     }
   }, [isLoading, isFetching, page, pagination.totalPages]);
+
+  const openNotification = (notification, actionUrl) => {
+    enterBuyerViewForUrl(actionUrl, roles);
+    navigate(actionUrl);
+    if (!notification.isRead) markAsReadMutation.mutate(notification._id);
+  };
 
   if (isLoading && !notificationsData) return <Loading message="Loading notifications..." />;
 
@@ -128,14 +127,6 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
                 const actionUrl = resolveNotificationActionUrl(notification.actionUrl, roles);
                 const isRefund = showRefundBadge && notification.type === 'refund';
                 return (
-                // A clickable card that CONTAINS action buttons, so it cannot be
-                // a native <button> — nested buttons are invalid HTML. The
-                // role="button" contract is fully met: role, tabIndex, onClick
-                // and Enter/Space are all present and all gated on the same
-                // `actionUrl` condition, and the inner controls stop
-                // propagation. ESLint reports it only because it cannot evaluate
-                // the ternary to see that the role is set whenever the handlers
-                // are. Disabled here specifically, not repo-wide.
                 /* eslint-disable-next-line jsx-a11y/no-static-element-interactions */
                 <div
                   key={notification._id}
@@ -148,17 +139,13 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
                   // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- see above
                   tabIndex={actionUrl ? 0 : undefined}
                   onClick={() => {
-                    if (actionUrl) {
-                      navigate(actionUrl);
-                      if (!notification.isRead) markAsReadMutation.mutate(notification._id);
-                    }
+                    if (actionUrl) openNotification(notification, actionUrl);
                   }}
                   onKeyDown={(e) => {
                     if (!actionUrl) return;
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      navigate(actionUrl);
-                      if (!notification.isRead) markAsReadMutation.mutate(notification._id);
+                      openNotification(notification, actionUrl);
                     }
                   }}
                 >
@@ -181,7 +168,7 @@ const NotificationsPage = ({ queryKeyBase, showRefundBadge = false, showActionHi
                         </span>
                       </div>
                       <h3 className="text-fg font-semibold mb-1">{notification.title || 'Notification'}</h3>
-                      <p className="text-fg-muted">{notification.message || notification.body}</p>
+                      <p className="text-fg-muted">{notification.message}</p>
                       {notification.type && !isRefund && (
                         <Badge variant="outline" className="mt-2">
                           {notification.type}

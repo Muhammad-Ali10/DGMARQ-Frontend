@@ -19,16 +19,6 @@ import { Package, Plus, SearchX } from 'lucide-react';
 
 const PAGE_SIZE = 12;
 
-/**
- * The master catalog a seller lists against.
- *
- * Search and page live in the URL, so a seller can bookmark or share a search.
- * The input keeps its own state and debounces into the URL — writing on every
- * keystroke would spam history and refetch per character.
- *
- * This endpoint populates a real `platform` reference, so the brand mark here is
- * genuine rather than inferred from a delivery model.
- */
 const SellerCatalog = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('q') || '';
@@ -52,7 +42,6 @@ const SellerCatalog = () => {
     [setSearchParams]
   );
 
-  // Debounce the typed value into the URL; resets to page 1 on a new term.
   useEffect(() => {
     const t = setTimeout(() => {
       const next = searchInput.trim();
@@ -98,7 +87,6 @@ const SellerCatalog = () => {
     />
   );
 
-  /** Either "already listed" state, or the call to action. */
   const ListAction = ({ product }) =>
     product.myOfferStatus ? (
       <StatusBadge domain="offer" status={product.myOfferStatus} />
@@ -194,9 +182,6 @@ const SellerCatalog = () => {
                           <TableCell>
                             <div className="flex flex-wrap items-center gap-2">
                               <DeliveryTypeBadge productType={p.productType} />
-                              {/* M21 (req 8): a seller must know it is a pre-order
-                                  BEFORE opening the form — listing one commits
-                                  them to having stock on release day. */}
                               <PreorderBadge product={p} />
                             </div>
                           </TableCell>

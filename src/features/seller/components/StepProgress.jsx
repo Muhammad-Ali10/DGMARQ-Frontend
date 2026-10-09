@@ -1,12 +1,6 @@
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/**
- * Horizontal step progress indicator.
- *  - steps: Array<{ label }>
- *  - current: 0-based index of the active step
- *  - onStepClick: (index) => void   (only allowed for completed steps)
- */
 const StepProgress = ({ steps, current, onStepClick }) => {
   return (
     <div className="w-full">
@@ -18,7 +12,6 @@ const StepProgress = ({ steps, current, onStepClick }) => {
 
           return (
             <div key={step.label} className="flex flex-1 items-center last:flex-none">
-              {/* Circle + label */}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -45,7 +38,6 @@ const StepProgress = ({ steps, current, onStepClick }) => {
                 </span>
               </div>
 
-              {/* Connecting line */}
               {i < steps.length - 1 && (
                 <div className="mx-2 h-0.5 flex-1 rounded-full bg-surface-2 sm:-mt-6">
                   <div
@@ -61,7 +53,6 @@ const StepProgress = ({ steps, current, onStepClick }) => {
         })}
       </div>
 
-      {/* Mobile: show active step label below numbers */}
       <p className="mt-3 text-center text-sm font-medium text-fg sm:hidden">
         Step {current + 1} of {steps.length}: {steps[current]?.label}
       </p>

@@ -1,4 +1,3 @@
-
 export const AnimatedHeading = ({
   eyebrow,
   title,
@@ -28,7 +27,6 @@ export const AnimatedHeading = ({
             </>
           )}
         </span>
-        {/* animated underline */}
         <span className="mt-3 block h-[2px] w-20 origin-left bg-gradient-to-r from-accent via-cyan-400/80 to-transparent">
           <span className="block h-full w-full scale-x-0 bg-gradient-to-r from-transparent via-white/90 to-transparent opacity-70 animate-[pulse_2.2s_ease-in-out_infinite]" />
         </span>

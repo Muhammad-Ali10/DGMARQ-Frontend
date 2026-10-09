@@ -7,7 +7,7 @@ import { resolveTarget } from '@lib/resolveTarget';
 
 const Hero = () => {
   const { data: sliders, isLoading } = useQuery({
-    queryKey: ['homepage-sliders'],
+    queryKey: ['homepage-sliders', 'public'],
     queryFn: () => homepageSliderAPI.getHomepageSliders().then(res => res.data.data),
     staleTime: 180000,
   });
@@ -50,9 +50,6 @@ const Hero = () => {
             const style = positionStyles[position] || positionStyles[0];
             const isCenter = position === 2;
             const product = slider.productId;
-            // M15: a slide can point at a product OR at any admin-chosen target
-            // (search query, category, subcategory, in-app path). A linked
-            // product still wins, so existing slides behave exactly as before.
             const slideHref = product?._id
               ? `/product/${product.slug || product._id}`
               : resolveTarget(slider.target);
@@ -60,10 +57,6 @@ const Hero = () => {
             const slideContent = (
               <div className={`${style.size} rounded-2xl overflow-hidden ${isCenter ? 'shadow-xl' : 'shadow-lg'} relative transition-transform duration-300 ease-out group-hover:scale-105 group-hover:shadow-2xl`}>
                 <div className="relative h-full">
-                  {/* PERF FIX (FP3/FP5): hero slides are above the fold (LCP) —
-                      keep eager now that SafeImage defaults to lazy, and
-                      downscale to the rendered slide width (≤409 CSS px;
-                      srcSet covers 2x displays). */}
                   <SafeImage
                     src={slider.image}
                     alt={slider.title}

@@ -10,17 +10,6 @@ import { Button } from '@components/ui/button';
 import { AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@lib/utils';
 
-/**
- * The confirmation dialog for anything consequential — replaces window.confirm()
- * across the app, and now also backs the key-reveal confirmation.
- *
- * The description carries real weight here: it is the last thing a user reads
- * before an irreversible action, so call sites should state what will actually
- * happen rather than "Are you sure?".
- *
- * Radix traps focus and restores it on close, and Escape cancels — both come
- * from the Dialog primitive, so every confirm gets them for free.
- */
 export const ConfirmationModal = ({
   open,
   onOpenChange,
@@ -28,7 +17,7 @@ export const ConfirmationModal = ({
   description = 'Are you sure you want to proceed?',
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  variant = 'default', // 'default' | 'destructive'
+  variant = 'default',
   onConfirm,
 }) => {
   const handleConfirm = () => {

@@ -6,18 +6,6 @@ import {
 } from '@lib/accountCredentials';
 import { deliveryWords, isHttpUrl } from '@lib/deliveryType';
 
-/**
- * One staged row of inventory, whichever kind the product takes.
- *
- * The upload dialog collects rows two ways — typed one at a time, or read from
- * an uploaded file (CSV/TXT/JSON text, or an Excel sheet) — and both land in
- * the same list before anything is sent. These helpers are what keep the paths
- * identical: same validation, same duplicate rule, same summary line.
- *
- * A LICENSE_KEY / GIFT / ACTIVATION_LINK row is a plain string; an
- * ACCOUNT_BASED row is the credential object @lib/accountCredentials defines.
- */
-
 export const KEY_MIN_LENGTH = 5;
 export const KEY_MAX_LENGTH = 500;
 
@@ -27,15 +15,12 @@ export const keyRowErrors = (value, productType) => {
   if (!key) return [`the ${words.one} is empty`];
   if (key.length < KEY_MIN_LENGTH) return [`${words.title} is too short (minimum ${KEY_MIN_LENGTH} characters)`];
   if (key.length > KEY_MAX_LENGTH) return [`${words.title} is too long (maximum ${KEY_MAX_LENGTH} characters)`];
-  // The buyer FOLLOWS an activation link, so anything that is not a link is not
-  // a delivery — and only http(s) is rendered as one downstream.
   if (productType === 'ACTIVATION_LINK' && !isHttpUrl(key)) {
     return ['the link must start with http:// or https://'];
   }
   return [];
 };
 
-/** One value per line. Same shape as parseAccountLines, so callers can share code. */
 export const parseKeyLines = (text, productType, lineOffset = 0) => {
   const keys = [];
   const errors = [];
@@ -56,9 +41,6 @@ export const parseKeyLines = (text, productType, lineOffset = 0) => {
   return { rows: keys, errors };
 };
 
-// The sample file the dialog hands out carries a header row, and sellers keep
-// their own headers too. Recognised by the first cell alone — a real row's
-// first cell is a username, a key or a link, never one of these words.
 const HEADER_CELLS = new Set([
   'username', 'username / id', 'username/id', 'user', 'id', 'password',
   'email', 'email password', 'host email', 'notes', 'note',
@@ -70,7 +52,6 @@ const looksLikeHeaderRow = (cells) => {
   return first.length > 0 && HEADER_CELLS.has(first);
 };
 
-/** Parse file text for either product type, skipping a header line if present. */
 export const parseImportedRows = (text, productType) => {
   const lines = String(text ?? '').split('\n');
   const firstFilled = lines.findIndex((line) => line.trim());
@@ -81,7 +62,7 @@ export const parseImportedRows = (text, productType) => {
     const remaining = lines.slice();
     remaining.splice(firstFilled, 1);
     body = remaining.join('\n');
-    offset = 1; // keep the seller's own line numbers in any error message
+    offset = 1;
   }
 
   if (productType === 'ACCOUNT_BASED') {
@@ -91,12 +72,42 @@ export const parseImportedRows = (text, productType) => {
   return parseKeyLines(body, productType, offset);
 };
 
-/**
- * A spreadsheet's cells (row-major, as SheetJS hands them over) → staged rows,
- * in the same shape the text path returns. Columns follow the upload order; for
- * key-shaped inventory the first non-empty cell is the value, so a one-column
- * sheet and a sheet with a stray leading column both work.
- */
+export const parseJsonRows = (text, productType) => {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    if (productType === 'ACCOUNT_BASED') return parseImportedRows(text, productType);
+    return {
+      rows: [],
+      errors: ['The file is not valid JSON. Use a list of values, like ["KEY-1", "KEY-2"].'],
+    };
+  }
+
+  const words = deliveryWords(productType);
+  const rows = [];
+  const errors = [];
+  (Array.isArray(data) ? data : [data]).forEach((item, index) => {
+    const label = `Item ${index + 1}`;
+    if (productType === 'ACCOUNT_BASED') {
+      const credentials = normalizeAccountCredentials(item);
+      const problems = accountRowErrors(credentials);
+      if (problems.length) errors.push(`${label}: ${problems.join(', ')}`);
+      else rows.push(credentials);
+      return;
+    }
+    if (typeof item !== 'string') {
+      errors.push(`${label}: expected a ${words.one} as text`);
+      return;
+    }
+    const value = item.trim();
+    const problems = keyRowErrors(value, productType);
+    if (problems.length) errors.push(`${label}: ${problems.join(', ')}`);
+    else rows.push(value);
+  });
+  return { rows, errors };
+};
+
 export const rowsFromMatrix = (matrix, productType) => {
   const rows = [];
   const errors = [];
@@ -141,17 +152,11 @@ export const rowsFromMatrix = (matrix, productType) => {
   return { rows, errors };
 };
 
-/**
- * What makes a row the same row. An account is identified by its login pair —
- * the same username and email twice in one batch is a mistake, not two units of
- * stock. (The server also refuses exact duplicates, by hash, at insert time.)
- */
 export const rowIdentity = (data, productType) =>
   productType === 'ACCOUNT_BASED'
     ? `${String(data?.usernameId ?? '').trim().toLowerCase()}|${String(data?.email ?? '').trim().toLowerCase()}`
     : String(data ?? '').trim();
 
-/** The two lines shown for a staged row in the list. */
 export const describeRow = (data, productType) => {
   if (productType !== 'ACCOUNT_BASED') {
     return { title: String(data ?? ''), subtitle: '' };
@@ -167,24 +172,17 @@ export const describeRow = (data, productType) => {
   };
 };
 
-/** The fields the seller actually types, in order. */
 export const ACCOUNT_INPUT_FIELDS = [
   { key: 'usernameId', required: true, placeholder: 'gamerTag' },
   { key: 'usernamePassword', required: true, placeholder: 'password for the username' },
   { key: 'email', required: true, placeholder: 'account@example.com' },
   { key: 'emailPassword', required: true, placeholder: 'password for that email' },
-  // Address only — no password is collected for the host mailbox.
   { key: 'hostEmail', required: true, placeholder: 'host@example.com' },
   { key: 'notes', required: false, multiline: true, placeholder: 'EU region · do not change the password (optional)' },
 ].map((field) => ({ ...field, label: ACCOUNT_FIELD_LABELS[field.key] }));
 
 export const EMPTY_ACCOUNT = Object.fromEntries(ACCOUNT_INPUT_FIELDS.map(({ key }) => [key, '']));
 
-/**
- * The sample CSV the dialog hands out, so a seller starts from the right
- * columns instead of guessing them. The header row is included — every reader
- * above skips it.
- */
 export const sampleFileContent = (productType) => {
   if (productType === 'ACCOUNT_BASED') {
     return [

@@ -21,16 +21,6 @@ const ensureArray = (value, key) => {
   return [];
 };
 
-/**
- * Shared "my support tickets" page used by the user and seller routes.
- * Role differences are passed as props:
- * - `chatsQueryKey`: React Query cache key for the ticket list ('user-support-chats'
- *   or 'seller-support-chats'). Must stay role-specific — other code invalidates them.
- * - `chatsQueryOptions`: extra useQuery options (seller passes staleTime /
- *   refetchOnWindowFocus to keep its existing fetch behavior).
- * - `enableRoutePrefill`: user-only — auto-open the new-ticket dialog pre-filled
- *   when arriving with router state (e.g. from an order page).
- */
 const SupportPage = ({ chatsQueryKey, chatsQueryOptions = {}, enableRoutePrefill = false }) => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,16 +43,13 @@ const SupportPage = ({ chatsQueryKey, chatsQueryOptions = {}, enableRoutePrefill
     chatId: selectedChat,
     side: 'customer',
     enabled: !!selectedChat,
+    onStatusChange: () => queryClient.invalidateQueries({ queryKey: [chatsQueryKey] }),
   });
 
-  // Auto-open the ticket dialog pre-filled when arriving from an order page,
-  // e.g. navigate('/user/support', { state: { supportTicket: { orderId, subject } } }).
   useEffect(() => {
     if (!enableRoutePrefill) return;
     const seed = location.state?.supportTicket;
     if (seed) {
-      // Seed the create dialog from router state, then clear it so a refresh
-      // doesn't re-open. Legitimately effectful (reacts to navigation).
 
       setPrefill(seed);
       setDialogOpen(true);
@@ -100,7 +87,6 @@ const SupportPage = ({ chatsQueryKey, chatsQueryOptions = {}, enableRoutePrefill
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-200px)]">
-        {/* Tickets list — hidden on mobile once a ticket is open */}
         <Card variant="hud" className={`${selectedChat ? 'hidden lg:block' : 'block'}`}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -152,7 +138,6 @@ const SupportPage = ({ chatsQueryKey, chatsQueryOptions = {}, enableRoutePrefill
           </CardContent>
         </Card>
 
-        {/* Conversation — full-screen on mobile when a ticket is open */}
         <Card
           variant="hud"
           className={`lg:col-span-2 flex-col overflow-hidden ${selectedChat ? 'flex' : 'hidden lg:flex'}`}
@@ -207,6 +192,7 @@ const SupportPage = ({ chatsQueryKey, chatsQueryOptions = {}, enableRoutePrefill
                 />
                 {['resolved', 'closed'].includes(selectedChatData?.status) && (
                   <RatingPrompt
+                    key={selectedChat}
                     chatId={selectedChat}
                     alreadyRated={!!selectedChatData?.rating}
                     onRated={() => queryClient.invalidateQueries({ queryKey: [chatsQueryKey] })}

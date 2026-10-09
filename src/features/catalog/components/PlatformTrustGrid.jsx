@@ -1,14 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
-import { storefrontAPI } from "@services/api";
+import { useStorefrontConfig } from "@hooks/useStorefrontConfig";
 import SafeImage from "@components/ui/safe-image";
 import { getMenuIcon } from "@lib/menuIcons";
 
-// M15: platform trust strip — 4 tiles right under the hero (brand, global
-// activation, dispute resolution, instant delivery).
-//
-// Content comes from admin settings so the copy, the icons and the brand tile's
-// uploaded logo can change without a deploy. The backend ships the same four
-// defaults, so this renders correctly before an admin has ever opened Settings.
 const ACCENTS = [
   { grad: "from-[#172AA4]/40 to-[#0E9FE2]/20", iconColor: "text-info" },
   { grad: "from-emerald-600/30 to-teal-500/10", iconColor: "text-success" },
@@ -16,12 +9,10 @@ const ACCENTS = [
   { grad: "from-fuchsia-600/30 to-purple-500/10", iconColor: "text-fuchsia-300" },
 ];
 
+const selectTrustTiles = (config) => config?.trustTiles || [];
+
 const PlatformTrustGrid = () => {
-  const { data: tiles = [] } = useQuery({
-    queryKey: ["storefront-config", "trust-tiles"],
-    queryFn: () => storefrontAPI.getConfig().then((r) => r.data.data?.trustTiles || []),
-    staleTime: 300000,
-  });
+  const { data: tiles = [] } = useStorefrontConfig(selectTrustTiles);
 
   if (tiles.length === 0) return null;
 
@@ -39,8 +30,6 @@ const PlatformTrustGrid = () => {
                 className={`rounded-2xl border border-white/10 bg-gradient-to-br ${accent.grad} p-4 sm:p-5 flex items-start gap-3`}
               >
                 <div className="shrink-0 rounded-xl bg-black/30 p-2.5">
-                  {/* An uploaded logo wins over the preset glyph — this is how
-                      the brand tile carries the platform's own artwork. */}
                   {tile.image ? (
                     <SafeImage
                       src={tile.image}

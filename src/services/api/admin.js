@@ -9,17 +9,13 @@ export const adminAPI = {
   approveSeller: (sellerId) => api.post(`/admin/seller/${sellerId}/approve`),
   rejectSeller: (sellerId, data) => api.post(`/admin/seller/${sellerId}/reject`, data),
   blockSeller: (sellerId, data) => api.post(`/admin/seller/${sellerId}/block`, data),
-  // CLIENT REQ (seller control): reversible account hold + lift.
   holdSeller: (sellerId, data) => api.post(`/admin/seller/${sellerId}/hold`, data),
   liftSellerHold: (sellerId) => api.post(`/admin/seller/${sellerId}/unhold`),
   reviewSellerKyc: (sellerId, data) => api.patch(`/admin/seller/${sellerId}/kyc`, data),
   getProductDetails: (productId) => api.get(`/admin/product/${productId}`),
-  deleteProduct: (productId) => api.delete(`/admin/products/${productId}`),
   getAllPayouts: (params) => api.get('/admin/payouts', { params }),
   getOrderPayoutDetails: (orderId) => api.get(`/payout/admin/order/${orderId}`),
-  // Phase 5: admin withdrawal lifecycle management.
   listWithdrawals: (params) => api.get('/withdrawal/admin', { params }),
-  getWithdrawal: (id) => api.get(`/withdrawal/${id}`),
   approveWithdrawal: (id) => api.patch(`/withdrawal/${id}/approve`),
   rejectWithdrawal: (id, data) => api.patch(`/withdrawal/${id}/reject`, data),
   retryWithdrawal: (id) => api.post(`/withdrawal/${id}/retry`),
@@ -48,13 +44,10 @@ export const adminAPI = {
   updateChatPriority: (chatId, priority) => api.patch(`/support/admin/${chatId}/priority`, { priority }),
   updateChatStatus: (chatId, status) => api.patch(`/support/admin/${chatId}/status`, { status }),
   getSupportStats: () => api.get('/support/admin/stats'),
-  // Canned responses
   getCannedResponses: () => api.get('/support/admin/canned'),
   createCannedResponse: (data) => api.post('/support/admin/canned', data),
   updateCannedResponse: (id, data) => api.patch(`/support/admin/canned/${id}`, data),
   deleteCannedResponse: (id) => api.delete(`/support/admin/canned/${id}`),
-  // Phase 4 (RETIRED): manual verify is gone. Verification is now automatic
-  // via PayPal OAuth. The route still returns 410 on the backend.
   blockPayoutAccount: (accountId, data) => api.patch(`/payout-account/${accountId}/block`, data),
   getSellersPayoutStatus: (params) => api.get('/payout-account/sellers/status', { params }),
   createBundleDeal: (formData) => api.post('/bundle-deal', formData, {

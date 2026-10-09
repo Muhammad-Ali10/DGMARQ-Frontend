@@ -1,17 +1,10 @@
-/**
- * AUDIT FIX (DEAD-3): one order-id display helper.
- *
- * This existed as five near-identical private copies — admin/RefundDetail,
- * admin/ReturnRefundManagement, seller/RefundDetail, seller/ReturnRefunds and
- * user/RefundDetail — which had already drifted twice over: three fell back to
- * 'N/A' and two to '—', and only the buyer copy consulted `orderLike.orderId`.
- * This is the union: the extra branch is kept (it can only resolve MORE ids),
- * and the fallback string stays a parameter so no screen's current output
- * changes.
- *
- * @param {object|null|undefined} orderLike - a populated order, or a ref to one
- * @param {string} [fallback] - rendered when no id can be resolved
- */
+import { formatDisplayPrice } from './currencyDisplay';
+
+export const formatOrderAmount = (usdAmount, order) => {
+  const currency = order?.displayCurrency || 'USD';
+  return formatDisplayPrice(usdAmount, currency, { [currency]: Number(order?.displayRate) });
+};
+
 export const getDisplayOrderId = (orderLike, fallback = 'N/A') => {
   if (!orderLike) return fallback;
   const orderNumber =

@@ -7,17 +7,10 @@ import { resolveTarget } from "@lib/resolveTarget";
 import { cn } from "@lib/utils";
 import "./SubcategoryRail.css";
 
-// Below this the tiles comfortably fit on screen, so looping them would just
-// drag a short row back and forth past empty space. At or above it the track is
-// duplicated and the CSS loop takes over.
 const LOOP_THRESHOLD = 8;
-// Seconds per tile — keeps the apparent speed constant whether the admin has
-// enabled 10 subcategories or 40.
 const SECONDS_PER_TILE = 3.2;
 
 const Tile = ({ subcategory, ariaHidden }) => {
-  // Reuse the shared resolver so the rail builds the same subcategory URL as
-  // the mega menu: the SEO route when both slugs exist, the id route otherwise.
   const parentSlug = subcategory.parentCategory?.slug;
   const to = resolveTarget({
     type: "subcategory",
@@ -44,8 +37,6 @@ const Tile = ({ subcategory, ariaHidden }) => {
   );
 };
 
-// M15: the homepage subcategory rail. Admin decides which subcategories appear
-// (showOnHomepage) and in what order; the list arrives as one cached request.
 const SubcategoryRail = () => {
   const { data: subcategories = [] } = useQuery({
     queryKey: ["homepage-subcategories"],
@@ -73,8 +64,6 @@ const SubcategoryRail = () => {
               <Tile key={subcategory._id} subcategory={subcategory} />
             ))}
 
-            {/* Second pass makes the loop seamless. Hidden from assistive tech
-                and removed from the tab order so every link is announced once. */}
             {isLooping &&
               subcategories.map((subcategory) => (
                 <Tile key={`loop-${subcategory._id}`} subcategory={subcategory} ariaHidden />

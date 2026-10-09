@@ -1,18 +1,13 @@
-// The 401 interceptor. Its job is to renew an EXPIRED session transparently —
-// and its failure mode is doing that to someone who never had one, which costs
-// the server's actual message.
-//
-// Driven through the real instance with a fake adapter, so the assertions are
-// about the shipped interceptor rather than a re-description of it.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
 
 const authState = { isAuthenticated: false };
+const dispatch = vi.fn();
 
 vi.mock('@store/store', () => ({
   store: {
     getState: () => ({ auth: authState }),
-    dispatch: vi.fn(),
+    dispatch: (...args) => dispatch(...args),
   },
 }));
 
@@ -23,7 +18,6 @@ vi.mock('@utils/toast', () => ({
 
 const { default: api } = await import('./axios');
 
-/** Answer every request through `api` with this status + body. */
 const respondWith = (status, data) => {
   api.defaults.adapter = async (config) => {
     const err = new Error(`Request failed with status code ${status}`);
@@ -38,10 +32,8 @@ describe('401 handling', () => {
 
   beforeEach(() => {
     authState.isAuthenticated = false;
-    // The refresh call goes through the BARE axios, not this instance. It is
-    // mocked as FAILING by default because that is what a guest gets — there is
-    // no refresh cookie — and that failure is what used to replace the real
-    // message. A test where the refresh succeeds would pass either way.
+    dispatch.mockClear();
+    localStorage.clear();
     refresh = vi.spyOn(axios, 'post').mockRejectedValue(
       Object.assign(new Error('refresh failed'), {
         response: { status: 401, data: { message: 'unauthorize' } },
@@ -55,8 +47,6 @@ describe('401 handling', () => {
   });
 
   it("keeps the server's message when the caller has no session", async () => {
-    // The pre-order login gate: the server explains what to do, and the buyer
-    // used to be shown "unauthorize" from the refresh endpoint instead.
     const message = '"Zero Hour" is a pre-order — please log in or create an account to pre-order it.';
     respondWith(401, { message });
 
@@ -92,7 +82,7 @@ describe('401 handling', () => {
 
     expect(refresh).toHaveBeenCalledOnce();
     expect(res.data).toEqual({ ok: true });
-    expect(calls).toBe(2); // original + replay
+    expect(calls).toBe(2);
   });
 
   it('leaves a wrong password to the login form, session or not', async () => {
@@ -103,5 +93,77 @@ describe('401 handling', () => {
       response: { data: { message: 'Invalid credentials' } },
     });
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  const expiredUntilRefreshed = (state) => async (config) => {
+    if (!state.refreshed) {
+      const err = new Error('expired');
+      err.config = config;
+      err.response = { status: 401, data: { message: 'jwt expired' }, config, headers: {} };
+      throw err;
+    }
+    return { status: 200, data: { url: config.url }, config, headers: {} };
+  };
+
+  it('shares ONE refresh between concurrent 401s instead of racing five', async () => {
+    authState.isAuthenticated = true;
+    const state = { refreshed: false };
+    let release;
+    refresh.mockImplementation(() => new Promise((resolve) => {
+      release = () => { state.refreshed = true; resolve({ data: {} }); };
+    }));
+    api.defaults.adapter = expiredUntilRefreshed(state);
+
+    const pending = ['/cart', '/notification', '/notification/unread-count', '/support/unread', '/user/profile']
+      .map((url) => api.get(url));
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+    release();
+    const results = await Promise.all(pending);
+
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(results.map((r) => r.data.url)).toEqual(['/cart', '/notification', '/notification/unread-count', '/support/unread', '/user/profile']);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('replays without refreshing when a refresh finished after the request was sent', async () => {
+    authState.isAuthenticated = true;
+    const state = { refreshed: false };
+    api.defaults.adapter = async (config) => {
+      if (!state.refreshed) {
+        state.refreshed = true;
+        localStorage.setItem('dgmarq:session-refreshed-at', String(Date.now() + 1000));
+      }
+      if (config._retry) return { status: 200, data: { ok: true }, config, headers: {} };
+      const err = new Error('expired');
+      err.config = config;
+      err.response = { status: 401, data: { message: 'jwt expired' }, config, headers: {} };
+      throw err;
+    };
+
+    const res = await api.get('/cart');
+
+    expect(res.data).toEqual({ ok: true });
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('does NOT log the user out when the refresh fails for an outage (503)', async () => {
+    authState.isAuthenticated = true;
+    refresh.mockRejectedValue(Object.assign(new Error('unavailable'), {
+      response: { status: 503, data: { message: 'Sign-in is temporarily unavailable.' } },
+    }));
+    respondWith(401, { message: 'jwt expired' });
+
+    await expect(api.get('/cart')).rejects.toMatchObject({ response: { status: 401 } });
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('logs the user out when the server refuses the session', async () => {
+    authState.isAuthenticated = true;
+    respondWith(401, { message: 'jwt expired' });
+
+    await api.get('/cart').catch(() => {});
+
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(dispatch).toHaveBeenCalledOnce();
   });
 });

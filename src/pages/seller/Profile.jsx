@@ -38,7 +38,6 @@ const SellerProfile = () => {
     city: '',
   });
 
-  // Initialize form data when sellerInfo loads
   useEffect(() => {
     if (sellerInfo) {
       setProfileData({
@@ -185,6 +184,7 @@ const SellerProfile = () => {
                     onChange={(e) => setProfileData({ ...profileData, shopName: e.target.value })}
                     className="bg-secondary border-border text-fg"
                     placeholder="Enter shop name"
+                    maxLength={60}
                     required
                   />
                 </div>
@@ -196,6 +196,7 @@ const SellerProfile = () => {
                     value={profileData.description}
                     onChange={(e) => setProfileData({ ...profileData, description: e.target.value })}
                     placeholder="Enter shop description"
+                    maxLength={2000}
                     rows={4}
                     required
                   />
@@ -204,7 +205,6 @@ const SellerProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="country" className="text-fg-muted">Country</Label>
-                    {/* Locked: the seller's tax ID and KYC documents were checked against it. */}
                     <Input
                       id="country"
                       type="text"
@@ -227,6 +227,7 @@ const SellerProfile = () => {
                       onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
                       className="bg-secondary border-border text-fg"
                       placeholder="State"
+                      maxLength={100}
                       required
                     />
                   </div>
@@ -240,6 +241,7 @@ const SellerProfile = () => {
                       onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
                       className="bg-secondary border-border text-fg"
                       placeholder="City"
+                      maxLength={100}
                       required
                     />
                   </div>

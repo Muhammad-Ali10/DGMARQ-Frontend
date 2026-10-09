@@ -19,21 +19,9 @@ import { resolveOfferAvailability, countryName, countryFlag } from "@lib/regionC
 
 const uniq = (a) => Array.from(new Set(a));
 
-/**
- * OfferRegionSelector — seller picks where their listing's keys can be activated
- * from the fixed region PRESETS (no admin-managed regions). A seller can select
- * preset regions, trim individual countries out of a region, add individual
- * countries on top, or pick GLOBAL (covers everyone).
- *
- * value:    { regionCodes: string[], countries: string[], excludedCountries: string[] }
- *   regionCodes       — chosen preset codes (EUROPE, ASIA, GLOBAL, …)
- *   countries         — extra individual ISO alpha-2 codes
- *   excludedCountries — ISO codes trimmed out of a chosen preset
- * onChange: (nextValue) => void
- */
 const OfferRegionSelector = ({ value, onChange }) => {
   const regionCodes = value.regionCodes || [];
-  const countries = value.countries || []; // extra individual
+  const countries = value.countries || [];
   const excluded = value.excludedCountries || [];
 
   const [tab, setTab] = useState("regions");
@@ -42,8 +30,6 @@ const OfferRegionSelector = ({ value, onChange }) => {
   const [drawerSearch, setDrawerSearch] = useState("");
   const [customSearch, setCustomSearch] = useState("");
 
-  // Plain derivations — the React Compiler auto-memoizes these; manual useMemo
-  // here tripped its "existing memoization could not be preserved" bailout.
   const isGlobal = regionCodes.includes(GLOBAL_REGION_CODE);
   const selectedPresets = regionCodes
     .map((c) => REGION_PRESET_MAP.get(c))
@@ -55,13 +41,10 @@ const OfferRegionSelector = ({ value, onChange }) => {
   const patch = (next) =>
     onChange({ regionCodes, countries, excludedCountries: excluded, ...next });
 
-  // Countries already covered by a selected (non-global) region, minus trims —
-  // these are shown locked in the individual-countries tab.
   const coveredSet = new Set();
   for (const p of selectedPresets)
     for (const c of p.countries) if (!excluded.includes(c)) coveredSet.add(c);
 
-  // Drop excluded codes that no longer belong to any selected preset.
   const pruneExcluded = (codes) => {
     const pool = new Set(
       codes
@@ -78,14 +61,13 @@ const OfferRegionSelector = ({ value, onChange }) => {
       else patch({ regionCodes: [GLOBAL_REGION_CODE], countries: [], excludedCountries: [] });
       return;
     }
-    if (isGlobal) return; // everything is locked while GLOBAL is on
+    if (isGlobal) return;
     if (regionCodes.includes(code)) {
       const next = regionCodes.filter((c) => c !== code);
       patch({ regionCodes: next, excludedCountries: pruneExcluded(next) });
       if (expanded === code) setExpanded(null);
     } else {
       const preset = REGION_PRESET_MAP.get(code);
-      // Start fully included: clear any trims on this preset's countries.
       patch({
         regionCodes: [...regionCodes, code],
         excludedCountries: excluded.filter((c) => !preset.countries.includes(c)),
@@ -108,10 +90,12 @@ const OfferRegionSelector = ({ value, onChange }) => {
   };
 
   const toggleIndividual = (iso) => {
-    if (isGlobal || coveredSet.has(iso)) return;
-    countries.includes(iso)
-      ? patch({ countries: countries.filter((c) => c !== iso) })
-      : patch({ countries: uniq([...countries, iso]) });
+    if (isGlobal) return;
+    if (countries.includes(iso)) {
+      patch({ countries: countries.filter((c) => c !== iso) });
+    } else if (!coveredSet.has(iso)) {
+      patch({ countries: uniq([...countries, iso]), excludedCountries: excluded.filter((c) => c !== iso) });
+    }
   };
 
   const filteredRegions = REGION_PRESETS.filter((r) => {
@@ -124,9 +108,6 @@ const OfferRegionSelector = ({ value, onChange }) => {
     return !q || iso.toLowerCase().includes(q) || countryName(iso).toLowerCase().includes(q);
   });
 
-  // Picking GLOBAL and picking nothing at all reach the same buyers, so the
-  // seller is told the same thing either way — one word, "Global", matching
-  // what the buyer, the admin and the offer table now all say.
   let coverage = "Global — available in every country";
   if (!availability.global && !availability.unrestricted)
     coverage = `Available in ${availability.allowed.size} countr${availability.allowed.size === 1 ? "y" : "ies"}`;
@@ -156,13 +137,11 @@ const OfferRegionSelector = ({ value, onChange }) => {
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-secondary/20">
-      {/* Tabs */}
       <div className="flex border-b border-border">
         {tabBtn("regions", "Regions", regionCodes.length, Globe, false)}
         {tabBtn("custom", "Individual countries", countries.length, MapPin, isGlobal)}
       </div>
 
-      {/* Regions tab */}
       {tab === "regions" && (
         <div className="space-y-2 p-3">
           {isGlobal && (
@@ -242,7 +221,6 @@ const OfferRegionSelector = ({ value, onChange }) => {
                     )}
                   </div>
 
-                  {/* Per-region country editor */}
                   {selected && !r.isGlobal && isExp && (
                     <div className="border-t border-border px-3 py-2.5">
                       <div className="relative mb-2">
@@ -310,7 +288,6 @@ const OfferRegionSelector = ({ value, onChange }) => {
         </div>
       )}
 
-      {/* Individual countries tab */}
       {tab === "custom" && !isGlobal && (
         <div className="space-y-2 p-3">
           <div className="relative">
@@ -393,7 +370,6 @@ const OfferRegionSelector = ({ value, onChange }) => {
         </div>
       )}
 
-      {/* Coverage preview */}
       <div className="flex items-center justify-between gap-2 border-t border-border bg-primary/30 px-3 py-2 text-xs">
         <span>
           <span className="text-fg-muted">Coverage: </span>

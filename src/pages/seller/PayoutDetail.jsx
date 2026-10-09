@@ -16,7 +16,12 @@ import {
   TableRow,
 } from "@components/ui/table";
 import SafeImage from "@components/ui/safe-image";
-import { payoutBadgeProps, getRefundStatusDisplay } from "@features/wallet-payout";
+import {
+  payoutBadgeProps,
+  getRefundStatusDisplay,
+  payoutLineState,
+  unavailableLineNote,
+} from "@features/wallet-payout";
 import {
   ArrowLeft,
   ExternalLink,
@@ -34,15 +39,6 @@ import {
 import { showApiError } from "@utils/toast";
 import useCurrency from '@hooks/useCurrency';
 
-// =============================================================================
-// Seller payout detail page (full route at /seller/earnings/:payoutId).
-//
-// Replaces the previous "Details" popup on the Earnings page. Surfaces every
-// piece of information a seller needs to understand why a payout line is in
-// its current state — including a frozen-by-refund block with payment pause
-// date and expected release date.
-// =============================================================================
-
 
 const formatDateTime = (value) => {
   if (!value) return "N/A";
@@ -58,35 +54,20 @@ const formatDate = (value) => {
 
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 
-// SECURITY: never render a raw license-key id. The backend already masks
-// keys via maskLicenseKeyForPayout() and ships `displayKey`. If for any
-// reason a row arrives without `displayKey`, hide the value rather than
-// fall back to the internal id.
+const SUMMARY_TONE = {
+  success: { box: "border-success/35 bg-success-soft", text: "text-success" },
+  warning: { box: "border-warning/35 bg-warning-soft", text: "text-warning" },
+  muted: { box: "border-border bg-secondary", text: "text-fg-muted" },
+};
+
 const safeDisplayKey = (key) => {
   const v = typeof key?.displayKey === "string" ? key.displayKey.trim() : "";
   if (!v) return "•••• hidden";
-  // Defense in depth: a 24-char hex blob looks like an ObjectId — if the
-  // backend regresses and ships one, redact it client-side.
   if (/^[a-f0-9]{24}$/i.test(v)) return "•••• hidden";
   return v;
 };
 
-// Build per-key rows for the seller-facing detail view.
-//
-// PER-KEY FORMULA (matches the admin variant — single source of truth so
-// the same numbers show on both views):
-//   perKeyGross = originalGrossAmount / originalLicenseKeyCount
-//   perKeyNet   = originalNetAmount   / originalLicenseKeyCount
-//
-// We rely on the sale-time originals (snapshotted in payout.metadata by
-// the backend's adjustPayoutForRefund). Falling back to the live
-// `netAmount` produces the wrong per-key figure after a partial refund.
-//
-// Amount column always shows the ORIGINAL per-key net regardless of
-// status; status-specific rendering (strikethrough + greyed text on
-// refunded rows) communicates ownership. The seller's actual withdrawable
-// total stays visible in the Available summary card above the table.
-const buildKeyRows = (payout, money) => {
+const buildKeyRows = (payout, lineState, money) => {
   const keys = Array.isArray(payout?.licenseKeys) ? payout.licenseKeys : [];
   const frozenIds = new Set((payout?.frozenKeyIds || []).map(String));
   const totalKeys =
@@ -114,14 +95,18 @@ const buildKeyRows = (payout, money) => {
     let note = "Ready to withdraw";
     if (isRefunded) {
       status = "refunded";
-      // Seller-facing wording: emphasise that this key's value went back
-      // to the buyer, not that the seller "owes" anything.
-      note = `Refund completed — ${money(perKeyNet)} returned to buyer`;
+      note = `Refund completed — ${money(perKeyNet)} deducted from your earnings`;
     } else if (isFrozen) {
       status = "frozen";
       note = refundAmount
         ? `Frozen — refund of ${money(refundAmount)} under review`
         : "Frozen — refund under review";
+    } else if (lineState === "held") {
+      status = "held";
+      note = `Releases on ${formatDate(payout?.holdUntil)}`;
+    } else if (lineState === "unavailable") {
+      status = "unavailable";
+      note = unavailableLineNote(payout?.status);
     }
 
     return {
@@ -142,12 +127,6 @@ const buildKeyRows = (payout, money) => {
     refundedCount,
     availableCount: totalKeys - frozenCount - refundedCount,
     perKeyNet,
-    // Sale-time net for every key currently in the "refunded" bucket.
-    // `payout.frozenAmount` is the live (still-withheld) frozen total;
-    // there is NO `payout.refundedAmount` field because once a refund
-    // completes the freeze is released back to zero. We derive the
-    // refunded total from the snapshot so the seller sees how much was
-    // permanently returned to the buyer (vs. how much is still held).
     refundedAmount: round2(perKeyNet * refundedCount),
   };
 };
@@ -235,35 +214,34 @@ const PayoutDetail = () => {
   const refund = payout.refund;
   const refundBadge = refund?.status ? getRefundStatusDisplay(refund.status) : null;
   const isFrozen = payout.status === "frozen" || Number(payout.frozenAmount || 0) > 0;
-  const keyBreakdown = buildKeyRows(payout, formatSettlement);
+  const lineState = payoutLineState(payout);
+  const keyBreakdown = buildKeyRows(payout, lineState, formatSettlement);
   const frozenAmount = round2(payout.frozenAmount);
-  const availableAmount = round2(
+  const unfrozenAmount = round2(
     typeof payout.availableAmount === "number"
       ? payout.availableAmount
       : Math.max(0, Number(payout.netAmount || 0) - Number(payout.frozenAmount || 0))
   );
+  const availableAmount = lineState === "withdrawable" ? unfrozenAmount : 0;
+  const summaryCard =
+    lineState === "held"
+      ? {
+          label: "On hold",
+          amount: unfrozenAmount,
+          note: `release on ${formatDate(payout.holdUntil)}`,
+          tone: "warning",
+        }
+      : lineState === "unavailable"
+        ? { label: "Not payable", amount: 0, note: "not payable", tone: "muted" }
+        : { label: "Available", amount: availableAmount, note: "ready to withdraw", tone: "success" };
   const hasDisputeOnSomeKeys =
     keyBreakdown.frozenCount > 0 && keyBreakdown.frozenCount < keyBreakdown.totalKeys;
 
-  // Inline-metrics state. Each is independent because a line can be
-  // frozen (some keys under refund review), refunded (some keys returned
-  // to buyer), or both at the same time, and the seller needs to see
-  // each $-figure separately.
-  //
-  // NOTE: `refundedAmount` is derived in buildKeyRows() rather than read
-  // from `payout.refundedAmount` — the backend has no such field because
-  // adjustPayoutForRefund releases the freeze to zero on refund
-  // completion. Derived value = perKeyNet * refundedCount.
   const refundedAmount = keyBreakdown.refundedAmount;
   const isRefunded = refundedAmount > 0;
-  // Available is redundant with Net on a fully-healthy line (everything
-  // is available), so only show it when something is being withheld or
-  // has been clawed back. Guarding on `availableAmount > 0` alone would
-  // surface the column on every line and add visual noise.
   const showAvailable = (isFrozen || isRefunded) && availableAmount > 0;
   const inlineCellCount =
     4 + (isFrozen ? 1 : 0) + (isRefunded ? 1 : 0) + (showAvailable ? 1 : 0);
-  // Tailwind JIT needs literal class names — keep them static.
   const inlineGridCols =
     {
       4: "sm:grid-cols-4",
@@ -271,16 +249,6 @@ const PayoutDetail = () => {
       6: "sm:grid-cols-6",
       7: "sm:grid-cols-3 lg:grid-cols-7",
     }[inlineCellCount] || "sm:grid-cols-4";
-  // Sale-time originals — drive the Gross / Commission / Net inline metrics
-  // inside the line block so commission doesn't appear to drop after a
-  // partial refund. The backend snapshots these into payout.metadata in
-  // adjustPayoutForRefund; resolveOriginals() (in payout.controller.js)
-  // restores them in the API response.
-  //
-  // The top "Net to You" KPI and the Available summary card intentionally
-  // use the LIVE netAmount/availableAmount — they communicate what the
-  // seller can actually withdraw right now, which is what they care about
-  // most. The line block's inline "Net" gives the sale-time context.
   const originalGross =
     typeof payout.originalGrossAmount === "number"
       ? payout.originalGrossAmount
@@ -296,7 +264,6 @@ const PayoutDetail = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header — same shape as AdminPayoutDetail (back button + title + side action) */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <Button
@@ -325,10 +292,6 @@ const PayoutDetail = () => {
         )}
       </div>
 
-      {/* 4-card KPI strip — mirrors admin (Order Date / Order # / Net to you / Hold Until).
-          NOTE: admin shows Buyer + Order Total + Platform Commission here. Those are
-          intentionally NOT shown to sellers — buyer PII and admin-side financials are
-          out of scope for the seller view. */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card variant="hud">
           <CardContent className="pt-5 pb-4">
@@ -366,8 +329,6 @@ const PayoutDetail = () => {
         </Card>
       </div>
 
-      {/* Frozen-by-refund timeline: when a refund pauses this payout line, show
-          when the payment was paused and when funds are expected to release. */}
       {isFrozen && (
         <Card variant="hud" className="border-info/35">
           <CardContent className="pt-5 pb-4">
@@ -376,24 +337,19 @@ const PayoutDetail = () => {
                 <div className="flex items-center gap-2 text-fg-muted text-xs mb-1">
                   <Clock className="w-3.5 h-3.5" /> Payment Pause Date
                 </div>
-                <p className="text-fg">
-                  {formatDate(payout.frozenAt || refund?.createdAt || payout.updatedAt)}
-                </p>
+                <p className="text-fg">{formatDate(payout.paymentPauseDate)}</p>
               </div>
               <div>
                 <div className="flex items-center gap-2 text-fg-muted text-xs mb-1">
                   <Calendar className="w-3.5 h-3.5" /> Expected Release Date
                 </div>
-                <p className="text-fg">{formatDate(payout.holdUntil)}</p>
+                <p className="text-fg">{formatDate(payout.expectedReleaseDate)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Single line-block — same shape as the admin's per-line block.
-          The admin page renders one of these per (seller, line); sellers see
-          exactly one because the route is scoped to their own payoutId. */}
       <Card variant="hud">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -409,7 +365,6 @@ const PayoutDetail = () => {
                 : "bg-secondary border-border"
             }`}
           >
-            {/* Product header + status badge */}
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="flex items-start gap-3">
                 {payout.product?.image && (
@@ -436,11 +391,6 @@ const PayoutDetail = () => {
               <Badge {...statusBadge} />
             </div>
 
-            {/* Inline metrics row — Gross/Commission/Net use sale-time
-                originals so commission doesn't appear to drop after a
-                partial refund. Frozen / Refunded / Available remain
-                live (what the seller can actually act on right now).
-                Mirrors AdminPayoutDetail for visual consistency. */}
             <div className={`grid grid-cols-2 ${inlineGridCols} gap-3 text-sm`}>
               <div>
                 <p className="text-fg-muted">Gross</p>
@@ -455,7 +405,6 @@ const PayoutDetail = () => {
                 <p className="text-success font-semibold">{formatSettlement(originalNet)}</p>
               </div>
 
-              {/* Frozen — currently withheld pending refund review. */}
               {isFrozen && (
                 <div>
                   <p className="text-fg-muted">Frozen</p>
@@ -465,9 +414,6 @@ const PayoutDetail = () => {
                 </div>
               )}
 
-              {/* Refunded — permanently returned to buyer. Strikethrough
-                  to make it obvious to the seller the amount is no
-                  longer payable to them. */}
               {isRefunded && (
                 <div>
                   <p className="text-fg-muted">Refunded</p>
@@ -477,9 +423,6 @@ const PayoutDetail = () => {
                 </div>
               )}
 
-              {/* Available — what the seller can still withdraw. Only
-                  shown when it diverges from Net (i.e. something is held
-                  or refunded); otherwise it duplicates Net. */}
               {showAvailable && (
                 <div>
                   <p className="text-fg-muted">Available</p>
@@ -495,8 +438,6 @@ const PayoutDetail = () => {
               </div>
             </div>
 
-            {/* Frozen banner (cyan) — identical structure to admin, but
-                without admin-only "Destination" line. */}
             {isFrozen && (
               <div className="rounded-md bg-info-soft border border-info/35 p-3 flex items-start gap-3">
                 <AlertCircle className="w-4 h-4 text-info mt-0.5 shrink-0" />
@@ -524,14 +465,11 @@ const PayoutDetail = () => {
                         <span className="text-fg-muted">{formatSettlement(refund?.refundAmount)}</span>
                       </div>
                     )}
-                    {/* SECURITY: refund destination / method intentionally
-                        omitted — those reveal buyer-side payment context. */}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Open refund (non-frozen edge case) — admin parity */}
             {!isFrozen && refund && (
               <div className="rounded-md bg-warning-soft border border-warning/35 p-3 text-sm">
                 <div className="flex items-center gap-2 mb-1">
@@ -548,7 +486,6 @@ const PayoutDetail = () => {
               </div>
             )}
 
-            {/* Dispute banner (amber) — partial-freeze case */}
             {hasDisputeOnSomeKeys && (
               <div className="rounded-md bg-warning-soft border border-warning/35 p-3 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-warning mt-0.5 shrink-0" />
@@ -565,16 +502,6 @@ const PayoutDetail = () => {
               </div>
             )}
 
-            {/*
-              Summary cards. Always render Available; render Frozen only
-              when a key on this line is currently in the frozen_disputed
-              state; render Refunded only when a key has completed refund.
-              "Frozen" and "Refunded" are distinct outcomes and need
-              separate cards — the old 2-card layout collapsed them into
-              a single "Frozen $0.00" card after a refund completed (the
-              freeze gets released back to zero at completion time),
-              hiding the refunded amount entirely. Mirrors admin.
-            */}
             {keyBreakdown.totalKeys > 0 && (() => {
               const hasFrozen = keyBreakdown.frozenCount > 0;
               const hasRefunded = keyBreakdown.refundedCount > 0;
@@ -587,16 +514,17 @@ const PayoutDetail = () => {
                     : "grid-cols-1";
               return (
                 <div className={`grid ${gridCols} gap-3`}>
-                  <div className="rounded-md border border-success/35 bg-success-soft p-3">
-                    <div className="flex items-center gap-2 text-success text-xs uppercase tracking-wide">
-                      <CheckCircle2 className="w-4 h-4" /> Available
+                  <div className={`rounded-md border p-3 ${SUMMARY_TONE[summaryCard.tone].box}`}>
+                    <div className={`flex items-center gap-2 text-xs uppercase tracking-wide ${SUMMARY_TONE[summaryCard.tone].text}`}>
+                      {lineState === "held" ? <Clock className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}{" "}
+                      {summaryCard.label}
                     </div>
-                    <p className="text-2xl font-semibold text-success mt-1">
-                      {formatSettlement(availableAmount)}
+                    <p className={`text-2xl font-semibold mt-1 ${SUMMARY_TONE[summaryCard.tone].text}`}>
+                      {formatSettlement(summaryCard.amount)}
                     </p>
                     <p className="text-xs text-fg-muted mt-1">
                       {keyBreakdown.availableCount} of {keyBreakdown.totalKeys} key
-                      {keyBreakdown.totalKeys === 1 ? "" : "s"} ready to withdraw
+                      {keyBreakdown.totalKeys === 1 ? "" : "s"} {summaryCard.note}
                     </p>
                   </div>
 
@@ -633,7 +561,6 @@ const PayoutDetail = () => {
               );
             })()}
 
-            {/* Per-key table */}
             {keyBreakdown.totalKeys > 0 && (
               <div>
                 <p className="text-xs text-fg-muted mb-2 flex items-center gap-1.5">
@@ -687,12 +614,22 @@ const PayoutDetail = () => {
                                 <AlertCircle className="w-3 h-3" /> Refunded
                               </Badge>
                             )}
+                            {row.status === "held" && (
+                              <Badge variant="warning" className="flex items-center gap-1 w-fit">
+                                <Clock className="w-3 h-3" /> On hold
+                              </Badge>
+                            )}
+                            {row.status === "unavailable" && (
+                              <Badge variant="secondary" className="w-fit">
+                                Not payable
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell
                             className={`text-sm ${
-                              row.status === "available"
+                              row.status === "available" || row.status === "unavailable"
                                 ? "text-fg-muted"
-                                : row.status === "frozen"
+                                : row.status === "frozen" || row.status === "held"
                                   ? "text-warning"
                                   : "text-danger"
                             }`}
@@ -707,18 +644,6 @@ const PayoutDetail = () => {
               </div>
             )}
 
-            {/* Footer meta — payout request reason (operator-controlled but
-                already shown elsewhere; safe to display). */}
-            {payout.requestReason && (
-              <div className="pt-3 border-t border-brand-cyan/10 text-sm">
-                <p className="text-fg-muted mb-1">Reason</p>
-                <p className="text-fg">{payout.requestReason}</p>
-              </div>
-            )}
-            {/* SECURITY: admin-only fields (failureReason, blockReason, notes,
-                processedBy, paypalBatchId, metadata, retry*)
-                are NOT rendered on the seller view, and the backend no longer
-                ships them in this payload. */}
           </div>
         </CardContent>
       </Card>

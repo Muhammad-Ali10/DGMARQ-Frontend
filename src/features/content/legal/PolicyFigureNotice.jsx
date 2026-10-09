@@ -2,20 +2,6 @@ import { CircleAlert, ExternalLink, ScrollText } from 'lucide-react';
 import { cn } from '@lib/utils';
 import { formatFigure, formatLiveValue, PUBLISHED_FIGURES } from './publishedFigures';
 
-/**
- * Tells an admin that the setting they are editing is published verbatim in a legal
- * document, and flags when it has moved away from the figure that document was
- * drafted with — the point at which the wording may need re-approving.
- *
- * `live` is the field's CURRENT value (draft included), so the line tracks what the
- * public page will say the moment this is saved. A value that is not a number yet —
- * an input just cleared — reads as "unknown" and keeps the plain reminder rather
- * than flashing a warning mid-keystroke. Pass `absent` when no platform setting
- * corresponds to the clause at all.
- *
- * The clause opens in a new tab on purpose: the Settings page holds unsaved drafts
- * in component state, and navigating away inside the SPA would discard them.
- */
 const PolicyFigureNotice = ({ figure, live, absent = false, className }) => {
   const fig = PUBLISHED_FIGURES[figure];
   const published = formatFigure(fig);
@@ -23,8 +9,6 @@ const PolicyFigureNotice = ({ figure, live, absent = false, className }) => {
 
   const liveNum = Number(live);
   const known = !absent && live !== null && live !== undefined && live !== '' && Number.isFinite(liveNum);
-  // Tolerance, not equality: a rate stored as 0.07 becomes 7.000000000000001 the
-  // moment a call site converts it to a percentage.
   const matches = known && Math.abs(liveNum - fig.value) < 0.005;
   const quiet = matches || (!known && !absent);
 

@@ -1,37 +1,25 @@
 import { Fragment } from "react";
 
-// Multi-step flow progress: Cart → Checkout → Reveal (ported from the v74 mockup
-// `.cp-steps`). `current` marks the active step; earlier steps render as "done"
-// with a filled connector, later steps as "todo".
-//
-// The mockup's media query is `max-width: 620px`, i.e. mobile-first here: the
-// base classes carry the small-screen values and `min-[621px]:` restores the
-// desktop ones. 620px is not a stock Tailwind breakpoint, so the arbitrary
-// variant is what keeps the flip point exact.
 const STEPS = [
   { key: "cart", label: "Cart" },
   { key: "checkout", label: "Checkout" },
   { key: "reveal", label: "Reveal" },
 ];
 
-// The rail the steps sit on (mockup `.cp-steps`).
 const WRAP =
   "flex items-center gap-0 mb-[26px] p-[14px] min-[621px]:px-[20px] min-[621px]:py-[16px] " +
   "bg-[linear-gradient(160deg,rgba(12,20,48,0.85),rgba(8,13,30,0.8))] " +
   "border border-[rgba(58,116,240,0.22)] rounded-[16px] overflow-x-auto";
 
-// Step number/check badge (`.cp-step .num`) — 42px desktop, 36px mobile.
 const NUM_BASE =
   "flex items-center justify-center shrink-0 [transition:all_0.3s] " +
   "w-[36px] h-[36px] text-[15px] rounded-[10px] " +
   "min-[621px]:w-[42px] min-[621px]:h-[42px] min-[621px]:text-[17px] min-[621px]:rounded-[12px] " +
   "font-extrabold";
 
-// Step label (`.cp-step .lbl`).
 const LBL_BASE =
   "text-[14px] min-[621px]:text-[16px] font-extrabold tracking-[0.2px] whitespace-nowrap [transition:color_0.3s]";
 
-// Per-state tones for the badge + label.
 const NUM_TONE = {
   active:
     "bg-[linear-gradient(135deg,#0e51e2,#3a74f0)] text-fg " +
@@ -45,13 +33,10 @@ const LBL_TONE = {
   todo: "text-[rgba(255,255,255,0.38)]",
 };
 
-// Connector between two steps (`.cp-step-line`).
 const LINE_BASE =
   "flex-1 h-[2px] rounded-[2px] relative overflow-hidden bg-[rgba(255,255,255,0.12)] " +
   "min-w-[20px] mx-[10px] min-[621px]:min-w-[36px] min-[621px]:mx-[16px]";
 
-// A completed connector glows and runs a light sweep across itself. `cpFlow`
-// lives in src/index.css as the `--animate-cp-flow` theme entry.
 const LINE_FILLED =
   "bg-[linear-gradient(90deg,#0e51e2,#3a9bf5)] shadow-[0_0_10px_rgba(58,155,245,0.5)] " +
   "after:content-[''] after:absolute after:top-0 after:left-[-40%] after:w-[40%] after:h-full " +
@@ -74,7 +59,6 @@ const CheckoutSteps = ({ current = "checkout" }) => {
             >
               <span className={`${NUM_BASE} ${NUM_TONE[state]}`}>
                 {state === "done" ? (
-                  /* Design marks a completed step with a check, not its number. */
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>

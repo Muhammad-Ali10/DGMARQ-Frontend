@@ -1,29 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supportAPI } from '@services/api';
 import { useSocket } from '@hooks/useSocket';
 import { genClientId, isMineForSide } from '../utils/supportChat';
 
 const PAGE = 30;
 
-/**
- * Owns one support ticket's message thread for any chat UI.
- *
- *  - Loads only the latest PAGE messages, paginates older on demand (cursor by
- *    messageId), and NEVER refetches the whole list after a send.
- *  - Sends are optimistic: the bubble appears instantly as "sending", then
- *    reconciles to the saved message (matched by clientId), or flips to
- *    "failed" with retry.
- *  - Joins/leaves the socket room and reconciles inbound `support_message`
- *    broadcasts (dedup by clientId, then by _id).
- *
- * @param {object} opts
- * @param {string} opts.chatId
- * @param {'customer'|'admin'} opts.side  which side is sending (affects senderType of optimistic msgs)
- * @param {boolean} [opts.enabled=true]
- * @param {object}  [opts.extraSendFields] merged into every send body (e.g. guestSessionId)
- */
-export const useSupportThread = ({ chatId, side = 'customer', enabled = true, extraSendFields = null }) => {
+export const useSupportThread = ({ chatId, side = 'customer', enabled = true, extraSendFields = null, onStatusChange = null }) => {
   const { socket, isConnected } = useSocket();
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
@@ -35,6 +20,8 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
   const loadingOlderRef = useRef(false);
   const extraRef = useRef(extraSendFields);
   extraRef.current = extraSendFields;
+  const statusChangeRef = useRef(onStatusChange);
+  statusChangeRef.current = onStatusChange;
   const lastTypingEmitRef = useRef(0);
   const typingClearRef = useRef(null);
 
@@ -42,7 +29,6 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
 
   const optimisticSenderType = side === 'admin' ? 'admin' : 'user';
 
-  // ── Initial load (latest page) ────────────────────────────────────────────
   useEffect(() => {
     if (!chatId || !enabled) {
       setMessages([]);
@@ -61,6 +47,7 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
         setMessages(Array.isArray(data.messages) ? data.messages : []);
         setHasMore(!!data.hasMore);
         nextBeforeRef.current = data.nextBefore || null;
+        if (side !== 'admin') queryClient.invalidateQueries({ queryKey: ['support-unread-total'] });
       })
       .catch((err) => {
         if (!cancelled) setError(err);
@@ -71,9 +58,8 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
     return () => {
       cancelled = true;
     };
-  }, [chatId, enabled]);
+  }, [chatId, enabled, side, queryClient]);
 
-  // ── Load older (prepend) ──────────────────────────────────────────────────
   const loadOlder = useCallback(async () => {
     if (!chatId || !hasMore || loadingOlderRef.current || !nextBeforeRef.current) return 0;
     loadingOlderRef.current = true;
@@ -103,7 +89,6 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
     }
   }, [chatId, hasMore]);
 
-  // ── Inbound socket messages ───────────────────────────────────────────────
   const mergeIncoming = useCallback((prev, incoming) => {
     if (incoming.clientId) {
       const idx = prev.findIndex((m) => m.clientId && m.clientId === incoming.clientId);
@@ -120,47 +105,47 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
   useEffect(() => {
     if (!socket || !isConnected || !chatId || !enabled) return undefined;
     socket.emit('join_support_chat', chatId);
-    // Opening the thread marks the other side's messages read (live receipt).
-    socket.emit('mark_support_read', chatId);
 
     const onMessage = (incoming) => {
       if (!incoming || incoming.supportChatId?.toString() !== chatId.toString()) return;
       setMessages((prev) => mergeIncoming(prev, incoming));
-      // An inbound message from the other side is immediately read (thread open).
       if (!isMineForSide(incoming, sideKey)) socket.emit('mark_support_read', chatId);
     };
 
-    // The other party read our messages → flip our sent bubbles to "Read".
     const onRead = (payload) => {
       if (!payload || payload.chatId?.toString() !== chatId.toString()) return;
       const readerIsAdmin = payload.isAdmin ?? payload.by === 'admin';
-      if (readerIsAdmin === (sideKey === 'admin')) return; // our own read event
+      if (readerIsAdmin === (sideKey === 'admin')) return;
       setMessages((prev) =>
         prev.map((m) => (isMineForSide(m, sideKey) && !m.isRead ? { ...m, isRead: true } : m))
       );
     };
 
-    // The other party is typing (only delivered to the opposite side).
     const onTyping = (payload) => {
       setOtherTyping(!!payload?.isTyping);
       if (typingClearRef.current) clearTimeout(typingClearRef.current);
       typingClearRef.current = setTimeout(() => setOtherTyping(false), 3000);
     };
 
+    const onStatus = (payload) => {
+      if (payload?.chatId?.toString() !== chatId.toString()) return;
+      statusChangeRef.current?.(payload.status);
+    };
+
     socket.on('support_message', onMessage);
     socket.on('support_messages_read', onRead);
     socket.on('support_user_typing', onTyping);
+    socket.on('support_status_changed', onStatus);
     return () => {
       socket.off('support_message', onMessage);
       socket.off('support_messages_read', onRead);
       socket.off('support_user_typing', onTyping);
+      socket.off('support_status_changed', onStatus);
       if (typingClearRef.current) clearTimeout(typingClearRef.current);
       if (socket.connected) socket.emit('leave_support_chat', chatId);
     };
   }, [socket, isConnected, chatId, enabled, mergeIncoming, sideKey]);
 
-  // Re-fetch the latest page and merge any messages we don't already have.
-  // Used after a socket reconnect to recover anything missed while offline.
   const refreshLatest = useCallback(async () => {
     if (!chatId) return;
     try {
@@ -180,9 +165,6 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
     }
   }, [chatId]);
 
-  // Detect reconnect (connected false→true) and recover missed messages. The
-  // room is automatically re-joined by the socket effect (it depends on
-  // isConnected), so we only need to backfill here.
   const prevConnectedRef = useRef(isConnected);
   useEffect(() => {
     if (enabled && chatId && isConnected && !prevConnectedRef.current) {
@@ -191,7 +173,6 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
     prevConnectedRef.current = isConnected;
   }, [isConnected, enabled, chatId, refreshLatest]);
 
-  // Debounced "I'm typing" emitter (max once per 2s), called from the composer.
   const notifyTyping = useCallback(() => {
     if (!socket || !isConnected || !chatId) return;
     const now = Date.now();
@@ -200,8 +181,6 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
     socket.emit('support_typing', { chatId, isTyping: true });
   }, [socket, isConnected, chatId]);
 
-  // Replace an optimistic temp with the server-saved message (or drop it if the
-  // socket echo already inserted the real one).
   const reconcile = useCallback((clientId, saved) => {
     setMessages((prev) => {
       const savedId = saved?._id;
@@ -221,7 +200,6 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
     );
   }, []);
 
-  // ── Optimistic text send ──────────────────────────────────────────────────
   const sendText = useCallback(
     (text, opts = {}) => {
       const messageText = (text || '').trim();
@@ -254,10 +232,10 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
     [chatId, optimisticSenderType, reconcile, markFailed]
   );
 
-  // ── Optimistic image send ─────────────────────────────────────────────────
   const sendImage = useCallback(
-    (file, caption = '') => {
+    (file, caption = '', opts = {}) => {
       if (!file || !chatId) return;
+      const internal = !!opts.internal;
       const clientId = genClientId();
       const preview = URL.createObjectURL(file);
       const temp = {
@@ -271,6 +249,7 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
         messageText: caption || 'Image',
         messageType: 'image',
         attachment: preview,
+        isInternal: internal,
         isRead: false,
         sentAt: new Date().toISOString(),
       };
@@ -279,6 +258,7 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
       formData.append('image', file);
       if (caption) formData.append('messageText', caption);
       formData.append('clientId', clientId);
+      if (internal) formData.append('isInternal', 'true');
       if (extraRef.current) {
         Object.entries(extraRef.current).forEach(([k, v]) => v != null && formData.append(k, v));
       }
@@ -300,8 +280,9 @@ export const useSupportThread = ({ chatId, side = 'customer', enabled = true, ex
     (msg) => {
       if (!msg?.clientId) return;
       setMessages((prev) => prev.filter((m) => m.clientId !== msg.clientId));
-      if (msg.messageType === 'image' && msg.__file) sendImage(msg.__file, msg.__caption || '');
-      else sendText(msg.messageText);
+      const opts = { internal: !!msg.isInternal };
+      if (msg.messageType === 'image' && msg.__file) sendImage(msg.__file, msg.__caption || '', opts);
+      else sendText(msg.messageText, opts);
     },
     [sendText, sendImage]
   );

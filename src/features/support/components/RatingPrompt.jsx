@@ -6,10 +6,6 @@ import { Button } from '@components/ui/button';
 import { Textarea } from '@components/ui/textarea';
 import { showApiError } from '@utils/toast';
 
-/**
- * Shown to the ticket owner once a ticket is resolved/closed and not yet rated.
- * 1-5 stars + optional feedback. Calls onRated() after a successful submit.
- */
 const RatingPrompt = ({ chatId, alreadyRated = false, onRated }) => {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);

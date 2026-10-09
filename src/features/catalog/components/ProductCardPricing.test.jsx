@@ -16,19 +16,6 @@ beforeEach(() => {
   userAPI.getWishlistIds.mockResolvedValue({ data: { data: { productIds: [], count: 0, max: 500 } } });
 });
 
-/**
- * W10 — what a card RENDERS for real rollup shapes.
- *
- * These fixtures are the output of offer.service.recalcProductRollups, not
- * invented numbers:
- *   price                 = lowestPrice          (cheapest live offer, BASE)
- *   lowestEffectivePrice  = min(effectiveOfferPrice(price, discount))
- *   discount              = the legacy MASTER field, which the rollup never
- *                           writes — hence 0 on every offer-backed product.
- *
- * Before this fix the card read only `price` + `discount`, so every seller
- * discount rendered as no discount.
- */
 const card = (over = {}) => ({
   _id: 'p1',
   name: 'Zero Hour',
@@ -41,16 +28,6 @@ const card = (over = {}) => ({
   ...over,
 });
 
-/**
- * The price the card actually paints, read back out of the DOM.
- *
- * The strike-through and the badge are always in the tree — ProductCard keeps
- * them mounted and toggles `invisible` + aria-hidden so the grid never reflows
- * between a discounted and an undiscounted card. Presence alone therefore means
- * nothing; visibility is the signal. Note `aria-hidden={false}` serialises to
- * the STRING "false", so this compares against 'true' rather than testing
- * truthiness.
- */
 const isHidden = (el) =>
   !el || el.getAttribute('aria-hidden') === 'true' || el.className.includes('invisible');
 
@@ -68,8 +45,6 @@ const renderedPrice = () => {
 
 describe('W10 — card pricing across real rollup shapes', () => {
   it('seller running 20% off a $10 listing now shows $8, not $10', () => {
-    // BEFORE: price=10, discount=0 → card showed "$10.00", no badge, no strike.
-    // The product page showed $8.00 and the price-drop email said $8.00.
     renderWithProviders(
       <ProductCard product={card({ price: 10, lowestEffectivePrice: 8 })} />
     );
@@ -81,9 +56,6 @@ describe('W10 — card pricing across real rollup shapes', () => {
   });
 
   it('a listing with no seller discount is unchanged', () => {
-    // The regression guard for the other 90% of the catalogue: when nothing is
-    // discounted, lowestEffectivePrice === price and the card must look exactly
-    // as it did before — one price, no strike-through, no badge.
     renderWithProviders(
       <ProductCard product={card({ price: 24.99, lowestEffectivePrice: 24.99 })} />
     );
@@ -95,21 +67,17 @@ describe('W10 — card pricing across real rollup shapes', () => {
   });
 
   it('an endpoint that does not project the field still renders the old way', () => {
-    // Not every card feed carries the rollup. Those must degrade to the base
-    // price rather than to $0 or NaN.
     renderWithProviders(<ProductCard product={card({ price: 15 })} />);
     expect(renderedPrice().now).toBe('$15.00');
   });
 
   it('an explicit discountedPrice outranks the rollup', () => {
-    // A feed that computes the price itself must not be overridden by the
-    // cheapest-offer rollup.
     renderWithProviders(
       <ProductCard
         product={card({
           price: 50,
-          lowestEffectivePrice: 45, // seller is 10% off
-          discountedPrice: 30, // ...but this feed says 40% off
+          lowestEffectivePrice: 45,
+          discountedPrice: 30,
         })}
       />
     );
@@ -117,13 +85,9 @@ describe('W10 — card pricing across real rollup shapes', () => {
   });
 });
 
-// Pure-function view of the same fix, so the numbers are checkable without a DOM.
 describe('W10 — calculateProductPrice reads lowestEffectivePrice', () => {
   it('matches what the product detail page computes for the same offer', () => {
-    // Detail page path: calculateProductPrice(featuredOffer) where the offer is
-    // { price: 10, discount: 20 } → 8.00 / -20%.
     const fromOffer = calculateProductPrice({ price: 10, discount: 20 });
-    // Card path, post-fix: the rollup hands over the already-effective price.
     const fromCard = calculateProductPrice({ price: 10, lowestEffectivePrice: 8 });
 
     expect(fromCard.discountPrice).toBe(fromOffer.discountPrice);
@@ -132,16 +96,12 @@ describe('W10 — calculateProductPrice reads lowestEffectivePrice', () => {
   });
 
   it('derives a whole-number badge despite 2dp price rounding', () => {
-    // effectiveOfferPrice rounds: 20% off 9.99 is 7.992 → 7.99, which is 20.02%
-    // by division. The badge must not read "-20.02%".
     const r = calculateProductPrice({ price: 9.99, lowestEffectivePrice: 7.99 });
     expect(r.discountPrice).toBe(7.99);
     expect(r.discountPercentage).toBe(20);
   });
 
   it('a stale master discount can no longer contradict the shown price', () => {
-    // Admin once set discount=10 on the master; the live offer is 20% off.
-    // The badge must describe the price actually rendered, not the stale field.
     const r = calculateProductPrice({ price: 10, discount: 10, lowestEffectivePrice: 8 });
     expect(r.discountPrice).toBe(8);
     expect(r.discountPercentage).toBe(20);

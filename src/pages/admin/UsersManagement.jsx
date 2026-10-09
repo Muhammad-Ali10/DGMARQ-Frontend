@@ -18,8 +18,6 @@ import { EmptyState } from '@components/common/EmptyState';
 import { SearchInput } from '@components/common/SearchInput';
 import { useDebounce } from '@hooks/useDebounce';
 
-// Pure helpers hoisted to module scope so they keep a stable identity and can be
-// shared with the memoized row component below (avoids re-creating per render).
 const isUserActive = (user) => user.isActive !== false;
 const getUserRoles = (user) => (Array.isArray(user.roles) ? user.roles : []);
 const isAdminUser = (user) => getUserRoles(user).includes('admin');
@@ -37,8 +35,7 @@ const getRoleBadges = (roles) => {
     customer: 'secondary',
   };
 
-  // Show all roles, prioritizing admin > seller > customer
-  const sortedRoles = roleArray.sort((a, b) => {
+  const sortedRoles = [...roleArray].sort((a, b) => {
     const priority = { admin: 1, seller: 2, customer: 3 };
     return (priority[a] || 99) - (priority[b] || 99);
   });
@@ -58,9 +55,6 @@ const getRoleBadges = (roles) => {
   );
 };
 
-// Memoized row so unrelated state changes (filters, dialogs, pagination) don't
-// force every visible row to re-render. Only re-renders when its `user` or the
-// pending flags actually change.
 const UserRow = memo(function UserRow({
   user,
   onBanClick,
@@ -118,8 +112,6 @@ const UserRow = memo(function UserRow({
 
 const UsersManagement = () => {
   const [page, setPage] = useState(1);
-  // What the admin types, and the settled value that actually queries — one
-  // request per pause in typing, not one per keystroke.
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput.trim(), 350);
   const [roleFilter, setRoleFilter] = useState('');
@@ -138,15 +130,10 @@ const UsersManagement = () => {
         limit: 10,
         role: roleFilter || undefined,
         isActive: statusFilter || undefined,
-        // Searched on the server across ALL users. Filtering the loaded page
-        // in the browser would only ever look at the 10 rows on screen.
         search: search || undefined,
       });
       return response.data.data;
     },
-    // Keep the current rows while the next search loads. Without this every
-    // new term flips isLoading and the page swaps to a full-screen loader —
-    // unmounting the search box the admin is typing in.
     placeholderData: keepPreviousData,
     retry: 1,
   });
@@ -202,20 +189,13 @@ const UsersManagement = () => {
     }
   };
 
-  // Derived data memoized so it isn't recomputed on every unrelated re-render.
   const users = useMemo(() => usersData?.users || [], [usersData]);
   const pagination = usersData?.pagination || {};
   const totalItems = pagination.total ?? users.length;
   const totalPages = pagination.pages ?? 1;
 
-  // Windowed (virtualized) rendering of the rows. The scroll container only
-  // mounts the rows in/near the viewport; spacer <tr>s above and below reserve
-  // the height of the off-screen rows so scroll position and column widths stay
-  // identical to a plain table (same columns, ordering, filtering, actions).
-  // NOTE: rows are server-paginated (limit 10), so today only a small window is
-  // ever fetched — virtualization is in place so larger page sizes scale.
   const scrollContainerRef = useRef(null);
-  const ROW_HEIGHT = 57; // approximate height of a data row (px)
+  const ROW_HEIGHT = 57;
   const rowVirtualizer = useVirtualizer({
     count: users.length,
     getScrollElement: () => scrollContainerRef.current,
@@ -332,7 +312,6 @@ const UsersManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Ban Dialog */}
       <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>
@@ -376,7 +355,6 @@ const UsersManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Unban Dialog */}
       <Dialog open={unbanDialogOpen} onOpenChange={setUnbanDialogOpen}>
         <DialogContent size="sm" className="">
           <DialogHeader>

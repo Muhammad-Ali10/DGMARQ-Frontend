@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-/**
- * Simple IntersectionObserver hook.
- * - Returns a ref to attach to the observed element.
- * - `isInView` becomes true once the element enters the viewport (with optional threshold).
- * - `once` controls whether it should stop observing after first intersection.
- */
 export function useInView(options = {}) {
   const { root = null, rootMargin = "0px", threshold = 0.2, once = true } =
     options;
