@@ -10,6 +10,7 @@ import { Loading, ErrorMessage } from '@components/ui/loading';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog';
 import { Headphones, MessageSquare, Clock, CheckCircle2, UserPlus, UserMinus, BookText, Star } from 'lucide-react';
 import { showSuccess, showApiError } from '@utils/toast';
+import { useSocket } from '@hooks/useSocket';
 import { EmptyState } from '@components/common/EmptyState';
 import { Pagination } from '@components/common/Pagination';
 import {
@@ -101,6 +102,24 @@ const SupportManagement = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-support-chats'] });
     queryClient.invalidateQueries({ queryKey: ['support-stats'] });
   };
+
+  const { socket, isConnected } = useSocket();
+  useEffect(() => {
+    if (!socket || !isConnected) return undefined;
+    let timer = null;
+    const onInboxChanged = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['admin-support-chats'] });
+        queryClient.invalidateQueries({ queryKey: ['support-stats'] });
+      }, 500);
+    };
+    socket.on('support_inbox_changed', onInboxChanged);
+    return () => {
+      clearTimeout(timer);
+      socket.off('support_inbox_changed', onInboxChanged);
+    };
+  }, [socket, isConnected, queryClient]);
 
   const assignMutation = useMutation({
     mutationFn: (chatId) => adminAPI.assignAdminToChat(chatId),
