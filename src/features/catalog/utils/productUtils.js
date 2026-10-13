@@ -75,10 +75,10 @@ export const getProductName = (product) => {
   return product?.name || 'Unnamed Product';
 };
 
-const MONGO_OBJECT_ID_PATTERN = /^[a-f0-9]{24}$/i;
+const RECORD_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const isMongoObjectId = (value) =>
-  MONGO_OBJECT_ID_PATTERN.test(String(value ?? '').trim());
+export const isRecordId = (value) =>
+  RECORD_ID_PATTERN.test(String(value ?? '').trim());
 
 export const getProductPath = (product) => {
   const slug = typeof product?.slug === 'string' ? product.slug.trim() : '';
@@ -95,10 +95,7 @@ export const getProductPath = (product) => {
 const normalizeEntityName = (value) => {
   if (typeof value === 'string' && value.trim()) {
     const trimmed = value.trim();
-    const isMongoId = /^[a-f0-9]{24}$/i.test(trimmed);
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmed);
-    if (isMongoId || isUuid) return '';
+    if (isRecordId(trimmed)) return '';
     return trimmed;
   }
   if (value && typeof value === 'object') {

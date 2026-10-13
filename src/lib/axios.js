@@ -115,7 +115,7 @@ const refreshSession = (since) => {
   return refreshInFlight;
 };
 
-const PUBLIC_SELLER_PROFILE = /^\/seller\/[0-9a-f]{24}\/?$/i;
+const PUBLIC_SELLER_PROFILE = /^\/seller\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i;
 
 export const isProtectedPath = (pathname = '') => {
   if (/^\/(admin|user)(\/|$)/.test(pathname)) return true;

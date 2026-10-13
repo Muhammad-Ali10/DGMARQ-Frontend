@@ -41,7 +41,7 @@ import {
 import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { addToGuestCart } from '@features/cart-checkout';
-import { ProductCard, useWishlist, useLiveProductReviews, flattenReviewPages, calculateProductPrice, getPlatformName, getTypeName, getProductPath, isMongoObjectId, selectFeaturedOffer, effectiveOfferPrice, isAllOutOfStock, canBuyQuantity, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
+import { ProductCard, useWishlist, useLiveProductReviews, flattenReviewPages, calculateProductPrice, getPlatformName, getTypeName, getProductPath, isRecordId, selectFeaturedOffer, effectiveOfferPrice, isAllOutOfStock, canBuyQuantity, PRODUCT_IMAGE_PLACEHOLDER } from '@features/catalog';
 import SafeImage from '@components/ui/safe-image';
 import './ProductDetail.css';
 
@@ -78,7 +78,7 @@ const ProductDetail = () => {
 
   useEffect(() => {
     if (!product?.slug || !identifier) return;
-    if (isMongoObjectId(identifier) && product.slug !== identifier) {
+    if (isRecordId(identifier) && product.slug !== identifier) {
       navigate(getProductPath(product), { replace: true });
     }
   }, [product, identifier, navigate]);

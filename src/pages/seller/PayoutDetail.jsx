@@ -63,7 +63,7 @@ const SUMMARY_TONE = {
 const safeDisplayKey = (key) => {
   const v = typeof key?.displayKey === "string" ? key.displayKey.trim() : "";
   if (!v) return "•••• hidden";
-  if (/^[a-f0-9]{24}$/i.test(v)) return "•••• hidden";
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) return "•••• hidden";
   return v;
 };
 

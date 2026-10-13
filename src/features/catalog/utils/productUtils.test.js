@@ -4,7 +4,7 @@ import {
   calculateProductPrice,
   getProductImage,
   getProductName,
-  isMongoObjectId,
+  isRecordId,
   getProductPath,
   getPlatformName,
   getRegionName,
@@ -79,11 +79,12 @@ describe('getProductName', () => {
   });
 });
 
-describe('isMongoObjectId', () => {
-  it('matches 24-char hex ids only', () => {
-    expect(isMongoObjectId('507f1f77bcf86cd799439011')).toBe(true);
-    expect(isMongoObjectId('not-an-id')).toBe(false);
-    expect(isMongoObjectId('')).toBe(false);
+describe('isRecordId', () => {
+  it('matches record uuids only', () => {
+    expect(isRecordId('01a1347d-0f72-70f8-be4b-8bb9af515422')).toBe(true);
+    expect(isRecordId('507f1f77bcf86cd799439011')).toBe(false);
+    expect(isRecordId('elden-ring')).toBe(false);
+    expect(isRecordId('')).toBe(false);
   });
 });
 
@@ -101,7 +102,7 @@ describe('entity-name getters', () => {
   it('reads platform from object/string and rejects raw ObjectIds', () => {
     expect(getPlatformName({ platform: { name: 'Steam' } })).toBe('Steam');
     expect(getPlatformName({ platform: 'PC' })).toBe('PC');
-    expect(getPlatformName({ platform: '507f1f77bcf86cd799439011' })).toBe('Unknown Platform');
+    expect(getPlatformName({ platform: '01a1347d-0f72-70f8-be4b-8bb9af515422' })).toBe('Unknown Platform');
     expect(getPlatformName({})).toBe('Unknown Platform');
   });
 

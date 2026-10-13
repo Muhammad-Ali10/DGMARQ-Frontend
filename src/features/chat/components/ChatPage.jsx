@@ -534,9 +534,9 @@ const ChatPage = ({ role }) => {
   const markAsReadRef = useRef(null);
   useEffect(() => {
     if (!selectedConversation || markAsReadRef.current === selectedConversation) return;
-    markAsReadRef.current = selectedConversation;
     const conversationId = selectedConversation;
     const t = setTimeout(() => {
+      markAsReadRef.current = conversationId;
       queryClient.setQueryData([conversationsKey], (old) =>
         patchConversation(old, conversationId, (conv) => ({ ...conv, [unreadField]: 0 }))
       );
