@@ -2,13 +2,9 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useEffect } from 'react';
 import { categoryAPI } from '@services/api';
-import { ProductListingLayout, useActiveCategories } from '@features/catalog';
+import { ProductListingLayout, useActiveCategories, isRecordId } from '@features/catalog';
 import { Loading, ErrorMessage } from '@components/ui/loading';
 import { useSEO } from '@hooks/useSEO';
-
-const isValidObjectId = (str) => {
-  return /^[0-9a-fA-F]{24}$/.test(str);
-};
 
 const CategoryListing = () => {
   const { categoryId: categoryParam } = useParams();
@@ -18,7 +14,7 @@ const CategoryListing = () => {
   const categoryIdFromQuery = searchParams.get('categoryId');
 
   const isObjectId = useMemo(() => {
-    return categoryParam && isValidObjectId(categoryParam);
+    return categoryParam && isRecordId(categoryParam);
   }, [categoryParam]);
 
   const { data: allCategories, isLoading: categoriesLoading } = useActiveCategories({
