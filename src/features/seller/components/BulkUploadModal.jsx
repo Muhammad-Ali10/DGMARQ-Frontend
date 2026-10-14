@@ -192,10 +192,10 @@ const BulkUploadModal = ({ open, onOpenChange }) => {
 
   async function pollUploadStatus(productId, jobId) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const MAX_ATTEMPTS = 600;
+    const MAX_ATTEMPTS = 300;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       if (pollCancelRef.current) return;
-      await sleep(1500);
+      await sleep(3000);
       if (pollCancelRef.current) return;
 
       let job;
